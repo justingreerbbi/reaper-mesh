@@ -28,7 +28,9 @@
       "radioVersion": "u32?",
       "messageVersion": "u32?",
       "maxMessageBytes": "u32?",
-      "messageCapacity": "u32?"
+      "messageCapacity": "u32?",
+      "radioSchema": "u32?",
+      "maxChannels": "u32?"
     }
   },
   "sync": {
@@ -48,7 +50,12 @@
       "sequence": "u32",
       "revision": "u32",
       "region": "region",
-      "label": "label"
+      "label": "label",
+      "radioMode": "radioMode?",
+      "txPower": "u32?",
+      "relay": "u32?",
+      "channels": "channels?",
+      "preset": "id?"
     }
   },
   "event": {
@@ -59,7 +66,12 @@
       "sequence": "u32",
       "revision": "u32",
       "region": "region",
-      "label": "label"
+      "label": "label",
+      "radioMode": "radioMode?",
+      "txPower": "u32?",
+      "relay": "u32?",
+      "channels": "channels?",
+      "preset": "id?"
     }
   },
   "ping": {
@@ -85,7 +97,12 @@
       "id": "commandId",
       "expectedRevision": "u32",
       "region": "region",
-      "label": "label"
+      "label": "label",
+      "radioMode": "radioMode?",
+      "txPower": "u32?",
+      "relay": "u32?",
+      "channels": "channels?",
+      "preset": "id?"
     }
   },
   "result": {

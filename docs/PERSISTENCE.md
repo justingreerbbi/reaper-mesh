@@ -37,3 +37,7 @@ Next implement the ESP-IDF app and NVS backend, with UART-only communications an
 ## ESP-IDF backend
 
 The app initializes only reaper_nvs, opens namespace reaper, and commits a single configuration blob. Missing keys yield initial state; initialization, size, read, and record failures fail closed. Set/commit errors are indeterminate. There is no erase/reformat fallback. Fake NVS API tests cover missing, read, set, commit, and initialization failures; they do not qualify real flash crash safety. See FIRST_FLASH.md for the preserved NVS range and hardware gate.
+
+## Radio settings record extension
+
+Record 2 is now supported alongside record 1, with a maximum 151-byte blob. Existing/default radio configuration retains record 1; nondefault policy writes record 2 on an explicit revision-checked commit. The fields and fail-closed migration/downgrade behavior are specified in RADIO_CONFIG.md. Missing radio fields in old USB commands preserve current policy rather than replacing it with defaults.

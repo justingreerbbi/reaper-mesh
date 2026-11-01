@@ -66,6 +66,16 @@ bool valid(Kind kind, const FieldValue& value) {
     }
     return number > 0 && number <= std::numeric_limits<std::uint32_t>::max();
   }
+  if (kind == Kind::RadioMode) return equals(value, "off") || equals(value, "receive") || equals(value, "mesh");
+  if (kind == Kind::Channels) {
+    if (size < 13 || size > 69 || std::memcmp(p, "Public", 6)) return false;
+    unsigned separators = 0, width = 0;
+    for (std::size_t i = 6; i < size; ++i) {
+      if (p[i] == '|') { ++separators; width = 0; }
+      else if (!separators || !id_byte(p[i]) || ++width > 8) return false;
+    }
+    return separators == 7;
+  }
   if (kind == Kind::Hex) {
     if (!size || size > 64 || size % 2) return false;
     for (std::size_t i = 0; i < size; ++i) if (!((p[i] >= '0' && p[i] <= '9') || (p[i] >= 'a' && p[i] <= 'f'))) return false;

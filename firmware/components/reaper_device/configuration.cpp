@@ -7,7 +7,10 @@ namespace {
 template <std::size_t N> bool equal(const Text<N>& a, const Text<N>& b) {
   return a.length <= N && b.length == a.length && std::memcmp(a.bytes.data(), b.bytes.data(), a.length) == 0;
 }
-bool equal(const Settings& a, const Settings& b) { return a.region == b.region && equal(a.label, b.label); }
+bool equal(const RadioSettings& a, const RadioSettings& b) {
+  return a.mode == b.mode && a.power == b.power && a.relay == b.relay && a.profile == b.profile && equal(a.channels, b.channels);
+}
+bool equal(const Settings& a, const Settings& b) { return a.region == b.region && equal(a.label, b.label) && equal(a.radio, b.radio); }
 bool identity(const Text<64>& value) {
   if (!value.length || value.length > 64) return false;
   for (std::size_t i = 0; i < value.length; ++i) {
@@ -27,6 +30,8 @@ void literal(protocol::FieldValue& field, const char* value) {
 bool valid(const Command& command) {
   if (command.settings.label.length > 64 || command.id.length > 75 || !identity(command.boot) ||
       static_cast<unsigned>(command.settings.region) > 2) return false;
+  if (static_cast<unsigned>(command.settings.radio.mode) > 2 || command.settings.radio.power > 10 || command.settings.radio.profile != 1 ||
+      (command.has_radio && command.settings.radio.mode != RadioMode::Off && command.settings.region != Region::Us)) return false;
   protocol::Message message{};
   message.type = protocol::MessageType::Configure;
   literal(message.fields[protocol::kConfigureLink], "local");
@@ -36,6 +41,13 @@ bool valid(const Command& command) {
   text(message.fields[protocol::kConfigureLabel], command.settings.label);
   literal(message.fields[protocol::kConfigureRegion], command.settings.region == Region::Unset ? "UNSET" :
     command.settings.region == Region::Us ? "US" : "EU");
+  if (command.has_radio) {
+    literal(message.fields[protocol::kConfigureRadioMode], command.settings.radio.mode == RadioMode::Off ? "off" : command.settings.radio.mode == RadioMode::Receive ? "receive" : "mesh");
+    number(message.fields[protocol::kConfigureTxPower], command.settings.radio.power);
+    number(message.fields[protocol::kConfigureRelay], command.settings.radio.relay ? 1 : 0);
+    text(message.fields[protocol::kConfigureChannels], command.settings.radio.channels);
+    literal(message.fields[protocol::kConfigurePreset], "US915_LAB1");
+  }
   std::array<std::uint8_t, protocol::kMaxPayload> scratch{};
   std::size_t size = 0;
   return protocol::encode_payload(message, scratch.data(), scratch.size(), size);
@@ -43,7 +55,7 @@ bool valid(const Command& command) {
 bool settings_valid(const Settings& settings) {
   Command sample{};
   const std::uint8_t id[] = "validate:1", boot[] = "validation";
-  sample.id.assign(id, sizeof(id) - 1); sample.boot.assign(boot, sizeof(boot) - 1); sample.settings = settings;
+  sample.id.assign(id, sizeof(id) - 1); sample.boot.assign(boot, sizeof(boot) - 1); sample.settings = settings; sample.has_radio = true;
   return valid(sample);
 }
 std::uint32_t read32(const std::uint8_t* p) {
@@ -72,26 +84,42 @@ bool parse_id(const Text<75>& id, Text<64>& owner, std::uint32_t& sequence) {
 bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t capacity, std::size_t& size) {
   size = 0;
   if (!output || !settings_valid(snapshot.settings)) return false;
-  const auto length = 13 + snapshot.settings.label.length;
+  const bool extended = !equal(snapshot.settings.radio, RadioSettings{});
+  const auto length = 13 + snapshot.settings.label.length + (extended ? 5 + snapshot.settings.radio.channels.length : 0);
   if (capacity < length) return false;
-  output[0] = 'R'; output[1] = 'C'; output[2] = 1;
+  output[0] = 'R'; output[1] = 'C'; output[2] = extended ? 2 : 1;
   write32(output + 3, snapshot.revision);
   output[7] = static_cast<std::uint8_t>(snapshot.settings.region);
   output[8] = static_cast<std::uint8_t>(snapshot.settings.label.length);
   std::memcpy(output + 9, snapshot.settings.label.bytes.data(), snapshot.settings.label.length);
+  if (extended) {
+    auto* extra = output + 9 + snapshot.settings.label.length; const auto& radio = snapshot.settings.radio;
+    extra[0] = static_cast<std::uint8_t>(radio.mode); extra[1] = radio.power; extra[2] = radio.relay;
+    extra[3] = radio.channels.length; std::memcpy(extra + 4, radio.channels.bytes.data(), radio.channels.length);
+    extra[4 + radio.channels.length] = radio.profile;
+  }
   write32(output + length - 4, protocol::crc32(output, length - 4));
   size = length;
   return true;
 }
 
 bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output) {
-  if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' || data[2] != 1 ||
-      data[7] > 2 || data[8] > 64 || size != std::size_t(data[8]) + 13 ||
+  if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' || (data[2] != 1 && data[2] != 2) ||
+      data[7] > 2 || data[8] > 64 || (data[2] == 1 && size != std::size_t(data[8]) + 13) ||
       read32(data + size - 4) != protocol::crc32(data, size - 4)) return false;
   Snapshot next{};
   next.revision = read32(data + 3);
   next.settings.region = static_cast<Region>(data[7]);
   next.settings.label.assign(data + 9, data[8]);
+  if (data[2] == 2) {
+    const auto offset = 9u + data[8];
+    if (size < offset + 9) return false;
+    const auto* extra = data + offset; const auto names = extra[3];
+    if (size != offset + 9u + names || extra[0] > 2 || extra[1] > 10 || extra[2] > 1 ||
+        !next.settings.radio.channels.assign(extra + 4, names)) return false;
+    next.settings.radio.mode = static_cast<RadioMode>(extra[0]); next.settings.radio.power = extra[1];
+    next.settings.radio.relay = extra[2] != 0; next.settings.radio.profile = extra[4 + names];
+  }
   if (!settings_valid(next.settings)) return false;
   output = next;
   return true;
@@ -112,6 +140,23 @@ bool decode_command(const protocol::Message& message, Command& output) {
       !next.settings.label.assign(label.text.data(), label.length)) return false;
   next.expected_revision = message.fields[protocol::kConfigureExpectedRevision].number;
   next.settings.region = region.length == 5 ? Region::Unset : region.text[0] == 'U' ? Region::Us : Region::Eu;
+  bool any = false, all = true;
+  for (auto index : {protocol::kConfigureRadioMode, protocol::kConfigureTxPower, protocol::kConfigureRelay, protocol::kConfigureChannels, protocol::kConfigurePreset}) {
+    any = any || message.fields[index].present; all = all && message.fields[index].present;
+  }
+  if (any && !all) return false;
+  if (all) {
+    next.has_radio = true;
+    const auto& mode = message.fields[protocol::kConfigureRadioMode];
+    next.settings.radio.mode = mode.length == 3 ? RadioMode::Off : mode.length == 7 ? RadioMode::Receive : RadioMode::Mesh;
+    if (message.fields[protocol::kConfigureTxPower].number > 10 || message.fields[protocol::kConfigureRelay].number > 1) return false;
+    next.settings.radio.power = message.fields[protocol::kConfigureTxPower].number;
+    next.settings.radio.relay = message.fields[protocol::kConfigureRelay].number != 0;
+    const auto& names = message.fields[protocol::kConfigureChannels];
+    const auto& preset = message.fields[protocol::kConfigurePreset];
+    if (!next.settings.radio.channels.assign(names.text.data(), names.length) || preset.length != 10 || std::memcmp(preset.text.data(), "US915_LAB1", 10)) return false;
+  }
+  if (!valid(next)) return false;
   output = next;
   return true;
 }
@@ -146,7 +191,7 @@ Result Configuration::apply(const Command& command) {
   if (!valid(command) || !equal(command.boot, boot_)) return {Outcome::Rejected, snapshot_.revision};
   for (const auto& receipt : receipts_) if (receipt.used && equal(receipt.command.id, command.id)) {
     const auto& previous = receipt.command;
-    if (previous.expected_revision != command.expected_revision || !equal(previous.settings, command.settings)) {
+    if (previous.expected_revision != command.expected_revision || previous.has_radio != command.has_radio || !equal(previous.settings, command.settings)) {
       return {Outcome::Rejected, snapshot_.revision};
     }
     return receipt.result;
@@ -163,6 +208,8 @@ Result Configuration::apply(const Command& command) {
     if (snapshot_.revision == std::numeric_limits<std::uint32_t>::max()) result.outcome = Outcome::Rejected;
     else {
       Snapshot next{command.settings, snapshot_.revision + 1};
+      if (!command.has_radio) next.settings.radio = snapshot_.settings.radio;
+      if (next.settings.region != Region::Us) next.settings.radio.mode = RadioMode::Off;
       std::array<std::uint8_t, kMaxRecord> record{};
       std::size_t size = 0;
       if (!encode_record(next, record.data(), record.size(), size)) result.outcome = Outcome::Rejected;

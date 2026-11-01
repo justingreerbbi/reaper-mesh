@@ -1,6 +1,7 @@
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { Synchronizer, type Config } from './sync.ts';
+import { radioFields, validRadio } from '../protocol/radio-config.ts';
 import { Messaging } from './messaging.ts';
 import { Commands, type ConfigCommand } from './commands.ts';
 import { capabilities, writeBlockReason, type Capabilities } from '../protocol/capabilities.ts';
@@ -46,9 +47,16 @@ export class Connection {
     this.#send({ ...packet, link: this.#link }); return packet.id;
   }
   recoverMessage(id: string, now: number) {
+    if (!this.capabilities || !(this.capabilities.features & 8) || this.capabilities.messageVersion !== 1) throw new Error('device does not support message queries');
     this.#time(now); if (this.#expired(now)) throw new Error('connection timed out');
     const query = this.messaging.recover(id, this.device!, now);
     if (query) this.#send({ ...query, link: this.#link }); return !!query;
+  }
+
+  get radioBlockReason() {
+    if (this.writeBlockReason) return this.writeBlockReason;
+    const c = this.capabilities;
+    return !c || !(c.features & 16) || c.radioSchema !== 1 || c.maxChannels !== 8 ? 'device does not support radio configuration v1' : undefined;
   }
 
   configure(config: Config, now: number) {
@@ -57,6 +65,7 @@ export class Connection {
     this.sync.mutationContext();
     const blocked = this.writeBlockReason;
     if (blocked) throw new Error(blocked);
+    if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region))) throw new Error(this.radioBlockReason || 'invalid radio/channel settings');
     const regionMask = { UNSET: 1, US: 2, EU: 4 }[config.region];
     if (!regionMask || !(this.capabilities!.regions & regionMask)) throw new Error('device does not support this region');
     if (new TextEncoder().encode(config.label).length > this.capabilities!.maxLabelBytes) {
@@ -64,7 +73,7 @@ export class Connection {
     }
     // Validate before retaining the command, including runtime callers without TS checks.
     encodeMessage({ type: 'configure', link: this.#link, boot: this.sync.boot!, id: 'validation:1',
-      expectedRevision: this.sync.revision, region: config.region, label: config.label } as Message);
+      expectedRevision: this.sync.revision, region: config.region, label: config.label, ...radioFields(config.radio) } as Message);
     const command = this.commands.submit(config, now);
     this.#commandDevices.set(command.id, this.device!);
     this.#sendCommand(command);
@@ -179,7 +188,9 @@ export class Connection {
     } else if (message.type === 'snapshot' || message.type === 'event') {
       if (message.boot !== this.sync.boot) return;
       const value = { ...message, session: this.sync.session,
-        config: { region: message.region, label: message.label } };
+        config: { region: message.region, label: message.label,
+          ...(message.radioMode !== undefined && message.txPower !== undefined && message.relay !== undefined && message.channels !== undefined && message.preset === 'US915_LAB1' && message.relay <= 1 && message.txPower <= 10 ?
+            { radio: { mode: message.radioMode, power: message.txPower, relay: message.relay === 1, channels: message.channels, preset: 'US915_LAB1' as const } } : {}) } };
       const wasReady = this.sync.state === 'ready';
       if (message.type === 'snapshot') this.sync.snapshot({ ...value, request: message.request });
       else this.sync.event(value);
@@ -219,7 +230,7 @@ export class Connection {
   #sendCommand(command: ConfigCommand) {
     this.#send({ type: 'configure', link: this.#link, boot: command.boot, id: command.id,
       expectedRevision: command.expectedRevision, region: command.config.region,
-      label: command.config.label } as Message);
+      label: command.config.label, ...radioFields(command.config.radio) } as Message);
   }
 
   #send(message: Message) {

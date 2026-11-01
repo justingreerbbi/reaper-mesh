@@ -1,5 +1,6 @@
+import type { RadioConfig } from '../protocol/radio-config.ts';
 /** Transport-independent synchronization core. Wire decoding must validate input first. */
-export type Config = Readonly<{ region: string; label: string }>;
+export type Config = Readonly<{ region: string; label: string; radio?: RadioConfig }>;
 export type Event = Readonly<{
   session: number; boot: string; sequence: number; revision: number; config: Config;
 }>;
@@ -50,7 +51,7 @@ export class Synchronizer {
     if (!this.#matches(event) || !['ready', 'synchronizing'].includes(this.state)) return;
     if (this.state === 'synchronizing') {
       if (this.#buffer.length >= this.capacity) this.#resync();
-      else this.#buffer.push(event);
+      else this.#buffer.push({ ...event, config: copyConfig(event.config) });
       return;
     }
     if (event.sequence <= this.sequence) return;
@@ -66,7 +67,7 @@ export class Synchronizer {
     }
     this.sequence = snapshot.sequence;
     this.revision = snapshot.revision;
-    this.config = Object.freeze({ ...snapshot.config });
+    this.config = copyConfig(snapshot.config);
     const pending = this.#buffer;
     this.#buffer = [];
     // Event delivery is ordered within a live subscription. A gap requires a new snapshot.
@@ -98,7 +99,7 @@ export class Synchronizer {
     if (event.sequence !== this.sequence + 1 || event.revision !== this.revision + 1) return false;
     this.sequence = event.sequence;
     this.revision = event.revision;
-    this.config = Object.freeze({ ...event.config });
+    this.config = copyConfig(event.config);
     return true;
   }
 
@@ -115,4 +116,8 @@ export class Synchronizer {
     this.revision = 0;
     this.#buffer = [];
   }
+}
+
+export function copyConfig(config: Config): Config {
+  return Object.freeze({ ...config, ...(config.radio ? { radio: Object.freeze({ ...config.radio }) } : {}) });
 }

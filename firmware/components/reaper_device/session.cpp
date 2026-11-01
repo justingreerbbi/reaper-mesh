@@ -16,6 +16,19 @@ void number(p::FieldValue& field, std::uint32_t value) { field.present = true; f
 template <std::size_t N> bool same(const p::FieldValue& field, const Text<N>& text) {
   return field.present && field.length == text.length && std::memcmp(field.text.data(), text.bytes.data(), text.length) == 0;
 }
+std::uint8_t channel_mask(const RadioSettings& radio) {
+  std::uint8_t mask = 1; unsigned slot = 0;
+  for (std::size_t i = 0; i < radio.channels.length; ++i) {
+    if (radio.channels.bytes[i] == '|') ++slot;
+    else if (slot < 8) mask |= 1u << slot;
+  }
+  return mask;
+}
+bool radio_changed(const Settings& a, const Settings& b) {
+  return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.power != b.radio.power ||
+    a.radio.relay != b.radio.relay || a.radio.profile != b.radio.profile ||
+    a.radio.channels.length != b.radio.channels.length || a.radio.channels.bytes != b.radio.channels.bytes;
+}
 const char* outcome(Outcome value) {
   switch (value) {
     case Outcome::Committed: return "committed";
@@ -53,14 +66,16 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     reply.type = p::MessageType::Welcome;
     set(reply.fields[p::kWelcomeLink], link_); set(reply.fields[p::kWelcomeDevice], device_); set(reply.fields[p::kWelcomeBoot], boot_);
     number(reply.fields[p::kWelcomeMinVersion], 1); number(reply.fields[p::kWelcomeMaxVersion], 1);
-    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], messages_ ? 15 : 7);
+    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], messages_ ? 31 : 23);
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
     number(reply.fields[p::kWelcomeOwnerAdmitted], admitted_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRegions], 3); number(reply.fields[p::kWelcomeMaxLabelBytes], 64);
     literal(reply.fields[p::kWelcomeFirmware], kFirmwareVersion); number(reply.fields[p::kWelcomeRadioVersion], 0);
+    number(reply.fields[p::kWelcomeRadioSchema], 1); number(reply.fields[p::kWelcomeMaxChannels], 8);
     if (messages_) {
+      Snapshot current{}; if (authority_.snapshot(current)) messages_->channels(channel_mask(current.settings.radio));
       number(reply.fields[p::kWelcomeMessageVersion], 1);
       number(reply.fields[p::kWelcomeMaxMessageBytes], 1024);
       number(reply.fields[p::kWelcomeMessageCapacity], MessageQueue::kCapacity);
@@ -105,7 +120,12 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kSnapshotRequest], request.fields[p::kSyncRequest].number);
     number(reply.fields[p::kSnapshotSequence], snapshot.revision); number(reply.fields[p::kSnapshotRevision], snapshot.revision);
     literal(reply.fields[p::kSnapshotRegion], snapshot.settings.region == Region::Unset ? "UNSET" : snapshot.settings.region == Region::Us ? "US" : "EU");
-    set(reply.fields[p::kSnapshotLabel], snapshot.settings.label); synchronized_ = true; return true;
+    set(reply.fields[p::kSnapshotLabel], snapshot.settings.label);
+    const auto& radio = snapshot.settings.radio;
+    literal(reply.fields[p::kSnapshotRadioMode], radio.mode == RadioMode::Off ? "off" : radio.mode == RadioMode::Receive ? "receive" : "mesh");
+    number(reply.fields[p::kSnapshotTxPower], radio.power); number(reply.fields[p::kSnapshotRelay], radio.relay ? 1 : 0);
+    set(reply.fields[p::kSnapshotChannels], radio.channels); literal(reply.fields[p::kSnapshotPreset], "US915_LAB1");
+    synchronized_ = true; return true;
   }
   Text<75> id{}; const auto& id_field = request.fields[2]; id.assign(id_field.text.data(), id_field.length);
   Result result{Outcome::Rejected, snapshot.revision};
@@ -116,6 +136,11 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       std::memcmp(id.bytes.data(), owner_.bytes.data(), owner_.length) == 0;
     if (synchronized_ && admitted_ && owns && decode_command(request, command) && command.settings.region != Region::Eu) {
       result = authority_.apply(command);
+      Snapshot current{};
+      if (messages_ && result.outcome == Outcome::Committed && authority_.snapshot(current)) {
+        if (radio_changed(snapshot.settings, current.settings)) messages_->quiesce();
+        messages_->channels(channel_mask(current.settings.radio));
+      }
     }
   }
   reply.type = p::MessageType::Result; set(reply.fields[p::kResultLink], link_); set(reply.fields[p::kResultBoot], boot_);

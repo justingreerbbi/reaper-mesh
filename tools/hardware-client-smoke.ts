@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
 const [python, port, expectedFirmware, messageTest] = process.argv.slice(2);
-if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test]');
+if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test]');
 const bridge = `
 import serial,sys,threading
 s=serial.Serial(port=None,baudrate=115200,timeout=.05,exclusive=True)
@@ -69,6 +69,31 @@ for (let run = 0; run < 3; run++) {
     assert.equal(client.capabilities?.radioVersion, 0);
     if (expectedFirmware) assert.equal(client.capabilities?.firmware, expectedFirmware);
     const readyAt = now();
+    if (run === 0 && messageTest === '--radio-test') {
+      const original = client.sync.config!; assert.ok(original.radio);
+      const waitFor = async (condition: () => boolean) => {
+        const until = now() + 10000;
+        while (!condition()) {
+          if (now() >= until || ['disconnected', 'incompatible'].includes(client.sync.state)) throw new Error('radio settings test timed out or disconnected');
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      };
+      const save = async (config: typeof original) => {
+        const id = adapter.configure(config);
+        await waitFor(() => client.commands.status(id).outcome !== 'pending');
+        assert.equal(client.commands.status(id).outcome, 'committed');
+        await waitFor(() => client.sync.state === 'ready');
+      };
+      await save({ ...original, radio: { ...original.radio, mode: 'off', power: 1, relay: true, channels: 'Public|Camp||||||' } });
+      assert.equal(client.sync.config?.radio?.power, 1);
+      const message = adapter.sendMessage('Named channel queue policy test', 'broadcast', 1);
+      await waitFor(() => client.messaging.history.find(entry => entry.id === message)?.state === 'queued');
+      await save({ ...client.sync.config!, radio: { ...client.sync.config!.radio!, power: 2 } });
+      await waitFor(() => client.messaging.history.find(entry => entry.id === message)?.state === 'failed');
+      assert.equal(client.messaging.history.find(entry => entry.id === message)?.reason, 'radio-config-changed');
+      await save(original);
+      console.log('Physical named-channel queue and radio-policy quiesce passed; original radio settings restored');
+    }
     if (run === 0 && messageTest === '--message-test') {
       const id = adapter.sendMessage('Reaper USB message test '.padEnd(1024, 'x'));
       const waitFor = async (state: string, timeout: number) => {

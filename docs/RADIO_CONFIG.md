@@ -1,0 +1,13 @@
+# Radio and channel configuration v1
+
+Base configuration schema 1 remains compatible. Welcome feature bit 4, radioSchema 1 and maxChannels 8 advertise this optional extension. Configure/snapshot/event append radioMode, txPower, relay, channels and preset in that order. A configure request supplies all five fields or none. Missing radio fields preserve existing radio/channel values; changing the operating region away from US forces requested mode off. Older clients can keep editing label/region without resetting newer settings.
+
+Modes are off, receive and mesh. Transmit power is bounded to 0–10 dBm for initial development. Relay is a boolean. Preset is US915_LAB1; EU transmit profiles are not implemented. Persisting mode mesh does not itself prove the hardware is enabled; the board adapter must separately enforce region, board/antenna and driver readiness. Current usb-prototype-3 still holds the SX1262 reset and performs no RF transmission.
+
+Eight logical channel slots share one physical radio preset. Slot 0 is always Public. Slots 1–7 are named/enabled or empty/disabled; names use up to eight ASCII letters, digits, underscores or hyphens. The canonical compact representation is exactly eight pipe-separated names beginning Public (e.g. `Public|Camp|Team|||||`). Names are local labels; numeric slot IDs determine wire channels. Public/named describes UI organization, not confidentiality. All messages remain plaintext/unauthenticated.
+
+Radio/channel policy changes share the device's atomic revision/receipt rules. After commit and before any subsequent radio work, active message records are failed with radio-config-changed; channel admission is updated. An old-policy send must never leak into the new policy. Label-only edits do not cancel queued work. Accepted message status survives temporary config resync; polling pauses until the new authoritative snapshot is ready, while incomplete uploads become uncertain.
+
+## Persistent record migration
+
+The backend still stores one atomic NVS blob. Default radio settings keep the original RC/version-1 record format unchanged. Nondefault settings write RC/version-2: preserve the original prefix through label, then append mode (u8), power (u8), relay (u8), channel-string length (u8), channel bytes, profile ID (u8), then the same CRC32. Maximum size is 151 bytes. Version 1 loads with radio off/default channels. Version 2 validates every added field, complete length, region and CRC. No migration erases storage or resets revision. Downgrading to firmware that only reads record 1 may fail closed on record 2; ROM reinstall does not imply backward config migration.

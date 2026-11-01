@@ -62,9 +62,10 @@ export class Messaging {
     for (const entry of this.#entries.values()) {
       if (!['receiving', 'queued', 'transmitted'].includes(entry.state)) continue;
       if (now >= entry.expiresAt) { entry.state = 'unknown'; continue; }
-      if (entry.session !== this.sync.session || entry.boot !== this.sync.boot || this.sync.state !== 'ready' || device !== entry.device) {
+      if (entry.session !== this.sync.session || entry.boot !== this.sync.boot || ['disconnected', 'incompatible'].includes(this.sync.state) || device !== entry.device) {
         entry.state = 'unknown'; continue;
       }
+      if (this.sync.state !== 'ready') { if (entry.state === 'receiving') entry.state = 'unknown'; continue; }
       if (entry.state === 'receiving' && now >= entry.deadline) {
         if (entry.attempts >= 3) entry.state = 'unknown';
         else { entry.attempts++; entry.deadline = now + 1000; output.push(this.#packet(entry)); }

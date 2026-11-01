@@ -1,4 +1,5 @@
 import './style.css';
+import { DEFAULT_CHANNELS, validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { ConfigModel } from './model.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 import type { SerialPortLike } from '../../packages/client-core/serial.ts';
@@ -22,6 +23,14 @@ let attempt = 0;
 let error = '';
 let historySignature = '';
 let messageSignature = '';
+let radioDirty = false;
+let radioBase = '';
+for (let slot = 1; slot < 8; slot++) {
+  const wrapper = document.createElement('div'); const title = document.createElement('label');
+  title.htmlFor = `channel-${slot}`; title.textContent = `Named channel ${slot}`;
+  const input = document.createElement('input'); input.id = `channel-${slot}`; input.type = 'text'; input.maxLength = 8; input.autocomplete = 'off';
+  wrapper.append(title, input); element('channel-settings').append(wrapper);
+}
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
 
@@ -67,6 +76,7 @@ function render() {
   const message = cleanupError || error || connection.error || '';
   text('error', message);
   element('error').hidden = !message;
+  renderRadio();
   renderMessages();
   element('simulation').hidden = mode.value !== 'demo';
   element<HTMLButtonElement>('reboot').disabled = busy;
@@ -165,6 +175,16 @@ function renderMessages() {
   text('message-support', !ready ? 'Connect and synchronize to queue messages.' : blocked ??
     'Radio is off in this prototype. Queued messages expire without transmission; USB acceptance is not delivery.');
   body.disabled = destination.disabled = !ready || !!blocked || uploading;
+  const channel = element<HTMLSelectElement>('message-channel');
+  channel.disabled = body.disabled;
+  const names = (connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
+  const channelSignature = JSON.stringify(names);
+  if (channel.dataset.names !== channelSignature) {
+    const selected = channel.value; channel.replaceChildren();
+    names.forEach((name, slot) => { if (name) { const option = document.createElement('option'); option.value = String(slot); option.textContent = `${slot} · ${name}`; channel.append(option); } });
+    if (Array.from(channel.options).some(option => option.value === selected)) channel.value = selected;
+    channel.dataset.names = channelSignature;
+  }
   element<HTMLButtonElement>('message-send').disabled = !ready || !!blocked || uploading || bytes === 0 || bytes > 1024 || history.length >= 32;
   const signature = mode.value + ':' + ready + ':' + JSON.stringify(history);
   if (signature === messageSignature) return;
@@ -192,7 +212,43 @@ element('message-body').addEventListener('input', renderMessages);
 element('message-form').addEventListener('submit', event => {
   event.preventDefault();
   try {
-    current().adapter.sendMessage(element<HTMLTextAreaElement>('message-body').value, element<HTMLInputElement>('message-destination').value, 0);
+    current().adapter.sendMessage(element<HTMLTextAreaElement>('message-body').value, element<HTMLInputElement>('message-destination').value, Number(element<HTMLSelectElement>('message-channel').value));
     element<HTMLTextAreaElement>('message-body').value = ''; error = ''; render();
+  } catch (e) { showError(e); }
+});
+
+function renderRadio() {
+  const model = current(); const { connection } = model.adapter; const { sync } = connection;
+  const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
+  const controls: (HTMLInputElement | HTMLSelectElement)[] = [element('radio-mode'), element('radio-power'), element('radio-relay'), ...Array.from({ length: 7 }, (_, i) => element<HTMLInputElement>(`channel-${i + 1}`))];
+  const ready = sync.state === 'ready';
+  const supported = ready && !connection.radioBlockReason && !!sync.config?.radio;
+  if (!radioDirty && supported) {
+    const radio = sync.config!.radio!; radioBase = context;
+    element<HTMLSelectElement>('radio-mode').value = radio.mode;
+    element<HTMLInputElement>('radio-power').value = String(radio.power);
+    element<HTMLInputElement>('radio-relay').checked = radio.relay;
+    const names = radio.channels.split('|');
+    for (let slot = 1; slot < 8; slot++) element<HTMLInputElement>(`channel-${slot}`).value = names[slot];
+  }
+  const stale = radioDirty && radioBase !== context;
+  text('radio-support', !ready ? 'Connect and synchronize to configure radio settings.' : connection.radioBlockReason ??
+    (stale ? 'Device state changed. Load its latest radio settings before saving.' : 'Settings are synchronized. RF remains off until the radio driver is qualified.'));
+  for (const control of controls) control.disabled = !supported || model.pending;
+  element<HTMLButtonElement>('radio-save').disabled = !supported || !radioDirty || stale || model.pending || model.history.length >= 32;
+  element<HTMLButtonElement>('radio-reset').disabled = !supported || model.pending;
+}
+element('radio-form').addEventListener('input', () => { radioDirty = true; render(); });
+element('radio-reset').addEventListener('click', () => { radioDirty = false; render(); });
+element('radio-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    const model = current(); const currentConfig = model.adapter.connection.sync.config!;
+    const radio: RadioConfig = { mode: element<HTMLSelectElement>('radio-mode').value as RadioConfig['mode'],
+      power: Number(element<HTMLInputElement>('radio-power').value), relay: element<HTMLInputElement>('radio-relay').checked,
+      channels: ['Public', ...Array.from({ length: 7 }, (_, i) => element<HTMLInputElement>(`channel-${i + 1}`).value)].join('|'), preset: 'US915_LAB1' };
+    if (!validRadio(radio, currentConfig.region)) throw new Error('Use US region, power 0–10 dBm, and channel names of up to 8 letters, numbers, underscores or hyphens.');
+    const id = model.adapter.configure({ ...currentConfig, radio }); model.history.push({ id, label: 'Radio/channel settings' });
+    radioDirty = false; error = ''; render();
   } catch (e) { showError(e); }
 });

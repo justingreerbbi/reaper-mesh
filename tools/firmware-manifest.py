@@ -1,6 +1,7 @@
 """Record exact build artifacts without publishing or flashing anything."""
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 
@@ -18,7 +19,9 @@ manifest = {
     "board": "Heltec WiFi LoRa 32 V3", "target": "esp32s3", "sdk": sdk,
     "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
     "source_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip()),
-    "usb_protocol": 1, "config_schema": 1, "record_schema": 1, "radio_protocol": 0,
+    "firmware": re.search(r'kFirmwareVersion\[\] = "([^"]+)"', (root / "firmware/components/reaper_device/include/reaper/version.hpp").read_text()).group(1),
+    "radio_config_schema": 1, "read_record_schemas": [1, 2],
+    "usb_protocol": 1, "config_schema": 1, "record_schema": 2, "radio_protocol": 0,
     "uart": {"baud": 115200, "tx_gpio": 43, "rx_gpio": 44},
     "radio": {"enabled": False, "reset_gpio": 12, "held_in_reset": True},
     "display": {"controller": "SSD1306", "width": 128, "height": 64, "sda_gpio": 17,

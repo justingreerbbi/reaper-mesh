@@ -71,3 +71,12 @@ test('message receipt completeness and identity are checked before acceptance', 
   assert.equal(messages.history[0].state, 'receiving');
   messages.receive(session + 1, status(packet.id, 'queued', 3), 0); assert.equal(messages.history[0].state, 'receiving');
 });
+
+test('configuration resync pauses message queries without discarding accepted queue state', () => {
+  const { sync, messages, send, status, session } = setup(); const packet = send();
+  messages.receive(session, status(packet.id, 'queued', 1), 0);
+  sync.resynchronize(); assert.deepEqual(messages.tick(2000, 'node-A'), []);
+  assert.equal(messages.history[0].state, 'queued');
+  sync.snapshot({ session, boot: 'boot-A', request: sync.snapshotRequest, sequence: 1, revision: 1, config: { region: 'US', label: 'changed' } });
+  assert.deepEqual(messages.tick(2001, 'node-A'), [{ type: 'messageQuery', boot: 'boot-A', id: packet.id }]);
+});

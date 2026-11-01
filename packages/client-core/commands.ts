@@ -1,4 +1,4 @@
-import { Synchronizer, type Config } from './sync.ts';
+import { Synchronizer, copyConfig, type Config } from './sync.ts';
 
 export type ConfigCommand = Readonly<{
   id: string; boot: string; expectedRevision: number; config: Config;
@@ -47,7 +47,7 @@ export class Commands {
     }
     const command = Object.freeze({
       id: `${this.incarnation}:${++this.#counter}`, boot: context.boot,
-      expectedRevision: context.expectedRevision, config: Object.freeze({ ...config }),
+      expectedRevision: context.expectedRevision, config: copyConfig(config),
     });
     this.#entries.set(command.id, {
       command, session: context.session, attempts: 1,

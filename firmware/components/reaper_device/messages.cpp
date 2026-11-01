@@ -37,6 +37,9 @@ const char* message_state(MessageState state) {
     default: return "unknown";
   }
 }
+void MessageQueue::quiesce() {
+  for (auto& r : records_) if (r.used && !terminal(r)) { r.state = MessageState::Failed; literal(r.reason, "radio-config-changed"); }
+}
 void MessageQueue::tick(std::uint64_t now) {
   for (auto& r : records_) if (r.used && !terminal(r) && now >= r.deadline) {
     r.state = MessageState::Failed; literal(r.reason, "expired");
@@ -50,7 +53,7 @@ MessageReceipt MessageQueue::submit(const Text<64>& owner, const Text<75>& id, s
     const Text<64>& destination, std::uint32_t part, std::uint32_t count,
     const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   tick(now); std::uint32_t seq = 0;
-  if (!sequence(owner, id, seq) || channel != 0 || !destination.length || destination.length > 64 ||
+  if (!sequence(owner, id, seq) || channel > 7 || !(channels_ & (1u << channel)) || !destination.length || destination.length > 64 ||
       !count || count > 32 || part >= count || !bytes || !size || size > 32 || (part + 1 < count && size != 32)) return reject("invalid-message");
   MessageRecord* record = nullptr;
   for (auto& r : records_) if (r.used && equal(r.request, id)) { record = &r; break; }

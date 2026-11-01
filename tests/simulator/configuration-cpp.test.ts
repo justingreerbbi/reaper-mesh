@@ -30,6 +30,7 @@ const scenarios = {
   corruption: 'corrupt records/read failures never trigger silent erase or defaults',
   record: 'record validation detects truncation and prevents revision wraparound',
   validation: 'malformed commands are rejected without consuming a request sequence',
+  radio: 'migrates radio settings, preserves them for legacy writes and enforces regional disable',
   wire: 'validated framed USB commands reach configuration without exposing partial decodes',
 };
 for (const [scenario, description] of Object.entries(scenarios)) {

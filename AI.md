@@ -41,7 +41,7 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Next implement persisted channel/radio settings, profile/airtime policy and board radio integration after antenna details are confirmed. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
+usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Persisted channel/radio settings are implemented and host-tested; deploy/qualify usb-prototype-3 next, then add regional airtime policy and board radio integration after antenna details are confirmed. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
 
 ## USB startup recovery evidence
 
@@ -66,3 +66,5 @@ Owner report: OLED rendering works on the installed usb-prototype-1 hardware (No
 usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
 
 The C++ radio packet codec and Mesh core pass host topology/fault tests; see docs/RADIO_PROTOCOL.md for resource bounds and remaining RF work. No mesh code is yet connected to the board radio.
+
+Radio configuration checkpoint: additive capability-gated fields preserve base-client writes, migrate old NVS records without erasing, and quiesce queued messages on policy changes. See docs/RADIO_CONFIG.md. Radio remains physically disabled in this firmware.

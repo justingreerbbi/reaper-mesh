@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     d::Snapshot original{}; original.revision = 0xffffffff;
     original.settings.region = d::Region::Us; original.settings.label = text<64>(std::string(64, 'x'));
     std::array<std::uint8_t, d::kMaxRecord> encoded{}; std::size_t size = 0;
-    CHECK(d::encode_record(original, encoded.data(), encoded.size(), size) && size == d::kMaxRecord);
+    CHECK(d::encode_record(original, encoded.data(), encoded.size(), size) && size == 77);
     for (std::size_t length = 0; length < size; ++length) CHECK(!d::decode_record(encoded.data(), length, snapshot));
     CHECK(d::decode_record(encoded.data(), size, snapshot) && snapshot.revision == 0xffffffff);
     store.data = encoded; store.size = size;
@@ -140,6 +140,28 @@ int main(int argc, char** argv) {
     CHECK(exhausted.apply(command(1, 0xffffffff)).outcome == d::Outcome::Rejected && store.writes == 0);
     original.settings.label = text<64>("bad\nlabel");
     CHECK(!d::encode_record(original, encoded.data(), encoded.size(), size) && size == 0);
+  } else if (scenario == "radio") {
+    CHECK(authority.apply(command()).outcome == d::Outcome::Committed);
+    auto radio = command(2, 1); radio.has_radio = true;
+    radio.settings.radio.mode = d::RadioMode::Receive; radio.settings.radio.power = 5; radio.settings.radio.relay = true;
+    radio.settings.radio.channels = text<71>("Public|Camp|Team|||||");
+    CHECK(authority.apply(radio).outcome == d::Outcome::Committed && store.data[2] == 2);
+    CHECK(authority.apply(radio).outcome == d::Outcome::Committed && store.writes == 2);
+    d::Configuration restarted(store, text<64>("boot-B"));
+    CHECK(restarted.snapshot(snapshot) && snapshot.settings.radio.power == 5 && snapshot.settings.radio.relay);
+    CHECK(authority.apply(command(3, 2, "legacy-label")).outcome == d::Outcome::Committed);
+    CHECK(authority.snapshot(snapshot) && snapshot.settings.radio.mode == d::RadioMode::Receive);
+    auto disable = command(4, 3); disable.settings.region = d::Region::Unset;
+    CHECK(authority.apply(disable).outcome == d::Outcome::Committed);
+    CHECK(authority.snapshot(snapshot) && snapshot.settings.radio.mode == d::RadioMode::Off && snapshot.settings.radio.power == 5);
+    auto invalid = command(5, 4); invalid.has_radio = true; invalid.settings.radio.power = 11;
+    CHECK(authority.apply(invalid).outcome == d::Outcome::Rejected);
+    // Maximal extended record is bounded and rejects every incomplete prefix.
+    snapshot.settings.region = d::Region::Us; snapshot.settings.label = text<64>(std::string(64, 'x'));
+    snapshot.settings.radio.channels = text<71>("Public|Channel1|Channel2|Channel3|Channel4|Channel5|Channel6|Channel7");
+    std::array<std::uint8_t, d::kMaxRecord> encoded{}; std::size_t size = 0;
+    CHECK(d::encode_record(snapshot, encoded.data(), encoded.size(), size) && size == d::kMaxRecord);
+    for (std::size_t n = 0; n < size; ++n) { d::Snapshot out{}; CHECK(!d::decode_record(encoded.data(), n, out)); }
   } else if (scenario == "validation") {
     CHECK(!authority.admit(text<64>("bad:owner")));
     auto bad = command(); bad.id = text<75>("client-A:01");

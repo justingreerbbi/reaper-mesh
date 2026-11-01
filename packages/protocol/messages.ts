@@ -23,6 +23,8 @@ function validate(kind: string, value: unknown) {
   if (kind === 'outcome' && !['committed', 'conflict', 'rejected', 'unknown'].includes(value)) {
     throw new Error('invalid command outcome');
   }
+  if (kind === 'radioMode' && !['off', 'receive', 'mesh'].includes(value)) throw new Error('invalid radio mode');
+  if (kind === 'channels' && !/^Public(?:\|[A-Za-z0-9_-]{0,8}){7}$/.test(value)) throw new Error('invalid channels');
   if (kind === 'hex' && !/^(?:[0-9a-f]{2}){1,32}$/.test(value)) throw new Error('invalid chunk');
   if (kind === 'messageState' && !['receiving', 'queued', 'transmitted', 'acknowledged', 'failed', 'rejected', 'unknown'].includes(value)) throw new Error('invalid message state');
   if (kind === 'region' && !['UNSET', 'US', 'EU'].includes(value)) throw new Error('invalid region');

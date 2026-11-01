@@ -24,13 +24,27 @@
       <section class="panel" aria-labelledby="details-heading"><p class="eyebrow">03 / DEVICE DETAILS</p><h2 id="details-heading">Know what’s connected.</h2><dl><dt>Device identity</dt><dd id="device" class="mono">—</dd><dt>Firmware</dt><dd id="firmware" class="mono">—</dd><dt>Configuration schema</dt><dd id="schema">—</dd><dt>Request history</dt><dd id="capacity">—</dd><dt>Owner admission</dt><dd id="admission">—</dd><dt>Radio protocol</dt><dd id="radio">—</dd></dl><p class="small muted">A successful save means device acceptance. It does not mean a radio message was delivered.</p></section>
     </div>
     <section class="panel" aria-labelledby="history-heading"><div class="section-title"><div><p class="eyebrow">04 / COMMAND HISTORY</p><h2 id="history-heading">Every change has an outcome.</h2></div><span id="history-count" class="mono">0 / 32</span></div><p class="muted small">Unknown means a change may have applied. Query its result after reconnecting; nothing is automatically resent. History lasts for this page session.</p><div id="history-empty" class="empty">No configuration commands yet.</div><ul id="history" class="history"></ul></section>
+    <section class="panel" aria-labelledby="radio-heading">
+      <p class="eyebrow">05 / RADIO AND CHANNELS</p><h2 id="radio-heading">Keep the mesh focused.</h2>
+      <p id="radio-support" class="muted"></p>
+      <form id="radio-form">
+        <div class="columns"><div><label for="radio-mode">Radio mode</label><select id="radio-mode"><option value="off">Off</option><option value="receive">Receive only</option><option value="mesh">Mesh messaging</option></select></div>
+        <div><label for="radio-power">Transmit power (dBm)</label><input id="radio-power" type="number" min="0" max="10" step="1" value="0"></div></div>
+        <p class="small muted">US 915 lab preset. EU operation is unavailable. RF is still disabled during driver bring-up.</p>
+        <label class="check"><input id="radio-relay" type="checkbox">Relay messages for other nodes</label>
+        <p class="small muted">Channel 0 is Public. Named channels share radio settings and are plaintext. Matching numeric channel IDs communicate; names are local labels. Leave a name empty to disable that channel.</p>
+        <div id="channel-settings" class="channel-grid"></div>
+        <div class="actions"><button id="radio-save" class="primary" type="submit" disabled>Save radio settings</button><button id="radio-reset" type="button">Load latest radio settings</button></div>
+      </form>
+    </section>
     <section class="panel" aria-labelledby="message-heading">
-      <p class="eyebrow">05 / MESSAGES</p><h2 id="message-heading">Queue a message</h2>
+      <p class="eyebrow">06 / MESSAGES</p><h2 id="message-heading">Queue a message</h2>
       <p id="message-support" class="muted">Connect to firmware with message support.</p>
       <form id="message-form">
         <label for="message-destination">Destination node ID, or broadcast</label><input id="message-destination" type="text" value="broadcast" autocomplete="off">
-        <label for="message-body">Public channel message</label><textarea id="message-body" rows="4" placeholder="Up to 1,024 UTF-8 bytes"></textarea>
-        <div class="field-meta"><span>Plaintext · public channel 0</span><span id="message-bytes">0 / 1024 bytes</span></div>
+        <label for="message-channel">Message channel</label><select id="message-channel"><option value="0">0 · Public</option></select>
+        <label for="message-body">Message text</label><textarea id="message-body" rows="4" placeholder="Up to 1,024 UTF-8 bytes"></textarea>
+        <div class="field-meta"><span>Plaintext · no encryption</span><span id="message-bytes">0 / 1024 bytes</span></div>
         <button id="message-send" type="submit" class="primary" disabled>Queue on device</button>
       </form>
       <ul id="message-history" class="history" aria-label="Message history"></ul>

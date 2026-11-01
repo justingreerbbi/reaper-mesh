@@ -155,3 +155,7 @@ USB startup recovery is implemented: repeat the same hello at most once per 500 
 ## Message USB extension
 
 Feature bit 3 advertises bounded message submission/query. All previous config safety bits/metadata remain required for mutation admission. Missing extension fields leave old firmware readable/configurable but block uploads. `hex` is 1–32 bytes represented by even-length lowercase hex; `messageState` is receiving/queued/transmitted/acknowledged/failed/rejected/unknown. Configuration and message request IDs occupy separate namespaces. Received is a 32-bit chunk bitmap. Full state, queue lifetimes, deduplication, and reboot semantics are specified in MESSAGING.md. Client polling is read-only, at most one query per 500 ms, with per-entry two-second spacing and a 70-second overall observation bound. No chunks are replayed on a new link.
+
+## Radio/channel settings extension
+
+Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the radio extension. Configure appends optional fields 8–12; snapshot appends 8–12, and event appends 7–11: radioMode, txPower, relay, channels, preset. All are supplied together for a radio mutation; omission preserves device radio settings. Base config schema remains 1. The independent radio-config schema and record version must not be conflated with the radio packet version. See RADIO_CONFIG.md for channels, atomic persistence/migration, and policy-change queue invalidation.
