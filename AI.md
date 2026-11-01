@@ -2,7 +2,7 @@
 
 ## Current stage
 
-M0 foundations started on November 1, 2026 after owner clarification. The independent protocol semantics and a transport-independent TypeScript configuration synchronizer have been added, with 11 passing host tests on Node 25.9.0. No firmware, web UI, wire decoder, or flash operations exist yet. Read `docs/PLAN.md`, `docs/DECISIONS.md`, and `docs/PROTOCOL.md` before implementation. Do not treat proposed choices as tested facts.
+M0 foundations started on November 1, 2026 after owner clarification. Independent protocol semantics, a transport-independent TypeScript configuration synchronizer, and bounded command/recovery tracking have been added, with 23 passing host tests on Node 25.9.0. A host-only reference device tests deduplication and revision conflicts; it is not firmware or evidence of durable flash behavior. No firmware, web UI, wire decoder, or flash operations exist yet. Read `docs/PLAN.md`, `docs/DECISIONS.md`, and `docs/PROTOCOL.md` before implementation. Do not treat proposed choices as tested facts.
 
 ## Product intent
 
@@ -36,4 +36,4 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-Continue M0: specify command/result retention and ambiguous-write recovery; choose bounded USB schemas/framing and generated bindings; add wire validation, lifecycle timeouts, and device-side revision checks. Verify hardware revision/band before firmware development. ESP-IDF is not currently on PATH. Channel semantics and message limits remain provisional; licensing is deferred by owner. EU support is a future requirement, not an enabled or validated region. Run host checks with `npm test`; no dependencies are currently required.
+Continue M0: choose bounded USB schemas/framing and generated bindings; add wire validation, lifecycle timeouts, and a production retention/reclamation contract. The reference receipt store rejects new work when full rather than evicting; do not ship it as a firmware retention policy. Command manager incarnations must be freshly allocated and collision-resistant. Implement real device-side revision checks and persistence only after hardware verification. Verify hardware revision/band before firmware development. ESP-IDF is not currently on PATH. Channel semantics and message limits remain provisional; licensing is deferred by owner. EU support is a future requirement, not an enabled or validated region. Run host checks with `npm test`; no dependencies are currently required.

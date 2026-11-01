@@ -4,7 +4,7 @@ Status: M0 started. Independent protocol, US-first operation, synchronization/re
 
 ## Progress
 
-The first transport-independent TypeScript configuration synchronizer and 11 deterministic host tests are implemented. Run `npm test` with Node 24–25 (locally verified on 25.9.0). Tests cover snapshot/event ordering, duplicates, gaps, revision mismatch, buffer overflow, delayed snapshot responses, incompatible versions, and reconnect isolation. See `docs/PROTOCOL.md` for the implemented semantic boundary and remaining work. No wire format, serial transport, firmware, web UI, message command path, or RF behavior is implemented. M0 is not complete.
+The transport-independent TypeScript configuration synchronizer and command tracker have 23 deterministic host tests. Run `npm test` with Node 24–25 (locally verified on 25.9.0). Tests cover snapshot/event ordering, duplicates, gaps, revision mismatch, buffer overflow, delayed snapshot responses, incompatible versions, reconnect isolation, lost command responses, bounded retries, concurrent writes, query-only recovery, and reboot ambiguity. The host reference device tests command semantics without real persistence; production receipt retention/reclamation is still pending. See `docs/PROTOCOL.md` for the implemented semantic boundary and remaining work. No wire format, serial transport, firmware, web UI, message command path, or RF behavior is implemented. M0 is not complete.
 
 ## Product boundary
 
