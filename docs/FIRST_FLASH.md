@@ -60,6 +60,14 @@ If the app fails to boot/connect, reenter ROM and reinstall the same verified ar
 4. Interrupt a save/connection and query retained results after reconnect; never automatically replay the mutation.
 5. Record UART error recovery and repeated reconnect behavior. Keep display/RF claims separate. Real flash power-loss and long-duration reliability testing remain additional qualification, not implied by one successful boot.
 
-## Current gate status
+## First hardware result
 
-The USB-only image builds and host checks pass. The owner waived preserving old firmware/settings. The specific first write awaits authorization; real hardware connection/persistence qualification remains pending. Serial read instability was observed during abandoned backup attempts, so successful write verification and subsequent communications tests are required before claiming hardware operation.
+First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. Browser Web Serial startup/retry handling needs qualification before calling the web path ready. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
+
+The opt-in smoke check uses a small independent Python wire peer, not the browser or TypeScript client. It intentionally sets region US and label `Reaper hardware test`, then resets the board. Run only when those changes are intended:
+
+```sh
+.tools/espressif/python_env/idf5.5_py3.12_env/bin/python tools/hardware-smoke.py --port /dev/cu.usbserial-0001 --confirm-write
+```
+
+Its local result is build/heltec-v3/hardware-smoke.json. The reviewed build manifest describes the pre-flash artifacts; it is not a live hardware-status record. Future builds need fresh hash review.

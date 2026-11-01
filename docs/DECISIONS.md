@@ -38,3 +38,7 @@ Pin ESP-IDF v5.5.4 (exact commit in firmware/esp-idf.lock.json). Use one seriali
 ## Owner clarification: existing firmware need not be preserved
 
 The owner explicitly declined keeping the factory/previous firmware and settings. Stop backup attempts and remove backup as a prerequisite. First flash still requires review/authorization of the concrete image and manual ROM USB reinstall route. No whole-chip/NVS erase is implied by this decision.
+
+## First supervised flash and USB smoke
+
+First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. Browser Web Serial startup/retry handling needs qualification before calling the web path ready. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.

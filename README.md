@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol; Meshtastic is a functional reference. The repository contains the shared USB/client core, a local web console and simulator, and portable C++ protocol/configuration components, with 128 host tests. A USB-only ESP-IDF image now builds; first flashing awaits specific image authorization; the owner waived preservation of the old firmware/settings.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol; Meshtastic is a functional reference. The repository contains the shared USB/client core, a local web console and simulator, and portable C++ protocol/configuration components, with 128 host tests. The USB-only ESP-IDF image is installed on the development Heltec and passes initial USB/NVS smoke checks; browser hardware qualification remains pending.
 
 ## Start here
 
