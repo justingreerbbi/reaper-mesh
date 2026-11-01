@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, and 79 tests exist; firmware and the web UI have not been implemented. Nothing has been flashed.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, capability negotiation, and 87 tests exist; firmware and the web UI have not been implemented. Nothing has been flashed.
 
 ## Start here
 
@@ -17,10 +17,11 @@ The goal is dependable messaging, small firmware, and compatibility across suppo
 Use Node 24–25 (Node 24 is the proposed baseline; locally tested with 25.9.0):
 
 ```sh
-npm test
+npm ci --ignore-scripts
+npm run check
 ```
 
-No dependency installation is required. Node's built-in TypeScript runner executes the tests; static type checking and CI are still pending. Tests also check generated protocol declarations. After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. The serial adapter has been tested with simulated ports only; hardware/browser validation is pending. See [serial integration](docs/SERIAL.md).
+Pinned development dependencies provide strict TypeScript checking. Node's built-in runner executes the tests; generated protocol declarations are also checked. GitHub CI is configured but has not run remotely. See [development checks](docs/DEVELOPMENT.md). After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. The serial adapter has been tested with simulated ports only; hardware/browser validation is pending. See [serial integration](docs/SERIAL.md).
 
 ## Proposed repository layout
 

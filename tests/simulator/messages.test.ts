@@ -82,7 +82,7 @@ test('command IDs and result outcomes are bounded and canonical', () => {
   for (const id of ['client:0', 'client:01', 'client:4294967296', 'client:-1', ':1', 'client:1:2']) {
     assert.throws(() => encodeMessage({ ...messages[9], id } as Message));
   }
-  assert.throws(() => encodeMessage({ ...messages[8], outcome: 'delivered' } as Message));
+  assert.throws(() => encodeMessage({ ...messages[8], outcome: 'delivered' } as unknown as Message));
   assert.deepEqual(decodeMessage(encodeMessage({ ...messages[9], id: 'client:4294967295' } as Message)),
     { ...messages[9], id: 'client:4294967295' });
 });

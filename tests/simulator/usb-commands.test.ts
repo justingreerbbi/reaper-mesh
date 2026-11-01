@@ -5,6 +5,7 @@ import { Connection } from '../../packages/client-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../../packages/protocol/messages.ts';
 import { ConfigDevice } from './config-device.ts';
+import { deviceCapabilities } from './capabilities.ts';
 
 const settle = () => new Promise<void>(resolve => setImmediate(resolve));
 
@@ -31,7 +32,9 @@ function setup(device = new ConfigDevice()) {
           requests.push(message);
           const link = message.link;
           if (message.type === 'hello') {
-            reply({ type: 'welcome', link, device: identity, boot: device.boot, minVersion: 1, maxVersion: 1 });
+            reply({ type: 'welcome', link, device: identity, boot: device.boot, minVersion: 1, maxVersion: 1,
+              ...deviceCapabilities, receiptCapacity: device.capacity, ownerCapacity: device.ownerCapacity,
+              ownerAdmitted: message.owner && device.admit(message.owner) ? 1 : 0 });
           } else if (message.type === 'sync') {
             reply({ type: 'snapshot', link, boot: device.boot, request: message.request,
               sequence: device.revision, revision: device.revision,

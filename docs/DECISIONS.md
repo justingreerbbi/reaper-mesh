@@ -18,7 +18,8 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | Message length | Start with a configurable hard cap of 1,024 UTF-8 bytes, subject to airtime/memory measurements | Proposed, not a throughput promise |
 | Encryption | Deferred feature; reserve versioned authenticated-envelope extension, not homegrown crypto | User direction |
 | Testing | RACE means deliberate device/client synchronization and easy recovery after interrupted connections; implement deterministic race/recovery and compatibility tests | Confirmed by owner |
-| Request history | Bounded FIFO receipts plus non-evicting per-owner sequence marks; query-only reconnect recovery; evicted results remain unknown and cannot reexecute | Host-tested draft; firmware persistence/resource negotiation pending |
+| Request history | Bounded FIFO receipts plus non-evicting per-owner sequence marks; query-only reconnect recovery; evicted results remain unknown and cannot reexecute | Host-tested draft with capacity/admission metadata; firmware persistence and owner-retirement UX pending |
+| Host verification | Strict TypeScript, generated-schema checks, 87 host tests; pinned Node 24/25 CI workflow | Locally passing on Node 25; remote CI pending |
 | Update UX | Browser guided USB installation and recovery; versioned manifest, board checks, configuration migration | Proposed |
 | Licensing | Decision deferred by owner; do not assign a license or import incompatible third-party code in the meantime | Deferred |
 

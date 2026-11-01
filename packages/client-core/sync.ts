@@ -39,10 +39,11 @@ export class Synchronizer {
     if (session !== this.session || this.state !== 'negotiating') return;
     if (!boot || minVersion > 1 || maxVersion < 1 || minVersion > maxVersion) {
       this.state = 'incompatible';
-      return;
+      return false;
     }
     this.boot = boot;
     this.#resync();
+    return true;
   }
 
   event(event: Event) {

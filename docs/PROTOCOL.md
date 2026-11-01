@@ -27,7 +27,7 @@ Reset the decoder on every connection generation change. Prefix a newly opened s
 
 The first host vertical slice uses a small dependency-free TLV codec rather than introducing Protocol Buffers dependencies before firmware/toolchain evaluation. This is a provisional wire choice and must be reviewed before embedded implementation or a public release. There is no claim that TLV and Protobuf encodings interoperate.
 
-`packages/protocol/schema.json` is the single source for message tags, ordered field tags, and validation kinds. `messages.ts` consumes it at runtime. `npm run generate:protocol` generates TypeScript declarations; `npm test` checks they have not drifted. Embedded generation is pending: do not hand-copy a second schema into firmware.
+`packages/protocol/schema.json` is the single source for message tags, ordered field tags, and validation kinds. A trailing `?` denotes an optional field. `messages.ts` consumes it at runtime. `npm run generate:protocol` generates TypeScript declarations; `npm test` checks they have not drifted. Embedded generation is pending: do not hand-copy a second schema into firmware.
 
 The payload begins with one byte for payload version (`01`) and one for message type. Each field follows as a one-byte nonzero field tag, two-byte little-endian byte length, then field data. A field's tag is its 1-based position in that message's schema field list. Preserve existing message tags, field order, and meanings. Adding a required field or changing its kind is a breaking protocol change. Unknown optional field tags are skipped by length; duplicates (including unknown tags), tag zero, missing required fields, invalid widths, overruns, unknown message types/versions, and oversized payloads are rejected. Fields may arrive in any order. The envelope's 2,048-byte limit also bounds field count and allocations.
 
@@ -44,9 +44,28 @@ The payload begins with one byte for payload version (`01`) and one for message 
 | 9 result | link, boot, id, outcome, revision | Command receipt or query result |
 | 10 query | link, boot, id | Read-only lookup of a retained command result |
 
+The hello additionally appends optional field 4 `owner` (client incarnation). Welcome appends optional metadata at tags 6–15, preserving all original required fields. Older v1 peers can still exchange snapshots, but cannot configure through the new client without the complete safety metadata.
+
+| Welcome field tag | Field | Meaning |
+| --- | --- | --- |
+| 6 | configSchema | Supported config schema; client writes require version 1 |
+| 7 | features | Bits 0/1/2: revision-checked writes, result queries, monotonic duplicate suppression |
+| 8 | maxPayload | Device receive capacity; client currently requires at least 512 bytes for writes |
+| 9 | receiptCapacity | Maximum retained command receipts; must be positive |
+| 10 | ownerCapacity | Maximum retained owner marks; must be positive |
+| 11 | ownerAdmitted | 1 if the hello owner is admitted for this boot, otherwise 0 |
+| 12 | regions | Bits 0/1/2 permit UNSET/US/EU config values respectively |
+| 13 | maxLabelBytes | Device label bound; supported range 1–64 UTF-8 bytes |
+| 14 | firmware | Build identifier using the bounded ID character set |
+| 15 | radioVersion | Independent radio protocol version; 0 means no implemented radio protocol |
+
+All metadata fields except firmware are u32. Metadata is immutable and cleared on disconnect. Missing/partial metadata, unknown config schema, missing safety bits, unusable limits, or denied admission yield a readable connection with `writeBlockReason`; they cannot consume command IDs or send mutations. Unknown feature bits are ignored while all known required bits remain required. Result queries need the advertised query bit and remain allowed when new owner admission is denied. Region/UTF-8 label limits are checked before retaining a mutation. Regional bits describe permitted configuration, not RF authorization or verified hardware support.
+
+The device must atomically admit the hello owner before advertising `ownerAdmitted=1`. Repeated admission of that owner is idempotent and does not consume its first command sequence. When the owner table is full, preserve old marks, deny new owners, and expose read-only operation. Never reset automatically or pretend rotating IDs restores capacity. Reuse the client manager across reconnects. Full session retirement/owner-exhaustion UX and persistence rules remain release requirements.
+
 Counter and version fields are unsigned 32-bit little-endian integers with exactly four bytes. Reject overflow/fractional/negative values before encoding. Device, boot, and link IDs are 1–64 ASCII letters, digits, underscores, or hyphens; allocate collision-resistant boot IDs on each reboot and fresh link IDs for every open. IDs are correlation values, not authentication. `label` is strict UTF-8 up to 64 bytes, allows empty text, and rejects ASCII controls. Invalid UTF-8 and unpaired Unicode surrogates are rejected. `region` is currently `UNSET`, `US`, or `EU`; accepting a config value does not enable RF or certify regional support. Firmware must separately enforce verified regional/hardware capabilities.
 
-Configuration command submission, result handling, and read-only recovery queries now run through `Connection` and `SerialAdapter`. Command IDs are a 1–64-character incarnation plus `:` and a canonical decimal sequence from 1 through 4,294,967,295; no leading zeros. Results allow `committed`, `conflict`, `rejected`, or `unknown`. The result's revision is informational and must never overwrite configuration by itself. Current command/owner capacities are host defaults, not yet negotiated device capabilities.
+Configuration command submission, result handling, and read-only recovery queries now run through `Connection` and `SerialAdapter`. Command IDs are a 1–64-character incarnation plus `:` and a canonical decimal sequence from 1 through 4,294,967,295; no leading zeros. Results allow `committed`, `conflict`, `rejected`, or `unknown`. The result's revision is informational and must never overwrite configuration by itself. Devices now advertise command/owner capacities; this does not promise a time-based result-retention window.
 
 Use `SerialAdapter.configure(config)` and `SerialAdapter.recover(id)` while connected; inspect `connection.commands.status(id)` and explicitly release non-pending client history using `connection.forget(id)`. Mutations require readiness. Malformed configuration is rejected before consuming an ID/history slot. A disconnect immediately marks pending commands unknown. Recovery is bound to the original device identity and boot, and never submits the original mutation on a new link. Even a matching boot from a different device cannot recover its receipt.
 
@@ -106,6 +125,6 @@ On reboot, config/revision survive in the simulation but receipts and high-water
 
 ## Deferred contracts
 
-Next add static type checking/CI and embedded code generation, complete handshake capabilities/resource negotiation and owner-exhaustion handling, and build the web UI. Review the serialization and retention drafts before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
+Next add embedded code generation, a web UI with write-blocked diagnostics, and session retirement/owner-exhaustion recovery UX. Strict static checks, CI configuration, and handshake capabilities/resource admission are implemented; remote CI and hardware validation remain pending. Review the serialization and retention drafts before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
 
 `Connection` dispatches only successfully decoded and validated typed negotiation/synchronization messages. Direct callers of `Synchronizer` and `Commands` must still supply validated objects. These components are not wire decoders.

@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { Connection } from '../../packages/client-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../../packages/protocol/messages.ts';
+import { deviceCapabilities } from './capabilities.ts';
 
 const wire = (message: Message) => encodeFrame(encodeMessage(message));
 const welcome = (link = 'link-A', boot = 'boot-A'): Message =>
-  ({ type: 'welcome', link, boot, device: 'device-A', minVersion: 1, maxVersion: 1 });
+  ({ type: 'welcome', link, boot, device: 'device-A', minVersion: 1, maxVersion: 1, ...deviceCapabilities });
 function outgoing(connection: Connection): Message[] {
   const result: Message[] = [];
   const decoder = new FrameDecoder();

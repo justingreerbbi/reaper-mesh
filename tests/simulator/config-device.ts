@@ -20,6 +20,14 @@ export class ConfigDevice {
     this.ownerCapacity = ownerCapacity;
   }
 
+  admit(owner: string) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(owner)) return false;
+    if (this.#highest.has(owner)) return true;
+    if (this.#highest.size >= this.ownerCapacity) return false;
+    this.#highest.set(owner, 0);
+    return true;
+  }
+
   apply(command: ConfigCommand): Result {
     const result = (outcome: Result['outcome']): Result => Object.freeze({
       id: command.id, boot: this.boot, outcome, revision: this.revision,

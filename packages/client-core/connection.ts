@@ -2,6 +2,7 @@ import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { Synchronizer, type Config } from './sync.ts';
 import { Commands, type ConfigCommand } from './commands.ts';
+import { capabilities, writeBlockReason, type Capabilities } from '../protocol/capabilities.ts';
 
 /** Caller-driven serial lifecycle; adapters deliver bytes and drain bounded writes. */
 export class Connection {
@@ -10,6 +11,8 @@ export class Connection {
   #commandDevices = new Map<string, string>();
   device: string | undefined;
   error: string | undefined;
+  capabilities: Capabilities | undefined;
+  get writeBlockReason() { return writeBlockReason(this.capabilities); }
   #decoder = new FrameDecoder();
   #outgoing: Uint8Array[] = [];
   #link = '';
@@ -29,6 +32,13 @@ export class Connection {
     this.#time(now);
     if (this.#expired(now)) throw new Error('connection timed out');
     this.sync.mutationContext();
+    const blocked = this.writeBlockReason;
+    if (blocked) throw new Error(blocked);
+    const regionMask = { UNSET: 1, US: 2, EU: 4 }[config.region];
+    if (!regionMask || !(this.capabilities!.regions & regionMask)) throw new Error('device does not support this region');
+    if (new TextEncoder().encode(config.label).length > this.capabilities!.maxLabelBytes) {
+      throw new Error('label exceeds device limit');
+    }
     // Validate before retaining the command, including runtime callers without TS checks.
     encodeMessage({ type: 'configure', link: this.#link, boot: this.sync.boot!, id: 'validation:1',
       expectedRevision: this.sync.revision, region: config.region, label: config.label } as Message);
@@ -42,6 +52,7 @@ export class Connection {
     this.#time(now);
     if (this.#expired(now)) throw new Error('connection timed out');
     if (this.#commandDevices.get(id) !== this.device) throw new Error('command belongs to another device');
+    if (!this.capabilities || !(this.capabilities.features & 2)) throw new Error('device does not support result queries');
     const query = this.commands.recover(id);
     if (query) this.#send({ type: 'query', link: this.#link, ...query });
     return !!query;
@@ -56,13 +67,15 @@ export class Connection {
     this.#time(now);
     // Bound remembered generations; adapters should create a new manager before exhaustion.
     if (this.#usedLinks.size >= 1024 || this.#usedLinks.has(link)) throw new Error('use a fresh link identity');
-    const hello = encodeFrame(encodeMessage({ type: 'hello', link, minVersion: 1, maxVersion: 1 }));
+    const hello = encodeFrame(encodeMessage({ type: 'hello', link, minVersion: 1, maxVersion: 1,
+      owner: this.commands.incarnation }));
     this.close();
     this.#usedLinks.add(link);
     this.#link = link;
     const session = this.sync.connect();
     this.error = undefined;
     this.device = undefined;
+    this.capabilities = undefined;
     this.#request = 0;
     this.#ping = 0;
     this.#awaitingPong = false;
@@ -78,6 +91,7 @@ export class Connection {
     this.#outgoing = [];
     this.error = reason;
     this.device = undefined;
+    this.capabilities = undefined;
   }
 
   receive(session: number, bytes: Uint8Array, now: number) {
@@ -111,8 +125,9 @@ export class Connection {
   #dispatch(message: Message) {
     if (message.type === 'welcome' && this.sync.state === 'negotiating') {
       this.device = message.device;
-      this.sync.hello(this.sync.session, message.boot, message.minVersion, message.maxVersion);
-      if (this.sync.state === 'incompatible') { this.#outgoing = []; return; }
+      this.capabilities = capabilities(message);
+      const compatible = this.sync.hello(this.sync.session, message.boot, message.minVersion, message.maxVersion);
+      if (!compatible) { this.#outgoing = []; return; }
       this.#deadline = this.#now + 5000;
     } else if (message.type === 'snapshot' || message.type === 'event') {
       if (message.boot !== this.sync.boot) return;

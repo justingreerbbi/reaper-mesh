@@ -185,7 +185,8 @@ test('reopening after cleanup sends only a fresh handshake to the next port', as
   const second = fixture();
   await first.adapter.connect(second.port, 'link-B');
   await settle();
-  assert.deepEqual(second.messages(), [{ type: 'hello', link: 'link-B', minVersion: 1, maxVersion: 1 }]);
+  assert.deepEqual(second.messages(), [{ type: 'hello', link: 'link-B', minVersion: 1, maxVersion: 1,
+    owner: first.adapter.connection.commands.incarnation }]);
   assert.equal(first.writes.length, 1);
   await first.adapter.disconnect();
   assert.equal(second.stats().closed, 1);

@@ -3,10 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24 <26" },
+  "engines": {
+    "node": ">=24 <26"
+  },
   "scripts": {
     "generate:protocol": "node tools/generate-protocol.ts",
     "check:generated": "node tools/generate-protocol.ts --check",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
     "test": "npm run check:generated && node --test tests/simulator/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
   }
 }

@@ -40,13 +40,16 @@ export function encodeMessage(message: Message): Uint8Array {
   const chunks: Uint8Array[] = [Uint8Array.of(1, descriptor.tag)];
   let tag = 0;
   let total = 2;
-  for (const [name, kind] of Object.entries(descriptor.fields)) {
+  for (const [name, descriptorKind] of Object.entries(descriptor.fields)) {
+    ++tag;
+    const kind = descriptorKind.replace(/\?$/, '');
     const value = (message as unknown as Record<string, unknown>)[name];
+    if (value === undefined && descriptorKind.endsWith('?')) continue;
     validate(kind, value);
     const data = kind === 'u32' ? new Uint8Array(4) : encoder.encode(value as string);
     if (kind === 'u32') new DataView(data.buffer).setUint32(0, value as number, true);
     const field = new Uint8Array(3 + data.length);
-    field[0] = ++tag;
+    field[0] = tag;
     new DataView(field.buffer).setUint16(1, data.length, true);
     field.set(data, 3);
     chunks.push(field);
@@ -79,7 +82,8 @@ export function decodeMessage(payload: Uint8Array): Message {
     seen.add(tag);
     const field = fields[tag - 1];
     if (field) {
-      const [name, kind] = field;
+      const [name, descriptorKind] = field;
+      const kind = descriptorKind.replace(/\?$/, '');
       if (kind === 'u32' && length !== 4) throw new Error('invalid integer width');
       const value = kind === 'u32' ? view.getUint32(cursor, true) : decoder.decode(payload.subarray(cursor, cursor + length));
       validate(kind, value);
@@ -87,7 +91,7 @@ export function decodeMessage(payload: Uint8Array): Message {
     }
     cursor += length;
   }
-  if (fields.some(([name]) => !(name in output))) throw new Error('missing required field');
+  if (fields.some(([name, kind]) => !kind.endsWith('?') && !(name in output))) throw new Error('missing required field');
   if ((type === 'hello' || type === 'welcome') && (output.minVersion as number) > (output.maxVersion as number)) {
     throw new Error('invalid version range');
   }
