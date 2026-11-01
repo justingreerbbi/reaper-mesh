@@ -1,0 +1,6 @@
+{
+  "description": "Envelope v1 with payload 00 01 ff; CRC independently checked with Python zlib.crc32",
+  "payloadHex": "0001ff",
+  "rawHex": "524d010003000001ffca05fbdd",
+  "frameHex": "04524d010203010701ffca05fbdd00"
+}

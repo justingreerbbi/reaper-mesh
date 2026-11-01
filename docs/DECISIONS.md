@@ -12,7 +12,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | Firmware stack | ESP-IDF/C++ with a thin SX1262 driver adapter; evaluate driver support/license in M0 | Proposed |
 | Client stack | TypeScript + React + Vite; shared client state library | Proposed |
 | Serialization | Versioned Protocol Buffers, bounded embedded decoding; evaluate Nanopb and generated TS bindings | Proposed |
-| Serial framing | COBS-delimited binary frames with length limits and CRC; logs on a separate path | Proposed; specify before implementation |
+| Serial framing | Draft v1: COBS + zero delimiter, RM/version/flags/length header, max 2,048-byte payload, CRC-32/ISO-HDLC; logs on a separate path | Host implementation tested; release format not frozen |
 | Initial channels | One public channel first; named logical channels next, sharing a radio preset; no privacy until crypto | Proposed |
 | Node roles | Normal node and relay-enabled node; forwarding controlled separately from logical channel type | Proposed |
 | Message length | Start with a configurable hard cap of 1,024 UTF-8 bytes, subject to airtime/memory measurements | Proposed, not a throughput promise |
