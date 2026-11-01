@@ -10,6 +10,8 @@ Build a deliberately small, reliable LoRa mesh messaging system. Start with one 
 
 Requested capabilities: channels (including public channels and defined channel roles/types), radio/power configuration, longer text messages, mesh relay, acknowledgments, and eventually channel encryption. Encryption is deferred, so early prototypes must clearly label radio traffic as plaintext and unauthenticated. Do not claim private or secure messaging.
 
+Regional scope confirmed by the owner: initial development/operation in the US, with EU support later. Keep regional radio profiles separate from board capabilities and logical channels. Build the profile interface and tests from the start; do not enable EU transmission until the intended countries, hardware, and applicable settings are verified.
+
 ## Engineering rules
 
 - Keep device/client protocol, radio protocol, config schema, and firmware release versions separate. Negotiate supported versions and capabilities before mutations; refuse incompatible operations with actionable errors.
@@ -32,4 +34,4 @@ Implement one milestone at a time after the owner accepts the plan. Define obser
 
 ## Next work
 
-Resolve hardware band/revision and operating region; confirm what “RACE tests” means (currently interpreted as concurrency/race-condition testing); settle independent protocol versus Meshtastic interoperability, channel semantics, license, and provisional message limits. Then begin M0 in `docs/PLAN.md`.
+Resolve hardware band/revision for US operation; confirm what “RACE tests” means (currently interpreted as concurrency/race-condition testing); settle independent protocol versus Meshtastic interoperability, channel semantics, license, and provisional message limits. Then begin M0 in `docs/PLAN.md`. EU support is a future requirement, not an enabled or validated region.

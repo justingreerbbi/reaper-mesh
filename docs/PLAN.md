@@ -16,6 +16,16 @@ The board adapter owns pins, reset/boot behavior, SX1262 access, display, and st
 
 Desktop USB uses Web Serial in a supported Chromium browser with explicit port selection and secure-context requirements (HTTPS or local development). Browser support must be documented; do not promise all browsers or mobile USB. The app initially runs on the computer, not the device. Keep the transport interface suitable for later BLE without implementing BLE now.
 
+## Regional support: US first, EU later
+
+Initial development and operation are in the US; EU support is an explicit future requirement. Design a versioned regional-profile interface in M0 and implement the verified US profile first. Keep frequency plans, permitted modem settings, transmit-power constraints, and airtime/access policies in profiles rather than scattering US assumptions throughout routing and UI code. Numeric regulatory limits must be researched against current authoritative sources when implementing each profile.
+
+Validate the selected profile against the board's supported band and antenna configuration in firmware; client-side validation alone is insufficient. An unset, unsupported, or incompatible profile leaves transmission disabled while USB configuration remains available. Expose the active profile and profile version through the handshake and configuration snapshot. Region changes use revision-checked configuration and must quiesce pending transmissions so queued packets cannot leak out under stale settings.
+
+The airtime scheduler must account for fragments, retries, ACKs, and forwarded traffic under the active profile. Test profile mismatch, invalid power/frequency requests, region changes during queued sends, reboot persistence, and airtime exhaustion from the beginning. Use synthetic restrictive profiles for host tests until actual EU profiles are specified; simulation is not evidence of regulatory compliance.
+
+Before enabling EU support, identify target countries/bands, verify compatible hardware, research applicable requirements, and run region-specific hardware and airtime qualification. Do not assume a US device can switch to EU operation solely through a software setting.
+
 ## Protocol and synchronization contract
 
 Specify USB and radio protocols independently before implementing the core:

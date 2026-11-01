@@ -6,6 +6,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | --- | --- | --- |
 | Repository | One Git repository for firmware, protocol, and clients; local `main` initialized | Established |
 | First board | Heltec WiFi LoRa 32 V3 over USB; verify actual revision, band, flash size, serial bridge, and port | User direction; identification pending |
+| Regional scope | Initial development and operation in the US; future EU support. Design regional profiles now; validate EU settings and hardware before enabling EU transmission | Confirmed by owner |
 | Client | Desktop browser web app; USB first, BLE later | User direction |
 | Protocol | Independent Reaper Mesh protocol; no Meshtastic interoperability promise | Proposed; owner decision needed |
 | Firmware stack | ESP-IDF/C++ with a thin SX1262 driver adapter; evaluate driver support/license in M0 | Proposed |
@@ -22,7 +23,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 
 ## Owner inputs needed before affected implementation
 
-1. Exact Heltec model/revision and frequency variant, plus country where it will transmit. Read-only USB inventory can help identify the port but cannot establish all RF details.
+1. Exact Heltec model/revision and frequency variant. Initial operating country is confirmed as the US. Read-only USB inventory can help identify the port but cannot establish all RF details. Identify intended EU countries/bands before the EU milestone.
 2. Whether nodes must talk to existing Meshtastic nodes. If yes, revisit radio protocol and compatibility scope before designing it.
 3. Whether RACE refers to a particular framework/process rather than race-condition testing.
 4. Meaning of channel “types” and “power”: proposed interpretation is public/named logical channels, node forwarding roles, and transmit-power settings. Battery/power-saving behavior needs separate requirements.
