@@ -1,5 +1,6 @@
 #include "reaper/session.hpp"
 #include "nvs_storage.hpp"
+#include "status_display.hpp"
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_mac.h"
@@ -17,6 +18,7 @@ constexpr auto kUart = UART_NUM_0;
 constexpr int kTx = 43, kRx = 44;
 static p::FrameDecoder decoder;
 static p::Message reply;
+static std::int64_t last_reply = 0;
 static std::array<std::uint8_t, p::kMaxEncoded + 1> output;
 bool write_frame(const p::Message& message) {
   std::size_t size = 0;
@@ -26,7 +28,10 @@ bool write_frame(const p::Message& message) {
 }
 void received(const p::Message& request, void* context) {
   auto& session = *static_cast<d::Session*>(context);
-  if (session.handle(request, reply) && !write_frame(reply)) { session.reset(); return; }
+  if (session.handle(request, reply)) {
+    if (!write_frame(reply)) { session.reset(); return; }
+    last_reply = esp_timer_get_time();
+  }
   if (session.take_error(reply)) write_frame(reply);
 }
 void halt() { for (;;) vTaskDelay(pdMS_TO_TICKS(1000)); }
@@ -64,6 +69,9 @@ extern "C" void app_main() {
   static NvsStorage storage;
   static d::Configuration authority(storage, boot);
   static d::Session session(authority, device, boot);
+  static StatusDisplay display;
+  display.begin();
+  std::int64_t next_display = 0;
   std::array<std::uint8_t, 256> input{};
   std::int64_t last_read = 0;
   for (;;) {
@@ -83,6 +91,14 @@ extern "C" void app_main() {
     }
     if (decoder.buffered_bytes() && esp_timer_get_time() - last_read > 1000000) {
       decoder.reset(); session.reset();
+    }
+    const auto now = esp_timer_get_time();
+    if (now >= next_display) {
+      next_display = now + 500000;
+      d::Snapshot snapshot{};
+      const bool healthy = authority.snapshot(snapshot);
+      display.update(session.synchronized() && now - last_reply < 8000000 ? "USB READY" : "USB IDLE",
+        healthy, snapshot.revision);
     }
     vTaskDelay(1); // Yield even under continuous malformed input; keep the idle watchdog healthy.
   }

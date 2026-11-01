@@ -87,3 +87,9 @@ The physical check was also extended to the real SerialAdapter using standard We
 ## Browser hardware evidence
 
 November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.
+
+## OLED prototype update
+
+The usb-prototype-1 image adds best-effort OLED status and keeps the same partition table and USB protocol. Routine USB firmware updates/testing are authorized by the owner. Use the same reviewed write offsets and ROM recovery route; do not erase NVS. The current manifest is regenerated for each build. The screen should show version, USB status, revision, storage health, and RADIO OFF; a successful serial check alone does not verify visible pixels.
+
+Pin/power references: [Espressif Heltec V3 variant](https://github.com/espressif/arduino-esp32/blob/master/variants/heltec_wifi_lora_32_V3/pins_arduino.h), [Heltec power polarity](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.h), and [Heltec controller/address](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.cpp). Reviewed against the pinned ESP-IDF 5.5.4 I2C headers/SSD1306 driver.

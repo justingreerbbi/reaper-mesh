@@ -49,10 +49,12 @@ int main(int argc, char** argv) {
   p::Message reply{};
   CHECK(session.handle(hello(), reply) && reply.type == p::MessageType::Welcome);
   CHECK(reply.fields[p::kWelcomeOwnerAdmitted].number == 1);
+  CHECK(!session.synchronized());
   if (scenario == "sync") {
     CHECK(session.handle(configure(), reply) && is(reply.fields[p::kResultOutcome], "rejected"));
     CHECK(store.writes == 0);
     CHECK(session.handle(sync(), reply) && reply.type == p::MessageType::Snapshot);
+    CHECK(session.synchronized());
     CHECK(session.handle(configure(), reply) && is(reply.fields[p::kResultOutcome], "committed"));
     CHECK(session.handle(sync(), reply) && reply.fields[p::kSnapshotRevision].number == 1);
     CHECK(is(reply.fields[p::kSnapshotLabel], "native session"));
@@ -73,6 +75,7 @@ int main(int argc, char** argv) {
     set(query.fields[p::kQueryLink], "link-B"); set(query.fields[p::kQueryBoot], "boot-A"); set(query.fields[p::kQueryId], "client-A:1");
     CHECK(session.handle(query, reply) && is(reply.fields[p::kResultOutcome], "committed"));
     CHECK(store.writes == 1);
+    CHECK(session.synchronized()); session.reset(); CHECK(!session.synchronized());
   } else if (scenario == "storage") {
     CHECK(session.handle(sync(), reply)); store.fail = true;
     CHECK(session.handle(configure(), reply) && is(reply.fields[p::kResultOutcome], "unknown"));

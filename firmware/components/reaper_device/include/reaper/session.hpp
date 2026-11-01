@@ -9,6 +9,7 @@ class Session {
   bool handle(const protocol::Message& request, protocol::Message& reply);
   bool take_error(protocol::Message& reply);
   void reset();
+  bool synchronized() const { return active_ && compatible_ && synchronized_; }
  private:
   Configuration& authority_;
   Text<64> device_, boot_, link_{}, owner_{};

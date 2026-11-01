@@ -21,6 +21,8 @@ manifest = {
     "usb_protocol": 1, "config_schema": 1, "record_schema": 1, "radio_protocol": 0,
     "uart": {"baud": 115200, "tx_gpio": 43, "rx_gpio": 44},
     "radio": {"enabled": False, "reset_gpio": 12, "held_in_reset": True},
+    "display": {"controller": "SSD1306", "width": 128, "height": 64, "sda_gpio": 17,
+                "scl_gpio": 18, "reset_gpio": 21, "vext_gpio": 36, "vext_active_low": True},
     "flash_settings": flash["flash_settings"], "artifacts": artifacts,
     "hardware_tested": False, "flashed": False,
 }

@@ -58,7 +58,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
     number(reply.fields[p::kWelcomeOwnerAdmitted], admitted_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRegions], 3); number(reply.fields[p::kWelcomeMaxLabelBytes], 64);
-    literal(reply.fields[p::kWelcomeFirmware], "usb-prototype-0"); number(reply.fields[p::kWelcomeRadioVersion], 0);
+    literal(reply.fields[p::kWelcomeFirmware], "usb-prototype-1"); number(reply.fields[p::kWelcomeRadioVersion], 0);
     return true;
   }
   if (!active_ || !compatible_ || !same(request.fields[0], link_)) return false;
