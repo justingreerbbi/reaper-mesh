@@ -2,7 +2,7 @@
 
 ## Current stage
 
-Planning only, as requested by the project owner on November 1, 2026. No firmware, web app, tests, or flash operations exist yet. Read `docs/PLAN.md` and `docs/DECISIONS.md` before proposing implementation. Do not treat proposed choices as tested facts.
+M0 foundations started on November 1, 2026 after owner clarification. The independent protocol semantics and a transport-independent TypeScript configuration synchronizer have been added, with 11 passing host tests on Node 25.9.0. No firmware, web UI, wire decoder, or flash operations exist yet. Read `docs/PLAN.md`, `docs/DECISIONS.md`, and `docs/PROTOCOL.md` before implementation. Do not treat proposed choices as tested facts.
 
 ## Product intent
 
@@ -11,6 +11,8 @@ Build a deliberately small, reliable LoRa mesh messaging system. Start with one 
 Requested capabilities: channels (including public channels and defined channel roles/types), radio/power configuration, longer text messages, mesh relay, acknowledgments, and eventually channel encryption. Encryption is deferred, so early prototypes must clearly label radio traffic as plaintext and unauthenticated. Do not claim private or secure messaging.
 
 Regional scope confirmed by the owner: initial development/operation in the US, with EU support later. Keep regional radio profiles separate from board capabilities and logical channels. Build the profile interface and tests from the start; do not enable EU transmission until the intended countries, hardware, and applicable settings are verified.
+
+The owner confirmed an independent, documented Reaper Mesh protocol and defined RACE as synchronization/recovery reliability rather than a framework. Licensing is explicitly deferred. The board is owner-reported as a US Heltec V3; read-only USB inventory found a CP2102 bridge, which cannot verify RF band. See `docs/HARDWARE.md`.
 
 ## Engineering rules
 
@@ -30,8 +32,8 @@ Regional scope confirmed by the owner: initial development/operation in the US, 
 
 ## Working process
 
-Implement one milestone at a time after the owner accepts the plan. Define observable acceptance criteria before coding. Run appropriate checks and report evidence and limitations. Update this file, the plan status, and decision log when scope or architecture changes. Keep protocol fixtures for previous supported releases so future agents cannot silently break compatibility.
+Proceed with M0 foundations within the confirmed independent-protocol and synchronization scope. Define observable acceptance criteria before coding. Run appropriate checks and report evidence and limitations. Update this file, the plan status, and decision log when scope or architecture changes. Keep protocol fixtures for previous supported releases so future agents cannot silently break compatibility.
 
 ## Next work
 
-Resolve hardware band/revision for US operation; confirm what “RACE tests” means (currently interpreted as concurrency/race-condition testing); settle independent protocol versus Meshtastic interoperability, channel semantics, license, and provisional message limits. Then begin M0 in `docs/PLAN.md`. EU support is a future requirement, not an enabled or validated region.
+Continue M0: specify command/result retention and ambiguous-write recovery; choose bounded USB schemas/framing and generated bindings; add wire validation, lifecycle timeouts, and device-side revision checks. Verify hardware revision/band before firmware development. ESP-IDF is not currently on PATH. Channel semantics and message limits remain provisional; licensing is deferred by owner. EU support is a future requirement, not an enabled or validated region. Run host checks with `npm test`; no dependencies are currently required.

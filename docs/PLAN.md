@@ -1,6 +1,10 @@
 # Development plan
 
-Status: proposed; implementation has not begun.
+Status: M0 started. Independent protocol, US-first operation, synchronization/recovery focus, and licensing deferral are confirmed. Remaining architectural choices are provisional.
+
+## Progress
+
+The first transport-independent TypeScript configuration synchronizer and 11 deterministic host tests are implemented. Run `npm test` with Node 24–25 (locally verified on 25.9.0). Tests cover snapshot/event ordering, duplicates, gaps, revision mismatch, buffer overflow, delayed snapshot responses, incompatible versions, and reconnect isolation. See `docs/PROTOCOL.md` for the implemented semantic boundary and remaining work. No wire format, serial transport, firmware, web UI, message command path, or RF behavior is implemented. M0 is not complete.
 
 ## Product boundary
 

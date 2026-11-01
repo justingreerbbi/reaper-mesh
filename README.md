@@ -2,13 +2,25 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Meshtastic is a functional reference; interoperability with its radio protocol is not currently promised. This repository currently contains planning documents only. Nothing has been built or flashed.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Initial host-side synchronization code and tests exist; firmware and the web UI have not been implemented. Nothing has been flashed.
 
 ## Start here
 
 - [AI.md](AI.md): project context and instructions for AI contributors.
 - [Development plan](docs/PLAN.md): proposed architecture, milestones, and acceptance criteria.
 - [Decisions](docs/DECISIONS.md): assumptions and unresolved product choices.
+- [Protocol draft](docs/PROTOCOL.md): synchronization semantics and implementation limits.
+- [Hardware inventory](docs/HARDWARE.md): read-only USB findings and outstanding verification.
+
+## Run the host tests
+
+Use Node 24–25 (Node 24 is the proposed baseline; locally tested with 25.9.0):
+
+```sh
+npm test
+```
+
+No dependency installation is required. Node's built-in TypeScript runner executes the tests; static type checking and CI are still pending.
 
 ## Proposed repository layout
 
@@ -27,4 +39,4 @@ These directories will be introduced as their implementation begins. Future desk
 
 ## Development status
 
-Planning stage. Review the open decisions before starting firmware or client implementation. The local Git repository is initialized; no GitHub repository or remote is configured. License selection is pending; no third-party code should be copied without checking its license.
+M0 foundations in progress. Review the open decisions before firmware work. The local Git repository is initialized; no GitHub repository or remote is configured. License selection is deferred by the owner; no third-party code should be copied without checking its license.
