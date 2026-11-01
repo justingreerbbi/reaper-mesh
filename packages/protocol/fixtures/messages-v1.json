@@ -1,0 +1,126 @@
+[
+  {
+    "message": {
+      "type": "hello",
+      "link": "link-A",
+      "minVersion": 1,
+      "maxVersion": 1,
+      "owner": "client-A"
+    },
+    "payloadHex": "01010106006c696e6b2d410204000100000003040001000000040800636c69656e742d41",
+    "frameHex": "04524d0102240501010106096c696e6b2d41020402010101030304020101010304080d636c69656e742d411d0dd84500"
+  },
+  {
+    "message": {
+      "type": "welcome",
+      "link": "link-A",
+      "device": "node-A",
+      "boot": "boot-A",
+      "minVersion": 1,
+      "maxVersion": 1,
+      "configSchema": 1,
+      "features": 7,
+      "maxPayload": 2048,
+      "receiptCapacity": 32,
+      "ownerCapacity": 8,
+      "ownerAdmitted": 1,
+      "regions": 3,
+      "maxLabelBytes": 64,
+      "firmware": "sim-0",
+      "radioVersion": 0
+    },
+    "payloadHex": "01020106006c696e6b2d410206006e6f64652d41030600626f6f742d410404000100000005040001000000060400010000000704000700000008040000080000090400200000000a0400080000000b0400010000000c0400030000000d0400400000000e050073696d2d300f040000000000",
+    "frameHex": "04524d0102720501020106096c696e6b2d410206096e6f64652d41030609626f6f742d410404020101010305040201010103060402010101030704020701010308040102080103090402200101030a0402080101030b0402010101030c0402030101030d0402400101030e050873696d2d300f040101010105a37c372a00"
+  },
+  {
+    "message": {
+      "type": "sync",
+      "link": "link-A",
+      "boot": "boot-A",
+      "request": 1
+    },
+    "payloadHex": "01030106006c696e6b2d41020600626f6f742d4103040001000000",
+    "frameHex": "04524d01021b0501030106096c696e6b2d41020609626f6f742d4103040201010105554262d700"
+  },
+  {
+    "message": {
+      "type": "snapshot",
+      "link": "link-A",
+      "boot": "boot-A",
+      "request": 1,
+      "sequence": 4294967295,
+      "revision": 4294967295,
+      "region": "US",
+      "label": "Café 📻"
+    },
+    "payloadHex": "01040106006c696e6b2d41020600626f6f742d4103040001000000040400ffffffff050400ffffffff0602005553070a00436166c3a920f09f93bb",
+    "frameHex": "04524d01023b0501040106096c696e6b2d41020609626f6f742d4103040201010103040407ffffffff050407ffffffff0602055553070a0f436166c3a920f09f93bbf08d883200"
+  },
+  {
+    "message": {
+      "type": "event",
+      "link": "link-A",
+      "boot": "boot-A",
+      "sequence": 4294967295,
+      "revision": 4294967295,
+      "region": "US",
+      "label": "Café 📻"
+    },
+    "payloadHex": "01050106006c696e6b2d41020600626f6f742d41030400ffffffff040400ffffffff0502005553060a00436166c3a920f09f93bb",
+    "frameHex": "04524d0102340501050106096c696e6b2d41020609626f6f742d41030407ffffffff040407ffffffff0502055553060a0f436166c3a920f09f93bb1ab1847600"
+  },
+  {
+    "message": {
+      "type": "ping",
+      "link": "link-A",
+      "request": 1
+    },
+    "payloadHex": "01060106006c696e6b2d4102040001000000",
+    "frameHex": "04524d0102120501060106096c696e6b2d41020402010101054d8be96c00"
+  },
+  {
+    "message": {
+      "type": "pong",
+      "link": "link-A",
+      "boot": "boot-A",
+      "request": 1
+    },
+    "payloadHex": "01070106006c696e6b2d41020600626f6f742d4103040001000000",
+    "frameHex": "04524d01021b0501070106096c696e6b2d41020609626f6f742d41030402010101058bd4f6fd00"
+  },
+  {
+    "message": {
+      "type": "configure",
+      "link": "link-A",
+      "boot": "boot-A",
+      "id": "client-A:4294967295",
+      "expectedRevision": 0,
+      "region": "US",
+      "label": "Café 📻"
+    },
+    "payloadHex": "01080106006c696e6b2d41020600626f6f742d41031300636c69656e742d413a34323934393637323935040400000000000502005553060a00436166c3a920f09f93bb",
+    "frameHex": "04524d0102430501080106096c696e6b2d41020609626f6f742d41031316636c69656e742d413a34323934393637323935040401010101030502055553060a0f436166c3a920f09f93bb503ad91700"
+  },
+  {
+    "message": {
+      "type": "result",
+      "link": "link-A",
+      "boot": "boot-A",
+      "id": "client-A:4294967295",
+      "outcome": "committed",
+      "revision": 4294967295
+    },
+    "payloadHex": "01090106006c696e6b2d41020600626f6f742d41031300636c69656e742d413a34323934393637323935040900636f6d6d6974746564050400ffffffff",
+    "frameHex": "04524d01023d0501090106096c696e6b2d41020609626f6f742d41031316636c69656e742d413a3432393439363732393504090c636f6d6d6974746564050409ffffffff08c41ac100"
+  },
+  {
+    "message": {
+      "type": "query",
+      "link": "link-A",
+      "boot": "boot-A",
+      "id": "client-A:4294967295"
+    },
+    "payloadHex": "010a0106006c696e6b2d41020600626f6f742d41031300636c69656e742d413a34323934393637323935",
+    "frameHex": "04524d01022a05010a0106096c696e6b2d41020609626f6f742d41031318636c69656e742d413a34323934393637323935c7464a0f00"
+  }
+]

@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.16)
+project(reaper_mesh_host_protocol LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_library(reaper_protocol components/reaper_protocol/protocol.cpp)
+target_include_directories(reaper_protocol PUBLIC components/reaper_protocol/include)
+target_compile_options(reaper_protocol PRIVATE -Wall -Wextra -Werror -pedantic)
+add_executable(codec_bridge tests/codec_bridge.cpp)
+target_link_libraries(codec_bridge PRIVATE reaper_protocol)
+enable_testing()
+add_test(NAME protocol_selftest COMMAND codec_bridge selftest)
+# This is a host-only codec target, not an ESP-IDF firmware image or flashing target.

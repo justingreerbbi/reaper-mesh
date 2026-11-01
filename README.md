@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, capability negotiation, and a local web configuration UI with 93 tests exist; firmware has not been implemented. Nothing has been flashed.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, capability negotiation, a local web configuration UI, and a portable C++ protocol codec with 101 tests exist; a device firmware image has not been implemented. Nothing has been flashed.
 
 ## Start here
 
@@ -10,6 +10,7 @@ The goal is dependable messaging, small firmware, and compatibility across suppo
 - [Development plan](docs/PLAN.md): proposed architecture, milestones, and acceptance criteria.
 - [Decisions](docs/DECISIONS.md): assumptions and unresolved product choices.
 - [Protocol draft](docs/PROTOCOL.md): synchronization semantics and implementation limits.
+- [Embedded foundation](firmware/README.md): C++ codec contracts, builds, and target integration limits.
 - [Hardware inventory](docs/HARDWARE.md): read-only USB findings and outstanding verification.
 
 ## Run the host tests
@@ -21,7 +22,7 @@ npm ci --ignore-scripts
 npm run check
 ```
 
-Pinned development dependencies provide strict TypeScript checking. Node's built-in runner executes the tests; generated protocol declarations are also checked. GitHub CI is configured; remote results have not been verified here. See [development checks](docs/DEVELOPMENT.md). After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. The serial adapter has been tested with simulated ports only; hardware/browser validation is pending. See [serial integration](docs/SERIAL.md).
+A C++17 compiler is required by the cross-language host tests. Pinned development dependencies provide strict TypeScript checking. Node's built-in runner executes the tests; generated protocol declarations are also checked. GitHub CI is configured; remote results have not been verified here. See [development checks](docs/DEVELOPMENT.md). After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. The serial adapter has been tested with simulated ports only; hardware/browser validation is pending. See [serial integration](docs/SERIAL.md).
 
 ## Run the web console
 

@@ -11,7 +11,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | Protocol | Independent, documented Reaper Mesh protocol; no Meshtastic interoperability | Confirmed by owner |
 | Firmware stack | ESP-IDF/C++ with a thin SX1262 driver adapter; evaluate driver support/license in M0 | Proposed |
 | Client stack | TypeScript + Vite with native DOM controls for the first small console; shared client state library; no runtime UI framework needed yet | Local implementation; React proposal deferred |
-| Serialization | Host draft uses schema-driven TLV with generated TypeScript declarations and bounded validation; review TLV versus Protocol Buffers before embedded implementation/public release | Provisional host implementation; embedded generator pending |
+| Serialization | Draft schema-driven TLV with generated TS/C++ descriptors and bounded codecs; review TLV versus Protocol Buffers before target application/public release | Host/cross-language codec tests pass; target integration pending |
 | Serial framing | Draft v1: COBS + zero delimiter, RM/version/flags/length header, max 2,048-byte payload, CRC-32/ISO-HDLC; logs on a separate path | Host implementation tested; release format not frozen |
 | Initial channels | One public channel first; named logical channels next, sharing a radio preset; no privacy until crypto | Proposed |
 | Node roles | Normal node and relay-enabled node; forwarding controlled separately from logical channel type | Proposed |
@@ -19,7 +19,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | Encryption | Deferred feature; reserve versioned authenticated-envelope extension, not homegrown crypto | User direction |
 | Testing | RACE means deliberate device/client synchronization and easy recovery after interrupted connections; implement deterministic race/recovery and compatibility tests | Confirmed by owner |
 | Request history | Bounded FIFO receipts plus non-evicting per-owner sequence marks; query-only reconnect recovery; evicted results remain unknown and cannot reexecute | Host-tested draft with capacity/admission metadata; firmware persistence and owner-retirement UX pending |
-| Host verification | Strict TypeScript, generated-schema checks, 93 host tests plus the web production build; pinned Node 24/25 CI workflow | Locally passing on Node 25; remote CI pending |
+| Host verification | Strict TypeScript, generated-schema checks, 101 host/cross-language tests plus the web production build; pinned Node 24/25 CI workflow | Locally passing on Node 25; remote CI pending |
 | Update UX | Browser guided USB installation and recovery; versioned manifest, board checks, configuration migration | Proposed |
 | Licensing | Decision deferred by owner; do not assign a license or import incompatible third-party code in the meantime | Deferred |
 
