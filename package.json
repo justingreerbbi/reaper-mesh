@@ -4,5 +4,9 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24 <26" },
-  "scripts": { "test": "node --test tests/simulator/*.test.ts" }
+  "scripts": {
+    "generate:protocol": "node tools/generate-protocol.ts",
+    "check:generated": "node tools/generate-protocol.ts --check",
+    "test": "npm run check:generated && node --test tests/simulator/*.test.ts"
+  }
 }

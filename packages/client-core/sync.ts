@@ -59,6 +59,10 @@ export class Synchronizer {
   snapshot(snapshot: Snapshot) {
     if (!this.#matches(snapshot) || this.state !== 'synchronizing' ||
         snapshot.request !== this.snapshotRequest) return;
+    if (snapshot.sequence < this.sequence || snapshot.revision < this.revision) {
+      this.#resync();
+      return;
+    }
     this.sequence = snapshot.sequence;
     this.revision = snapshot.revision;
     this.config = Object.freeze({ ...snapshot.config });

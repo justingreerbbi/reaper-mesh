@@ -11,7 +11,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | Protocol | Independent, documented Reaper Mesh protocol; no Meshtastic interoperability | Confirmed by owner |
 | Firmware stack | ESP-IDF/C++ with a thin SX1262 driver adapter; evaluate driver support/license in M0 | Proposed |
 | Client stack | TypeScript + React + Vite; shared client state library | Proposed |
-| Serialization | Versioned Protocol Buffers, bounded embedded decoding; evaluate Nanopb and generated TS bindings | Proposed |
+| Serialization | Host draft uses schema-driven TLV with generated TypeScript declarations and bounded validation; review TLV versus Protocol Buffers before embedded implementation/public release | Provisional host implementation; embedded generator pending |
 | Serial framing | Draft v1: COBS + zero delimiter, RM/version/flags/length header, max 2,048-byte payload, CRC-32/ISO-HDLC; logs on a separate path | Host implementation tested; release format not frozen |
 | Initial channels | One public channel first; named logical channels next, sharing a radio preset; no privacy until crypto | Proposed |
 | Node roles | Normal node and relay-enabled node; forwarding controlled separately from logical channel type | Proposed |

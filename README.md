@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, bounded USB envelope framing, and 36 tests exist; firmware and the web UI have not been implemented. Nothing has been flashed.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, and 55 tests exist; firmware and the web UI have not been implemented. Nothing has been flashed.
 
 ## Start here
 
@@ -20,7 +20,7 @@ Use Node 24–25 (Node 24 is the proposed baseline; locally tested with 25.9.0):
 npm test
 ```
 
-No dependency installation is required. Node's built-in TypeScript runner executes the tests; static type checking and CI are still pending.
+No dependency installation is required. Node's built-in TypeScript runner executes the tests; static type checking and CI are still pending. Tests also check generated protocol declarations. After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. Physical serial I/O is not implemented yet.
 
 ## Proposed repository layout
 
