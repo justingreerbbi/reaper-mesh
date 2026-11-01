@@ -93,10 +93,14 @@ Recheck implementation APIs against the exact pinned versions before coding.
 
 ## Immediate priority: first USB-only board test
 
-The USB-only application and NVS adapter are implemented and target-built. The owner waived backup/preservation; obtain specific first-flash authorization, then run the hardware procedure in FIRST_FLASH.md. The partial backup is not a recovery image. Display and RF remain disabled.
+The USB-only application and NVS adapter are implemented and target-built. The owner waived backup/preservation, authorized the first flash, and the initial USB hardware checks now pass; see FIRST_FLASH.md. The partial backup is not a recovery image. Display and RF remain disabled.
 
 ## USB startup recovery evidence
 
 USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
 
 The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
+
+## Browser hardware evidence
+
+November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.

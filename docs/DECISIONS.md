@@ -48,3 +48,9 @@ First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2
 USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
 
 The owner requested continued development without routine confirmation prompts. This persists as authorization for ongoing reversible USB development/testing; no change to RF or irreversible eFuse boundaries.
+
+## Browser USB milestone
+
+November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.
+
+Correct the console status copy to reflect available USB firmware/configuration while retaining explicit radio/browser-installer limits. Next prioritize minimal board status feedback before messaging; do not expand radio scope.

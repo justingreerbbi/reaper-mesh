@@ -1,7 +1,7 @@
 # Reaper Mesh: AI contributor handoff
 
 
-First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. The initial startup issue is resolved in the client as documented below; browser Web Serial hardware qualification remains pending. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
+First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. The startup issue is resolved; native Brave Web Serial connect/save/reconnect also passes as documented below. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
 
 ## Current stage
 
@@ -38,10 +38,14 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-Bounded hello recovery is implemented and physically checked with the TypeScript client. Next qualify the actual browser Web Serial path. The initial immediate-reopen handshake timed out; a two-second settling interval worked in the physical smoke script. Do not replay mutations as connection recovery. Display, physical unplug/power-cycle, flash power-loss, messaging, owner retirement/page-reload recovery, and RF remain pending. The owner waived preservation of prior firmware/settings. Hardware smoke is explicitly opt-in and writes test settings/reset: see docs/FIRST_FLASH.md. Licensing remains deferred.
+The actual browser Web Serial connect/save/reconnect path now passes on hardware. Next add a minimal board display status for USB readiness and storage faults, keeping display details outside protocol state. Physical cable/power interruption, flash power-loss, uncertain-command page reload recovery, messaging, owner retirement, and RF remain pending. Do not claim mesh qualification with one board. The owner authorizes ongoing reversible USB development/testing without repeated routine permission prompts; no old-firmware backup is required. Licensing remains deferred.
 
 ## USB startup recovery evidence
 
-USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
+USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualified the client protocol startup path before the subsequent native browser check below.
 
-The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
+The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and stream behavior were subsequently checked as recorded below.
+
+## Browser hardware evidence
+
+November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.

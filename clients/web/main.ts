@@ -37,7 +37,7 @@ function render() {
   disconnect.disabled = !busy && !active;
   text('support', mode.value === 'demo' ? 'An in-memory device. No USB access or radio traffic.' :
     !isSecureContext ? 'USB requires HTTPS or localhost.' : !serial ? 'Use a desktop browser with Web Serial support.' :
-    'Choose a USB serial port. Reaper Mesh firmware is required; installation is not available yet.');
+    'Choose the Heltec USB serial port. Reaper Mesh firmware must already be installed; browser installation is not implemented.');
   text('status', busy ? 'Opening' : sync.state === 'ready' ? (writable ? 'Connected · synchronized' : 'Connected · read-only') : sync.state);
   element('status').dataset.state = sync.state;
   text('source-caption', connection.device ? `${mode.value === 'demo' ? 'SIMULATION / ' : ''}${connection.device}` : 'No device connected');
