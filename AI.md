@@ -41,7 +41,7 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Persisted channel/radio settings are implemented and host-tested; usb-prototype-3 is installed and physically tested. Regional airtime policy and the pinned Semtech-backed driver pass host tests. Board SPI/mesh service, diagnostics and inbox are implemented and target-built. usb-prototype-4 probe, receive-only initialization and local 1024-byte delivery passed on hardware. Browser recovery journaling and native reload retention now pass. Next finish manifest-validating updater and release/lifecycle qualification. Actual TX remains gated on antenna confirmation. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
+usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Persisted channel/radio settings are implemented and host-tested; usb-prototype-3 is installed and physically tested. Regional airtime policy and the pinned Semtech-backed driver pass host tests. Board SPI/mesh service, diagnostics and inbox are implemented and target-built. usb-prototype-4 probe, receive-only initialization and local 1024-byte delivery passed on hardware. Browser recovery journaling and native reload retention now pass. Next finish manifest-validating updater and release/lifecycle qualification. Actual TX qualification now proceeds with the confirmed US/915 antenna, while off remains the persisted/default mode. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
 
 ## USB startup recovery evidence
 
@@ -71,7 +71,7 @@ Radio configuration checkpoint: additive capability-gated fields preserve base-c
 
 Physical usb-prototype-3 testing now passes named-channel queue acceptance and radio-policy quiesce. A power change caused radio-config-changed; the client now preserves accepted messages during config snapshot resync and observes the failure by query. Previous settings were restored to mode off, power 2, relay enabled, Public/Camp channels; revision 12 survives repeated opens. No RF was enabled. The failed first test exposed an integration path omitting device identity; a Connection-level regression now covers it.
 
-Integrated board checkpoint: docs/INBOX.md defines separate inbox sequencing and correlated live diagnostics. A one-board local send reaches the inbox without RF; host service tests distinguish that from TX_DONE/destination ACK. Board profile keeps antenna verification false pending the owner answer. See docs/STATUS.md for the full completion tracker; the active goal is not complete.
+Integrated board checkpoint: docs/INBOX.md defines separate inbox sequencing and correlated live diagnostics. A one-board local send reaches the inbox without RF; host service tests distinguish that from TX_DONE/destination ACK. Owner confirmed the supplied US/915 MHz antenna is attached; board profile records this fact for usb-prototype-5. See docs/STATUS.md for the full completion tracker; the active goal is not complete.
 
 ## Integrated hardware and browser recovery evidence
 
@@ -82,3 +82,7 @@ The browser now journals USB identity/counters/command outcomes/message bodies/i
 ## Updater qualification
 
 The manifest-validating updater tools/update-firmware.py passed seven host test groups and physically reinstalled usb-prototype-4 from its clean 6692d12 build. ROM verified three images; three follow-up adapter opens reached ready in 649/648/643 ms with revision 14 preserved. See docs/UPDATES.md. No NVS erase, eFuse changes or rollback claim. Owner now confirms the US/915 MHz antenna is attached; this clears the board antenna gate for the next firmware/transmit qualification. Actual multi-node delivery is still outstanding.
+
+## US transmit qualification build
+
+Owner confirmed the supplied US/915 MHz antenna is attached. usb-prototype-5 enables that development-board fact, while default/persisted off mode is preserved. The explicit --rf-test checks 1024-byte broadcast fragmentation/TX_DONE, unreachable unicast failure without fabricated ACK, and restores original off policy. TX completion is not remote reception. No additional RF devices are available.

@@ -6,7 +6,7 @@ import { decodeMessage } from '../packages/protocol/messages.ts';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
 const [python, port, expectedFirmware, messageTest] = process.argv.slice(2);
-if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test|--local-test]');
+if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test|--local-test|--rf-test]');
 const bridge = `
 import serial,sys,threading
 s=serial.Serial(port=None,baudrate=115200,timeout=.05,exclusive=True)
@@ -112,7 +112,45 @@ for (let run = 0; run < 3; run++) {
       }
       console.log('Physical 1024-byte local delivery and inbox retrieval passed without RF');
     }
+    if (run === 0 && messageTest === '--rf-test') {
+      const original = client.sync.config!; assert.equal(original.region, 'US'); assert.ok(original.radio);
+      assert.equal(original.radio.mode, 'off', 'RF qualification starts from off mode');
+      const waitFor = async (condition: () => boolean, timeout = 12000) => {
+        const until = now() + timeout;
+        while (!condition()) {
+          if (now() >= until || ['disconnected', 'incompatible'].includes(client.sync.state)) throw new Error('RF hardware timeout: ' + (client.radioInfo?.reason ?? client.error ?? '') + ' / ' + client.messaging.history.map(item => item.state + ':' + item.reason).join(','));
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      };
+      const save = async (config: typeof original) => {
+        const id = adapter.configure(config);
+        await waitFor(() => client.commands.status(id).outcome !== 'pending');
+        assert.equal(client.commands.status(id).outcome, 'committed'); await waitFor(() => client.sync.state === 'ready');
+      };
+      try {
+        await save({ ...original, radio: { ...original.radio, mode: 'mesh', power: 2, relay: false } });
+        await waitFor(() => client.radioInfo?.reason === 'ready');
+        const before = client.radioInfo!.transmitted;
+        const broadcast = adapter.sendMessage('Reaper US single-board RF test '.padEnd(1024, 'x'), 'broadcast', 0);
+        await waitFor(() => client.messaging.history.find(item => item.id === broadcast)?.state === 'transmitted');
+        await waitFor(() => (client.radioInfo?.transmitted ?? 0) >= before + 7);
+        assert.equal(client.messaging.history.find(item => item.id === broadcast)?.state, 'transmitted');
+        console.log('Physical RF: seven 1024-byte-message fragments reached TX_DONE; broadcast has no recipient ACK');
+        const unreachable = adapter.sendMessage('No destination ACK should be fabricated', 'node-0000000000000001', 0);
+        await waitFor(() => client.messaging.history.find(item => item.id === unreachable)?.state === 'transmitted');
+        await waitFor(() => client.messaging.history.find(item => item.id === unreachable)?.state === 'failed', 65000);
+        assert.ok(['expired', 'delivery-unconfirmed'].includes(client.messaging.history.find(item => item.id === unreachable)?.reason ?? ''));
+        assert.ok((client.radioInfo?.transmitted ?? 0) >= before + 10);
+        console.log('Physical RF: unreachable unicast retried and failed without a recipient ACK; TX', client.radioInfo?.transmitted);
+      } finally {
+        if (client.sync.state === 'ready') {
+          await save(original); await waitFor(() => client.radioInfo?.state === 'off');
+          console.log('Physical RF qualification restored original off-mode policy');
+        } else console.error('Connection lost: verify and restore off mode before further RF tests.');
+      }
+    }
     if (run === 0 && messageTest === '--radio-test') {
+      assert.equal(client.capabilities?.radioVersion, 0, 'queue policy preview requires RF-disabled firmware v3');
       const original = client.sync.config!; assert.ok(original.radio);
       const waitFor = async (condition: () => boolean) => {
         const until = now() + 10000;
