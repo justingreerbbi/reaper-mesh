@@ -1,6 +1,6 @@
 # Reaper Mesh protocol: synchronization draft
 
-Status: independent Reaper Mesh protocol, confirmed by the owner. This is a draft semantic contract and USB protocol, not a frozen release protocol. No Meshtastic interoperability is intended. Host framing, typed negotiation/synchronization payloads, generated TypeScript declarations, and a byte-driven connection manager are implemented. Physical serial adapters, embedded bindings, wire command/results, and radio packets remain unimplemented.
+Status: independent Reaper Mesh protocol, confirmed by the owner. This is a draft semantic contract and USB protocol, not a frozen release protocol. No Meshtastic interoperability is intended. Host framing, typed negotiation/synchronization payloads, generated TypeScript declarations, and a byte-driven connection manager are implemented. A Web Serial adapter is implemented and tested with simulated ports, without opening hardware. Embedded bindings, wire command/results, and radio packets remain unimplemented.
 
 ## USB envelope draft v1
 
@@ -47,7 +47,7 @@ Only negotiation, sync, events, and health messages are currently on wire. Exist
 
 ## Connection manager and adapter boundary
 
-`packages/client-core/connection.ts` accepts bytes and queues outgoing frames. A future physical adapter must open the port, call `open(freshLink, monotonicMs)`, deliver reads using the returned local session generation, call `tick()` regularly, serialize drained writes with backpressure, and call `close()` on read/write failure, EOF, or device removal. After any failed write, discard remaining writes from that generation; never replay them into a reopened port. The manager does not own a physical port, asynchronous I/O, browser permissions, or timers.
+`packages/client-core/connection.ts` accepts bytes and queues outgoing frames. The Web Serial adapter (`serial.ts`, see `docs/SERIAL.md`) opens the port and implements this ownership contract: call `open(freshLink, monotonicMs)`, deliver reads using the returned local session generation, call `tick()` regularly, serialize drained writes with backpressure, and call `close()` on read/write failure, EOF, or device removal. After any failed write, discard remaining writes from that generation; never replay them into a reopened port. The manager does not own a physical port, asynchronous I/O, browser permissions, or timers.
 
 Negotiation and synchronization each have a fixed 5,000 ms deadline. The first valid welcome starts the sync deadline; later stale data and repeated failed snapshots do not extend it. Readiness schedules a ping after 2,000 ms. Once sent, only a pong matching the outstanding probe/link satisfies the 5,000 ms response deadline; config traffic cannot conceal a missing pong. Deadline expiry takes precedence over input received at the exact same timestamp. A matched pong with a different boot closes the connection and requires explicit reopen/resync; there is no automatic replay or reconnect loop.
 
@@ -89,6 +89,6 @@ The reference device has a deliberately conservative bounded store: it retains a
 
 ## Deferred contracts
 
-Next implement the physical serial adapter and a production receipt-retention/reclamation contract, then wire configuration commands/results into the connection manager. Complete embedded code generation, full handshake metadata/capabilities, static type checking, CI, and protocol compatibility fixtures before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
+Next implement a production receipt-retention/reclamation contract, then wire configuration commands/results into the connection manager and serial adapter. Complete embedded code generation, full handshake metadata/capabilities, static type checking, CI, and protocol compatibility fixtures before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
 
 `Connection` dispatches only successfully decoded and validated typed negotiation/synchronization messages. Direct callers of `Synchronizer` and `Commands` must still supply validated objects. These components are not wire decoders.
