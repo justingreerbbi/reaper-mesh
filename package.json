@@ -10,11 +10,14 @@
     "generate:protocol": "node tools/generate-protocol.ts",
     "check:generated": "node tools/generate-protocol.ts --check",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run typecheck && npm test && npm run build:web",
+    "dev:web": "vite clients/web --host 127.0.0.1 --port 5173 --strictPort",
+    "build:web": "vite build clients/web --outDir ../../dist/web --emptyOutDir",
     "test": "npm run check:generated && node --test tests/simulator/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
   }
 }

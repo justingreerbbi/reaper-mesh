@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#111916"><title>Reaper Mesh · Device console</title></head>
+<body>
+  <header><a class="brand" href="/" aria-label="Reaper Mesh home"><span class="mark">R∕M</span> REAPER MESH</a><span class="badge">LOCAL DEVICE CONSOLE</span></header>
+  <main>
+    <div class="intro"><div><p class="eyebrow">CONNECTION FIRST. MESSAGES NEXT.</p><h1>A clear link to your mesh.</h1><p class="subtitle">Connect, configure, and recover your device state.</p></div><div class="phase"><span class="dot"></span> EARLY DEVELOPMENT</div></div>
+    <div class="notice"><strong>Configuration preview</strong><span>Firmware and radio messaging are not available yet. Simulation exercises the USB protocol without touching hardware. Early radio traffic will be plaintext until encryption is implemented.</span></div>
+    <section class="panel connection" aria-labelledby="connection-heading">
+      <div><p class="eyebrow">01 / CONNECTION</p><h2 id="connection-heading">Choose your device</h2><p id="support" class="muted"></p></div>
+      <div><label for="mode">Connection source</label><select id="mode"><option value="demo">Simulated Heltec V3</option><option value="usb">USB device</option></select><div class="actions"><button id="connect" class="primary">Connect simulator</button><button id="disconnect" disabled>Disconnect</button></div></div>
+      <div class="connection-state"><span id="status" class="status" role="status">Disconnected</span><span id="source-caption" class="muted">No device connected</span></div>
+    </section>
+    <div id="error" class="error" role="alert" hidden></div>
+    <div class="columns">
+      <section class="panel" aria-labelledby="config-heading"><p class="eyebrow">02 / CONFIGURATION</p><div class="section-title"><h2 id="config-heading">Device settings</h2><span id="revision" class="mono">REV —</span></div>
+        <p id="write-reason" class="muted" role="status">Connect to read device settings.</p>
+        <form id="configuration"><label for="label">Device label</label><input id="label" type="text" autocomplete="off" disabled placeholder="Name your node"><div class="field-meta"><span>Advertised UTF-8 byte limit</span><span id="byte-count">0 / —</span></div>
+          <label for="region">Operating region</label><select id="region" disabled><option value="UNSET">Not configured</option><option value="US">United States</option><option value="EU" disabled>European Union · later</option></select><p class="field-meta">This prototype stores the setting only. No radio transmission is implemented.</p>
+          <p id="draft-warning" class="warning" hidden>Device state changed while you were editing. Load the latest settings before saving.</p>
+          <div class="actions form-actions"><button id="save" type="submit" class="primary" disabled>Save to device</button><button id="reset" type="button" disabled>Load latest settings</button></div>
+        </form>
+      </section>
+      <section class="panel" aria-labelledby="details-heading"><p class="eyebrow">03 / DEVICE DETAILS</p><h2 id="details-heading">Know what’s connected.</h2><dl><dt>Device identity</dt><dd id="device" class="mono">—</dd><dt>Firmware</dt><dd id="firmware" class="mono">—</dd><dt>Configuration schema</dt><dd id="schema">—</dd><dt>Request history</dt><dd id="capacity">—</dd><dt>Owner admission</dt><dd id="admission">—</dd><dt>Radio protocol</dt><dd id="radio">—</dd></dl><p class="small muted">A successful save means device acceptance. It does not mean a radio message was delivered.</p></section>
+    </div>
+    <section class="panel" aria-labelledby="history-heading"><div class="section-title"><div><p class="eyebrow">04 / COMMAND HISTORY</p><h2 id="history-heading">Every change has an outcome.</h2></div><span id="history-count" class="mono">0 / 32</span></div><p class="muted small">Unknown means a change may have applied. Query its result after reconnecting; nothing is automatically resent. History lasts for this page session.</p><div id="history-empty" class="empty">No configuration commands yet.</div><ul id="history" class="history"></ul></section>
+    <section class="panel simulation" id="simulation"><div><p class="eyebrow">SIMULATION LAB</p><h2>Try an interrupted connection.</h2><p class="small muted">Arm one fault, change the label, then save. Simulated configuration survives reconnects but resets when you reload this page.</p></div><div><label for="fault">Next save</label><select id="fault"><option value="none">Normal connection</option><option value="lose-result">Lose result and change event</option><option value="disconnect">Disconnect after commit</option></select><label class="check"><input id="read-only" type="checkbox"> Read-only on next connect</label><button id="reboot">Reboot simulated device</button></div></section>
+    <footer><span>REAPER MESH / INDEPENDENT PROTOCOL</span><span>USB first. US first. Built for reliable recovery.</span></footer>
+  </main><script type="module" src="/main.ts"></script>
+</body></html>

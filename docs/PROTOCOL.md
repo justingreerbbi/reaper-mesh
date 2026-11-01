@@ -100,7 +100,7 @@ Configuration is authoritative on the device. The client copies snapshots/events
 
 ## Configuration commands and recovery
 
-`packages/client-core/commands.ts` implements the host command lifecycle; `tests/simulator/config-device.ts` is a device reference used only in host tests, not firmware. Inputs are still assumed to be validated objects.
+`packages/client-core/commands.ts` implements the host command lifecycle; `packages/simulator/config-device.ts` is a device reference used only in host tests, not firmware. Inputs are still assumed to be validated objects.
 
 - IDs consist of a caller-supplied client incarnation (1–64 ASCII letters, digits, underscores, or hyphens) plus a monotonically increasing local counter. The caller must allocate a fresh, collision-resistant incarnation whenever creating a command manager, including after a client restart. It is not an authentication credential.
 - A command contains its ID, expected boot, expected config revision, and a copied immutable config body. Only one config command may be pending per manager. The device must use compare-and-set revision validation to arbitrate different clients.
@@ -125,6 +125,6 @@ On reboot, config/revision survive in the simulation but receipts and high-water
 
 ## Deferred contracts
 
-Next add embedded code generation, a web UI with write-blocked diagnostics, and session retirement/owner-exhaustion recovery UX. Strict static checks, CI configuration, and handshake capabilities/resource admission are implemented; remote CI and hardware validation remain pending. Review the serialization and retention drafts before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
+Next add embedded code generation and session retirement/owner-exhaustion recovery UX. The local web UI now exposes write-blocked diagnostics and query-only recovery; see docs/WEB.md. Strict static checks, CI configuration, and handshake capabilities/resource admission are implemented; remote CI and hardware validation remain pending. Review the serialization and retention drafts before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
 
 `Connection` dispatches only successfully decoded and validated typed negotiation/synchronization messages. Direct callers of `Synchronizer` and `Commands` must still supply validated objects. These components are not wire decoders.

@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, capability negotiation, and 87 tests exist; firmware and the web UI have not been implemented. Nothing has been flashed.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, capability negotiation, and a local web configuration UI with 93 tests exist; firmware has not been implemented. Nothing has been flashed.
 
 ## Start here
 
@@ -21,9 +21,17 @@ npm ci --ignore-scripts
 npm run check
 ```
 
-Pinned development dependencies provide strict TypeScript checking. Node's built-in runner executes the tests; generated protocol declarations are also checked. GitHub CI is configured but has not run remotely. See [development checks](docs/DEVELOPMENT.md). After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. The serial adapter has been tested with simulated ports only; hardware/browser validation is pending. See [serial integration](docs/SERIAL.md).
+Pinned development dependencies provide strict TypeScript checking. Node's built-in runner executes the tests; generated protocol declarations are also checked. GitHub CI is configured; remote results have not been verified here. See [development checks](docs/DEVELOPMENT.md). After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. The serial adapter has been tested with simulated ports only; hardware/browser validation is pending. See [serial integration](docs/SERIAL.md).
 
-## Proposed repository layout
+## Run the web console
+
+```sh
+npm run dev:web
+```
+
+Open the printed localhost URL, then connect the simulated Heltec. Configuration saves, lost replies, disconnects, and result queries can be exercised without hardware. [Web console guide](docs/WEB.md). Reaper Mesh firmware is not yet available for real USB use.
+
+## Repository layout
 
 ```text
 firmware/              Embedded core and board-specific adapters
@@ -40,4 +48,4 @@ These directories will be introduced as their implementation begins. Future desk
 
 ## Development status
 
-M0 foundations in progress. Review the open decisions before firmware work. The local Git repository is initialized; no GitHub repository or remote is configured. License selection is deferred by the owner; no third-party code should be copied without checking its license.
+M0 foundations in progress. Review the open decisions before firmware work. The Git repository is initialized and now tracks origin/main. Verify remote CI separately from local checks. License selection is deferred by the owner; no third-party code should be copied without checking its license.
