@@ -6,7 +6,7 @@ import { decodeMessage, encodeMessage, type Message } from '../../packages/proto
 import { deviceCapabilities } from './capabilities.ts';
 
 const wire = (message: Message) => encodeFrame(encodeMessage(message));
-const welcome = (link = 'link-A', boot = 'boot-A'): Message =>
+const welcome = (link = 'link-A', boot = 'boot-A'): Extract<Message, { type: 'welcome' }> =>
   ({ type: 'welcome', link, boot, device: 'device-A', minVersion: 1, maxVersion: 1, ...deviceCapabilities });
 function outgoing(connection: Connection): Message[] {
   const result: Message[] = [];
@@ -217,4 +217,22 @@ test('welcome racing a queued discovery retry retires it before sync', () => {
   connection.tick(500);
   deliver(welcome(), 500);
   assert.deepEqual(outgoing(connection).map(message => message.type), ['sync']);
+});
+
+test('config receipt resync preserves accepted messages and resumes query-only polling', () => {
+  const { connection, deliver, snapshot } = setup();
+  deliver({ ...welcome(), features: 31, messageVersion: 1, maxMessageBytes: 1024, messageCapacity: 8 });
+  const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(initial.request));
+  const message = connection.sendMessage('hello', 'broadcast', 0, 0); outgoing(connection);
+  deliver({ type: 'messageStatus', link: 'link-A', boot: 'boot-A', id: message, state: 'queued', received: 1, messageId: 'boot-A_1' });
+  const config = connection.configure({ region: 'US', label: 'changed' }, 0); outgoing(connection);
+  deliver({ type: 'result', link: 'link-A', boot: 'boot-A', id: config, outcome: 'committed', revision: 1 });
+  assert.equal(connection.messaging.history[0].state, 'queued');
+  const resync = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(resync.request, 1));
+  connection.tick(2000);
+  const packets = outgoing(connection);
+  assert.equal(packets.filter(packet => packet.type === 'messageQuery').length, 1);
+  assert.equal(packets.filter(packet => packet.type === 'submit').length, 0);
 });

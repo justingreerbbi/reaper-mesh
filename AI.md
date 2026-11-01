@@ -7,7 +7,7 @@ First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2
 
 The owner confirmed the OLED works and requested sustained development through the agreed project scope without routine confirmation prompts. USB-only Heltec firmware, NVS settings, native Brave connect/save/reconnect, startup recovery, and physical lost-reply/duplicate/reset recovery checks pass. No old firmware backup is required. RF remains disabled; antenna confirmation is pending before RF bring-up. BLE, EU transmission, encryption, and licensing are deferred.
 
-Message acceptance v1 is implemented with bounded 1,024-byte UTF-8 uploads, eight device records, owner high-water duplicate suppression, distinct queue/transmit/recipient-ACK states, and query-only reconnect recovery. USB tags 12–14 and optional welcome metadata extend v1 without changing old fixtures. The real TS client/C++ session wire transcript passes maximum-size/lost-acceptance recovery. The browser composer is implemented; hardware queue/expiry and native Brave composition checks now pass. All 157 host tests pass; the independent CMake suite includes mesh/packet tests. See docs/MESSAGING.md. Physical multi-node RF, power-cut qualification and long-duration tests remain outstanding.
+Message acceptance v1 is implemented with bounded 1,024-byte UTF-8 uploads, eight device records, owner high-water duplicate suppression, distinct queue/transmit/recipient-ACK states, and query-only reconnect recovery. USB tags 12–14 and optional welcome metadata extend v1 without changing old fixtures. The real TS client/C++ session wire transcript passes maximum-size/lost-acceptance recovery. The browser composer is implemented; hardware queue/expiry and native Brave composition checks now pass. All 168 host tests pass; the independent CMake suite includes mesh/packet tests. See docs/MESSAGING.md. Physical multi-node RF, power-cut qualification and long-duration tests remain outstanding.
 
 ## Product intent
 
@@ -41,7 +41,7 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Persisted channel/radio settings are implemented and host-tested; deploy/qualify usb-prototype-3 next, then add regional airtime policy and board radio integration after antenna details are confirmed. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
+usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Persisted channel/radio settings are implemented and host-tested; usb-prototype-3 is installed and physically tested. Regional airtime policy and the pinned Semtech-backed driver pass host tests. Next connect board SPI and diagnostics/inbox, then qualify RX and gated TX after antenna details are confirmed. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
 
 ## USB startup recovery evidence
 
@@ -68,3 +68,5 @@ usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA
 The C++ radio packet codec and Mesh core pass host topology/fault tests; see docs/RADIO_PROTOCOL.md for resource bounds and remaining RF work. No mesh code is yet connected to the board radio.
 
 Radio configuration checkpoint: additive capability-gated fields preserve base-client writes, migrate old NVS records without erasing, and quiesce queued messages on policy changes. See docs/RADIO_CONFIG.md. Radio remains physically disabled in this firmware.
+
+Physical usb-prototype-3 testing now passes named-channel queue acceptance and radio-policy quiesce. A power change caused radio-config-changed; the client now preserves accepted messages during config snapshot resync and observes the failure by query. Previous settings were restored to mode off, power 2, relay enabled, Public/Camp channels; revision 12 survives repeated opens. No RF was enabled. The failed first test exposed an integration path omitting device identity; a Connection-level regression now covers it.

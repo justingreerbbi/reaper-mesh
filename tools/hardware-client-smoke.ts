@@ -1,6 +1,8 @@
 /** Explicit physical check of the real TS Connection/SerialAdapter over a Python serial byte bridge. */
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { FrameDecoder } from '../packages/protocol/framing.ts';
+import { decodeMessage } from '../packages/protocol/messages.ts';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
 const [python, port, expectedFirmware, messageTest] = process.argv.slice(2);
@@ -23,6 +25,14 @@ finally:s.close()
 `;
 for (let run = 0; run < 3; run++) {
   const child = spawn(python, ['-u', '-c', bridge, port], { stdio: ['pipe', 'pipe', 'pipe'] });
+  if (process.env.REAPER_TRACE === '1') {
+    const trace = new FrameDecoder();
+    child.stdout.on('data', bytes => trace.feed(bytes, payload => {
+      const message = decodeMessage(payload);
+      if (message.type === 'messageStatus') console.log('Device message state:', message.state, message.reason, message.received);
+      if (message.type === 'snapshot') console.log('Device snapshot:', message.revision, message.txPower, message.channels);
+    }));
+  }
   const client = new Connection(crypto.randomUUID());
   const start = performance.now();
   const now = () => Math.floor(performance.now() - start);
@@ -74,7 +84,7 @@ for (let run = 0; run < 3; run++) {
       const waitFor = async (condition: () => boolean) => {
         const until = now() + 10000;
         while (!condition()) {
-          if (now() >= until || ['disconnected', 'incompatible'].includes(client.sync.state)) throw new Error('radio settings test timed out or disconnected');
+          if (now() >= until || ['disconnected', 'incompatible'].includes(client.sync.state)) throw new Error('radio settings test timed out or disconnected: ' + client.sync.state + ' / ' + (client.error ?? '') + ' / ' + client.messaging.history.map(entry => entry.state + ':' + entry.reason).join(','));
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       };

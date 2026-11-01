@@ -221,7 +221,7 @@ export class Connection {
     }
     if (this.sync.state === 'synchronizing' && this.sync.snapshotRequest !== this.#request) {
       this.commands.tick(this.#now);
-    this.messaging.tick(this.#now);
+      this.messaging.tick(this.#now, this.device);
       this.#request = this.sync.snapshotRequest;
       this.#send({ type: 'sync', link: this.#link, boot: this.sync.boot!, request: this.#request });
     }

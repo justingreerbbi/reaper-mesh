@@ -78,3 +78,9 @@ Use an independent 54-byte-header/CRC radio frame with up to 160 fragment bytes 
 ## Backward-compatible radio/channel settings
 
 Keep base config schema 1 and append optional radio fields/capabilities. Omitted fields preserve newer policy, avoiding forced client upgrades for unrelated edits. Use one revision/atomic record across label/region/radio state. Read legacy records; write record 2 only for nondefault radio policy, without erase. On committed policy change, quiesce queued messages before radio work. Logical named channels use fixed IDs with local labels and no privacy promise. RF stays disabled during configuration qualification.
+
+## Radio policy hardware regression and vendor driver
+
+Physical usb-prototype-3 testing now passes named-channel queue acceptance and radio-policy quiesce. A power change caused radio-config-changed; the client now preserves accepted messages during config snapshot resync and observes the failure by query. Previous settings were restored to mode off, power 2, relay enabled, Public/Camp channels; revision 12 survives repeated opens. No RF was enabled. The failed first test exposed an integration path omitting device identity; a Connection-level regression now covers it.
+
+Pin Semtech sx126x_driver 2.5.0 core under its retained Clear BSD notices. Use a bounded board HAL, explicit TX gate, TX_DONE completion, and one shared airtime budget for source/relay/ACK traffic. Host fake-bus tests exercise the real vendor core and fail closed on calibration, busy, SPI and timeout faults. Board SPI integration and real RX/TX remain next; antenna confirmation is pending.
