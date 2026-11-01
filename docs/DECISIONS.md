@@ -19,7 +19,7 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 | Encryption | Deferred feature; reserve versioned authenticated-envelope extension, not homegrown crypto | User direction |
 | Testing | RACE means deliberate device/client synchronization and easy recovery after interrupted connections; implement deterministic race/recovery and compatibility tests | Confirmed by owner |
 | Request history | Bounded FIFO receipts plus non-evicting per-owner sequence marks; query-only reconnect recovery; evicted results remain unknown and cannot reexecute | Host-tested draft with capacity/admission metadata; firmware persistence and owner-retirement UX pending |
-| Host verification | Strict TypeScript, generated-schema checks, 114 host/cross-language tests plus the web production build; pinned Node 24/25 CI workflow | Locally passing on Node 25; remote CI pending |
+| Host verification | Strict TypeScript, generated-schema checks, 128 host/cross-language tests plus the web production build; pinned Node 24/25 CI workflow | Locally passing on Node 25; remote CI pending |
 | Update UX | Browser guided USB installation and recovery; versioned manifest, board checks, configuration migration | Proposed |
 | Licensing | Decision deferred by owner; do not assign a license or import incompatible third-party code in the meantime | Deferred |
 
@@ -30,3 +30,11 @@ Status date: November 1, 2026. Proposed choices are reviewable recommendations, 
 3. Whether 1,024-byte messages are an appropriate initial target. Licensing remains deferred and does not block first-party foundations.
 
 Do not block all planning on these answers. Do block RF transmission, irreversible operations, or protocol commitments that depend on them.
+
+## November 1: USB target implementation
+
+Pin ESP-IDF v5.5.4 (exact commit in firmware/esp-idf.lock.json). Use one serialized UART session and a single NVS blob, fail closed without automatic erase. Add explicit storage-error message 11 without changing existing fixtures. Preserve the original 0x9000/0x5000 NVS range; use a separate namespace. Build a single factory app for the first supervised test; OTA rollback remains unimplemented. Radio is held in reset and display initialization deferred. Read-only ROM inspection/reset is complete; the owner subsequently waived preserving the old firmware/settings, so backup integrity no longer gates first flash. 128 host tests and 24 CTest cases pass; these do not qualify hardware.
+
+## Owner clarification: existing firmware need not be preserved
+
+The owner explicitly declined keeping the factory/previous firmware and settings. Stop backup attempts and remove backup as a prerequisite. First flash still requires review/authorization of the concrete image and manual ROM USB reinstall route. No whole-chip/NVS erase is implied by this decision.

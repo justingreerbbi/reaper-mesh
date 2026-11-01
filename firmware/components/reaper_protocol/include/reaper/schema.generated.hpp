@@ -4,7 +4,7 @@
 #include <cstdint>
 namespace reaper::protocol {
 enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome };
-enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10 };
+enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
 inline constexpr std::size_t kMaxFields = 15;
@@ -72,6 +72,10 @@ inline constexpr FieldDescriptor kQueryFields[] = { {Kind::Id, false}, {Kind::Id
 inline constexpr std::size_t kQueryLink = 0;
 inline constexpr std::size_t kQueryBoot = 1;
 inline constexpr std::size_t kQueryId = 2;
+inline constexpr FieldDescriptor kErrorFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false} };
+inline constexpr std::size_t kErrorLink = 0;
+inline constexpr std::size_t kErrorBoot = 1;
+inline constexpr std::size_t kErrorCode = 2;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 4},
   {MessageType::Welcome, kWelcomeFields, 15},
@@ -83,5 +87,6 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Configure, kConfigureFields, 6},
   {MessageType::Result, kResultFields, 5},
   {MessageType::Query, kQueryFields, 3},
+  {MessageType::Error, kErrorFields, 3},
 };
 } // namespace reaper::protocol

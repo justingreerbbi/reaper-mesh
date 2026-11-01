@@ -13,6 +13,7 @@ const messages: Message[] = [
   { type: 'configure', link: 'link_1', boot: 'boot-A', id: 'client-A:1', expectedRevision: 0, region: 'US', label: 'updated' },
   { type: 'result', link: 'link_1', boot: 'boot-A', id: 'client-A:1', outcome: 'committed', revision: 1 },
   { type: 'query', link: 'link_1', boot: 'boot-A', id: 'client-A:1' },
+  { type: 'error', link: 'link_1', boot: 'boot-A', code: 'storage-unavailable' },
 ];
 
 test('all schema variants round-trip with immutable decoded objects', () => {

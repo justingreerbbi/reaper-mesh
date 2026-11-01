@@ -9,4 +9,5 @@ export type Message =
   | Readonly<{ type: 'pong'; link: string; boot: string; request: number }>
   | Readonly<{ type: 'configure'; link: string; boot: string; id: string; expectedRevision: number; region: 'UNSET' | 'US' | 'EU'; label: string }>
   | Readonly<{ type: 'result'; link: string; boot: string; id: string; outcome: 'committed' | 'conflict' | 'rejected' | 'unknown'; revision: number }>
-  | Readonly<{ type: 'query'; link: string; boot: string; id: string }>;
+  | Readonly<{ type: 'query'; link: string; boot: string; id: string }>
+  | Readonly<{ type: 'error'; link: string; boot: string; code: string }>;

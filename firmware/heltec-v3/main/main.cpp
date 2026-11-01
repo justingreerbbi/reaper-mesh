@@ -1,0 +1,89 @@
+#include "reaper/session.hpp"
+#include "nvs_storage.hpp"
+#include "driver/uart.h"
+#include "driver/gpio.h"
+#include "esp_mac.h"
+#include "esp_random.h"
+#include "bootloader_random.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_timer.h"
+#include <cstdio>
+
+namespace p = reaper::protocol;
+namespace d = reaper::device;
+namespace {
+constexpr auto kUart = UART_NUM_0;
+constexpr int kTx = 43, kRx = 44;
+static p::FrameDecoder decoder;
+static p::Message reply;
+static std::array<std::uint8_t, p::kMaxEncoded + 1> output;
+bool write_frame(const p::Message& message) {
+  std::size_t size = 0;
+  return p::encode_frame(message, output.data(), output.size(), size) &&
+    uart_write_bytes(kUart, output.data(), size) == static_cast<int>(size) &&
+    uart_wait_tx_done(kUart, pdMS_TO_TICKS(500)) == ESP_OK;
+}
+void received(const p::Message& request, void* context) {
+  auto& session = *static_cast<d::Session*>(context);
+  if (session.handle(request, reply) && !write_frame(reply)) { session.reset(); return; }
+  if (session.take_error(reply)) write_frame(reply);
+}
+void halt() { for (;;) vTaskDelay(pdMS_TO_TICKS(1000)); }
+} // namespace
+
+extern "C" void app_main() {
+  // Keep the external SX1262 in reset throughout this USB-only prototype.
+  gpio_set_level(GPIO_NUM_12, 0);
+  if (gpio_set_direction(GPIO_NUM_12, GPIO_MODE_OUTPUT) != ESP_OK) halt();
+  uart_config_t uart{};
+  uart.baud_rate = 115200; uart.data_bits = UART_DATA_8_BITS; uart.parity = UART_PARITY_DISABLE;
+  uart.stop_bits = UART_STOP_BITS_1; uart.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+  uart.source_clk = UART_SCLK_DEFAULT;
+  QueueHandle_t events = nullptr;
+  if (uart_param_config(kUart, &uart) != ESP_OK ||
+      uart_set_pin(kUart, kTx, kRx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK ||
+      uart_driver_install(kUart, 4096, 4096, 16, &events, 0) != ESP_OK) halt();
+  const std::uint8_t delimiter = 0;
+  uart_write_bytes(kUart, &delimiter, 1); // Align after unavoidable ROM startup output.
+
+  // Use the non-RF entropy source before ADC/radio use. No radio is initialized.
+  std::array<std::uint8_t, 16> random{};
+  bootloader_random_enable(); esp_fill_random(random.data(), random.size()); bootloader_random_disable();
+  char boot_string[33]{};
+  for (std::size_t i = 0; i < random.size(); ++i) std::snprintf(boot_string + 2 * i, 3, "%02x", random[i]);
+  std::array<std::uint8_t, 6> mac{};
+  if (esp_efuse_mac_get_default(mac.data()) != ESP_OK) halt();
+  char device_string[32]{};
+  std::snprintf(device_string, sizeof(device_string), "heltec-%02x%02x%02x%02x%02x%02x",
+    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  d::Text<64> boot{}, device{};
+  boot.assign(reinterpret_cast<const std::uint8_t*>(boot_string), 32);
+  std::size_t device_length = 0; while (device_string[device_length]) ++device_length;
+  device.assign(reinterpret_cast<const std::uint8_t*>(device_string), device_length);
+  static NvsStorage storage;
+  static d::Configuration authority(storage, boot);
+  static d::Session session(authority, device, boot);
+  std::array<std::uint8_t, 256> input{};
+  std::int64_t last_read = 0;
+  for (;;) {
+    uart_event_t event{};
+    if (xQueueReceive(events, &event, pdMS_TO_TICKS(100))) {
+      if (event.type == UART_DATA) {
+        for (;;) {
+          const int size = uart_read_bytes(kUart, input.data(), input.size(), 0);
+          if (size <= 0) break;
+          last_read = esp_timer_get_time();
+          decoder.feed(input.data(), static_cast<std::size_t>(size), received, &session);
+        }
+      } else if (event.type == UART_FIFO_OVF || event.type == UART_BUFFER_FULL ||
+                 event.type == UART_PARITY_ERR || event.type == UART_FRAME_ERR) {
+        uart_flush_input(kUart); xQueueReset(events); decoder.reset(); session.reset();
+      }
+    }
+    if (decoder.buffered_bytes() && esp_timer_get_time() - last_read > 1000000) {
+      decoder.reset(); session.reset();
+    }
+    vTaskDelay(1); // Yield even under continuous malformed input; keep the idle watchdog healthy.
+  }
+}

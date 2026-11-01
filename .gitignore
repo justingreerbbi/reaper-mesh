@@ -14,4 +14,8 @@ sdkconfig.old
 *.elf
 *.map
 .venv/
+.tools/
+.backups/
+firmware/heltec-v3/sdkconfig
+firmware/heltec-v3/sdkconfig.old
 __pycache__/

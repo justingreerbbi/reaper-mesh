@@ -123,6 +123,10 @@ export class Connection {
   drain() { const frames = this.#outgoing; this.#outgoing = []; return frames; }
 
   #dispatch(message: Message) {
+    if (message.type === 'error' && (this.sync.state === 'negotiating' || message.boot === this.sync.boot)) {
+      this.close(message.code === 'storage-unavailable' ? 'device storage unavailable; recovery required' : `device error: ${message.code}`);
+      return;
+    }
     if (message.type === 'welcome' && this.sync.state === 'negotiating') {
       this.device = message.device;
       this.capabilities = capabilities(message);

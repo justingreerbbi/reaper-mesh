@@ -173,3 +173,14 @@ test('duplicate and wrong-boot results cannot repeatedly trigger resynchronizati
   assert.equal(connection.sync.state, 'ready');
   assert.deepEqual(outgoing(connection), []);
 });
+
+test('explicit storage failure ends the logical connection instead of serving stale state', () => {
+  const { connection, ready, deliver } = setup();
+  ready();
+  deliver({ type: 'error', link: 'link-A', boot: 'old-boot', code: 'storage-unavailable' });
+  assert.equal(connection.sync.state, 'ready');
+  deliver({ type: 'error', link: 'link-A', boot: 'boot-A', code: 'storage-unavailable' });
+  assert.equal(connection.sync.state, 'disconnected');
+  assert.equal(connection.sync.config, undefined);
+  assert.match(connection.error!, /storage unavailable/);
+});

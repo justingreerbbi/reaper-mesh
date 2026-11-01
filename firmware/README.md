@@ -1,7 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains a portable C++17 protocol component and host tests. It also contains the portable configuration authority/storage interface described in [the persistence contract](../docs/PERSISTENCE.md). It is not an ESP-IDF application, a Heltec board definition, or a flashable firmware image. No hardware was reset, flashed, or used to transmit.
-
+This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. No custom firmware has been flashed. See [first flash and recovery](../docs/FIRST_FLASH.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Build and test
@@ -22,7 +21,7 @@ ctest --test-dir build/host-protocol --output-on-failure
 build/host-protocol/codec_bridge selftest
 ```
 
-The CLI bridge allocates host input/output storage; it is excluded from codec allocation claims and is not intended for untrusted hardware input. The CMake project only builds the host library/bridge. CI runs compiler-backed tests through `npm run check`; no firmware SDK is required yet.
+The CLI bridge allocates host input/output storage; it is excluded from codec allocation claims and is not intended for untrusted hardware input. The CMake project only builds the host library/bridge. CI runs compiler-backed tests through `npm run check`; the host suite requires no firmware SDK.
 
 ## Contracts and limits
 
@@ -39,3 +38,7 @@ The CLI bridge allocates host input/output storage; it is excluded from codec al
 ## Next firmware work
 
 Review TLV/retention design; confirm board revision, flash size, serial interface, and US radio variant before board-specific firmware development. Pin ESP-IDF, add a USB/UART-only application with radio transmission disabled, and integrate the tested serialized configuration authority with a real atomic NVS backend. The portable authority/storage-failure behavior is implemented; actual flash persistence remains unverified. Test crash ordering, boot identity, snapshot boundaries, persistence failures, and recovery before preparing the first image/backup/flash procedure. Radio drivers and regional settings are a later gate.
+
+## Target build
+
+Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and FIRST_FLASH.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, holds LoRa reset GPIO12 low, and does not initialize the display or transmit. It uses a single factory application partition; OTA rollback is not implemented.
