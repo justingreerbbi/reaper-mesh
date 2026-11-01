@@ -53,7 +53,7 @@ endforeach()
 
 add_executable(mesh_test tests/mesh_test.cpp)
 target_link_libraries(mesh_test PRIVATE reaper_mesh)
-foreach(scenario line loss asymmetric broadcast hops races bounds)
+foreach(scenario line loss asymmetric broadcast hops races bounds soak)
   add_test(NAME mesh_${scenario} COMMAND mesh_test ${scenario})
 endforeach()
 

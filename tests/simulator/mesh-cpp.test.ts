@@ -23,6 +23,7 @@ for (const [scenario, description] of Object.entries({
   broadcast: 'bounds triangle flooding and never generates broadcast ACKs',
   hops: 'enforces hop budget and expires unreachable messages',
   races: 'retains early ACKs and gives exact expiry precedence',
+  soak: 'survives 120 seeded long-lived loss/corruption/retry cycles with bounded traffic and no false ACKs',
   bounds: 'bounds queues, suppresses retired IDs and rejects conflicting reassembly',
 })) {
   test(`C++ mesh ${description}`, () => {

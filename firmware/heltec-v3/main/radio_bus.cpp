@@ -12,10 +12,13 @@ bool RadioBus::begin() {
   spi_bus_config_t bus{};
   bus.mosi_io_num = 10; bus.miso_io_num = 11; bus.sclk_io_num = 9;
   bus.quadwp_io_num = bus.quadhd_io_num = -1; bus.max_transfer_sz = tx_.size();
-  if (spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_DISABLED) != ESP_OK) return false;
+  if (spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO) != ESP_OK) return false;
   spi_device_interface_config_t device{};
   device.clock_speed_hz = 4000000; device.mode = 0; device.spics_io_num = 8; device.queue_size = 1;
-  return spi_bus_add_device(SPI2_HOST, &device, &device_) == ESP_OK;
+  if (spi_bus_add_device(SPI2_HOST, &device, &device_) != ESP_OK) return false;
+  std::size_t maximum = 0;
+  // Non-DMA ESP32-S3 transactions are limited to 64 bytes, below a fragment.
+  return spi_bus_get_max_transaction_len(SPI2_HOST, &maximum) == ESP_OK && maximum >= tx_.size();
 }
 bool RadioBus::ready(std::uint32_t timeout_ms) {
   if (!device_ || failed_) return false;

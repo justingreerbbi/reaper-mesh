@@ -16,5 +16,6 @@ class RadioBus : public reaper::radio::Bus {
   std::uint8_t last_command_ = 0;
   // Keep queued transaction storage alive even if native completion times out.
   spi_transaction_t transaction_{};
-  std::array<std::uint8_t, 260> tx_{}, rx_{};
+  alignas(4) std::array<std::uint8_t, 260> tx_{};
+  alignas(4) std::array<std::uint8_t, 260> rx_{};
 };

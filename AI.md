@@ -86,3 +86,7 @@ The manifest-validating updater tools/update-firmware.py passed seven host test 
 ## US transmit qualification build
 
 Owner confirmed the supplied US/915 MHz antenna is attached. usb-prototype-5 enables that development-board fact, while default/persisted off mode is preserved. The explicit --rf-test checks 1024-byte broadcast fragmentation/TX_DONE, unreachable unicast failure without fabricated ACK, and restores original off policy. TX completion is not remote reception. No additional RF devices are available.
+
+## First RF attempt and SPI correction
+
+usb-prototype-5 installed with verified hashes, but the first maximum-message TX attempt failed closed with radio-driver-fault. Off policy was restored. Pinned IDF source confirms non-DMA SPI is limited to 64 bytes even when max_transfer_sz requests more. usb-prototype-6 enables SPI DMA, aligns persistent transfer buffers and checks the actual host maximum at startup before claiming a probe. Re-run physical RF qualification after deployment; no TX success is claimed for prototype-5.

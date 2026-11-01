@@ -64,6 +64,58 @@ int main(int argc, char** argv) {
     p.bytes.fill('x'); auto bytes = wire(p); CHECK(b.receive(bytes.data(), bytes.size(), 0));
     p.bytes[0] = 'z'; bytes = wire(p); CHECK(!b.receive(bytes.data(), bytes.size(), 1));
     p.index = 1; p.size = 40; bytes = wire(p); CHECK(!b.receive(bytes.data(), bytes.size(), 2)); CHECK(completed(b) == 0);
+  } else if (scenario == "soak") {
+    m::Mesh a(1, true), b(2, true), c(3, true); m::Mesh* nodes[] = {&a, &b, &c};
+    struct Event { std::uint64_t at; int to; std::vector<std::uint8_t> bytes; };
+    std::uint32_t random = 0x73550728;
+    const auto next = [&random]() { random ^= random << 13; random ^= random >> 17; random ^= random << 5; return random; };
+    unsigned acknowledged = 0, clean_acknowledged = 0, total_tx = 0;
+    for (unsigned sequence = 1; sequence <= 120; ++sequence) {
+      const std::uint64_t start = std::uint64_t(sequence) * 130000;
+      const std::size_t size = sequence % 4 ? 1 + next() % 1024 : 1024;
+      body.fill(static_cast<std::uint8_t>('a' + sequence % 26));
+      for (auto* node : nodes) node->tick(start);
+      CHECK(a.enqueue(key(sequence), 3, 0, body.data(), size, start));
+      if (sequence > 1) CHECK(!a.enqueue(key(sequence - 1), 3, 0, body.data(), size, start));
+      std::vector<Event> events; unsigned transmissions = 0;
+      for (auto now = start; now < start + 12000; now += 5) {
+        for (auto* node : nodes) node->tick(now);
+        for (std::size_t i = 0; i < events.size();) {
+          if (events[i].at > now) { ++i; continue; }
+          const auto event = events[i]; events.erase(events.begin() + i);
+          nodes[event.to]->receive(event.bytes.data(), event.bytes.size(), now);
+        }
+        for (int from = 0; from < 3; ++from) {
+          m::Packet packet{}; if (!nodes[from]->next_tx(now, packet)) continue;
+          ++transmissions; const bool success = next() % 100 >= 2 || sequence % 10 == 0;
+          nodes[from]->complete_tx(success, now); if (!success) continue;
+          for (int to = 0; to < 3; ++to) {
+            if (std::abs(to - from) != 1) continue;
+            if (next() % 100 < 10 && sequence % 10) continue;
+            auto bytes = wire(packet);
+            if (next() % 100 < 5 && sequence % 10) bytes.back() ^= 1; // CRC-rejected corruption.
+            events.push_back({now + 5 + next() % 150, to, bytes});
+            if (next() % 4 == 0) events.push_back({now + 200, to, bytes});
+          }
+        }
+        CHECK(events.size() < 256); CHECK(transmissions < 250);
+      }
+      unsigned deliveries = 0;
+      for (const auto& item : c.incoming()) if (item.used && item.complete && item.key == key(sequence)) {
+        ++deliveries; CHECK(item.size == size && std::memcmp(item.bytes.data(), body.data(), size) == 0);
+      }
+      CHECK(deliveries <= 1);
+      const auto outcome = std::find_if(a.outgoing().begin(), a.outgoing().end(), [sequence](const auto& item) { return item.used && item.key == key(sequence); });
+      CHECK(outcome != a.outgoing().end());
+      if (outcome->state == m::SendState::Acknowledged) { CHECK(deliveries == 1); ++acknowledged; if (sequence % 10 == 0) ++clean_acknowledged; }
+      else { a.tick(start + 60000); CHECK(outcome->state == m::SendState::Failed); }
+      const auto settled = outcome->state;
+      CHECK(a.enqueue(key(sequence), 3, 0, body.data(), size, start + 60001)); // Identical retained request is idempotent.
+      CHECK(outcome->state == settled);
+      total_tx += transmissions;
+    }
+    std::cerr << "seed 0x73550728: acknowledged=" << acknowledged << "/120 clean=" << clean_acknowledged << "/12 tx=" << total_tx << "\n";
+    CHECK(clean_acknowledged == 12); CHECK(total_tx < 120 * 250);
   } else return 3;
   std::cout << "ok " << scenario << '\n';
 }
