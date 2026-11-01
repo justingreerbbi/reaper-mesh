@@ -1,6 +1,6 @@
 # Host development and CI
 
-A C++17 compiler is now required by the host suite (c++ on PATH or CXX). The codec compiles with strict warnings and UBSan locally; Linux also enables ASan. See firmware/README.md for the local ASan limitation and standalone CMake/CTest build.
+Python 3.9+ (python3 on PATH, or PYTHON) and a C++17 compiler are required by the host suite (c++ on PATH or CXX). The codec compiles with strict warnings and UBSan locally; Linux also enables ASan. See firmware/README.md for the local ASan limitation and standalone CMake/CTest build.
 
 Use Node 24 (the `.node-version` baseline) or Node 25. Local verification currently uses Node 25.9.0 on macOS arm64.
 

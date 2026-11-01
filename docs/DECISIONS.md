@@ -92,3 +92,7 @@ Keep inbox sequence/cursors separate from config counters. Retain eight device m
 ## Browser reload recovery
 
 Persist the client incarnation and monotonic config/message counters before wire dispatch, with bounded plaintext local history. Unfinished restored operations become unknown and require query-only recovery on the same device/boot. Never persist live transport sessions or resume partial uploads. Use an exclusive Web Lock acquired before loading counters; a second tab can read but cannot write. Malformed storage remains exportable until an explicit disconnected reset. Storage failure before dispatch closes the logical link and emits no mutation. Clearing browser data/fresh profiles allocate new owner identities; this does not erase the device's bounded owner marks.
+
+## Guided ROM updater and antenna confirmation
+
+Validate build identity, compatibility, fixed partitions, outer/embedded image hashes and ROM security state before the first write. Stage immutable verified bytes to avoid a parallel-build race. Preserve NVS; stop on unexpected layouts or secured devices. Keep ROM verification separate from application qualification. Single-factory reinstall remains the prototype recovery route; signed releases/automatic rollback need separate work before public release. Owner confirms attached US/915 MHz antenna, so the US development board may proceed to explicit bounded RF tests.

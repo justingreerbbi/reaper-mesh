@@ -21,13 +21,13 @@ The simulator is shared with host tests under `packages/simulator/`. It uses the
 
 ## USB and recovery boundaries
 
-**USB device** uses an explicit browser port chooser. The browser must support Web Serial in a secure context such as localhost. Reaper Mesh firmware is required; the attached Heltec's existing firmware cannot yet speak this protocol. The prototype has no installer or flasher. No USB port was opened during development or browser QA.
+**USB device** uses an explicit browser port chooser. The browser must support Web Serial in a secure context such as localhost. Reaper Mesh firmware is required; the development Heltec is running it. Native Brave USB is physically qualified for the checks below. Firmware installation uses the manifest-validating CLI in UPDATES.md.
 
-Device status/capabilities are readable even when writes are blocked. The UI displays the blocking reason, advertised byte limit, region availability, owner admission, receipt/owner capacities, and firmware/radio identifiers. No messaging UI is presented because radio messaging is not implemented.
+Device status/capabilities are readable even when writes are blocked. The UI displays the blocking reason, advertised byte limit, region availability, owner admission, receipt/owner capacities, and firmware/radio identifiers. The messaging UI exposes local delivery, bounded outgoing history and received messages; remote sends require live radio readiness.
 
 Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest settings** is selected. Pending changes cannot be resubmitted or cleared. Unknown commands can be queried after synchronization; they are never automatically resent. **Forget uncertain command** explicitly confirms loss of result recovery and does not undo/cancel device work. Clear non-pending history to release the client's 32-entry limit.
 
-Each connection source retains its own client manager for this page session. Mode switching is disabled during an active connection/open/cleanup. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. History/incarnation recovery across reload, safe owner retirement, and a complete owner-exhaustion recovery flow remain pending. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
+Each connection source retains its own client manager for this page session. Mode switching is disabled during an active connection/open/cleanup. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. USB history/incarnation survives reload in plaintext local storage, with a Web Lock preventing simultaneous writers in this browser bucket. Other browsers/profiles have separate identities. Device owner marks are not silently evicted; exhausted admission is read-only until an explicit device reboot, which loses volatile receipts/queues. Export/query pending history first. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
 
 ## Validation recorded
 
@@ -50,3 +50,7 @@ usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA
 ## Inbox, local testing and diagnostics
 
 The integrated firmware supports local delivery by selecting Use this device (local test). An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The client reads the inbox with independent bounded cursors, displays retention gaps and keeps received history to 32 entries. Live radio probe/effective state and RX/TX counters appear in device details; memory/stack headroom is under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
+
+## Reload recovery
+
+USB identity, monotonic request counters and bounded command/message/inbox history are checkpointed before dispatch. Reload restores unfinished work as unknown and never resumes partial sends. Query status after reconnecting to the same device/boot. The recovery panel exports history, retries unavailable storage, or explicitly resets disconnected history. Reset/cleared browser data allocates a new identity and can consume another device owner slot. Invalid saved JSON remains exportable; it is not silently discarded. A second tab is read-only. Native Brave local delivery and both outgoing/inbox retention across reload passed on usb-prototype-4.

@@ -11,7 +11,7 @@ This tracks the focused initial project, not later BLE/mobile/encryption/EU tran
 | Channels/radio settings | Eight public/named slots, relay/power/mode, compatible base-client edits, record migration, policy cancellation hardware tests | Actual browser radio-settings QA with integrated driver |
 | SX1262 | Pinned license-reviewed Semtech core, TX gate, timeout/fault tests, shared airtime accounting, board SPI integration built | Probe/RX initialization passed; antenna confirmation before TX |
 | Inbox/diagnostics | Bounded ring/chunk reader, gaps/reconnect recovery, native cross-language transcript, local-delivery and service tests | Single-board probe/RX/local delivery passed; actual RF delivery remains |
-| Updates | Pinned build, hashed manifests, ROM CLI recovery, supervised writes verified | Guided manifest-checking updater, recovery UX/package validation |
+| Updates | Pinned build, hashed manifests, ROM CLI recovery, supervised writes verified | Manifest-validating CLI physically passed; package validation and interrupted-flash qualification remain |
 | Release/lifecycle | Frozen fixtures, generated/vendor checks, strict host checks | Browser reload journal implemented; resource-lifecycle UX, stress/fuzz/compatibility matrix, release packaging |
 
 Project licensing is deferred. Encryption, BLE, other boards, mobile/native clients and EU transmission remain explicitly later work. Antenna confirmation and additional physical nodes are external qualification inputs, not reasons to fabricate success or stop independent development.
