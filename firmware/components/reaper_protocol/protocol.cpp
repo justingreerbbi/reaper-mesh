@@ -91,6 +91,12 @@ bool versions(const Message& message) {
 }
 } // namespace
 
+bool valid_message_text(const std::uint8_t* p, std::size_t size) {
+  if (!p || !size || size > 1024 || !utf8(p, size)) return false;
+  for (std::size_t i = 0; i < size; ++i) if ((p[i] < 32 && p[i] != 9 && p[i] != 10) || p[i] == 127) return false;
+  return true;
+}
+
 bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output) {
   if (!data || size < 2 || size > kMaxPayload || data[0] != 1) return false;
   Message next{};

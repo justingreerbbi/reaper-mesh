@@ -68,3 +68,9 @@ Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 
 ## Sustained development and message acceptance
 
 Owner confirms OLED rendering works and requests continued work through project completion without routine prompts. Physical configuration loss/reconnect/query/duplicate/reset tests pass. Message USB v1 uses bounded hex chunks to preserve embedded field buffers and whole-message UTF-8 validation. Eight volatile queue records and per-owner marks separate retry suppression from receipt retention. Queued does not mean transmitted or delivered; hardware RF stays off until board/antenna/profile checks. Additive tags and capabilities preserve prior fixtures. Host/native maximum-size and lost-acceptance tests use the actual C++ session and TS client; simulator claims remain separate from RF evidence.
+
+## Message hardware and mesh core
+
+usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
+
+Use an independent 54-byte-header/CRC radio frame with up to 160 fragment bytes and seven fragments per 1024-byte text. Bound flooding/reassembly and distinguish TX completion from destination ACK. Retry forwarding after a short duplicate horizon; retain destination receipts longer. Host topology tests cover the actual C++ implementation, while regional and RF hardware gates remain separate.

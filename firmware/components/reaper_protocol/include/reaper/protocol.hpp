@@ -25,6 +25,7 @@ bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output)
 bool encode_payload(const Message& message, std::uint8_t* output, std::size_t capacity, std::size_t& length);
 bool decode_frame(const std::uint8_t* encoded, std::size_t size, Message& output);
 bool encode_frame(const Message& message, std::uint8_t* output, std::size_t capacity, std::size_t& length);
+bool valid_message_text(const std::uint8_t*, std::size_t);
 std::uint32_t crc32(const std::uint8_t* data, std::size_t size);
 
 class FrameDecoder {

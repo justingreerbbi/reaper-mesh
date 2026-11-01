@@ -17,22 +17,6 @@ bool terminal(const MessageRecord& r) {
 }
 MessageReceipt receipt(const MessageRecord& record) { return {record.state, record.received, record.message_id, record.reason}; }
 MessageReceipt reject(const char* why) { MessageReceipt r{}; r.state = MessageState::Rejected; literal(r.reason, why); return r; }
-bool valid_text(const std::uint8_t* p, std::size_t size) {
-  if (!size || size > 1024) return false;
-  for (std::size_t i = 0; i < size;) {
-    auto first = p[i++];
-    if (first < 0x80) { if ((first < 32 && first != 10 && first != 9) || first == 127) return false; continue; }
-    unsigned tail; std::uint32_t code, minimum;
-    if (first >= 0xc2 && first <= 0xdf) { tail = 1; code = first & 31; minimum = 0x80; }
-    else if (first >= 0xe0 && first <= 0xef) { tail = 2; code = first & 15; minimum = 0x800; }
-    else if (first >= 0xf0 && first <= 0xf4) { tail = 3; code = first & 7; minimum = 0x10000; }
-    else return false;
-    if (tail > size - i) return false;
-    while (tail--) { auto next = p[i++]; if ((next & 0xc0) != 0x80) return false; code = (code << 6) | (next & 63); }
-    if (code < minimum || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return false;
-  }
-  return true;
-}
 bool sequence(const Text<64>& owner, const Text<75>& id, std::uint32_t& value) {
   if (!owner.length || owner.length > 64 || id.length <= owner.length + 1 || id.length > 75 ||
       std::memcmp(owner.bytes.data(), id.bytes.data(), owner.length) || id.bytes[owner.length] != ':') return false;
@@ -105,7 +89,7 @@ MessageReceipt MessageQueue::submit(const Text<64>& owner, const Text<75>& id, s
   if (part + 1 == count) r.size = part * 32 + size;
   const auto complete = count == 32 ? 0xffffffffu : (1u << count) - 1;
   if (r.received == complete) {
-    if (!valid_text(r.bytes.data(), r.size)) { r.state = MessageState::Rejected; literal(r.reason, "invalid-text"); }
+    if (!protocol::valid_message_text(r.bytes.data(), r.size)) { r.state = MessageState::Rejected; literal(r.reason, "invalid-text"); }
     else { r.state = MessageState::Queued; r.deadline = now + 60000; }
   }
   return receipt(r);

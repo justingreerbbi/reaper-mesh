@@ -7,7 +7,7 @@ First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2
 
 The owner confirmed the OLED works and requested sustained development through the agreed project scope without routine confirmation prompts. USB-only Heltec firmware, NVS settings, native Brave connect/save/reconnect, startup recovery, and physical lost-reply/duplicate/reset recovery checks pass. No old firmware backup is required. RF remains disabled; antenna confirmation is pending before RF bring-up. BLE, EU transmission, encryption, and licensing are deferred.
 
-Message acceptance v1 is implemented with bounded 1,024-byte UTF-8 uploads, eight device records, owner high-water duplicate suppression, distinct queue/transmit/recipient-ACK states, and query-only reconnect recovery. USB tags 12–14 and optional welcome metadata extend v1 without changing old fixtures. The real TS client/C++ session wire transcript passes maximum-size/lost-acceptance recovery. The browser composer is implemented; hardware deployment/QA of usb-prototype-2 is next. Host checks and the regular 32-case CTest build pass. See docs/MESSAGING.md. Physical multi-node RF, power-cut qualification and long-duration tests remain outstanding.
+Message acceptance v1 is implemented with bounded 1,024-byte UTF-8 uploads, eight device records, owner high-water duplicate suppression, distinct queue/transmit/recipient-ACK states, and query-only reconnect recovery. USB tags 12–14 and optional welcome metadata extend v1 without changing old fixtures. The real TS client/C++ session wire transcript passes maximum-size/lost-acceptance recovery. The browser composer is implemented; hardware queue/expiry and native Brave composition checks now pass. All 157 host tests pass; the independent CMake suite includes mesh/packet tests. See docs/MESSAGING.md. Physical multi-node RF, power-cut qualification and long-duration tests remain outstanding.
 
 ## Product intent
 
@@ -41,7 +41,7 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-Deploy and qualify usb-prototype-2 queue upload/expiry and web message composition. Then implement documented mesh framing, bounded fragmentation/reassembly/ACK/relay behavior with deterministic topology tests, channel/radio settings, and board radio integration after RF hardware details are confirmed. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
+usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Next implement persisted channel/radio settings, profile/airtime policy and board radio integration after antenna details are confirmed. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
 
 ## USB startup recovery evidence
 
@@ -60,3 +60,9 @@ OLED status is implemented for Heltec V3 SSD1306: SDA17/SCL18, reset21, active-l
 Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 227,440 bytes; SHA-256 3baba75a548faca771733ec7e917c8d79fc25f9ee9f104c65de95c3fdbd70c7a. Esptool verified all three artifacts. Three physical TypeScript Connection/SerialAdapter opens confirmed usb-prototype-1 and persisted revision 3, reaching ready in 650/649/648 ms. NVS was not erased. These serial results do not verify visible OLED pixels or actual display-fault behavior; visual confirmation and real I2C fault injection remain pending.
 
 Owner report: OLED rendering works on the installed usb-prototype-1 hardware (November 1, 2026). Physical config fault-injection passed lost committed reply -> query recovery, duplicate replay without a second revision, and reset with persisted config plus unknown previous-boot outcome. tools/hardware-recovery-smoke.ts reproduces these checks.
+
+## Message and mesh checkpoint
+
+usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
+
+The C++ radio packet codec and Mesh core pass host topology/fault tests; see docs/RADIO_PROTOCOL.md for resource bounds and remaining RF work. No mesh code is yet connected to the board radio.

@@ -68,8 +68,9 @@ for (let run = 0; run < 3; run++) {
     });
     assert.equal(client.capabilities?.radioVersion, 0);
     if (expectedFirmware) assert.equal(client.capabilities?.firmware, expectedFirmware);
+    const readyAt = now();
     if (run === 0 && messageTest === '--message-test') {
-      const id = adapter.sendMessage('Reaper USB message test ' + 'x'.repeat(1001));
+      const id = adapter.sendMessage('Reaper USB message test '.padEnd(1024, 'x'));
       const waitFor = async (state: string, timeout: number) => {
         const end = now() + timeout;
         while (client.messaging.history.find(entry => entry.id === id)?.state !== state) {
@@ -83,7 +84,7 @@ for (let run = 0; run < 3; run++) {
       assert.equal(client.messaging.history.find(entry => entry.id === id)?.reason, 'expired');
       console.log('Physical queue expiry reported failed; no transmission or delivery claimed');
     }
-    console.log(`Physical TS client/adapter run ${run + 1}: ready after ${now()} ms; sent ${bytesSent} bytes; revision ${client.sync.revision}`);
+    console.log(`Physical TS client/adapter run ${run + 1}: ready after ${readyAt} ms; sent ${bytesSent} bytes; revision ${client.sync.revision}`);
   } finally {
     await adapter.disconnect();
   }

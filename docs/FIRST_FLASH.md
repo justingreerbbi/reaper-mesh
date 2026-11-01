@@ -101,3 +101,7 @@ Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 
 `node tools/hardware-recovery-smoke.ts PYTHON PORT --confirm-write` writes the existing settings values twice, discards their commit replies, verifies query-only reconnect recovery and duplicate suppression, then resets and checks persistence/reboot ambiguity. It does not erase NVS.
 
 `node tools/hardware-client-smoke.ts PYTHON PORT usb-prototype-2 --message-test` submits one 1024-byte test message and verifies queued -> expired failure with RF off, then repeats USB opens. It waits about a minute for the actual queue lifetime. Device queue acceptance is not RF delivery. OLED operation was confirmed visually by the owner.
+
+## Hardware message acceptance evidence
+
+usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.

@@ -13,7 +13,7 @@ execFileSync(process.env.CXX || 'c++', [
   '-std=c++17', '-O1', '-Wall', '-Wextra', '-Werror', '-pedantic',
   `-fsanitize=${sanitizers}`, '-fno-sanitize-recover=all', '-fno-omit-frame-pointer',
   '-Ifirmware/components/reaper_protocol/include', '-Ifirmware/components/reaper_device/include',
-  'firmware/components/reaper_device/messages.cpp', 'firmware/tests/messages_test.cpp', '-o', binary,
+  'firmware/components/reaper_protocol/protocol.cpp', 'firmware/components/reaper_device/messages.cpp', 'firmware/tests/messages_test.cpp', '-o', binary,
 ], { stdio: 'pipe', timeout: 30000 });
 for (const [scenario, description] of Object.entries({
   chunks: 'reassembles reordered 1024-byte text and rejects conflicting duplicates',
