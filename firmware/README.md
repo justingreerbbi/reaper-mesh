@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. No custom firmware has been flashed. See [first flash and recovery](../docs/FIRST_FLASH.md).
+This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. The development board runs usb-prototype-1; physical USB smoke tests pass. See [first flash and recovery](../docs/FIRST_FLASH.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Build and test
@@ -41,7 +41,7 @@ Review TLV/retention design; confirm board revision, flash size, serial interfac
 
 ## Target build
 
-Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and FIRST_FLASH.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, holds LoRa reset GPIO12 low, and does not initialize the display or transmit. It uses a single factory application partition; OTA rollback is not implemented.
+Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and FIRST_FLASH.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, holds LoRa reset GPIO12 low, initializes the status OLED, and does not transmit. It uses a single factory application partition; OTA rollback is not implemented.
 
 ## OLED status implementation
 

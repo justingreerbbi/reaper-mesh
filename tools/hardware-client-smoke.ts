@@ -3,8 +3,8 @@ import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
-const [python, port] = process.argv.slice(2);
-if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT');
+const [python, port, expectedFirmware] = process.argv.slice(2);
+if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE]');
 const bridge = `
 import serial,sys,threading
 s=serial.Serial(port=None,baudrate=115200,timeout=.05,exclusive=True)
@@ -67,6 +67,7 @@ for (let run = 0; run < 3; run++) {
       child.once('exit', () => { clearInterval(timer); reject(new Error(error || 'serial bridge exited')); });
     });
     assert.equal(client.capabilities?.radioVersion, 0);
+    if (expectedFirmware) assert.equal(client.capabilities?.firmware, expectedFirmware);
     console.log(`Physical TS client/adapter run ${run + 1}: ready after ${now()} ms; sent ${bytesSent} bytes; revision ${client.sync.revision}`);
   } finally {
     await adapter.disconnect();
