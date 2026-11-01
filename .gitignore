@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+build/
+.pio/
+managed_components/
+sdkconfig.old
+*.log
+*.bin
+*.elf
+*.map
+.venv/
+__pycache__/
