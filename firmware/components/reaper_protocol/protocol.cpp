@@ -66,6 +66,14 @@ bool valid(Kind kind, const FieldValue& value) {
     }
     return number > 0 && number <= std::numeric_limits<std::uint32_t>::max();
   }
+  if (kind == Kind::Hex) {
+    if (!size || size > 64 || size % 2) return false;
+    for (std::size_t i = 0; i < size; ++i) if (!((p[i] >= '0' && p[i] <= '9') || (p[i] >= 'a' && p[i] <= 'f'))) return false;
+    return true;
+  }
+  if (kind == Kind::MessageState) return equals(value, "receiving") || equals(value, "queued") ||
+    equals(value, "transmitted") || equals(value, "acknowledged") || equals(value, "failed") ||
+    equals(value, "rejected") || equals(value, "unknown");
   if (kind == Kind::Region) return equals(value, "UNSET") || equals(value, "US") || equals(value, "EU");
   if (kind == Kind::Outcome) return equals(value, "committed") || equals(value, "conflict") ||
     equals(value, "rejected") || equals(value, "unknown");

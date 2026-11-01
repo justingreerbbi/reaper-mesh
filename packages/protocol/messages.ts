@@ -23,6 +23,8 @@ function validate(kind: string, value: unknown) {
   if (kind === 'outcome' && !['committed', 'conflict', 'rejected', 'unknown'].includes(value)) {
     throw new Error('invalid command outcome');
   }
+  if (kind === 'hex' && !/^(?:[0-9a-f]{2}){1,32}$/.test(value)) throw new Error('invalid chunk');
+  if (kind === 'messageState' && !['receiving', 'queued', 'transmitted', 'acknowledged', 'failed', 'rejected', 'unknown'].includes(value)) throw new Error('invalid message state');
   if (kind === 'region' && !['UNSET', 'US', 'EU'].includes(value)) throw new Error('invalid region');
   if (kind === 'label' && (encoder.encode(value).length > 64 || /[\u0000-\u001f\u007f]/u.test(value))) {
     throw new Error('invalid label');

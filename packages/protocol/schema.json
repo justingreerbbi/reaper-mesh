@@ -1,13 +1,150 @@
 {
-  "hello": {"tag":1,"fields":{"link":"id","minVersion":"u32","maxVersion":"u32","owner":"id?"}},
-  "welcome": {"tag":2,"fields":{"link":"id","device":"id","boot":"id","minVersion":"u32","maxVersion":"u32","configSchema":"u32?","features":"u32?","maxPayload":"u32?","receiptCapacity":"u32?","ownerCapacity":"u32?","ownerAdmitted":"u32?","regions":"u32?","maxLabelBytes":"u32?","firmware":"id?","radioVersion":"u32?"}},
-  "sync": {"tag":3,"fields":{"link":"id","boot":"id","request":"u32"}},
-  "snapshot": {"tag":4,"fields":{"link":"id","boot":"id","request":"u32","sequence":"u32","revision":"u32","region":"region","label":"label"}},
-  "event": {"tag":5,"fields":{"link":"id","boot":"id","sequence":"u32","revision":"u32","region":"region","label":"label"}},
-  "ping": {"tag":6,"fields":{"link":"id","request":"u32"}},
-  "pong": {"tag":7,"fields":{"link":"id","boot":"id","request":"u32"}},
-  "configure": {"tag":8,"fields":{"link":"id","boot":"id","id":"commandId","expectedRevision":"u32","region":"region","label":"label"}},
-  "result": {"tag":9,"fields":{"link":"id","boot":"id","id":"commandId","outcome":"outcome","revision":"u32"}},
-  "query": {"tag":10,"fields":{"link":"id","boot":"id","id":"commandId"}},
-  "error": {"tag":11,"fields":{"link":"id","boot":"id","code":"id"}}
+  "hello": {
+    "tag": 1,
+    "fields": {
+      "link": "id",
+      "minVersion": "u32",
+      "maxVersion": "u32",
+      "owner": "id?"
+    }
+  },
+  "welcome": {
+    "tag": 2,
+    "fields": {
+      "link": "id",
+      "device": "id",
+      "boot": "id",
+      "minVersion": "u32",
+      "maxVersion": "u32",
+      "configSchema": "u32?",
+      "features": "u32?",
+      "maxPayload": "u32?",
+      "receiptCapacity": "u32?",
+      "ownerCapacity": "u32?",
+      "ownerAdmitted": "u32?",
+      "regions": "u32?",
+      "maxLabelBytes": "u32?",
+      "firmware": "id?",
+      "radioVersion": "u32?",
+      "messageVersion": "u32?",
+      "maxMessageBytes": "u32?",
+      "messageCapacity": "u32?"
+    }
+  },
+  "sync": {
+    "tag": 3,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32"
+    }
+  },
+  "snapshot": {
+    "tag": 4,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "sequence": "u32",
+      "revision": "u32",
+      "region": "region",
+      "label": "label"
+    }
+  },
+  "event": {
+    "tag": 5,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "sequence": "u32",
+      "revision": "u32",
+      "region": "region",
+      "label": "label"
+    }
+  },
+  "ping": {
+    "tag": 6,
+    "fields": {
+      "link": "id",
+      "request": "u32"
+    }
+  },
+  "pong": {
+    "tag": 7,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32"
+    }
+  },
+  "configure": {
+    "tag": 8,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId",
+      "expectedRevision": "u32",
+      "region": "region",
+      "label": "label"
+    }
+  },
+  "result": {
+    "tag": 9,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId",
+      "outcome": "outcome",
+      "revision": "u32"
+    }
+  },
+  "query": {
+    "tag": 10,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId"
+    }
+  },
+  "error": {
+    "tag": 11,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "code": "id"
+    }
+  },
+  "submit": {
+    "tag": 12,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId",
+      "channel": "u32",
+      "destination": "id",
+      "part": "u32",
+      "count": "u32",
+      "data": "hex"
+    }
+  },
+  "messageStatus": {
+    "tag": 13,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId",
+      "state": "messageState",
+      "received": "u32",
+      "messageId": "id?",
+      "reason": "id?"
+    }
+  },
+  "messageQuery": {
+    "tag": 14,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId"
+    }
+  }
 }

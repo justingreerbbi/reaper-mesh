@@ -3,8 +3,8 @@ import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
-const [python, port, expectedFirmware] = process.argv.slice(2);
-if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE]');
+const [python, port, expectedFirmware, messageTest] = process.argv.slice(2);
+if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test]');
 const bridge = `
 import serial,sys,threading
 s=serial.Serial(port=None,baudrate=115200,timeout=.05,exclusive=True)
@@ -68,6 +68,21 @@ for (let run = 0; run < 3; run++) {
     });
     assert.equal(client.capabilities?.radioVersion, 0);
     if (expectedFirmware) assert.equal(client.capabilities?.firmware, expectedFirmware);
+    if (run === 0 && messageTest === '--message-test') {
+      const id = adapter.sendMessage('Reaper USB message test ' + 'x'.repeat(1001));
+      const waitFor = async (state: string, timeout: number) => {
+        const end = now() + timeout;
+        while (client.messaging.history.find(entry => entry.id === id)?.state !== state) {
+          if (now() > end || client.sync.state !== 'ready') throw new Error(`message did not reach ${state}`);
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      };
+      await waitFor('queued', 10000);
+      console.log('Physical 1024-byte message accepted as queued; RF remains off');
+      await waitFor('failed', 65000);
+      assert.equal(client.messaging.history.find(entry => entry.id === id)?.reason, 'expired');
+      console.log('Physical queue expiry reported failed; no transmission or delivery claimed');
+    }
     console.log(`Physical TS client/adapter run ${run + 1}: ready after ${now()} ms; sent ${bytesSent} bytes; revision ${client.sync.revision}`);
   } finally {
     await adapter.disconnect();

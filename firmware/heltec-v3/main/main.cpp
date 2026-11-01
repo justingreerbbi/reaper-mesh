@@ -68,13 +68,15 @@ extern "C" void app_main() {
   device.assign(reinterpret_cast<const std::uint8_t*>(device_string), device_length);
   static NvsStorage storage;
   static d::Configuration authority(storage, boot);
-  static d::Session session(authority, device, boot);
+  static d::MessageQueue messages(boot);
+  static d::Session session(authority, device, boot, &messages);
   static StatusDisplay display;
   display.begin();
   std::int64_t next_display = 0;
   std::array<std::uint8_t, 256> input{};
   std::int64_t last_read = 0;
   for (;;) {
+    session.tick(static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
     uart_event_t event{};
     if (xQueueReceive(events, &event, pdMS_TO_TICKS(100))) {
       if (event.type == UART_DATA) {

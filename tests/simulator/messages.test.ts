@@ -13,6 +13,9 @@ const messages: Message[] = [
   { type: 'configure', link: 'link_1', boot: 'boot-A', id: 'client-A:1', expectedRevision: 0, region: 'US', label: 'updated' },
   { type: 'result', link: 'link_1', boot: 'boot-A', id: 'client-A:1', outcome: 'committed', revision: 1 },
   { type: 'query', link: 'link_1', boot: 'boot-A', id: 'client-A:1' },
+  { type: 'submit', link: 'link_1', boot: 'boot-A', id: 'client-A:1', channel: 0, destination: 'broadcast', part: 0, count: 1, data: '6869' },
+  { type: 'messageStatus', link: 'link_1', boot: 'boot-A', id: 'client-A:1', state: 'queued', received: 1 },
+  { type: 'messageQuery', link: 'link_1', boot: 'boot-A', id: 'client-A:1' },
   { type: 'error', link: 'link_1', boot: 'boot-A', code: 'storage-unavailable' },
 ];
 
@@ -86,4 +89,11 @@ test('command IDs and result outcomes are bounded and canonical', () => {
   assert.throws(() => encodeMessage({ ...messages[8], outcome: 'delivered' } as unknown as Message));
   assert.deepEqual(decodeMessage(encodeMessage({ ...messages[9], id: 'client:4294967295' } as Message)),
     { ...messages[9], id: 'client:4294967295' });
+});
+
+test('message chunks reject noncanonical hex and unknown delivery states', () => {
+  const submit = messages.find(message => message.type === 'submit')!;
+  for (const data of ['', '0', 'FF', 'gg', '00'.repeat(33)]) assert.throws(() => encodeMessage({ ...submit, data } as Message));
+  const status = messages.find(message => message.type === 'messageStatus')!;
+  assert.throws(() => encodeMessage({ ...status, state: 'delivered-to-everyone' } as unknown as Message));
 });

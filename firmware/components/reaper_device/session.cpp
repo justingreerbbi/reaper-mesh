@@ -1,4 +1,5 @@
 #include "reaper/session.hpp"
+#include "reaper/version.hpp"
 #include <cstring>
 
 namespace reaper::device {
@@ -24,8 +25,8 @@ const char* outcome(Outcome value) {
   }
 }
 } // namespace
-Session::Session(Configuration& authority, Text<64> device, Text<64> boot)
-    : authority_(authority), device_(device), boot_(boot) {}
+Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages)
+    : authority_(authority), messages_(messages), device_(device), boot_(boot) {}
 void Session::reset() { active_ = compatible_ = admitted_ = synchronized_ = fault_ = false; link_ = {}; owner_ = {}; }
 void Session::error(p::Message& reply) const {
   reply = {}; reply.type = p::MessageType::Error;
@@ -52,19 +53,47 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     reply.type = p::MessageType::Welcome;
     set(reply.fields[p::kWelcomeLink], link_); set(reply.fields[p::kWelcomeDevice], device_); set(reply.fields[p::kWelcomeBoot], boot_);
     number(reply.fields[p::kWelcomeMinVersion], 1); number(reply.fields[p::kWelcomeMaxVersion], 1);
-    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], 7);
+    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], messages_ ? 15 : 7);
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
     number(reply.fields[p::kWelcomeOwnerAdmitted], admitted_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRegions], 3); number(reply.fields[p::kWelcomeMaxLabelBytes], 64);
-    literal(reply.fields[p::kWelcomeFirmware], "usb-prototype-1"); number(reply.fields[p::kWelcomeRadioVersion], 0);
+    literal(reply.fields[p::kWelcomeFirmware], kFirmwareVersion); number(reply.fields[p::kWelcomeRadioVersion], 0);
+    if (messages_) {
+      number(reply.fields[p::kWelcomeMessageVersion], 1);
+      number(reply.fields[p::kWelcomeMaxMessageBytes], 1024);
+      number(reply.fields[p::kWelcomeMessageCapacity], MessageQueue::kCapacity);
+    }
     return true;
   }
   if (!active_ || !compatible_ || !same(request.fields[0], link_)) return false;
   if (request.type == p::MessageType::Ping) {
     reply.type = p::MessageType::Pong; set(reply.fields[p::kPongLink], link_); set(reply.fields[p::kPongBoot], boot_);
     number(reply.fields[p::kPongRequest], request.fields[p::kPingRequest].number); return true;
+  }
+  if (request.type == p::MessageType::Submit || request.type == p::MessageType::MessageQuery) {
+    if (!messages_ || !same(request.fields[1], boot_) || !synchronized_) return false;
+    if (!authority_.healthy()) { error(reply); reset(); return true; }
+    Text<75> id{}; const auto& value = request.fields[2]; id.assign(value.text.data(), value.length);
+    MessageReceipt result{};
+    if (request.type == p::MessageType::MessageQuery) result = messages_->query(id);
+    else if (!admitted_) { result.state = MessageState::Rejected; result.reason.assign(reinterpret_cast<const std::uint8_t*>("owner-capacity"), 14); }
+    else {
+      const auto& data = request.fields[p::kSubmitData]; std::array<std::uint8_t, 32> bytes{};
+      auto nibble = [](std::uint8_t b) -> unsigned { return b <= '9' ? b - '0' : b - 'a' + 10; };
+      for (std::size_t i = 0; i < data.length / 2; ++i) bytes[i] = (nibble(data.text[2 * i]) << 4) | nibble(data.text[2 * i + 1]);
+      Text<64> destination{}; const auto& dest = request.fields[p::kSubmitDestination]; destination.assign(dest.text.data(), dest.length);
+      result = messages_->submit(owner_, id, request.fields[p::kSubmitChannel].number, destination,
+        request.fields[p::kSubmitPart].number, request.fields[p::kSubmitCount].number, bytes.data(), data.length / 2, now_);
+    }
+    reply.type = p::MessageType::MessageStatus;
+    set(reply.fields[p::kMessageStatusLink], link_); set(reply.fields[p::kMessageStatusBoot], boot_);
+    set(reply.fields[p::kMessageStatusId], id); literal(reply.fields[p::kMessageStatusState], message_state(result.state));
+    number(reply.fields[p::kMessageStatusReceived], result.received);
+    if (result.message_id.length) set(reply.fields[p::kMessageStatusMessageId], result.message_id);
+    if (result.reason.length) set(reply.fields[p::kMessageStatusReason], result.reason);
+    return true;
   }
   if (request.type != p::MessageType::Sync && request.type != p::MessageType::Configure && request.type != p::MessageType::Query) return false;
   if (!same(request.fields[1], boot_)) return false;

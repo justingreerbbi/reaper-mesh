@@ -41,6 +41,16 @@ export class SerialAdapter {
 
   get active() { return this.#run !== undefined; }
 
+  sendMessage(text: string, destination = 'broadcast', channel = 0) {
+    this.#readyRun(); const id = this.connection.sendMessage(text, destination, channel, this.#now());
+    this.#flush(this.#run!); return id;
+  }
+
+  recoverMessage(id: string) {
+    this.#readyRun(); const found = this.connection.recoverMessage(id, this.#now());
+    this.#flush(this.#run!); return found;
+  }
+
   configure(config: Config) {
     const run = this.#readyRun();
     const id = this.connection.configure(config, this.#now());

@@ -43,7 +43,8 @@ const sampleValues: Record<string, unknown> = {
   configSchema: 1, features: 7, maxPayload: 2048, receiptCapacity: 32, ownerCapacity: 8,
   ownerAdmitted: 1, regions: 3, maxLabelBytes: 64, firmware: 'sim-0', radioVersion: 0,
   request: 1, sequence: 0xffffffff, revision: 0xffffffff, expectedRevision: 0,
-  region: 'US', label: 'Café 📻', id: 'client-A:4294967295', outcome: 'committed', code: 'storage-unavailable',
+  region: 'US', label: 'Café 📻', id: 'client-A:4294967295', outcome: 'committed', code: 'storage-unavailable', messageVersion: 1, maxMessageBytes: 1024, messageCapacity: 8,
+  channel: 0, destination: 'broadcast', part: 0, count: 1, data: '6869', state: 'queued', received: 1, messageId: 'boot-A_1', reason: 'queued',
 };
 const messages = Object.entries(schema).map(([type, message]) => Object.fromEntries([
   ['type', type], ...Object.keys(message.fields).map(name => [name, sampleValues[name]]),

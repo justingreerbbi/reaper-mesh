@@ -3,7 +3,7 @@ import schema from '../packages/protocol/schema.json' with { type: 'json' };
 
 // Generate declarations from the same ordered field descriptors used by the codec.
 const target = new URL('../packages/protocol/messages.generated.ts', import.meta.url);
-const kinds = ['u32', 'id', 'commandId', 'region', 'label', 'outcome'];
+const kinds = ['u32', 'id', 'commandId', 'region', 'label', 'outcome', 'hex', 'messageState'];
 const tags = new Set<number>();
 for (const [name, message] of Object.entries(schema)) {
   if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) || tags.has(message.tag) || message.tag < 1 || message.tag > 255) {
@@ -22,6 +22,7 @@ const variants = Object.entries(schema).map(([type, message]) => {
     const kind = descriptor.replace(/\?$/, '');
     return `${name}${descriptor.endsWith('?') ? '?' : ''}: ${kind === 'u32' ? 'number' :
       kind === 'region' ? "'UNSET' | 'US' | 'EU'" :
+      kind === 'messageState' ? "'receiving' | 'queued' | 'transmitted' | 'acknowledged' | 'failed' | 'rejected' | 'unknown'" :
       kind === 'outcome' ? "'committed' | 'conflict' | 'rejected' | 'unknown'" : 'string'}`;
   });
   return `  | Readonly<{ type: '${type}'; ${fields.join('; ')} }>`;

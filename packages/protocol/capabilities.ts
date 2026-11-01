@@ -3,7 +3,7 @@ export type Welcome = Extract<Message, { type: 'welcome' }>;
 export type Capabilities = Readonly<{
   configSchema: number; features: number; maxPayload: number; receiptCapacity: number;
   ownerCapacity: number; ownerAdmitted: number; regions: number; maxLabelBytes: number;
-  firmware: string; radioVersion: number;
+  firmware: string; radioVersion: number; messageVersion?: number; maxMessageBytes?: number; messageCapacity?: number;
 }>;
 
 export function capabilities(message: Welcome): Capabilities | undefined {
@@ -12,7 +12,11 @@ export function capabilities(message: Welcome): Capabilities | undefined {
   if ([configSchema, features, maxPayload, receiptCapacity, ownerCapacity, ownerAdmitted,
     regions, maxLabelBytes, firmware, radioVersion].some(value => value === undefined)) return undefined;
   return Object.freeze({ configSchema, features, maxPayload, receiptCapacity, ownerCapacity,
-    ownerAdmitted, regions, maxLabelBytes, firmware, radioVersion }) as Capabilities;
+    ownerAdmitted, regions, maxLabelBytes, firmware, radioVersion,
+    ...(message.messageVersion !== undefined ? { messageVersion: message.messageVersion } : {}),
+    ...(message.maxMessageBytes !== undefined ? { maxMessageBytes: message.maxMessageBytes } : {}),
+    ...(message.messageCapacity !== undefined ? { messageCapacity: message.messageCapacity } : {}),
+  }) as Capabilities;
 }
 
 export function writeBlockReason(value: Capabilities | undefined): string | undefined {

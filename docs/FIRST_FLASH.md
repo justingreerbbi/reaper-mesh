@@ -95,3 +95,9 @@ The usb-prototype-1 image adds best-effort OLED status and keeps the same partit
 Pin/power references: [Espressif Heltec V3 variant](https://github.com/espressif/arduino-esp32/blob/master/variants/heltec_wifi_lora_32_V3/pins_arduino.h), [Heltec power polarity](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.h), and [Heltec controller/address](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.cpp). Reviewed against the pinned ESP-IDF 5.5.4 I2C headers/SSD1306 driver.
 
 Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 227,440 bytes; SHA-256 3baba75a548faca771733ec7e917c8d79fc25f9ee9f104c65de95c3fdbd70c7a. Esptool verified all three artifacts. Three physical TypeScript Connection/SerialAdapter opens confirmed usb-prototype-1 and persisted revision 3, reaching ready in 650/649/648 ms. NVS was not erased. These serial results do not verify visible OLED pixels or actual display-fault behavior; visual confirmation and real I2C fault injection remain pending.
+
+## Physical recovery and message tests
+
+`node tools/hardware-recovery-smoke.ts PYTHON PORT --confirm-write` writes the existing settings values twice, discards their commit replies, verifies query-only reconnect recovery and duplicate suppression, then resets and checks persistence/reboot ambiguity. It does not erase NVS.
+
+`node tools/hardware-client-smoke.ts PYTHON PORT usb-prototype-2 --message-test` submits one 1024-byte test message and verifies queued -> expired failure with RF off, then repeats USB opens. It waits about a minute for the actual queue lifetime. Device queue acceptance is not RF delivery. OLED operation was confirmed visually by the owner.

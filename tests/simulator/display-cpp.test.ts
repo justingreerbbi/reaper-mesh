@@ -12,7 +12,7 @@ const sanitizers = process.platform === 'darwin' && process.env.REAPER_ASAN !== 
 execFileSync(process.env.CXX || 'c++', [
   '-std=c++17', '-O1', '-Wall', '-Wextra', '-Werror', '-pedantic',
   `-fsanitize=${sanitizers}`, '-fno-sanitize-recover=all', '-fno-omit-frame-pointer',
-  '-Ifirmware/tests/display_stubs', '-Ifirmware/heltec-v3/main',
+  '-Ifirmware/components/reaper_device/include', '-Ifirmware/tests/display_stubs', '-Ifirmware/heltec-v3/main',
   'firmware/heltec-v3/main/status_display.cpp', 'firmware/tests/display_test.cpp', '-o', binary,
 ], { stdio: 'pipe', timeout: 30000 });
 for (const [scenario, description] of Object.entries({

@@ -1,6 +1,7 @@
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { Synchronizer, type Config } from './sync.ts';
+import { Messaging } from './messaging.ts';
 import { Commands, type ConfigCommand } from './commands.ts';
 import { capabilities, writeBlockReason, type Capabilities } from '../protocol/capabilities.ts';
 
@@ -8,6 +9,7 @@ import { capabilities, writeBlockReason, type Capabilities } from '../protocol/c
 export class Connection {
   readonly sync = new Synchronizer();
   readonly commands: Commands;
+  readonly messaging: Messaging;
   #commandDevices = new Map<string, string>();
   device: string | undefined;
   error: string | undefined;
@@ -28,6 +30,25 @@ export class Connection {
 
   constructor(incarnation: string = crypto.randomUUID()) {
     this.commands = new Commands(this.sync, incarnation);
+    this.messaging = new Messaging(this.sync, incarnation);
+  }
+
+  get messageBlockReason() {
+    if (this.writeBlockReason) return this.writeBlockReason;
+    const c = this.capabilities;
+    return !c || !(c.features & 8) || c.messageVersion !== 1 || c.maxMessageBytes !== 1024 || !c.messageCapacity
+      ? 'device does not support safe message upload' : undefined;
+  }
+  sendMessage(text: string, destination: string, channel: number, now: number) {
+    this.#time(now); if (this.#expired(now)) throw new Error('connection timed out');
+    if (this.messageBlockReason) throw new Error(this.messageBlockReason);
+    const packet = this.messaging.send(text, destination, channel, this.device!, now);
+    this.#send({ ...packet, link: this.#link }); return packet.id;
+  }
+  recoverMessage(id: string, now: number) {
+    this.#time(now); if (this.#expired(now)) throw new Error('connection timed out');
+    const query = this.messaging.recover(id, this.device!, now);
+    if (query) this.#send({ ...query, link: this.#link }); return !!query;
   }
 
   configure(config: Config, now: number) {
@@ -90,7 +111,8 @@ export class Connection {
 
   close(reason?: string) {
     this.sync.disconnect();
-    this.commands.tick(this.#now); // Disconnect immediately makes pending outcomes uncertain.
+    this.commands.tick(this.#now);
+    this.messaging.tick(this.#now); // Disconnect immediately makes pending outcomes uncertain.
     this.#decoder.reset();
     this.#outgoing = [];
     this.error = reason;
@@ -125,6 +147,7 @@ export class Connection {
       }
     }
     for (const retry of this.commands.tick(now)) this.#sendCommand(retry);
+    for (const packet of this.messaging.tick(now, this.device)) this.#send({ ...packet, link: this.#link });
     if (this.sync.state !== 'ready') return;
     if (!this.#awaitingPong && now >= this.#nextPing) {
       this.#ping++;
@@ -137,6 +160,11 @@ export class Connection {
   drain() { const frames = this.#outgoing; this.#outgoing = []; return frames; }
 
   #dispatch(message: Message) {
+    if (message.type === 'messageStatus') {
+      const next = this.messaging.receive(this.sync.session, message, this.#now);
+      if (next) this.#send({ ...next, link: this.#link });
+      return;
+    }
     if (message.type === 'error' && (this.sync.state === 'negotiating' || message.boot === this.sync.boot)) {
       this.close(message.code === 'storage-unavailable' ? 'device storage unavailable; recovery required' : `device error: ${message.code}`);
       return;
@@ -182,6 +210,7 @@ export class Connection {
     }
     if (this.sync.state === 'synchronizing' && this.sync.snapshotRequest !== this.#request) {
       this.commands.tick(this.#now);
+    this.messaging.tick(this.#now);
       this.#request = this.sync.snapshotRequest;
       this.#send({ type: 'sync', link: this.#link, boot: this.sync.boot!, request: this.#request });
     }

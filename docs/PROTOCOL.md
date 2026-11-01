@@ -44,8 +44,11 @@ The payload begins with one byte for payload version (`01`) and one for message 
 | 9 result | link, boot, id, outcome, revision | Command receipt or query result |
 | 10 query | link, boot, id | Read-only lookup of a retained command result |
 | 11 error | link, boot, code | Explicit logical-session failure |
+| 12 submit | link, boot, id, channel, destination, part, count, data | Bounded message chunk upload |
+| 13 messageStatus | link, boot, id, state, received, messageId?, reason? | Queue/delivery state and received bitmap |
+| 14 messageQuery | link, boot, id | Read-only message recovery |
 
-The hello additionally appends optional field 4 `owner` (client incarnation). Welcome appends optional metadata at tags 6–15, preserving all original required fields. Older v1 peers can still exchange snapshots, but cannot configure through the new client without the complete safety metadata.
+The hello additionally appends optional field 4 `owner` (client incarnation). Welcome appends optional metadata at tags 6–18, preserving all original required fields. Older v1 peers can still exchange snapshots, but cannot configure through the new client without the complete safety metadata.
 
 | Welcome field tag | Field | Meaning |
 | --- | --- | --- |
@@ -59,6 +62,9 @@ The hello additionally appends optional field 4 `owner` (client incarnation). We
 | 13 | maxLabelBytes | Device label bound; supported range 1–64 UTF-8 bytes |
 | 14 | firmware | Build identifier using the bounded ID character set |
 | 15 | radioVersion | Independent radio protocol version; 0 means no implemented radio protocol |
+| 16 | messageVersion | Message semantics version; 1 required for uploads |
+| 17 | maxMessageBytes | Hard whole-message bound; currently 1024 |
+| 18 | messageCapacity | Volatile device message records; currently 8 |
 
 All metadata fields except firmware are u32. Metadata is immutable and cleared on disconnect. Missing/partial metadata, unknown config schema, missing safety bits, unusable limits, or denied admission yield a readable connection with `writeBlockReason`; they cannot consume command IDs or send mutations. Unknown feature bits are ignored while all known required bits remain required. Result queries need the advertised query bit and remain allowed when new owner admission is denied. Region/UTF-8 label limits are checked before retaining a mutation. Regional bits describe permitted configuration, not RF authorization or verified hardware support.
 
@@ -145,3 +151,7 @@ The UART app serializes authority access. Hello negotiates version/capabilities 
 ## USB reset during port open
 
 USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
+
+## Message USB extension
+
+Feature bit 3 advertises bounded message submission/query. All previous config safety bits/metadata remain required for mutation admission. Missing extension fields leave old firmware readable/configurable but block uploads. `hex` is 1–32 bytes represented by even-length lowercase hex; `messageState` is receiving/queued/transmitted/acknowledged/failed/rejected/unknown. Configuration and message request IDs occupy separate namespaces. Received is a 32-bit chunk bitmap. Full state, queue lifetimes, deduplication, and reboot semantics are specified in MESSAGING.md. Client polling is read-only, at most one query per 500 ms, with per-entry two-second spacing and a 70-second overall observation bound. No chunks are replayed on a new link.

@@ -21,6 +21,7 @@ let busy = false;
 let attempt = 0;
 let error = '';
 let historySignature = '';
+let messageSignature = '';
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
 
@@ -66,6 +67,7 @@ function render() {
   const message = cleanupError || error || connection.error || '';
   text('error', message);
   element('error').hidden = !message;
+  renderMessages();
   element('simulation').hidden = mode.value !== 'demo';
   element<HTMLButtonElement>('reboot').disabled = busy;
   readOnly.disabled = active || busy;
@@ -149,3 +151,48 @@ element('reboot').addEventListener('click', () => { demo.reboot(); render(); });
 const timer = setInterval(render, 100);
 window.addEventListener('pagehide', () => { clearInterval(timer); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); });
 render();
+
+function renderMessages() {
+  const { connection } = current().adapter;
+  const body = element<HTMLTextAreaElement>('message-body');
+  const destination = element<HTMLInputElement>('message-destination');
+  const bytes = new TextEncoder().encode(body.value).length;
+  const ready = connection.sync.state === 'ready';
+  const blocked = connection.messageBlockReason;
+  const history = connection.messaging.history;
+  const uploading = history.some(entry => entry.state === 'receiving');
+  text('message-bytes', `${bytes} / 1024 bytes`);
+  text('message-support', !ready ? 'Connect and synchronize to queue messages.' : blocked ??
+    'Radio is off in this prototype. Queued messages expire without transmission; USB acceptance is not delivery.');
+  body.disabled = destination.disabled = !ready || !!blocked || uploading;
+  element<HTMLButtonElement>('message-send').disabled = !ready || !!blocked || uploading || bytes === 0 || bytes > 1024 || history.length >= 32;
+  const signature = mode.value + ':' + ready + ':' + JSON.stringify(history);
+  if (signature === messageSignature) return;
+  messageSignature = signature;
+  const list = element('message-history'); list.replaceChildren();
+  for (const entry of [...history].reverse()) {
+    const row = document.createElement('li'); const content = document.createElement('div');
+    const body = document.createElement('strong'); body.className = 'message-text'; body.textContent = entry.text;
+    const status = document.createElement('p');
+    const labels = { receiving: 'Uploading to device', queued: 'Queued on device · not transmitted', transmitted: 'Transmitted · recipient delivery unconfirmed', acknowledged: 'Accepted by destination · not read status', failed: 'Failed', rejected: 'Rejected by device', unknown: 'Unknown · never automatically resent' };
+    status.textContent = `${labels[entry.state]}${entry.reason ? ' · ' + entry.reason : ''}`;
+    const id = document.createElement('span'); id.className = 'mono'; id.textContent = `${entry.destination} / ${entry.messageId ?? entry.id}`;
+    content.append(body, status, id); const actions = document.createElement('div'); actions.className = 'actions';
+    if (entry.state !== 'receiving') {
+      const query = document.createElement('button'); query.textContent = 'Query status'; query.disabled = !ready || !!blocked;
+      query.addEventListener('click', () => { try { if (!current().adapter.recoverMessage(entry.id)) throw new Error('Previous-boot result is unknown; message will not be resent.'); } catch (e) { showError(e); } });
+      const clear = document.createElement('button'); clear.textContent = 'Forget message';
+      clear.addEventListener('click', () => { if (['unknown', 'queued', 'transmitted'].includes(entry.state) && !confirm('Forget recovery history? This does not cancel or undo device work.')) return; connection.messaging.forget(entry.id); render(); });
+      actions.append(query, clear);
+    }
+    row.append(content, actions); list.append(row);
+  }
+}
+element('message-body').addEventListener('input', renderMessages);
+element('message-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    current().adapter.sendMessage(element<HTMLTextAreaElement>('message-body').value, element<HTMLInputElement>('message-destination').value, 0);
+    element<HTMLTextAreaElement>('message-body').value = ''; error = ''; render();
+  } catch (e) { showError(e); }
+});

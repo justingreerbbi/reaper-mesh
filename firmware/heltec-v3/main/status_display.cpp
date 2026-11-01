@@ -1,4 +1,5 @@
 #include "status_display.hpp"
+#include "reaper/version.hpp"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -56,7 +57,7 @@ void StatusDisplay::text(unsigned row, const char* value) {
 void StatusDisplay::update(const char* usb, bool healthy, std::uint32_t revision) {
   if (!ready_) return;
   pixels_.fill(0); pixels_[0] = 0x40;
-  text(0, "REAPER USB 1"); text(1, healthy ? usb : "USB BLOCKED");
+  text(0, reaper::device::kDisplayVersion); text(1, healthy ? usb : "USB BLOCKED");
   char line[17]{};
   if (healthy) std::snprintf(line, sizeof(line), "REV %lu", static_cast<unsigned long>(revision));
   else std::snprintf(line, sizeof(line), "REV UNKNOWN");

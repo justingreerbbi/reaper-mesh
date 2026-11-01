@@ -27,10 +27,12 @@ void print(const p::Message& message) {
   constexpr char digits[] = "0123456789abcdef";
   for (std::size_t i = 0; i < size; ++i) std::cout << digits[bytes[i] >> 4] << digits[bytes[i] & 15];
 }
-int main(int argc, char**) {
-  Store store; store.uncertain = argc > 1;
+int main(int argc, char** argv) {
+  Store store; store.uncertain = argc > 1 && std::string(argv[1]) == "uncertain";
   d::Configuration authority(store, text<64>("boot-A"));
-  d::Session session(authority, text<64>("device-A"), text<64>("boot-A"));
+  d::MessageQueue messages(text<64>("boot-A"));
+  d::Session session(authority, text<64>("device-A"), text<64>("boot-A"),
+    argc > 1 && std::string(argv[1]) == "messages" ? &messages : nullptr);
   std::string line;
   while (std::getline(std::cin, line)) {
     if (line.size() % 2 || line.size() > 2 * (p::kMaxEncoded + 1)) return 2;

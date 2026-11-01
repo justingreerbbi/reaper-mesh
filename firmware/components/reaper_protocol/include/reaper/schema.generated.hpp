@@ -3,17 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 namespace reaper::protocol {
-enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome };
-enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11 };
+enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState };
+enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
-inline constexpr std::size_t kMaxFields = 15;
+inline constexpr std::size_t kMaxFields = 18;
 inline constexpr FieldDescriptor kHelloFields[] = { {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, true} };
 inline constexpr std::size_t kHelloLink = 0;
 inline constexpr std::size_t kHelloMinVersion = 1;
 inline constexpr std::size_t kHelloMaxVersion = 2;
 inline constexpr std::size_t kHelloOwner = 3;
-inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kWelcomeLink = 0;
 inline constexpr std::size_t kWelcomeDevice = 1;
 inline constexpr std::size_t kWelcomeBoot = 2;
@@ -29,6 +29,9 @@ inline constexpr std::size_t kWelcomeRegions = 11;
 inline constexpr std::size_t kWelcomeMaxLabelBytes = 12;
 inline constexpr std::size_t kWelcomeFirmware = 13;
 inline constexpr std::size_t kWelcomeRadioVersion = 14;
+inline constexpr std::size_t kWelcomeMessageVersion = 15;
+inline constexpr std::size_t kWelcomeMaxMessageBytes = 16;
+inline constexpr std::size_t kWelcomeMessageCapacity = 17;
 inline constexpr FieldDescriptor kSyncFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false} };
 inline constexpr std::size_t kSyncLink = 0;
 inline constexpr std::size_t kSyncBoot = 1;
@@ -76,9 +79,30 @@ inline constexpr FieldDescriptor kErrorFields[] = { {Kind::Id, false}, {Kind::Id
 inline constexpr std::size_t kErrorLink = 0;
 inline constexpr std::size_t kErrorBoot = 1;
 inline constexpr std::size_t kErrorCode = 2;
+inline constexpr FieldDescriptor kSubmitFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, false} };
+inline constexpr std::size_t kSubmitLink = 0;
+inline constexpr std::size_t kSubmitBoot = 1;
+inline constexpr std::size_t kSubmitId = 2;
+inline constexpr std::size_t kSubmitChannel = 3;
+inline constexpr std::size_t kSubmitDestination = 4;
+inline constexpr std::size_t kSubmitPart = 5;
+inline constexpr std::size_t kSubmitCount = 6;
+inline constexpr std::size_t kSubmitData = 7;
+inline constexpr FieldDescriptor kMessageStatusFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::MessageState, false}, {Kind::U32, false}, {Kind::Id, true}, {Kind::Id, true} };
+inline constexpr std::size_t kMessageStatusLink = 0;
+inline constexpr std::size_t kMessageStatusBoot = 1;
+inline constexpr std::size_t kMessageStatusId = 2;
+inline constexpr std::size_t kMessageStatusState = 3;
+inline constexpr std::size_t kMessageStatusReceived = 4;
+inline constexpr std::size_t kMessageStatusMessageId = 5;
+inline constexpr std::size_t kMessageStatusReason = 6;
+inline constexpr FieldDescriptor kMessageQueryFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false} };
+inline constexpr std::size_t kMessageQueryLink = 0;
+inline constexpr std::size_t kMessageQueryBoot = 1;
+inline constexpr std::size_t kMessageQueryId = 2;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 4},
-  {MessageType::Welcome, kWelcomeFields, 15},
+  {MessageType::Welcome, kWelcomeFields, 18},
   {MessageType::Sync, kSyncFields, 3},
   {MessageType::Snapshot, kSnapshotFields, 7},
   {MessageType::Event, kEventFields, 6},
@@ -88,5 +112,8 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Result, kResultFields, 5},
   {MessageType::Query, kQueryFields, 3},
   {MessageType::Error, kErrorFields, 3},
+  {MessageType::Submit, kSubmitFields, 8},
+  {MessageType::MessageStatus, kMessageStatusFields, 7},
+  {MessageType::MessageQuery, kMessageQueryFields, 3},
 };
 } // namespace reaper::protocol

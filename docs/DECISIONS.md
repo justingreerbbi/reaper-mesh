@@ -64,3 +64,7 @@ Keep presentation outside protocol state. Session exposes only a read-only synch
 ## OLED firmware installation evidence
 
 Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 227,440 bytes; SHA-256 3baba75a548faca771733ec7e917c8d79fc25f9ee9f104c65de95c3fdbd70c7a. Esptool verified all three artifacts. Three physical TypeScript Connection/SerialAdapter opens confirmed usb-prototype-1 and persisted revision 3, reaching ready in 650/649/648 ms. NVS was not erased. These serial results do not verify visible OLED pixels or actual display-fault behavior; visual confirmation and real I2C fault injection remain pending.
+
+## Sustained development and message acceptance
+
+Owner confirms OLED rendering works and requests continued work through project completion without routine prompts. Physical configuration loss/reconnect/query/duplicate/reset tests pass. Message USB v1 uses bounded hex chunks to preserve embedded field buffers and whole-message UTF-8 validation. Eight volatile queue records and per-owner marks separate retry suppression from receipt retention. Queued does not mean transmitted or delivered; hardware RF stays off until board/antenna/profile checks. Additive tags and capabilities preserve prior fixtures. Host/native maximum-size and lost-acceptance tests use the actual C++ session and TS client; simulator claims remain separate from RF evidence.
