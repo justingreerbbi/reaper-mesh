@@ -1,22 +1,34 @@
 import type { Config } from '../../packages/client-core/sync.ts';
 import type { ConfigCommand, Result } from '../../packages/client-core/commands.ts';
 
-/** Host reference only. A boot retains receipts until capacity; it never evicts them. */
+/** Host reference only. FIFO receipts with non-evicting per-owner high-water marks. */
 export class ConfigDevice {
   boot = 'boot-A';
   revision = 0;
   config: Config = { region: 'US', label: 'initial' };
   commits = 0;
   #receipts = new Map<string, { command: ConfigCommand; result: Result }>();
+  #highest = new Map<string, number>();
   readonly capacity: number;
+  readonly ownerCapacity: number;
 
-  constructor(capacity = 32) { this.capacity = capacity; }
+  constructor(capacity = 32, ownerCapacity = 8) {
+    if (![capacity, ownerCapacity].every(value => Number.isSafeInteger(value) && value > 0)) {
+      throw new Error('invalid receipt capacity');
+    }
+    this.capacity = capacity;
+    this.ownerCapacity = ownerCapacity;
+  }
 
   apply(command: ConfigCommand): Result {
     const result = (outcome: Result['outcome']): Result => Object.freeze({
       id: command.id, boot: this.boot, outcome, revision: this.revision,
     });
     if (command.boot !== this.boot) return result('rejected');
+    const match = /^([A-Za-z0-9_-]{1,64}):([1-9][0-9]{0,9})$/.exec(command.id);
+    if (!match || Number(match[2]) > 0xffffffff) return result('rejected');
+    const [, owner, counterText] = match;
+    const counter = Number(counterText);
     const prior = this.#receipts.get(command.id);
     if (prior) {
       const old = prior.command;
@@ -26,15 +38,20 @@ export class ConfigDevice {
       }
       return prior.result;
     }
-    if (this.#receipts.size >= this.capacity) return result('rejected');
+    const highest = this.#highest.get(owner);
+    if (highest !== undefined && counter <= highest) return result('unknown');
+    if (highest === undefined && this.#highest.size >= this.ownerCapacity) return result('rejected');
+    // Never evict these marks within a boot: delayed old IDs must not become new work.
+    this.#highest.set(owner, counter);
     let outcome: Result['outcome'] = 'conflict';
-    if (command.expectedRevision === this.revision) {
+    if (command.expectedRevision === this.revision && this.revision < 0xffffffff) {
       this.config = Object.freeze({ ...command.config });
       this.revision++;
       this.commits++;
       outcome = 'committed';
     }
     const receipt = result(outcome);
+    if (this.#receipts.size >= this.capacity) this.#receipts.delete(this.#receipts.keys().next().value!);
     this.#receipts.set(command.id, {
       command: Object.freeze({ ...command, config: Object.freeze({ ...command.config }) }),
       result: receipt,
@@ -49,5 +66,6 @@ export class ConfigDevice {
   reboot() {
     this.boot += '-next';
     this.#receipts.clear(); // Persisted config survives; volatile command receipts do not.
+    this.#highest.clear();
   }
 }

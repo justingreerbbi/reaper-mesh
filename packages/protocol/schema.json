@@ -5,5 +5,8 @@
   "snapshot": {"tag":4,"fields":{"link":"id","boot":"id","request":"u32","sequence":"u32","revision":"u32","region":"region","label":"label"}},
   "event": {"tag":5,"fields":{"link":"id","boot":"id","sequence":"u32","revision":"u32","region":"region","label":"label"}},
   "ping": {"tag":6,"fields":{"link":"id","request":"u32"}},
-  "pong": {"tag":7,"fields":{"link":"id","boot":"id","request":"u32"}}
+  "pong": {"tag":7,"fields":{"link":"id","boot":"id","request":"u32"}},
+  "configure": {"tag":8,"fields":{"link":"id","boot":"id","id":"commandId","expectedRevision":"u32","region":"region","label":"label"}},
+  "result": {"tag":9,"fields":{"link":"id","boot":"id","id":"commandId","outcome":"outcome","revision":"u32"}},
+  "query": {"tag":10,"fields":{"link":"id","boot":"id","id":"commandId"}}
 }

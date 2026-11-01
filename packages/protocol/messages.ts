@@ -16,6 +16,13 @@ function validate(kind: string, value: unknown) {
   }
   if (typeof value !== 'string') throw new Error('invalid string');
   if (kind === 'id' && !/^[A-Za-z0-9_-]{1,64}$/.test(value)) throw new Error('invalid identity');
+  if (kind === 'commandId') {
+    const match = /^([A-Za-z0-9_-]{1,64}):([1-9][0-9]{0,9})$/.exec(value);
+    if (!match || Number(match[2]) > 0xffffffff) throw new Error('invalid command ID');
+  }
+  if (kind === 'outcome' && !['committed', 'conflict', 'rejected', 'unknown'].includes(value)) {
+    throw new Error('invalid command outcome');
+  }
   if (kind === 'region' && !['UNSET', 'US', 'EU'].includes(value)) throw new Error('invalid region');
   if (kind === 'label' && (encoder.encode(value).length > 64 || /[\u0000-\u001f\u007f]/u.test(value))) {
     throw new Error('invalid label');

@@ -1,10 +1,13 @@
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
-import { Synchronizer } from './sync.ts';
+import { Synchronizer, type Config } from './sync.ts';
+import { Commands, type ConfigCommand } from './commands.ts';
 
 /** Caller-driven serial lifecycle; adapters deliver bytes and drain bounded writes. */
 export class Connection {
   readonly sync = new Synchronizer();
+  readonly commands: Commands;
+  #commandDevices = new Map<string, string>();
   device: string | undefined;
   error: string | undefined;
   #decoder = new FrameDecoder();
@@ -17,6 +20,37 @@ export class Connection {
   #ping = 0;
   #awaitingPong = false;
   #request = 0;
+
+  constructor(incarnation: string = crypto.randomUUID()) {
+    this.commands = new Commands(this.sync, incarnation);
+  }
+
+  configure(config: Config, now: number) {
+    this.#time(now);
+    if (this.#expired(now)) throw new Error('connection timed out');
+    this.sync.mutationContext();
+    // Validate before retaining the command, including runtime callers without TS checks.
+    encodeMessage({ type: 'configure', link: this.#link, boot: this.sync.boot!, id: 'validation:1',
+      expectedRevision: this.sync.revision, region: config.region, label: config.label } as Message);
+    const command = this.commands.submit(config, now);
+    this.#commandDevices.set(command.id, this.device!);
+    this.#sendCommand(command);
+    return command.id;
+  }
+
+  recover(id: string, now: number) {
+    this.#time(now);
+    if (this.#expired(now)) throw new Error('connection timed out');
+    if (this.#commandDevices.get(id) !== this.device) throw new Error('command belongs to another device');
+    const query = this.commands.recover(id);
+    if (query) this.#send({ type: 'query', link: this.#link, ...query });
+    return !!query;
+  }
+
+  forget(id: string) {
+    this.commands.forget(id);
+    this.#commandDevices.delete(id);
+  }
 
   open(link: string, now: number) {
     this.#time(now);
@@ -39,6 +73,7 @@ export class Connection {
 
   close(reason?: string) {
     this.sync.disconnect();
+    this.commands.tick(this.#now); // Disconnect immediately makes pending outcomes uncertain.
     this.#decoder.reset();
     this.#outgoing = [];
     this.error = reason;
@@ -60,7 +95,9 @@ export class Connection {
 
   tick(now: number) {
     this.#time(now);
-    if (this.#expired(now) || this.sync.state !== 'ready') return;
+    if (this.#expired(now)) return;
+    for (const retry of this.commands.tick(now)) this.#sendCommand(retry);
+    if (this.sync.state !== 'ready') return;
     if (!this.#awaitingPong && now >= this.#nextPing) {
       this.#ping++;
       this.#awaitingPong = true;
@@ -92,6 +129,16 @@ export class Connection {
         this.#deadline = this.#now + 5000;
         this.#awaitingPong = false;
       }
+    } else if (message.type === 'result') {
+      if (this.#commandDevices.get(message.id) !== this.device) return;
+      const accepted = this.commands.receive(this.sync.session, message);
+      // A receipt does not carry authoritative config. Reconcile even if its event was lost.
+      const outcome = this.commands.status(message.id).outcome;
+      if (accepted && this.sync.state === 'ready' && ['committed', 'conflict'].includes(outcome)) {
+        this.sync.resynchronize();
+        this.#deadline = this.#now + 5000;
+        this.#awaitingPong = false;
+      }
     } else if (message.type === 'pong' && this.sync.state === 'ready' &&
         this.#awaitingPong && message.request === this.#ping) {
       if (message.boot !== this.sync.boot) { this.close('device rebooted; reconnect required'); return; }
@@ -100,9 +147,16 @@ export class Connection {
       this.#deadline = this.#now + 7000;
     }
     if (this.sync.state === 'synchronizing' && this.sync.snapshotRequest !== this.#request) {
+      this.commands.tick(this.#now);
       this.#request = this.sync.snapshotRequest;
       this.#send({ type: 'sync', link: this.#link, boot: this.sync.boot!, request: this.#request });
     }
+  }
+
+  #sendCommand(command: ConfigCommand) {
+    this.#send({ type: 'configure', link: this.#link, boot: command.boot, id: command.id,
+      expectedRevision: command.expectedRevision, region: command.config.region,
+      label: command.config.label } as Message);
   }
 
   #send(message: Message) {

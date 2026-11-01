@@ -154,3 +154,21 @@ test('closing drops partial frames and all queued writes', () => {
   assert.equal(connection.sync.config, undefined);
   assert.deepEqual(connection.drain(), []);
 });
+
+test('duplicate and wrong-boot results cannot repeatedly trigger resynchronization', () => {
+  const { connection, ready, deliver, snapshot } = setup();
+  ready();
+  const id = connection.configure({ region: 'US', label: 'updated' }, 0);
+  outgoing(connection);
+  deliver({ type: 'result', link: 'link-A', boot: 'old-boot', id, outcome: 'committed', revision: 1 });
+  assert.equal(connection.commands.status(id).outcome, 'pending');
+  assert.deepEqual(outgoing(connection), []);
+  const result: Message = { type: 'result', link: 'link-A', boot: 'boot-A', id, outcome: 'committed', revision: 1 };
+  deliver(result);
+  const sync = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(sync.request, 1));
+  assert.equal(connection.sync.state, 'ready');
+  deliver(result);
+  assert.equal(connection.sync.state, 'ready');
+  assert.deepEqual(outgoing(connection), []);
+});

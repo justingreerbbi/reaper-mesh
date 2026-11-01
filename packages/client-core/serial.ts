@@ -1,4 +1,5 @@
 import { Connection } from './connection.ts';
+import type { Config } from './sync.ts';
 
 /** Structural Web Serial interface, also implemented by host test ports. */
 export interface SerialPortLike {
@@ -39,6 +40,27 @@ export class SerialAdapter {
   }
 
   get active() { return this.#run !== undefined; }
+
+  configure(config: Config) {
+    const run = this.#readyRun();
+    const id = this.connection.configure(config, this.#now());
+    this.#check(run);
+    this.#flush(run);
+    return id;
+  }
+
+  recover(id: string) {
+    const run = this.#readyRun();
+    const queried = this.connection.recover(id, this.#now());
+    this.#check(run);
+    this.#flush(run);
+    return queried;
+  }
+
+  #readyRun() {
+    if (!this.#run || !this.#current(this.#run)) throw new Error('serial adapter is not active');
+    return this.#run;
+  }
 
   async connect(port: SerialPortLike, link: string, baudRate = 115200) {
     if (this.#run) throw new Error('serial adapter is opening, active, or cleaning up');

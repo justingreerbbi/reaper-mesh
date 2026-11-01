@@ -84,6 +84,11 @@ export class Synchronizer {
     return { session: this.session, boot: this.boot!, expectedRevision: this.revision };
   }
 
+  resynchronize() {
+    if (this.state !== 'ready') throw new Error('device is not ready');
+    this.#resync();
+  }
+
   #matches(value: Event | Snapshot) {
     return value.session === this.session && value.boot === this.boot;
   }

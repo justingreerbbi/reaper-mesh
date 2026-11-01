@@ -10,6 +10,9 @@ const messages: Message[] = [
   { type: 'event', link: 'link_1', boot: 'boot-A', sequence: 1, revision: 1, region: 'UNSET', label: '' },
   { type: 'ping', link: 'link_1', request: 0xffffffff },
   { type: 'pong', link: 'link_1', boot: 'boot-A', request: 1 },
+  { type: 'configure', link: 'link_1', boot: 'boot-A', id: 'client-A:1', expectedRevision: 0, region: 'US', label: 'updated' },
+  { type: 'result', link: 'link_1', boot: 'boot-A', id: 'client-A:1', outcome: 'committed', revision: 1 },
+  { type: 'query', link: 'link_1', boot: 'boot-A', id: 'client-A:1' },
 ];
 
 test('all schema variants round-trip with immutable decoded objects', () => {
@@ -73,4 +76,13 @@ test('malformed UTF-8 and integer widths never reach typed state', () => {
   const inverted = hello.slice();
   inverted[9] = 2;
   assert.throws(() => decodeMessage(inverted));
+});
+
+test('command IDs and result outcomes are bounded and canonical', () => {
+  for (const id of ['client:0', 'client:01', 'client:4294967296', 'client:-1', ':1', 'client:1:2']) {
+    assert.throws(() => encodeMessage({ ...messages[9], id } as Message));
+  }
+  assert.throws(() => encodeMessage({ ...messages[8], outcome: 'delivered' } as Message));
+  assert.deepEqual(decodeMessage(encodeMessage({ ...messages[9], id: 'client:4294967295' } as Message)),
+    { ...messages[9], id: 'client:4294967295' });
 });

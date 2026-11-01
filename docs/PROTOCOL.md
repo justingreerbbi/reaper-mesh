@@ -1,6 +1,6 @@
 # Reaper Mesh protocol: synchronization draft
 
-Status: independent Reaper Mesh protocol, confirmed by the owner. This is a draft semantic contract and USB protocol, not a frozen release protocol. No Meshtastic interoperability is intended. Host framing, typed negotiation/synchronization payloads, generated TypeScript declarations, and a byte-driven connection manager are implemented. A Web Serial adapter is implemented and tested with simulated ports, without opening hardware. Embedded bindings, wire command/results, and radio packets remain unimplemented.
+Status: independent Reaper Mesh protocol, confirmed by the owner. This is a draft semantic contract and USB protocol, not a frozen release protocol. No Meshtastic interoperability is intended. Host framing, typed negotiation/synchronization payloads, generated TypeScript declarations, and a byte-driven connection manager are implemented. A Web Serial adapter is implemented and tested with simulated ports, without opening hardware. Configuration commands/results and recovery queries are integrated and tested through simulated serial streams. Embedded bindings, physical validation, and radio packets remain unimplemented.
 
 ## USB envelope draft v1
 
@@ -40,10 +40,17 @@ The payload begins with one byte for payload version (`01`) and one for message 
 | 5 event | link, boot, sequence, revision, region, label | Ordered complete config change |
 | 6 ping | link, request | Client probes health/identity |
 | 7 pong | link, boot, request | Device returns current boot and matching probe ID |
+| 8 configure | link, boot, id, expectedRevision, region, label | Retry-safe configuration compare-and-set |
+| 9 result | link, boot, id, outcome, revision | Command receipt or query result |
+| 10 query | link, boot, id | Read-only lookup of a retained command result |
 
 Counter and version fields are unsigned 32-bit little-endian integers with exactly four bytes. Reject overflow/fractional/negative values before encoding. Device, boot, and link IDs are 1–64 ASCII letters, digits, underscores, or hyphens; allocate collision-resistant boot IDs on each reboot and fresh link IDs for every open. IDs are correlation values, not authentication. `label` is strict UTF-8 up to 64 bytes, allows empty text, and rejects ASCII controls. Invalid UTF-8 and unpaired Unicode surrogates are rejected. `region` is currently `UNSET`, `US`, or `EU`; accepting a config value does not enable RF or certify regional support. Firmware must separately enforce verified regional/hardware capabilities.
 
-Only negotiation, sync, events, and health messages are currently on wire. Existing configuration `Commands` remains a separate host component; command submission/results are not wired into `Connection` yet. Message tags and data for that path need the production retention contract first.
+Configuration command submission, result handling, and read-only recovery queries now run through `Connection` and `SerialAdapter`. Command IDs are a 1–64-character incarnation plus `:` and a canonical decimal sequence from 1 through 4,294,967,295; no leading zeros. Results allow `committed`, `conflict`, `rejected`, or `unknown`. The result's revision is informational and must never overwrite configuration by itself. Current command/owner capacities are host defaults, not yet negotiated device capabilities.
+
+Use `SerialAdapter.configure(config)` and `SerialAdapter.recover(id)` while connected; inspect `connection.commands.status(id)` and explicitly release non-pending client history using `connection.forget(id)`. Mutations require readiness. Malformed configuration is rejected before consuming an ID/history slot. A disconnect immediately marks pending commands unknown. Recovery is bound to the original device identity and boot, and never submits the original mutation on a new link. Even a matching boot from a different device cannot recover its receipt.
+
+The first accepted committed/conflict receipt triggers resynchronization. This recovers authoritative config if the change event was lost or a concurrent write won. Wrong-boot, stale-link, and duplicate terminal receipts do not repeatedly trigger snapshots. Repeated `unknown` query responses leave the outcome uncertain. There is no automatic query retry policy yet; callers can explicitly retry read-only recovery if needed.
 
 ## Connection manager and adapter boundary
 
@@ -85,10 +92,20 @@ Configuration is authoritative on the device. The client copies snapshots/events
 - A late receipt on the original live connection may resolve an unknown result. Once committed/conflict/rejected is established, duplicates do not change it. If timeout runs just before a receipt, the resulting duplicate is harmless within device receipt retention.
 - Client history is bounded and requires explicit `forget(id)` for non-pending entries. Forgetting an unknown command removes the ability to query it; it does not cancel or undo device work. Never automatically recycle request IDs.
 
-The reference device has a deliberately conservative bounded store: it retains all receipts for its boot and rejects new IDs when full, without eviction. Querying a missing ID returns unknown. On reboot, config/revision survive in the simulation but receipts do not; commands targeting the previous boot are rejected. This proves bounded deduplication behavior, not a production retention policy. Before firmware/client integration, define a negotiated retention window and safe reclamation/session rollover so normal use never requires rebooting to clear a receipt store. Real flash atomicity, receipt persistence, power-loss behavior, and authenticated identities remain unimplemented.
+### Bounded receipt reclamation draft
+
+The reference device now retains a FIFO of 32 receipts and eight client-owner high-water marks by default. Both limits are constructor-configurable in host tests. Each high-water mark is the greatest observed command sequence for that owner in this boot, and is never evicted within the boot. Receipt capacity therefore limits how long an exact result can be recovered, not whether an old request can run again.
+
+On command arrival, check the target boot, then look for a retained receipt. An exact retained request returns its original result; reuse of its ID with a changed body is rejected. If no receipt exists and its sequence is at or below the owner's high-water mark, return unknown and do not execute. Otherwise, admit the owner if capacity permits, advance its high-water mark, perform revision-checked configuration acceptance, and retain the receipt, evicting the oldest receipt if necessary. Queries never execute commands or advance marks.
+
+This contract deliberately requires monotonically increasing submissions within an owner, with one pending command per manager. If requests arrive out of order, an unseen lower sequence may be suppressed as unknown. It must never be interpreted as safe to replay. Client retries occur only in the original link; reconnect recovery is query-only. Unknown commands can be intentionally abandoned before newer work, but doing so does not prove cancellation or execution.
+
+A full owner table rejects new owners without evicting old marks; existing owners can continue beyond receipt capacity. This is a bounded-resource error, not permission to reset the device automatically. Owner capacity negotiation, client-restart/session lifecycle, and a user recovery flow for owner exhaustion remain required before release. The contract is a host-tested draft, not a complete production resource policy.
+
+On reboot, config/revision survive in the simulation but receipts and high-water marks do not. A fresh boot identity rejects all old-boot commands, so receipt loss does not make their IDs executable in the new boot. Counter exhaustion must never wrap; create a new incarnation only under the defined owner-capacity policy. Real firmware must serialize high-water/receipt/commit bookkeeping and persist configuration atomically before success; flash atomicity, crash ordering, receipt persistence, power-loss behavior, and authenticated identities remain unimplemented.
 
 ## Deferred contracts
 
-Next implement a production receipt-retention/reclamation contract, then wire configuration commands/results into the connection manager and serial adapter. Complete embedded code generation, full handshake metadata/capabilities, static type checking, CI, and protocol compatibility fixtures before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
+Next add static type checking/CI and embedded code generation, complete handshake capabilities/resource negotiation and owner-exhaustion handling, and build the web UI. Review the serialization and retention drafts before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
 
 `Connection` dispatches only successfully decoded and validated typed negotiation/synchronization messages. Direct callers of `Synchronizer` and `Commands` must still supply validated objects. These components are not wire decoders.

@@ -109,13 +109,35 @@ test('late response can resolve unknown on the original live connection', () => 
   assert.equal(commands.status(command.id).outcome, 'committed');
 });
 
-test('receipt capacity rejects new work without evicting deduplication history', () => {
+test('receipt reclamation never allows an evicted request to execute again', () => {
   const { commands } = setup();
   const device = new ConfigDevice(1);
   const first = commands.submit(config, 0);
   assert.equal(device.apply(first).outcome, 'committed');
-  assert.equal(device.apply({ ...first, id: 'client-B:1', expectedRevision: 1 }).outcome, 'rejected');
-  assert.equal(device.apply(first).outcome, 'committed');
+  assert.equal(device.apply({ ...first, id: 'client-B:1', expectedRevision: 1 }).outcome, 'committed');
+  assert.equal(device.query(first.id).outcome, 'unknown');
+  assert.equal(device.apply(first).outcome, 'unknown');
+  assert.equal(device.commits, 2);
+});
+
+test('one client continues beyond receipt capacity while delayed IDs remain suppressed', () => {
+  const device = new ConfigDevice(2);
+  for (let i = 1; i <= 100; i++) {
+    assert.equal(device.apply({ id: `client-A:${i}`, boot: device.boot, expectedRevision: i - 1,
+      config: { ...config, label: `${i}` } }).outcome, 'committed');
+  }
+  assert.equal(device.query('client-A:1').outcome, 'unknown');
+  assert.equal(device.apply({ id: 'client-A:1', boot: device.boot, expectedRevision: 100,
+    config }).outcome, 'unknown');
+  assert.equal(device.commits, 100);
+});
+
+test('owner table exhaustion rejects newcomers without forgetting old request marks', () => {
+  const device = new ConfigDevice(1, 1);
+  const command = { id: 'client-A:2', boot: device.boot, expectedRevision: 0, config };
+  assert.equal(device.apply(command).outcome, 'committed');
+  assert.equal(device.apply({ ...command, id: 'client-B:1', expectedRevision: 1 }).outcome, 'rejected');
+  assert.equal(device.apply({ ...command, id: 'client-A:1', expectedRevision: 1 }).outcome, 'unknown');
   assert.equal(device.commits, 1);
 });
 

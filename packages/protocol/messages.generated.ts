@@ -6,4 +6,7 @@ export type Message =
   | Readonly<{ type: 'snapshot'; link: string; boot: string; request: number; sequence: number; revision: number; region: 'UNSET' | 'US' | 'EU'; label: string }>
   | Readonly<{ type: 'event'; link: string; boot: string; sequence: number; revision: number; region: 'UNSET' | 'US' | 'EU'; label: string }>
   | Readonly<{ type: 'ping'; link: string; request: number }>
-  | Readonly<{ type: 'pong'; link: string; boot: string; request: number }>;
+  | Readonly<{ type: 'pong'; link: string; boot: string; request: number }>
+  | Readonly<{ type: 'configure'; link: string; boot: string; id: string; expectedRevision: number; region: 'UNSET' | 'US' | 'EU'; label: string }>
+  | Readonly<{ type: 'result'; link: string; boot: string; id: string; outcome: 'committed' | 'conflict' | 'rejected' | 'unknown'; revision: number }>
+  | Readonly<{ type: 'query'; link: string; boot: string; id: string }>;

@@ -40,6 +40,7 @@ export class Commands {
   submit(config: Config, now: number): ConfigCommand {
     this.#time(now);
     const context = this.sync.mutationContext();
+    if (this.#counter >= 0xffffffff) throw new Error('command sequence exhausted');
     if (this.#entries.size >= this.capacity) throw new Error('command history full');
     if ([...this.#entries.values()].some(entry => entry.outcome === 'pending')) {
       throw new Error('a configuration command is already pending');
@@ -80,9 +81,10 @@ export class Commands {
     const entry = this.#entries.get(result.id);
     if (!entry || session !== this.sync.session || session !== entry.session ||
         result.boot !== entry.command.boot || result.boot !== this.sync.boot ||
-        !['pending', 'unknown'].includes(entry.outcome)) return;
+        !['pending', 'unknown'].includes(entry.outcome)) return false;
     entry.result = Object.freeze({ ...result });
     entry.outcome = result.outcome;
+    return true;
     // Results never overwrite config: the authoritative event/snapshot path owns it.
   }
 
