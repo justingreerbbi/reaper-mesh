@@ -30,7 +30,9 @@
       "maxMessageBytes": "u32?",
       "messageCapacity": "u32?",
       "radioSchema": "u32?",
-      "maxChannels": "u32?"
+      "maxChannels": "u32?",
+      "inboxVersion": "u32?",
+      "inboxCapacity": "u32?"
     }
   },
   "sync": {
@@ -162,6 +164,82 @@
       "link": "id",
       "boot": "id",
       "id": "commandId"
+    }
+  },
+  "radioQuery": {
+    "tag": 15,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32"
+    }
+  },
+  "radioStatus": {
+    "tag": 16,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "state": "id",
+      "reason": "id",
+      "probe": "u32",
+      "transmitted": "u32",
+      "received": "u32",
+      "revision": "u32",
+      "heapFree": "u32",
+      "stackFree": "u32"
+    }
+  },
+  "inboxQuery": {
+    "tag": 17,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32"
+    }
+  },
+  "inboxHead": {
+    "tag": 18,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "oldest": "u32",
+      "latest": "u32"
+    }
+  },
+  "inboxRead": {
+    "tag": 19,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "sequence": "u32",
+      "part": "u32"
+    }
+  },
+  "inboxItem": {
+    "tag": 20,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "sequence": "u32",
+      "origin": "id",
+      "messageId": "id",
+      "channel": "u32",
+      "part": "u32",
+      "count": "u32",
+      "data": "hex"
+    }
+  },
+  "inboxMissing": {
+    "tag": 21,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "sequence": "u32"
     }
   }
 }

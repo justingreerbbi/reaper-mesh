@@ -11,7 +11,8 @@ m::Packet sample() {
   p.key.sequence = 1; p.hops = 3; p.count = 1; p.total = p.size = 2; p.bytes[0] = 'h'; p.bytes[1] = 'i'; return p;
 }
 int main(int argc, char** argv) {
-  if (argc != 2) return 2; const std::string scenario = argv[1];
+  if (argc != 2) return 2;
+  const std::string scenario = argv[1];
   auto p = sample(); std::array<std::uint8_t, m::kMaxPacketBytes> bytes{}; std::size_t size = 0;
   CHECK(m::encode_packet(p, bytes.data(), bytes.size(), size));
   if (scenario == "golden") {

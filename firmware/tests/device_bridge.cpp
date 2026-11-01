@@ -31,8 +31,16 @@ int main(int argc, char** argv) {
   Store store; store.uncertain = argc > 1 && std::string(argv[1]) == "uncertain";
   d::Configuration authority(store, text<64>("boot-A"));
   d::MessageQueue messages(text<64>("boot-A"));
+  d::RadioInfo info; info.state = text<64>("off"); info.reason = text<64>("radio-off"); info.probe = true; info.heap_free = 200000; info.stack_free = 10000;
+  d::Inbox inbox;
+  const bool with_inbox = argc > 1 && std::string(argv[1]) == "inbox";
+  if (with_inbox) {
+    const auto body = std::string(31, 'x') + "\xf0\x9f\x93\xbb" + std::string(989, 'z');
+    if (!inbox.append(text<64>("node-B"), text<64>("remote_1"), 0, reinterpret_cast<const std::uint8_t*>(body.data()), body.size())) return 4;
+  }
   d::Session session(authority, text<64>("device-A"), text<64>("boot-A"),
-    argc > 1 && std::string(argv[1]) == "messages" ? &messages : nullptr);
+    argc > 1 && (std::string(argv[1]) == "messages" || with_inbox) ? &messages : nullptr,
+    with_inbox ? &info : nullptr, with_inbox ? &inbox : nullptr);
   std::string line;
   while (std::getline(std::cin, line)) {
     if (line.size() % 2 || line.size() > 2 * (p::kMaxEncoded + 1)) return 2;

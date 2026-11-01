@@ -37,6 +37,18 @@ const char* message_state(MessageState state) {
     default: return "unknown";
   }
 }
+bool MessageQueue::fail(const Text<64>& id, const char* why) {
+  for (auto& r : records_) if (r.used && equal(r.message_id, id) && !terminal(r)) {
+    r.state = MessageState::Failed; literal(r.reason, why); return true;
+  }
+  return false;
+}
+bool MessageQueue::local_accept(const Text<64>& id) {
+  for (auto& r : records_) if (r.used && equal(r.message_id, id) && r.state == MessageState::Queued) {
+    r.state = MessageState::Acknowledged; literal(r.reason, "local-delivery"); return true;
+  }
+  return false;
+}
 void MessageQueue::quiesce() {
   for (auto& r : records_) if (r.used && !terminal(r)) { r.state = MessageState::Failed; literal(r.reason, "radio-config-changed"); }
 }

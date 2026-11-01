@@ -25,8 +25,15 @@ bool Mesh::enqueue(const MessageKey& key, std::uint64_t destination, std::uint32
   if (!valid_packet(p)) return false;
   for (const auto& r : out_) if (r.used && r.key == key) return r.destination == destination && r.channel == channel && r.size == size && std::memcmp(r.bytes.data(), bytes, size) == 0;
   if (boot_set_ && key.boot != boot_) return false;
-  if (key.sequence <= highest_) return false;
-  boot_ = key.boot; boot_set_ = true; highest_ = key.sequence;
+  if (key.sequence > highest_) {
+    const auto delta = key.sequence - highest_; submitted_ = delta >= 64 ? 0 : submitted_ << delta;
+    highest_ = key.sequence; submitted_ |= 1;
+  } else {
+    const auto delta = highest_ - key.sequence;
+    if (delta >= 64 || (submitted_ & (std::uint64_t(1) << delta))) return false;
+    submitted_ |= std::uint64_t(1) << delta;
+  }
+  boot_ = key.boot; boot_set_ = true;
   for (std::size_t index = 0; index < out_.size(); ++index) {
     auto& r = out_[index];
     if ((!r.used || terminal(r)) && !(in_flight_ && flight_index_ == static_cast<int>(index))) {
@@ -34,7 +41,7 @@ bool Mesh::enqueue(const MessageKey& key, std::uint64_t destination, std::uint32
     r.size = size; std::memcpy(r.bytes.data(), bytes, size); r.due = now; r.deadline = now + 60000; return true;
     }
   }
-  // The monotonic local sequence mark prevents reexecution after record reclamation.
+  // The bounded local sequence window prevents reexecution after record reclamation.
   return false;
 }
 bool Mesh::seen(const Packet& p, std::uint64_t now) {

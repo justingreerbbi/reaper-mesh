@@ -28,6 +28,7 @@ class Mesh {
   void complete_tx(bool success, std::uint64_t now);
   void tick(std::uint64_t now);
   void quiesce();
+  void policy(bool relay, std::uint8_t channels) { quiesce(); relay_ = relay; channels_ = channels; }
   const std::array<Outbound, 8>& outgoing() const { return out_; }
   const std::array<Inbound, 8>& incoming() const { return in_; }
  private:
@@ -36,7 +37,7 @@ class Mesh {
   std::uint64_t node_; bool relay_; std::uint8_t channels_, hops_;
   std::array<Outbound, 8> out_{}; std::array<Inbound, 8> in_{};
   std::array<Forward, 16> forward_{}; std::array<Seen, 64> seen_{};
-  bool boot_set_ = false; std::array<std::uint8_t, 16> boot_{}; std::uint32_t highest_ = 0;
+  bool boot_set_ = false; std::array<std::uint8_t, 16> boot_{}; std::uint32_t highest_ = 0; std::uint64_t submitted_ = 0;
   bool in_flight_ = false; int flight_index_ = -1; std::size_t next_out_ = 0;
   bool forward(const Packet&, std::uint64_t now, bool ack = false);
   bool seen(const Packet&, std::uint64_t now);

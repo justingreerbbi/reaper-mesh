@@ -1,0 +1,14 @@
+{
+  "source": "https://github.com/Lora-net/sx126x_driver",
+  "commit": "a10c5dfdf89788c6ac805e9fe98889de44175aa2",
+  "version": "2.5.0",
+  "license": "BSD-3-Clause-Clear",
+  "files": {
+    "sx126x.c": "364465db57f5ebaf216934dc45676ff83a8cdee162a1d1b5b6da8cea61dfa4ca",
+    "sx126x.h": "798e0aa7d773992371d82f747ebe66e00c6c0ec54b3b3a0f528822828e0d063f",
+    "sx126x_hal.h": "b70a5de4265a0074ab3c8577a4fd55f10634e02351fabc5c16f752cccc102d2c",
+    "sx126x_regs.h": "dd64a28905140a9d6d21bc91c18db4fa039e24503d8534e333bf48300a3dfb28",
+    "sx126x_status.h": "043780bfeecdfb9d22137cbac33521aa2c40d052e3338c74ff0ff86feb176235",
+    "LICENSE.txt": "a158fe2180a1429e59d7552ca3c31e4b312aca958423f3e98c15bb63fcb05ea9"
+  }
+}

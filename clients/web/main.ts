@@ -23,6 +23,7 @@ let attempt = 0;
 let error = '';
 let historySignature = '';
 let messageSignature = '';
+let inboxSignature = '';
 let radioDirty = false;
 let radioBase = '';
 for (let slot = 1; slot < 8; slot++) {
@@ -72,12 +73,16 @@ function render() {
   text('schema', capabilities?.configSchema ?? '—');
   text('capacity', capabilities ? `${capabilities.receiptCapacity} receipts / ${capabilities.ownerCapacity} owners` : '—');
   text('admission', capabilities ? capabilities.ownerAdmitted === 1 ? 'Admitted' : 'Not admitted · read-only' : '—');
+  text('radio-hardware', connection.radioInfo ? `${connection.radioInfo.probe === 1 ? 'Probe OK' : 'Probe failed'} · ${connection.radioInfo.state} · ${connection.radioInfo.reason}` : connection.radioError ?? 'Waiting for diagnostics');
+  text('radio-packets', connection.radioInfo ? `RX ${connection.radioInfo.received} / TX ${connection.radioInfo.transmitted}` : '—');
+  text('resource-status', connection.radioInfo ? `${connection.radioInfo.heapFree} bytes free heap · ${connection.radioInfo.stackFree} bytes minimum free main stack` : connection.radioError ?? 'Connect to read diagnostics.');
   text('radio', capabilities ? capabilities.radioVersion === 0 ? 'Not implemented' : capabilities.radioVersion : '—');
   const message = cleanupError || error || connection.error || '';
   text('error', message);
   element('error').hidden = !message;
   renderRadio();
   renderMessages();
+  renderInbox();
   element('simulation').hidden = mode.value !== 'demo';
   element<HTMLButtonElement>('reboot').disabled = busy;
   readOnly.disabled = active || busy;
@@ -173,7 +178,7 @@ function renderMessages() {
   const uploading = history.some(entry => entry.state === 'receiving');
   text('message-bytes', `${bytes} / 1024 bytes`);
   text('message-support', !ready ? 'Connect and synchronize to queue messages.' : blocked ??
-    'Radio is off in this prototype. Queued messages expire without transmission; USB acceptance is not delivery.');
+    (destination.value === connection.device ? 'Local delivery stays on this device and does not transmit by radio.' : connection.radioInfo?.reason === 'ready' ? 'Queued and transmitted do not prove destination acceptance. Broadcast has no recipient ACK.' : `Remote transmission is blocked: ${connection.radioInfo?.reason ?? 'waiting for radio status'}. Use this device for a local test.`));
   body.disabled = destination.disabled = !ready || !!blocked || uploading;
   const channel = element<HTMLSelectElement>('message-channel');
   channel.disabled = body.disabled;
@@ -185,7 +190,9 @@ function renderMessages() {
     if (Array.from(channel.options).some(option => option.value === selected)) channel.value = selected;
     channel.dataset.names = channelSignature;
   }
-  element<HTMLButtonElement>('message-send').disabled = !ready || !!blocked || uploading || bytes === 0 || bytes > 1024 || history.length >= 32;
+  const remoteBlocked = destination.value !== connection.device && connection.capabilities?.radioVersion === 1 && connection.radioInfo?.reason !== 'ready';
+  element<HTMLButtonElement>('self-destination').disabled = !ready || !!blocked || uploading;
+  element<HTMLButtonElement>('message-send').disabled = !ready || !!blocked || uploading || bytes === 0 || bytes > 1024 || history.length >= 32 || remoteBlocked;
   const signature = mode.value + ':' + ready + ':' + JSON.stringify(history);
   if (signature === messageSignature) return;
   messageSignature = signature;
@@ -195,7 +202,7 @@ function renderMessages() {
     const body = document.createElement('strong'); body.className = 'message-text'; body.textContent = entry.text;
     const status = document.createElement('p');
     const labels = { receiving: 'Uploading to device', queued: 'Queued on device · not transmitted', transmitted: 'Transmitted · recipient delivery unconfirmed', acknowledged: 'Accepted by destination · not read status', failed: 'Failed', rejected: 'Rejected by device', unknown: 'Unknown · never automatically resent' };
-    status.textContent = `${labels[entry.state]}${entry.reason ? ' · ' + entry.reason : ''}`;
+    status.textContent = entry.reason === 'local-delivery' ? 'Delivered locally · no radio transmission' : `${labels[entry.state]}${entry.reason ? ' · ' + entry.reason : ''}`;
     const id = document.createElement('span'); id.className = 'mono'; id.textContent = `${entry.destination} / ${entry.messageId ?? entry.id}`;
     content.append(body, status, id); const actions = document.createElement('div'); actions.className = 'actions';
     if (entry.state !== 'receiving') {
@@ -233,7 +240,7 @@ function renderRadio() {
   }
   const stale = radioDirty && radioBase !== context;
   text('radio-support', !ready ? 'Connect and synchronize to configure radio settings.' : connection.radioBlockReason ??
-    (stale ? 'Device state changed. Load its latest radio settings before saving.' : 'Settings are synchronized. RF remains off until the radio driver is qualified.'));
+    (stale ? 'Device state changed. Load its latest radio settings before saving.' : connection.radioInfo ? `Radio ${connection.radioInfo.state} · ${connection.radioInfo.reason}` : 'Settings are synchronized. Waiting for live radio status.'));
   for (const control of controls) control.disabled = !supported || model.pending;
   element<HTMLButtonElement>('radio-save').disabled = !supported || !radioDirty || stale || model.pending || model.history.length >= 32;
   element<HTMLButtonElement>('radio-reset').disabled = !supported || model.pending;
@@ -252,3 +259,22 @@ element('radio-form').addEventListener('submit', event => {
     radioDirty = false; error = ''; render();
   } catch (e) { showError(e); }
 });
+
+element('self-destination').addEventListener('click', () => { const device = current().adapter.connection.device; if (device) element<HTMLInputElement>('message-destination').value = device; renderMessages(); });
+element('message-destination').addEventListener('input', renderMessages);
+function renderInbox() {
+  const connection = current().adapter.connection;
+  const history = connection.inbox.history;
+  const supported = connection.capabilities?.inboxVersion === 1;
+  text('inbox-status', connection.inbox.error ?? (connection.inbox.gap ? 'Some earlier messages are no longer retained on the device.' :
+    !supported ? 'Connect to firmware with inbox support.' : history.length ? 'Received by this device · not a human-read receipt. History is retained for this page session.' : 'No received messages yet.'));
+  const signature = mode.value + ':' + JSON.stringify(history);
+  if (signature === inboxSignature) return; inboxSignature = signature;
+  const list = element('inbox-history'); list.replaceChildren();
+  for (const item of [...history].reverse()) {
+    const row = document.createElement('li'); const content = document.createElement('div');
+    const body = document.createElement('strong'); body.className = 'message-text'; body.textContent = item.text;
+    const metadata = document.createElement('span'); metadata.className = 'mono'; metadata.textContent = `${item.origin} · channel ${item.channel} · ${item.messageId}`;
+    content.append(body, metadata); row.append(content); list.append(row);
+  }
+}

@@ -54,14 +54,14 @@ void StatusDisplay::text(unsigned row, const char* value) {
     }
   }
 }
-void StatusDisplay::update(const char* usb, bool healthy, std::uint32_t revision) {
+void StatusDisplay::update(const char* usb, bool healthy, std::uint32_t revision, const char* radio) {
   if (!ready_) return;
   pixels_.fill(0); pixels_[0] = 0x40;
   text(0, reaper::device::kDisplayVersion); text(1, healthy ? usb : "USB BLOCKED");
   char line[17]{};
   if (healthy) std::snprintf(line, sizeof(line), "REV %lu", static_cast<unsigned long>(revision));
   else std::snprintf(line, sizeof(line), "REV UNKNOWN");
-  text(2, line); text(3, healthy ? "STORE OK" : "STORE FAULT"); text(4, "RADIO OFF");
+  text(2, line); text(3, healthy ? "STORE OK" : "STORE FAULT"); text(4, radio);
   if (pixels_ == previous_) return;
   const std::uint8_t area[] = {0x00,0x21,0,127,0x22,0,7};
   if (send(area, sizeof(area)) && send(pixels_.data(), pixels_.size())) previous_ = pixels_;

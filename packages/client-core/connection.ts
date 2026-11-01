@@ -2,6 +2,7 @@ import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { Synchronizer, type Config } from './sync.ts';
 import { radioFields, validRadio } from '../protocol/radio-config.ts';
+import { InboxReader } from './inbox.ts';
 import { Messaging } from './messaging.ts';
 import { Commands, type ConfigCommand } from './commands.ts';
 import { capabilities, writeBlockReason, type Capabilities } from '../protocol/capabilities.ts';
@@ -11,6 +12,10 @@ export class Connection {
   readonly sync = new Synchronizer();
   readonly commands: Commands;
   readonly messaging: Messaging;
+  readonly inbox = new InboxReader();
+  radioInfo: Extract<Message, { type: 'radioStatus' }> | undefined;
+  radioError: string | undefined;
+  #radioRequest = 0; #radioPending = 0; #nextRadio = 0; #radioDeadline = 0; #radioTimeouts = 0;
   #commandDevices = new Map<string, string>();
   device: string | undefined;
   error: string | undefined;
@@ -108,6 +113,8 @@ export class Connection {
     this.error = undefined;
     this.device = undefined;
     this.capabilities = undefined;
+    this.#radioRequest = this.#radioPending = this.#nextRadio = this.#radioTimeouts = 0;
+    this.radioInfo = undefined; this.radioError = undefined;
     this.#request = 0;
     this.#ping = 0;
     this.#awaitingPong = false;
@@ -121,6 +128,7 @@ export class Connection {
   close(reason?: string) {
     this.sync.disconnect();
     this.commands.tick(this.#now);
+    this.inbox.tick(this.#now); this.radioInfo = undefined; this.radioError = undefined;
     this.messaging.tick(this.#now); // Disconnect immediately makes pending outcomes uncertain.
     this.#decoder.reset();
     this.#outgoing = [];
@@ -157,7 +165,17 @@ export class Connection {
     }
     for (const retry of this.commands.tick(now)) this.#sendCommand(retry);
     for (const packet of this.messaging.tick(now, this.device)) this.#send({ ...packet, link: this.#link });
+    const inbox = this.capabilities?.inboxVersion === 1 && this.capabilities?.inboxCapacity && this.capabilities.features & 64;
+    const request = this.inbox.tick(now, inbox && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined);
+    if (request) this.#send({ ...request, link: this.#link });
     if (this.sync.state !== 'ready') return;
+    if (this.capabilities && (this.capabilities.features & 32) && this.#radioTimeouts < 3) {
+      if (this.#radioPending && now >= this.#radioDeadline) { this.#radioPending = 0; this.radioInfo = undefined; this.radioError = 'radio diagnostics timed out'; this.#radioTimeouts++; this.#nextRadio = now + 1000; }
+      if (!this.#radioPending && this.#radioTimeouts < 3 && now >= this.#nextRadio) {
+        if (this.#radioRequest === 0xffffffff) { this.#radioTimeouts = 3; this.radioError = 'radio request sequence exhausted'; }
+        else { this.#radioPending = ++this.#radioRequest; this.#radioDeadline = now + 2000; this.#send({ type: 'radioQuery', link: this.#link, boot: this.sync.boot!, request: this.#radioPending }); }
+      }
+    }
     if (!this.#awaitingPong && now >= this.#nextPing) {
       this.#ping++;
       this.#awaitingPong = true;
@@ -169,6 +187,16 @@ export class Connection {
   drain() { const frames = this.#outgoing; this.#outgoing = []; return frames; }
 
   #dispatch(message: Message) {
+    if (message.type === 'radioStatus') {
+      if (this.#radioPending !== 0 && message.boot === this.sync.boot && message.request === this.#radioPending && message.revision === this.sync.revision) {
+        this.radioInfo = message; this.#radioPending = this.#radioTimeouts = 0; this.radioError = undefined; this.#nextRadio = this.#now + 2000;
+      }
+      return;
+    }
+    if (message.type === 'inboxHead' || message.type === 'inboxItem' || message.type === 'inboxMissing') {
+      if (this.sync.state === 'ready') this.inbox.receive(this.sync.session, message, this.#now);
+      return;
+    }
     if (message.type === 'messageStatus') {
       const next = this.messaging.receive(this.sync.session, message, this.#now);
       if (next) this.#send({ ...next, link: this.#link });
@@ -222,6 +250,7 @@ export class Connection {
     if (this.sync.state === 'synchronizing' && this.sync.snapshotRequest !== this.#request) {
       this.commands.tick(this.#now);
       this.messaging.tick(this.#now, this.device);
+      this.radioInfo = undefined; this.#radioPending = 0; this.#nextRadio = this.#now;
       this.#request = this.sync.snapshotRequest;
       this.#send({ type: 'sync', link: this.#link, boot: this.sync.boot!, request: this.#request });
     }

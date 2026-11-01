@@ -159,3 +159,7 @@ Feature bit 3 advertises bounded message submission/query. All previous config s
 ## Radio/channel settings extension
 
 Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the radio extension. Configure appends optional fields 8–12; snapshot appends 8–12, and event appends 7–11: radioMode, txPower, relay, channels, preset. All are supplied together for a radio mutation; omission preserves device radio settings. Base config schema remains 1. The independent radio-config schema and record version must not be conflated with the radio packet version. See RADIO_CONFIG.md for channels, atomic persistence/migration, and policy-change queue invalidation.
+
+## Inbox and live hardware status extension
+
+Tags 15 radioQuery and 16 radioStatus carry correlated hardware diagnostics; status includes settings revision and bounded resource/counter fields. Tags 17 inboxQuery / 18 inboxHead and 19 inboxRead / 20 inboxItem / 21 inboxMissing form the read-only inbox stream. Welcome appends inboxVersion/inboxCapacity at tags 21/22. Features 5/6 gate diagnostics/inbox respectively. Radio packet version 1 advertises the implemented independent packet/mesh core, not measured RF reliability. See INBOX.md for complete correlation, retention, local delivery and no-replay semantics. Existing frozen fixtures are unchanged; the new message kinds have appended fixtures.

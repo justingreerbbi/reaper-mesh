@@ -4,16 +4,16 @@
 #include <cstdint>
 namespace reaper::protocol {
 enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels };
-enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14 };
+enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
-inline constexpr std::size_t kMaxFields = 20;
+inline constexpr std::size_t kMaxFields = 22;
 inline constexpr FieldDescriptor kHelloFields[] = { {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, true} };
 inline constexpr std::size_t kHelloLink = 0;
 inline constexpr std::size_t kHelloMinVersion = 1;
 inline constexpr std::size_t kHelloMaxVersion = 2;
 inline constexpr std::size_t kHelloOwner = 3;
-inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kWelcomeLink = 0;
 inline constexpr std::size_t kWelcomeDevice = 1;
 inline constexpr std::size_t kWelcomeBoot = 2;
@@ -34,6 +34,8 @@ inline constexpr std::size_t kWelcomeMaxMessageBytes = 16;
 inline constexpr std::size_t kWelcomeMessageCapacity = 17;
 inline constexpr std::size_t kWelcomeRadioSchema = 18;
 inline constexpr std::size_t kWelcomeMaxChannels = 19;
+inline constexpr std::size_t kWelcomeInboxVersion = 20;
+inline constexpr std::size_t kWelcomeInboxCapacity = 21;
 inline constexpr FieldDescriptor kSyncFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false} };
 inline constexpr std::size_t kSyncLink = 0;
 inline constexpr std::size_t kSyncBoot = 1;
@@ -117,9 +119,57 @@ inline constexpr FieldDescriptor kMessageQueryFields[] = { {Kind::Id, false}, {K
 inline constexpr std::size_t kMessageQueryLink = 0;
 inline constexpr std::size_t kMessageQueryBoot = 1;
 inline constexpr std::size_t kMessageQueryId = 2;
+inline constexpr FieldDescriptor kRadioQueryFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false} };
+inline constexpr std::size_t kRadioQueryLink = 0;
+inline constexpr std::size_t kRadioQueryBoot = 1;
+inline constexpr std::size_t kRadioQueryRequest = 2;
+inline constexpr FieldDescriptor kRadioStatusFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false} };
+inline constexpr std::size_t kRadioStatusLink = 0;
+inline constexpr std::size_t kRadioStatusBoot = 1;
+inline constexpr std::size_t kRadioStatusRequest = 2;
+inline constexpr std::size_t kRadioStatusState = 3;
+inline constexpr std::size_t kRadioStatusReason = 4;
+inline constexpr std::size_t kRadioStatusProbe = 5;
+inline constexpr std::size_t kRadioStatusTransmitted = 6;
+inline constexpr std::size_t kRadioStatusReceived = 7;
+inline constexpr std::size_t kRadioStatusRevision = 8;
+inline constexpr std::size_t kRadioStatusHeapFree = 9;
+inline constexpr std::size_t kRadioStatusStackFree = 10;
+inline constexpr FieldDescriptor kInboxQueryFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false} };
+inline constexpr std::size_t kInboxQueryLink = 0;
+inline constexpr std::size_t kInboxQueryBoot = 1;
+inline constexpr std::size_t kInboxQueryRequest = 2;
+inline constexpr FieldDescriptor kInboxHeadFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false} };
+inline constexpr std::size_t kInboxHeadLink = 0;
+inline constexpr std::size_t kInboxHeadBoot = 1;
+inline constexpr std::size_t kInboxHeadRequest = 2;
+inline constexpr std::size_t kInboxHeadOldest = 3;
+inline constexpr std::size_t kInboxHeadLatest = 4;
+inline constexpr FieldDescriptor kInboxReadFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false} };
+inline constexpr std::size_t kInboxReadLink = 0;
+inline constexpr std::size_t kInboxReadBoot = 1;
+inline constexpr std::size_t kInboxReadRequest = 2;
+inline constexpr std::size_t kInboxReadSequence = 3;
+inline constexpr std::size_t kInboxReadPart = 4;
+inline constexpr FieldDescriptor kInboxItemFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, false} };
+inline constexpr std::size_t kInboxItemLink = 0;
+inline constexpr std::size_t kInboxItemBoot = 1;
+inline constexpr std::size_t kInboxItemRequest = 2;
+inline constexpr std::size_t kInboxItemSequence = 3;
+inline constexpr std::size_t kInboxItemOrigin = 4;
+inline constexpr std::size_t kInboxItemMessageId = 5;
+inline constexpr std::size_t kInboxItemChannel = 6;
+inline constexpr std::size_t kInboxItemPart = 7;
+inline constexpr std::size_t kInboxItemCount = 8;
+inline constexpr std::size_t kInboxItemData = 9;
+inline constexpr FieldDescriptor kInboxMissingFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false} };
+inline constexpr std::size_t kInboxMissingLink = 0;
+inline constexpr std::size_t kInboxMissingBoot = 1;
+inline constexpr std::size_t kInboxMissingRequest = 2;
+inline constexpr std::size_t kInboxMissingSequence = 3;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 4},
-  {MessageType::Welcome, kWelcomeFields, 20},
+  {MessageType::Welcome, kWelcomeFields, 22},
   {MessageType::Sync, kSyncFields, 3},
   {MessageType::Snapshot, kSnapshotFields, 12},
   {MessageType::Event, kEventFields, 11},
@@ -132,5 +182,12 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Submit, kSubmitFields, 8},
   {MessageType::MessageStatus, kMessageStatusFields, 7},
   {MessageType::MessageQuery, kMessageQueryFields, 3},
+  {MessageType::RadioQuery, kRadioQueryFields, 3},
+  {MessageType::RadioStatus, kRadioStatusFields, 11},
+  {MessageType::InboxQuery, kInboxQueryFields, 3},
+  {MessageType::InboxHead, kInboxHeadFields, 5},
+  {MessageType::InboxRead, kInboxReadFields, 5},
+  {MessageType::InboxItem, kInboxItemFields, 10},
+  {MessageType::InboxMissing, kInboxMissingFields, 4},
 };
 } // namespace reaper::protocol

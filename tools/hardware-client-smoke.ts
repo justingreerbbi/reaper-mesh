@@ -6,7 +6,7 @@ import { decodeMessage } from '../packages/protocol/messages.ts';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
 const [python, port, expectedFirmware, messageTest] = process.argv.slice(2);
-if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test]');
+if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test|--local-test]');
 const bridge = `
 import serial,sys,threading
 s=serial.Serial(port=None,baudrate=115200,timeout=.05,exclusive=True)
@@ -76,9 +76,42 @@ for (let run = 0; run < 3; run++) {
       child.once('error', error => { clearInterval(timer); reject(error); });
       child.once('exit', () => { clearInterval(timer); reject(new Error(error || 'serial bridge exited')); });
     });
-    assert.equal(client.capabilities?.radioVersion, 0);
+    assert.ok([0, 1].includes(client.capabilities?.radioVersion ?? -1));
     if (expectedFirmware) assert.equal(client.capabilities?.firmware, expectedFirmware);
     const readyAt = now();
+    if (messageTest === '--local-test') {
+      const waitFor = async (test: () => boolean) => {
+        const until = now() + 10000;
+        while (!test()) {
+          if (now() >= until || ['disconnected', 'incompatible'].includes(client.sync.state)) throw new Error('local hardware test timed out: ' + (client.radioError ?? client.inbox.error ?? client.error ?? ''));
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      };
+      await waitFor(() => !!client.radioInfo);
+      console.log('Physical radio diagnostic:', client.radioInfo?.state, client.radioInfo?.reason, 'probe', client.radioInfo?.probe,
+        'heap', client.radioInfo?.heapFree, 'stack', client.radioInfo?.stackFree);
+      assert.equal(client.radioInfo?.probe, 1, 'SX1262 SPI/configuration probe failed');
+      assert.ok((client.radioInfo?.stackFree ?? 0) > 2048, 'main task stack headroom too low');
+      assert.equal(client.radioInfo?.transmitted, 0);
+      const body = `Local USB message ${run + 1}: ` .padEnd(1024, 'x');
+      const id = adapter.sendMessage(body, client.device!, 0);
+      await waitFor(() => client.messaging.history.find(entry => entry.id === id)?.state === 'acknowledged');
+      assert.equal(client.messaging.history.find(entry => entry.id === id)?.reason, 'local-delivery');
+      await waitFor(() => client.inbox.history.some(entry => entry.messageId === client.messaging.history.find(item => item.id === id)?.messageId));
+      assert.equal(client.inbox.history.find(entry => entry.messageId === client.messaging.history.find(item => item.id === id)?.messageId)?.text, body);
+      assert.equal(client.radioInfo?.transmitted, 0);
+      if (run === 0) {
+        const original = client.sync.config!; assert.ok(original.radio);
+        const update = adapter.configure({ ...original, radio: { ...original.radio, mode: 'receive' } });
+        await waitFor(() => client.commands.status(update).outcome === 'committed' && client.sync.state === 'ready');
+        await waitFor(() => client.radioInfo?.state === 'receiving'); assert.equal(client.radioInfo?.transmitted, 0);
+        const restore = adapter.configure(original);
+        await waitFor(() => client.commands.status(restore).outcome === 'committed' && client.sync.state === 'ready');
+        await waitFor(() => client.radioInfo?.state === 'off');
+        console.log('Physical receive-only initialization and restored off mode passed without TX');
+      }
+      console.log('Physical 1024-byte local delivery and inbox retrieval passed without RF');
+    }
     if (run === 0 && messageTest === '--radio-test') {
       const original = client.sync.config!; assert.ok(original.radio);
       const waitFor = async (condition: () => boolean) => {
@@ -105,6 +138,7 @@ for (let run = 0; run < 3; run++) {
       console.log('Physical named-channel queue and radio-policy quiesce passed; original radio settings restored');
     }
     if (run === 0 && messageTest === '--message-test') {
+      assert.equal(client.capabilities?.radioVersion, 0, 'expiry preview requires RF-disabled firmware v2');
       const id = adapter.sendMessage('Reaper USB message test '.padEnd(1024, 'x'));
       const waitFor = async (state: string, timeout: number) => {
         const end = now() + timeout;

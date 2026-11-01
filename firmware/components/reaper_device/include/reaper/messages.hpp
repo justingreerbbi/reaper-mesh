@@ -32,6 +32,8 @@ class MessageQueue {
   void tick(std::uint64_t now);
   void channels(std::uint8_t enabled) { channels_ = enabled; }
   void quiesce();
+  bool fail(const Text<64>& message_id, const char* reason);
+  bool local_accept(const Text<64>& message_id);
   bool transmitted(const Text<64>& message_id, std::uint64_t now);
   bool acknowledge(const Text<64>& message_id, const Text<64>& destination, std::uint64_t now);
   const std::array<MessageRecord, kCapacity>& records() const { return records_; }

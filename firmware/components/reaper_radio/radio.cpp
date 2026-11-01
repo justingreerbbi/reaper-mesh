@@ -20,12 +20,13 @@ bool Radio::configure(std::uint8_t power, bool receive, bool transmit) {
   const auto irq = SX126X_IRQ_TX_DONE | SX126X_IRQ_RX_DONE | SX126X_IRQ_CRC_ERROR | SX126X_IRQ_HEADER_ERROR | SX126X_IRQ_TIMEOUT;
   if (!check(sx126x_reset(&bus_)) || !check(sx126x_set_standby(&bus_, SX126X_STANDBY_CFG_RC)) ||
       !check(sx126x_get_status(&bus_, &status))) return false;
+  chip_mode_ = status.chip_mode; command_status_ = status.cmd_status;
   if (status.chip_mode != SX126X_CHIP_MODE_STBY_RC || status.cmd_status == SX126X_CMD_STATUS_CMD_TIMEOUT ||
       status.cmd_status == SX126X_CMD_STATUS_CMD_PROCESS_ERROR || status.cmd_status == SX126X_CMD_STATUS_CMD_EXEC_FAILURE) { stop(); return false; }
-  if (!check(sx126x_set_reg_mode(&bus_, SX126X_REG_MODE_DCDC)) ||
+  if (!check(sx126x_clear_device_errors(&bus_)) || !check(sx126x_set_reg_mode(&bus_, SX126X_REG_MODE_DCDC)) ||
       !check(sx126x_set_dio3_as_tcxo_ctrl(&bus_, SX126X_TCXO_CTRL_1_8V, 320)) ||
       !check(sx126x_cal(&bus_, SX126X_CAL_ALL)) || !check(sx126x_cal_img_in_mhz(&bus_, 902, 928)) ||
-      !check(sx126x_clear_device_errors(&bus_)) || !check(sx126x_set_pkt_type(&bus_, SX126X_PKT_TYPE_LORA)) ||
+      !check(sx126x_set_pkt_type(&bus_, SX126X_PKT_TYPE_LORA)) ||
       !check(sx126x_set_rf_freq(&bus_, mesh::kUs915Lab1.frequency_hz)) || !check(sx126x_set_buffer_base_address(&bus_, 0, 0)) ||
       !check(sx126x_set_pa_cfg(&bus_, &pa)) || !check(sx126x_cfg_tx_clamp(&bus_)) ||
       !check(sx126x_set_ocp_value(&bus_, 0x38)) || !check(sx126x_set_tx_params(&bus_, power, SX126X_RAMP_200_US)) ||
@@ -34,6 +35,7 @@ bool Radio::configure(std::uint8_t power, bool receive, bool transmit) {
       !check(sx126x_set_dio_irq_params(&bus_, irq, irq, 0, 0)) || !check(sx126x_clear_irq_status(&bus_, SX126X_IRQ_ALL)) ||
       !check(sx126x_set_rx_tx_fallback_mode(&bus_, SX126X_FALLBACK_STDBY_RC)) ||
       !check(sx126x_get_device_errors(&bus_, &errors))) return false;
+  errors_ = errors;
   if (errors) { stop(); return false; }
   healthy_ = true; receive_ = receive; allow_tx_ = transmit && receive;
   return !receive || listen();
@@ -43,7 +45,7 @@ Start Radio::transmit(const std::uint8_t* bytes, std::size_t size, std::uint64_t
   mesh::Packet decoded{};
   if (!allow_tx_ || !mesh::decode_packet(bytes, size, decoded)) return Start::Rejected;
   if (transmitting_) return Start::Wait;
-  if (!budget_.reserve(now, mesh::airtime_us(size))) return Start::Wait;
+  if (!budget_.reserve(now, mesh::airtime_us(size) + 1000)) return Start::Wait;
   const auto params = packet(size);
   if (!check(sx126x_set_standby(&bus_, SX126X_STANDBY_CFG_RC)) ||
       !check(sx126x_set_lora_pkt_params(&bus_, &params)) || !check(sx126x_write_buffer(&bus_, 0, bytes, size)) ||

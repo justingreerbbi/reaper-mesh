@@ -27,10 +27,15 @@ class Radio {
   Event poll(std::uint64_t now_ms);
   bool healthy() const { return healthy_; }
   bool transmitting() const { return transmitting_; }
+  std::uint8_t chip_mode() const { return chip_mode_; }
+  std::uint8_t command_status() const { return command_status_; }
+  std::uint16_t device_errors() const { return errors_; }
   bool receiving() const { return receive_; }
  private:
   Bus& bus_; mesh::AirtimeBudget budget_{};
   bool healthy_ = false, receive_ = false, allow_tx_ = false, transmitting_ = false;
+  std::uint8_t chip_mode_ = 0, command_status_ = 0;
+  std::uint16_t errors_ = 0;
   std::uint64_t deadline_ = 0;
   bool check(int status);
   bool listen();

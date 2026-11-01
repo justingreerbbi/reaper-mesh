@@ -8,7 +8,7 @@
   },
   "scripts": {
     "generate:protocol": "node tools/generate-protocol.ts",
-    "check:generated": "node tools/generate-protocol.ts --check",
+    "check:generated": "node tools/generate-protocol.ts --check && node tools/check-vendor.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test && npm run build:web",
     "dev:web": "vite clients/web --host 127.0.0.1 --port 5173 --strictPort",

@@ -1,0 +1,47 @@
+#include "radio_bus.hpp"
+#include "driver/gpio.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <cstring>
+bool RadioBus::begin() {
+  off();
+  if (gpio_set_direction(GPIO_NUM_12, GPIO_MODE_OUTPUT) != ESP_OK ||
+      gpio_set_direction(GPIO_NUM_13, GPIO_MODE_INPUT) != ESP_OK ||
+      gpio_set_direction(GPIO_NUM_14, GPIO_MODE_INPUT) != ESP_OK) return false;
+  spi_bus_config_t bus{};
+  bus.mosi_io_num = 10; bus.miso_io_num = 11; bus.sclk_io_num = 9;
+  bus.quadwp_io_num = bus.quadhd_io_num = -1; bus.max_transfer_sz = tx_.size();
+  if (spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_DISABLED) != ESP_OK) return false;
+  spi_device_interface_config_t device{};
+  device.clock_speed_hz = 4000000; device.mode = 0; device.spics_io_num = 8; device.queue_size = 1;
+  return spi_bus_add_device(SPI2_HOST, &device, &device_) == ESP_OK;
+}
+bool RadioBus::ready(std::uint32_t timeout_ms) {
+  if (!device_ || failed_) return false;
+  const auto deadline = esp_timer_get_time() + std::int64_t(timeout_ms) * 1000;
+  while (gpio_get_level(GPIO_NUM_13)) {
+    if (esp_timer_get_time() >= deadline) { failed_ = true; off(); return false; }
+    vTaskDelay(1);
+  }
+  return true;
+}
+bool RadioBus::transfer(const std::uint8_t* tx, std::uint8_t* rx, std::size_t size) {
+  if (!device_ || failed_ || !tx || !rx || !size || size > tx_.size()) return false;
+  last_command_ = tx[0];
+  std::memcpy(tx_.data(), tx, size); rx_.fill(0); transaction_ = {};
+  transaction_.length = size * 8; transaction_.tx_buffer = tx_.data(); transaction_.rx_buffer = rx_.data();
+  if (spi_device_queue_trans(device_, &transaction_, pdMS_TO_TICKS(20)) != ESP_OK) { failed_ = true; off(); return false; }
+  spi_transaction_t* completed = nullptr;
+  if (spi_device_get_trans_result(device_, &completed, pdMS_TO_TICKS(20)) != ESP_OK || completed != &transaction_) {
+    failed_ = true; off(); return false;
+  }
+  std::memcpy(rx, rx_.data(), size); return true;
+}
+bool RadioBus::reset() {
+  if (!device_ || failed_) return false;
+  gpio_set_level(GPIO_NUM_12, 0); vTaskDelay(pdMS_TO_TICKS(10));
+  gpio_set_level(GPIO_NUM_12, 1); vTaskDelay(pdMS_TO_TICKS(20));
+  return ready(20);
+}
+void RadioBus::off() { gpio_set_level(GPIO_NUM_12, 0); }

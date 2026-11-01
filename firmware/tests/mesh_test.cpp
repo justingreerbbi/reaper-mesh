@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
     m::Mesh b(1); CHECK(b.enqueue(key(), 3, 0, body.data(), 2, 0)); CHECK(b.next_tx(0, p)); b.complete_tx(true, 1);
     CHECK(!b.receive(bytes.data(), bytes.size(), 60000)); CHECK(b.outgoing()[0].state == m::SendState::Failed);
   } else if (scenario == "bounds") {
+    m::Mesh reordered(1); CHECK(reordered.enqueue(key(2), 3, 0, body.data(), 2, 0)); CHECK(reordered.enqueue(key(1), 3, 0, body.data(), 2, 0));
     m::Mesh a(1); for (unsigned seq = 1; seq <= 8; ++seq) CHECK(a.enqueue(key(seq), 3, 0, body.data(), 2, 0));
     CHECK(!a.enqueue(key(9), 3, 0, body.data(), 2, 0)); a.tick(60000);
     CHECK(a.enqueue(key(10), 3, 0, body.data(), 2, 60001)); CHECK(!a.enqueue(key(1), 3, 0, body.data(), 2, 60001));

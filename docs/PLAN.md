@@ -117,3 +117,7 @@ Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 
 usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
 
 The actual C++ Mesh/codec passes bounded line/triangle topology tests. Regional policy, persisted channel/radio configuration, board radio I/O, inbox synchronization, firmware updater UX, and real multi-node qualification remain.
+
+## Current completion tracking
+
+Use STATUS.md for implemented/evidenced versus remaining work. The integrated board SPI, diagnostics, inbox and local-delivery path are implemented and target-built; hardware qualification follows. Durable browser command/message history and guided updater validation remain required before declaring the focused prototype complete. Physical multi-node gates remain explicit.

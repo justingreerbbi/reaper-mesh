@@ -38,8 +38,8 @@ const char* outcome(Outcome value) {
   }
 }
 } // namespace
-Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages)
-    : authority_(authority), messages_(messages), device_(device), boot_(boot) {}
+Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages, RadioInfo* radio, Inbox* inbox)
+    : authority_(authority), messages_(messages), radio_(radio), inbox_(inbox), device_(device), boot_(boot) {}
 void Session::reset() { active_ = compatible_ = admitted_ = synchronized_ = fault_ = false; link_ = {}; owner_ = {}; }
 void Session::error(p::Message& reply) const {
   reply = {}; reply.type = p::MessageType::Error;
@@ -66,14 +66,15 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     reply.type = p::MessageType::Welcome;
     set(reply.fields[p::kWelcomeLink], link_); set(reply.fields[p::kWelcomeDevice], device_); set(reply.fields[p::kWelcomeBoot], boot_);
     number(reply.fields[p::kWelcomeMinVersion], 1); number(reply.fields[p::kWelcomeMaxVersion], 1);
-    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], messages_ ? 31 : 23);
+    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
     number(reply.fields[p::kWelcomeOwnerAdmitted], admitted_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRegions], 3); number(reply.fields[p::kWelcomeMaxLabelBytes], 64);
-    literal(reply.fields[p::kWelcomeFirmware], kFirmwareVersion); number(reply.fields[p::kWelcomeRadioVersion], 0);
+    literal(reply.fields[p::kWelcomeFirmware], kFirmwareVersion); number(reply.fields[p::kWelcomeRadioVersion], radio_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRadioSchema], 1); number(reply.fields[p::kWelcomeMaxChannels], 8);
+    if (inbox_) { number(reply.fields[p::kWelcomeInboxVersion], 1); number(reply.fields[p::kWelcomeInboxCapacity], Inbox::kCapacity); }
     if (messages_) {
       Snapshot current{}; if (authority_.snapshot(current)) messages_->channels(channel_mask(current.settings.radio));
       number(reply.fields[p::kWelcomeMessageVersion], 1);
@@ -86,6 +87,49 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
   if (request.type == p::MessageType::Ping) {
     reply.type = p::MessageType::Pong; set(reply.fields[p::kPongLink], link_); set(reply.fields[p::kPongBoot], boot_);
     number(reply.fields[p::kPongRequest], request.fields[p::kPingRequest].number); return true;
+  }
+  if (request.type == p::MessageType::RadioQuery || request.type == p::MessageType::InboxQuery || request.type == p::MessageType::InboxRead) {
+    if (!synchronized_ || !same(request.fields[1], boot_)) return false;
+    if (request.type == p::MessageType::RadioQuery) {
+      if (!radio_) return false;
+      reply.type = p::MessageType::RadioStatus;
+      set(reply.fields[p::kRadioStatusLink], link_); set(reply.fields[p::kRadioStatusBoot], boot_);
+      number(reply.fields[p::kRadioStatusRequest], request.fields[p::kRadioQueryRequest].number);
+      set(reply.fields[p::kRadioStatusState], radio_->state); set(reply.fields[p::kRadioStatusReason], radio_->reason);
+      number(reply.fields[p::kRadioStatusHeapFree], radio_->heap_free); number(reply.fields[p::kRadioStatusStackFree], radio_->stack_free);
+      number(reply.fields[p::kRadioStatusRevision], radio_->revision);
+      number(reply.fields[p::kRadioStatusProbe], radio_->probe ? 1 : 0);
+      number(reply.fields[p::kRadioStatusTransmitted], radio_->transmitted); number(reply.fields[p::kRadioStatusReceived], radio_->received);
+      return true;
+    }
+    if (!inbox_) return false;
+    if (request.type == p::MessageType::InboxQuery) {
+      reply.type = p::MessageType::InboxHead;
+      set(reply.fields[p::kInboxHeadLink], link_); set(reply.fields[p::kInboxHeadBoot], boot_);
+      number(reply.fields[p::kInboxHeadRequest], request.fields[p::kInboxQueryRequest].number);
+      number(reply.fields[p::kInboxHeadOldest], inbox_->oldest()); number(reply.fields[p::kInboxHeadLatest], inbox_->latest());
+      return true;
+    }
+    const auto sequence = request.fields[p::kInboxReadSequence].number;
+    const auto part = request.fields[p::kInboxReadPart].number;
+    const auto* item = inbox_->find(sequence);
+    if (!item || part >= 32 || part * 32 >= item->size) {
+      reply.type = p::MessageType::InboxMissing;
+      set(reply.fields[p::kInboxMissingLink], link_); set(reply.fields[p::kInboxMissingBoot], boot_);
+      number(reply.fields[p::kInboxMissingRequest], request.fields[p::kInboxReadRequest].number); number(reply.fields[p::kInboxMissingSequence], sequence);
+      return true;
+    }
+    reply.type = p::MessageType::InboxItem;
+    set(reply.fields[p::kInboxItemLink], link_); set(reply.fields[p::kInboxItemBoot], boot_);
+    number(reply.fields[p::kInboxItemRequest], request.fields[p::kInboxReadRequest].number); number(reply.fields[p::kInboxItemSequence], sequence);
+    set(reply.fields[p::kInboxItemOrigin], item->origin); set(reply.fields[p::kInboxItemMessageId], item->message_id);
+    number(reply.fields[p::kInboxItemChannel], item->channel); number(reply.fields[p::kInboxItemPart], part);
+    number(reply.fields[p::kInboxItemCount], (item->size + 31) / 32);
+    const auto remaining = item->size - part * 32; const auto size = remaining < 32 ? remaining : 32;
+    auto& data = reply.fields[p::kInboxItemData]; data.present = true; data.length = size * 2;
+    constexpr char digits[] = "0123456789abcdef";
+    for (std::size_t i = 0; i < size; ++i) { auto byte = item->bytes[part * 32 + i]; data.text[2 * i] = digits[byte >> 4]; data.text[2 * i + 1] = digits[byte & 15]; }
+    return true;
   }
   if (request.type == p::MessageType::Submit || request.type == p::MessageType::MessageQuery) {
     if (!messages_ || !same(request.fields[1], boot_) || !synchronized_) return false;

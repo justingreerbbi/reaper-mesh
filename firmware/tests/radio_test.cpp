@@ -14,7 +14,8 @@ struct Bus : r::Bus {
   bool reset() override { ++resets; return !fail; }
   void off() override { off_called = true; }
   bool transfer(const std::uint8_t* tx, std::uint8_t* rx, std::size_t size) override {
-    if (size > 260 || !size) std::abort(); if (fail) return false;
+    if (size > 260 || !size) std::abort();
+    if (fail) return false;
     commands.emplace_back(tx, tx + size); std::memset(rx, 0, size);
     if (tx[0] == 0xc0) rx[1] = 0x24;
     if (tx[0] == 0x12) { rx[2] = irq >> 8; rx[3] = irq; }
@@ -30,7 +31,8 @@ std::vector<std::uint8_t> packet() {
   m::Packet p{}; p.key.origin = 1; p.destination = 2; p.key.boot[0] = 42; p.key.sequence = 1;
   p.count = 1; p.size = p.total = 160; p.bytes.fill('x');
   std::vector<std::uint8_t> bytes(m::kMaxPacketBytes); std::size_t size = 0;
-  if (!m::encode_packet(p, bytes.data(), bytes.size(), size)) std::abort(); bytes.resize(size); return bytes;
+  if (!m::encode_packet(p, bytes.data(), bytes.size(), size)) std::abort();
+  bytes.resize(size); return bytes;
 }
 int main(int argc, char** argv) {
   if (argc != 2) return 2;

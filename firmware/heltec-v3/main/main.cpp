@@ -1,6 +1,8 @@
 #include "reaper/session.hpp"
 #include "nvs_storage.hpp"
 #include "status_display.hpp"
+#include "mesh_service.hpp"
+#include "board_profile.hpp"
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_mac.h"
@@ -9,7 +11,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_timer.h"
+#include "esp_system.h"
 #include <cstdio>
+#include <cstring>
 
 namespace p = reaper::protocol;
 namespace d = reaper::device;
@@ -33,6 +37,10 @@ void received(const p::Message& request, void* context) {
     last_reply = esp_timer_get_time();
   }
   if (session.take_error(reply)) write_frame(reply);
+}
+const char* radio_line(const d::RadioInfo& info) {
+  auto is = [&](const char* state) { return info.state.length == std::strlen(state) && !std::memcmp(info.state.bytes.data(), state, info.state.length); };
+  return is("receiving") ? "RADIO RX" : is("transmitting") ? "RADIO TX" : is("fault") ? "RADIO FAULT" : "RADIO OFF";
 }
 void halt() { for (;;) vTaskDelay(pdMS_TO_TICKS(1000)); }
 } // namespace
@@ -69,16 +77,22 @@ extern "C" void app_main() {
   static NvsStorage storage;
   static d::Configuration authority(storage, boot);
   static d::MessageQueue messages(boot);
-  static d::Session session(authority, device, boot, &messages);
+  static d::Inbox inbox;
+  static d::RadioInfo radio_info;
+  static d::Session session(authority, device, boot, &messages, &radio_info, &inbox);
   static StatusDisplay display;
   display.begin();
+  std::uint64_t node = 0; for (auto byte : mac) node = (node << 8) | byte;
+  static MeshService mesh(messages, inbox, radio_info, device, random, node,
+    reaper::board::kUsBandOwnerConfirmed && reaper::board::kAntennaVerified);
+  mesh.begin();
   std::int64_t next_display = 0;
   std::array<std::uint8_t, 256> input{};
   std::int64_t last_read = 0;
   for (;;) {
     session.tick(static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
     uart_event_t event{};
-    if (xQueueReceive(events, &event, pdMS_TO_TICKS(100))) {
+    if (xQueueReceive(events, &event, pdMS_TO_TICKS(10))) {
       if (event.type == UART_DATA) {
         for (;;) {
           const int size = uart_read_bytes(kUart, input.data(), input.size(), 0);
@@ -94,13 +108,17 @@ extern "C" void app_main() {
     if (decoder.buffered_bytes() && esp_timer_get_time() - last_read > 1000000) {
       decoder.reset(); session.reset();
     }
+    d::Snapshot current{}; const bool storage_ok = authority.snapshot(current);
+    mesh.tick(storage_ok ? &current : nullptr, static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
+    radio_info.heap_free = esp_get_free_heap_size();
+    radio_info.stack_free = uxTaskGetStackHighWaterMark(nullptr); // ESP-IDF reports bytes.
     const auto now = esp_timer_get_time();
     if (now >= next_display) {
       next_display = now + 500000;
       d::Snapshot snapshot{};
       const bool healthy = authority.snapshot(snapshot);
       display.update(session.synchronized() && now - last_reply < 8000000 ? "USB READY" : "USB IDLE",
-        healthy, snapshot.revision);
+        healthy, snapshot.revision, radio_line(radio_info));
     }
     vTaskDelay(1); // Yield even under continuous malformed input; keep the idle watchdog healthy.
   }

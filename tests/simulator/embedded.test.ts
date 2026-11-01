@@ -44,7 +44,7 @@ const sampleValues: Record<string, unknown> = {
   ownerAdmitted: 1, regions: 3, maxLabelBytes: 64, firmware: 'sim-0', radioVersion: 0,
   request: 1, sequence: 0xffffffff, revision: 0xffffffff, expectedRevision: 0,
   region: 'US', label: 'Café 📻', id: 'client-A:4294967295', outcome: 'committed', code: 'storage-unavailable', messageVersion: 1, maxMessageBytes: 1024, messageCapacity: 8,
-  channel: 0, destination: 'broadcast', part: 0, count: 1, data: '6869', state: 'queued', received: 1, messageId: 'boot-A_1', reason: 'queued', radioMode: 'off', txPower: 0, relay: 0, channels: 'Public|||||||', preset: 'US915_LAB1', radioSchema: 1, maxChannels: 8,
+  channel: 0, destination: 'broadcast', part: 0, count: 1, data: '6869', state: 'queued', received: 1, messageId: 'boot-A_1', reason: 'queued', radioMode: 'off', txPower: 0, relay: 0, channels: 'Public|||||||', preset: 'US915_LAB1', radioSchema: 1, maxChannels: 8, inboxVersion: 1, inboxCapacity: 8, oldest: 1, latest: 1, origin: 'node-B', probe: 1, transmitted: 0, heapFree: 200000, stackFree: 10000,
 };
 const messages = Object.entries(schema).map(([type, message]) => Object.fromEntries([
   ['type', type], ...Object.keys(message.fields).map(name => [name, sampleValues[name]]),

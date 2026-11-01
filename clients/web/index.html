@@ -21,7 +21,7 @@
           <div class="actions form-actions"><button id="save" type="submit" class="primary" disabled>Save to device</button><button id="reset" type="button" disabled>Load latest settings</button></div>
         </form>
       </section>
-      <section class="panel" aria-labelledby="details-heading"><p class="eyebrow">03 / DEVICE DETAILS</p><h2 id="details-heading">Know what’s connected.</h2><dl><dt>Device identity</dt><dd id="device" class="mono">—</dd><dt>Firmware</dt><dd id="firmware" class="mono">—</dd><dt>Configuration schema</dt><dd id="schema">—</dd><dt>Request history</dt><dd id="capacity">—</dd><dt>Owner admission</dt><dd id="admission">—</dd><dt>Radio protocol</dt><dd id="radio">—</dd></dl><p class="small muted">A successful save means device acceptance. It does not mean a radio message was delivered.</p></section>
+      <section class="panel" aria-labelledby="details-heading"><p class="eyebrow">03 / DEVICE DETAILS</p><h2 id="details-heading">Know what’s connected.</h2><dl><dt>Device identity</dt><dd id="device" class="mono">—</dd><dt>Firmware</dt><dd id="firmware" class="mono">—</dd><dt>Configuration schema</dt><dd id="schema">—</dd><dt>Request history</dt><dd id="capacity">—</dd><dt>Owner admission</dt><dd id="admission">—</dd><dt>Radio protocol</dt><dd id="radio">—</dd><dt>Radio hardware</dt><dd id="radio-hardware">—</dd><dt>Radio packets</dt><dd id="radio-packets">—</dd></dl><details><summary>Diagnostics</summary><p id="resource-status" class="small muted">Connect to read diagnostics.</p></details><p class="small muted">A successful save means device acceptance. It does not mean a radio message was delivered.</p></section>
     </div>
     <section class="panel" aria-labelledby="history-heading"><div class="section-title"><div><p class="eyebrow">04 / COMMAND HISTORY</p><h2 id="history-heading">Every change has an outcome.</h2></div><span id="history-count" class="mono">0 / 32</span></div><p class="muted small">Unknown means a change may have applied. Query its result after reconnecting; nothing is automatically resent. History lasts for this page session.</p><div id="history-empty" class="empty">No configuration commands yet.</div><ul id="history" class="history"></ul></section>
     <section class="panel" aria-labelledby="radio-heading">
@@ -30,7 +30,7 @@
       <form id="radio-form">
         <div class="columns"><div><label for="radio-mode">Radio mode</label><select id="radio-mode"><option value="off">Off</option><option value="receive">Receive only</option><option value="mesh">Mesh messaging</option></select></div>
         <div><label for="radio-power">Transmit power (dBm)</label><input id="radio-power" type="number" min="0" max="10" step="1" value="0"></div></div>
-        <p class="small muted">US 915 lab preset. EU operation is unavailable. RF is still disabled during driver bring-up.</p>
+        <p class="small muted">US 915 lab preset. EU operation is unavailable. Transmission also requires the board antenna check.</p>
         <label class="check"><input id="radio-relay" type="checkbox">Relay messages for other nodes</label>
         <p class="small muted">Channel 0 is Public. Named channels share radio settings and are plaintext. Matching numeric channel IDs communicate; names are local labels. Leave a name empty to disable that channel.</p>
         <div id="channel-settings" class="channel-grid"></div>
@@ -43,12 +43,14 @@
       <form id="message-form">
         <label for="message-destination">Destination node ID, or broadcast</label><input id="message-destination" type="text" value="broadcast" autocomplete="off">
         <label for="message-channel">Message channel</label><select id="message-channel"><option value="0">0 · Public</option></select>
+        <div class="actions"><button id="self-destination" type="button">Use this device (local test)</button></div>
         <label for="message-body">Message text</label><textarea id="message-body" rows="4" placeholder="Up to 1,024 UTF-8 bytes"></textarea>
         <div class="field-meta"><span>Plaintext · no encryption</span><span id="message-bytes">0 / 1024 bytes</span></div>
         <button id="message-send" type="submit" class="primary" disabled>Queue on device</button>
       </form>
       <ul id="message-history" class="history" aria-label="Message history"></ul>
     </section>
+    <section class="panel" aria-labelledby="inbox-heading"><h2 id="inbox-heading">Received messages</h2><p id="inbox-status" class="muted">Connect to read the device inbox.</p><ul id="inbox-history" class="history" aria-label="Received messages"></ul></section>
     <section class="panel simulation" id="simulation"><div><p class="eyebrow">SIMULATION LAB</p><h2>Try an interrupted connection.</h2><p class="small muted">Arm one fault, change the label, then save. Simulated configuration survives reconnects but resets when you reload this page.</p></div><div><label for="fault">Next save</label><select id="fault"><option value="none">Normal connection</option><option value="lose-result">Lose result and change event</option><option value="disconnect">Disconnect after commit</option></select><label class="check"><input id="read-only" type="checkbox"> Read-only on next connect</label><button id="reboot">Reboot simulated device</button></div></section>
     <footer><span>REAPER MESH / INDEPENDENT PROTOCOL</span><span>USB first. US first. Built for reliable recovery.</span></footer>
   </main><script type="module" src="/main.ts"></script>

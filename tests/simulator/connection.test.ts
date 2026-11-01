@@ -236,3 +236,34 @@ test('config receipt resync preserves accepted messages and resumes query-only p
   assert.equal(packets.filter(packet => packet.type === 'messageQuery').length, 1);
   assert.equal(packets.filter(packet => packet.type === 'submit').length, 0);
 });
+
+test('radio diagnostics require an outstanding probe and matching authoritative revision', () => {
+  const { connection, deliver, snapshot } = setup();
+  deliver({ ...welcome(), features: 39 }); const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(initial.request)); connection.tick(0);
+  const request = outgoing(connection)[0] as Extract<Message, { type: 'radioQuery' }>;
+  const info: Extract<Message, { type: 'radioStatus' }> = { type: 'radioStatus', link: 'link-A', boot: 'boot-A', request: request.request,
+    state: 'off', reason: 'radio-off', probe: 1, transmitted: 0, received: 0, revision: 0, heapFree: 200000, stackFree: 10000 };
+  deliver({ ...info, request: 0 }); assert.equal(connection.radioInfo, undefined);
+  deliver({ ...info, revision: 1 }); assert.equal(connection.radioInfo, undefined);
+  const currentInfo = () => connection.radioInfo;
+  deliver(info); assert.equal(currentInfo()?.probe, 1);
+  deliver({ ...info, state: 'fault' }); assert.equal(currentInfo()?.state, 'off');
+  const id = connection.configure({ region: 'US', label: 'changed' }, 0); outgoing(connection);
+  deliver({ type: 'result', link: 'link-A', boot: 'boot-A', id, outcome: 'committed', revision: 1 });
+  assert.equal(connection.radioInfo, undefined);
+});
+
+test('radio diagnostic retries stop after three unanswered probes without hiding USB health', () => {
+  const { connection, deliver, snapshot } = setup();
+  deliver({ ...welcome(), features: 39 }); const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(initial.request)); let probes = 0;
+  for (const now of [0, 2000, 3000, 5000, 6000, 8000, 9000]) {
+    connection.tick(now);
+    for (const packet of outgoing(connection)) {
+      if (packet.type === 'radioQuery') probes++;
+      if (packet.type === 'ping') deliver({ type: 'pong', link: 'link-A', boot: 'boot-A', request: packet.request }, now);
+    }
+  }
+  assert.equal(probes, 3); assert.equal(connection.sync.state, 'ready'); assert.match(connection.radioError!, /timed out/);
+});
