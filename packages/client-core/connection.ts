@@ -20,6 +20,8 @@ export class Connection {
   #now = 0;
   #deadline = 0;
   #nextPing = 0;
+  #nextHello = 0;
+  #hello: Uint8Array = new Uint8Array();
   #ping = 0;
   #awaitingPong = false;
   #request = 0;
@@ -80,6 +82,8 @@ export class Connection {
     this.#ping = 0;
     this.#awaitingPong = false;
     this.#deadline = now + 5000;
+    this.#nextHello = now + 500;
+    this.#hello = hello;
     this.#outgoing.push(Uint8Array.of(0), hello);
     return session;
   }
@@ -110,6 +114,16 @@ export class Connection {
   tick(now: number) {
     this.#time(now);
     if (this.#expired(now)) return;
+    if (this.sync.state === 'negotiating' && now >= this.#nextHello) {
+      this.#nextHello = now + 500;
+      // Retry only discovery: USB open may reset the board and lose the first hello.
+      // Do not accumulate retries behind a stalled writer or extend the deadline.
+      if (this.#outgoing.length === 0) {
+        const frame = new Uint8Array(this.#hello.length + 1);
+        frame.set(this.#hello, 1);
+        this.#outgoing.push(frame);
+      }
+    }
     for (const retry of this.commands.tick(now)) this.#sendCommand(retry);
     if (this.sync.state !== 'ready') return;
     if (!this.#awaitingPong && now >= this.#nextPing) {
@@ -128,6 +142,7 @@ export class Connection {
       return;
     }
     if (message.type === 'welcome' && this.sync.state === 'negotiating') {
+      this.#outgoing = []; // Retire any unsent discovery retry before synchronization.
       this.device = message.device;
       this.capabilities = capabilities(message);
       const compatible = this.sync.hello(this.sync.session, message.boot, message.minVersion, message.maxVersion);

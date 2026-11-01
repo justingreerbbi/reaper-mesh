@@ -184,3 +184,37 @@ test('explicit storage failure ends the logical connection instead of serving st
   assert.equal(connection.sync.config, undefined);
   assert.match(connection.error!, /storage unavailable/);
 });
+
+
+test('lost startup hello retries with the same identity and converges after board boot', () => {
+  const { connection, deliver, snapshot } = setup();
+  connection.tick(499); assert.deepEqual(outgoing(connection), []);
+  connection.tick(500);
+  const retry = outgoing(connection);
+  assert.equal(retry.length, 1); assert.equal(retry[0].type, 'hello');
+  connection.tick(2000); // No catch-up burst after a suspended scheduler.
+  assert.deepEqual(outgoing(connection), retry);
+  deliver(welcome(), 2000);
+  const request = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(request.request), 2000);
+  connection.tick(2500); assert.deepEqual(outgoing(connection), []);
+  assert.equal(connection.sync.state, 'ready');
+});
+
+test('startup retries remain bounded under stalled writes and the original deadline', () => {
+  const { connection } = setup();
+  connection.tick(500);
+  connection.tick(1000); connection.tick(4500);
+  assert.equal(outgoing(connection).length, 1);
+  connection.tick(5000);
+  assert.equal(connection.sync.state, 'disconnected');
+  assert.deepEqual(outgoing(connection), []);
+  assert.match(connection.error!, /timed out/);
+});
+
+test('welcome racing a queued discovery retry retires it before sync', () => {
+  const { connection, deliver } = setup();
+  connection.tick(500);
+  deliver(welcome(), 500);
+  assert.deepEqual(outgoing(connection).map(message => message.type), ['sync']);
+});

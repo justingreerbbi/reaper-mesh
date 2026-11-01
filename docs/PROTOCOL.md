@@ -141,3 +141,7 @@ The portable authority publishes committed config only after the backend returns
 ## Target USB session and storage failure
 
 The UART app serializes authority access. Hello negotiates version/capabilities before admitting an owner; configuration requires a synchronized current link/boot and matching owner prefix. Transport reset preserves the authority and request marks. The additive error message uses bounded ID fields; `storage-unavailable` closes the client connection with a recovery reason. An uncertain write returns unknown when possible, then this error; snapshots/mutations remain blocked. Existing frozen fixtures are preserved, with an error fixture appended. ROM boot text may precede the app delimiter; bootloader/application logs and secondary console are disabled. UART errors/overflow and a one-second partial-frame timeout reset the logical session and decoder.
+
+## USB reset during port open
+
+USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.

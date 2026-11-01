@@ -71,3 +71,15 @@ The opt-in smoke check uses a small independent Python wire peer, not the browse
 ```
 
 Its local result is build/heltec-v3/hardware-smoke.json. The reviewed build manifest describes the pre-flash artifacts; it is not a live hardware-status record. Future builds need fresh hash review.
+
+## Physical TypeScript client check
+
+After the startup fix, three serial opens reached ready without a fixed boot delay. This check is read-only at the protocol level; opening the observed bridge resets the board. It exercises the real Connection through a Python byte bridge, not browser Web Serial:
+
+```sh
+node tools/hardware-client-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001
+```
+
+USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
+
+The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
