@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains a portable C++17 protocol component and host tests. It is not an ESP-IDF application, a Heltec board definition, or a flashable firmware image. No hardware was reset, flashed, or used to transmit.
+This directory contains a portable C++17 protocol component and host tests. It also contains the portable configuration authority/storage interface described in [the persistence contract](../docs/PERSISTENCE.md). It is not an ESP-IDF application, a Heltec board definition, or a flashable firmware image. No hardware was reset, flashed, or used to transmit.
 
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
@@ -18,6 +18,7 @@ An independent regular host build is available:
 ```sh
 cmake -S firmware -B build/host-protocol
 cmake --build build/host-protocol
+ctest --test-dir build/host-protocol --output-on-failure
 build/host-protocol/codec_bridge selftest
 ```
 
@@ -37,4 +38,4 @@ The CLI bridge allocates host input/output storage; it is excluded from codec al
 
 ## Next firmware work
 
-Review TLV/retention design; confirm board revision, flash size, serial interface, and US radio variant before board-specific firmware development. Pin ESP-IDF, add a USB/UART-only application with radio transmission disabled, and integrate a serialized configuration authority with atomic NVS persistence and bounded request history. Test crash ordering, boot identity, snapshot boundaries, persistence failures, and recovery before preparing the first image/backup/flash procedure. Radio drivers and regional settings are a later gate.
+Review TLV/retention design; confirm board revision, flash size, serial interface, and US radio variant before board-specific firmware development. Pin ESP-IDF, add a USB/UART-only application with radio transmission disabled, and integrate the tested serialized configuration authority with a real atomic NVS backend. The portable authority/storage-failure behavior is implemented; actual flash persistence remains unverified. Test crash ordering, boot identity, snapshot boundaries, persistence failures, and recovery before preparing the first image/backup/flash procedure. Radio drivers and regional settings are a later gate.

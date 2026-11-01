@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol. Meshtastic is a functional reference; radio interoperability is outside the scope. Host-side synchronization, command recovery, typed USB framing/validation, connection lifecycle management, a Web Serial adapter with configuration commands/recovery, capability negotiation, a local web configuration UI, and a portable C++ protocol codec with 101 tests exist; a device firmware image has not been implemented. Nothing has been flashed.
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol; Meshtastic is a functional reference. The repository contains the shared USB/client core, a local web console and simulator, and portable C++ protocol/configuration components, with 114 host tests. A device firmware image is not available yet, and nothing has been flashed.
 
 ## Start here
 
@@ -10,6 +10,7 @@ The goal is dependable messaging, small firmware, and compatibility across suppo
 - [Development plan](docs/PLAN.md): proposed architecture, milestones, and acceptance criteria.
 - [Decisions](docs/DECISIONS.md): assumptions and unresolved product choices.
 - [Protocol draft](docs/PROTOCOL.md): synchronization semantics and implementation limits.
+- [Device storage contract](docs/PERSISTENCE.md): commit, uncertain-write, and recovery behavior.
 - [Embedded foundation](firmware/README.md): C++ codec contracts, builds, and target integration limits.
 - [Hardware inventory](docs/HARDWARE.md): read-only USB findings and outstanding verification.
 
