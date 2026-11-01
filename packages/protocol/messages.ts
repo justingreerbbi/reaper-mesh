@@ -7,7 +7,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 type Descriptor = { tag: number; fields: Record<string, string> };
 
-function validate(kind: string, value: unknown) {
+export function validateField(kind: string, value: unknown) {
   if (kind === 'u32') {
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 0xffffffff) {
       throw new Error('invalid unsigned integer');
@@ -49,7 +49,7 @@ export function encodeMessage(message: Message): Uint8Array {
     const kind = descriptorKind.replace(/\?$/, '');
     const value = (message as unknown as Record<string, unknown>)[name];
     if (value === undefined && descriptorKind.endsWith('?')) continue;
-    validate(kind, value);
+    validateField(kind, value);
     const data = kind === 'u32' ? new Uint8Array(4) : encoder.encode(value as string);
     if (kind === 'u32') new DataView(data.buffer).setUint32(0, value as number, true);
     const field = new Uint8Array(3 + data.length);
@@ -90,7 +90,7 @@ export function decodeMessage(payload: Uint8Array): Message {
       const kind = descriptorKind.replace(/\?$/, '');
       if (kind === 'u32' && length !== 4) throw new Error('invalid integer width');
       const value = kind === 'u32' ? view.getUint32(cursor, true) : decoder.decode(payload.subarray(cursor, cursor + length));
-      validate(kind, value);
+      validateField(kind, value);
       output[name] = value;
     }
     cursor += length;

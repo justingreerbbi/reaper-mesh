@@ -9,7 +9,7 @@ export class ConfigModel {
   #baseDevice: string | undefined;
   #baseBoot: string | undefined;
   dirty = false;
-  readonly history: { id: string; label: string }[] = [];
+  get history() { return this.adapter.connection.commands.history.map(entry => ({ id: entry.command.id, label: entry.command.config.radio ? 'Radio/channel settings' : entry.command.config.label })); }
 
   constructor(adapter = new SerialAdapter()) { this.adapter = adapter; }
   get stale() {
@@ -36,13 +36,10 @@ export class ConfigModel {
     if (this.stale) throw new Error('device changed; load its latest configuration before saving');
     if (this.pending) throw new Error('wait for the pending command');
     const id = this.adapter.configure(this.draft);
-    this.history.push({ id, label: this.draft.label });
     this.dirty = false;
     return id;
   }
   forget(id: string) {
     this.adapter.connection.forget(id);
-    const index = this.history.findIndex(entry => entry.id === id);
-    if (index >= 0) this.history.splice(index, 1);
   }
 }

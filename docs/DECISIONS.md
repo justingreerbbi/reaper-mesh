@@ -88,3 +88,7 @@ Pin Semtech sx126x_driver 2.5.0 core under its retained Clear BSD notices. Use a
 ## Inbox and effective radio state
 
 Keep inbox sequence/cursors separate from config counters. Retain eight device messages/32 client messages and report retention gaps; read-only chunk recovery never sends mutations. Correlate live diagnostics with request, boot and config revision. Permit explicit local delivery to the connected node with reason local-delivery and no RF claim. Gate actual remote TX on board/antenna facts and mesh mode; receive-only cannot emit ACKs/relays. Preserve SPI transaction storage on timeouts and fail the radio closed while USB remains usable. Add a 64-sequence local replay window so independently completed uploads may enter the mesh out of order without reopening retired IDs.
+
+## Browser reload recovery
+
+Persist the client incarnation and monotonic config/message counters before wire dispatch, with bounded plaintext local history. Unfinished restored operations become unknown and require query-only recovery on the same device/boot. Never persist live transport sessions or resume partial uploads. Use an exclusive Web Lock acquired before loading counters; a second tab can read but cannot write. Malformed storage remains exportable until an explicit disconnected reset. Storage failure before dispatch closes the logical link and emits no mutation. Clearing browser data/fresh profiles allocate new owner identities; this does not erase the device's bounded owner marks.

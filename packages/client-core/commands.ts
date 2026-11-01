@@ -1,3 +1,6 @@
+import { encodeMessage, validateField } from '../protocol/messages.ts';
+import { radioFields, validRadio, type RadioConfig } from '../protocol/radio-config.ts';
+import * as recovery from './recovery-data.ts';
 import { Synchronizer, copyConfig, type Config } from './sync.ts';
 
 export type ConfigCommand = Readonly<{
@@ -35,6 +38,43 @@ export class Commands {
     this.capacity = capacity;
     this.timeoutMs = timeoutMs;
     this.maxAttempts = maxAttempts;
+  }
+
+  get history() { return [...this.#entries.values()].map(entry => Object.freeze({ command: entry.command, outcome: entry.outcome, attempts: entry.attempts, result: entry.result })); }
+  exportState() { return { counter: this.#counter, entries: this.history }; }
+  restoreState(value: unknown) {
+    if (this.sync.state !== 'disconnected' || this.#counter || this.#entries.size) throw new Error('restore requires a fresh disconnected command manager');
+    const state = recovery.object(value); const counter = recovery.u32(state.counter); const entries = new Map<string, Entry>();
+    for (const raw of recovery.list(state.entries, this.capacity)) {
+      const item = recovery.object(raw); const source = recovery.object(item.command); const config = recovery.object(source.config);
+      const identity = recovery.sequence(source.id, this.incarnation); const boot = recovery.id(source.boot);
+      const region = recovery.string(config.region), label = recovery.string(config.label); let radio: RadioConfig | undefined;
+      if (config.radio !== undefined) {
+        const r = recovery.object(config.radio);
+        if (typeof r.relay !== 'boolean') throw new Error('invalid recovery relay');
+        radio = { mode: recovery.string(r.mode) as RadioConfig['mode'], power: recovery.u32(r.power), relay: r.relay,
+          channels: recovery.string(r.channels), preset: recovery.string(r.preset) as RadioConfig['preset'] };
+        if (!validRadio(radio, region)) throw new Error('invalid recovery radio policy');
+      }
+      const command: ConfigCommand = Object.freeze({ id: identity.id, boot, expectedRevision: recovery.u32(source.expectedRevision),
+        config: copyConfig({ region, label, ...(radio ? { radio } : {}) }) });
+      encodeMessage({ type: 'configure', link: 'recovery', id: command.id, boot, expectedRevision: command.expectedRevision,
+        region, label, ...radioFields(radio) } as import('../protocol/messages.ts').Message);
+      const outcome = recovery.string(item.outcome);
+      if (!['pending', 'unknown', 'committed', 'conflict', 'rejected'].includes(outcome)) throw new Error('invalid recovery outcome');
+      const attempts = recovery.u32(item.attempts);
+      if (!attempts || attempts > this.maxAttempts || identity.sequence > counter || entries.has(identity.id)) throw new Error('invalid recovery sequence/history');
+      let result: Result | undefined;
+      if (item.result !== undefined) {
+        const r = recovery.object(item.result); const resultOutcome = recovery.string(r.outcome); validateField('outcome', resultOutcome);
+        if (r.id !== identity.id || r.boot !== boot || resultOutcome !== outcome) throw new Error('recovery receipt mismatch');
+        result = Object.freeze({ id: identity.id, boot, outcome: resultOutcome as Result['outcome'], ...(r.revision !== undefined ? { revision: recovery.u32(r.revision) } : {}) });
+      }
+      if (['committed', 'conflict', 'rejected'].includes(outcome) && !result) throw new Error('terminal recovery receipt missing');
+      entries.set(identity.id, { command, session: this.sync.session, attempts, deadline: 0,
+        outcome: outcome === 'pending' ? 'unknown' : outcome as Entry['outcome'], result });
+    }
+    this.#counter = counter; this.#entries = entries;
   }
 
   submit(config: Config, now: number): ConfigCommand {

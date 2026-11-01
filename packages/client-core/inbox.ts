@@ -1,3 +1,5 @@
+import * as recovery from './recovery-data.ts';
+import { messageChunks } from './messaging.ts';
 import type { Message } from '../protocol/messages.ts';
 type Query = Omit<Extract<Message, { type: 'inboxQuery' }>, 'link'>;
 type Read = Omit<Extract<Message, { type: 'inboxRead' }>, 'link'>;
@@ -13,6 +15,18 @@ export class InboxReader {
   #cursor = 0; #latest = 0; #request = 0; #next = 0; #now = 0;
   #pending: { packet: Query | Read; deadline: number; attempts: number } | undefined;
   #partial: { sequence: number; origin: string; messageId: string; channel: number; count: number; part: number; data: string } | undefined;
+  restoreHistory(value: unknown) {
+    if (this.#history.length || this.#context) throw new Error('restore requires a fresh inbox reader');
+    const history: ReceivedMessage[] = [];
+    for (const raw of recovery.list(value)) {
+      const item = recovery.object(raw); const text = recovery.string(item.text); messageChunks(text);
+      const entry: ReceivedMessage = Object.freeze({ device: recovery.id(item.device), boot: recovery.id(item.boot),
+        origin: recovery.id(item.origin), messageId: recovery.id(item.messageId), sequence: recovery.u32(item.sequence), channel: recovery.u32(item.channel), text });
+      if (!entry.sequence || entry.channel > 7 || history.some(previous => previous.device === entry.device && previous.origin === entry.origin && previous.messageId === entry.messageId)) throw new Error('invalid recovery inbox history');
+      history.push(entry);
+    }
+    this.#history = history;
+  }
   tick(now: number, context?: Context): Query | Read | undefined {
     this.#time(now);
     if (!context) { this.#pending = undefined; this.#partial = undefined; this.#next = now; return; }

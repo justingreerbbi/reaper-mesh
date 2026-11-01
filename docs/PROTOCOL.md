@@ -163,3 +163,7 @@ Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the
 ## Inbox and live hardware status extension
 
 Tags 15 radioQuery and 16 radioStatus carry correlated hardware diagnostics; status includes settings revision and bounded resource/counter fields. Tags 17 inboxQuery / 18 inboxHead and 19 inboxRead / 20 inboxItem / 21 inboxMissing form the read-only inbox stream. Welcome appends inboxVersion/inboxCapacity at tags 21/22. Features 5/6 gate diagnostics/inbox respectively. Radio packet version 1 advertises the implemented independent packet/mesh core, not measured RF reliability. See INBOX.md for complete correlation, retention, local delivery and no-replay semantics. Existing frozen fixtures are unchanged; the new message kinds have appended fixtures.
+
+## Browser journal (local format 1)
+
+The USB console persists its incarnation, config/message request high-water counters and up to 32 command, outgoing and received entries per history. A synchronous checkpoint precedes mutation dispatch. Restored unfinished outcomes become unknown; sessions, retries and partial uploads are not resumed. Explicit result/status queries still require the same device and boot; a reboot retains ambiguity. Corrupt records/counter regressions fail closed. This local JSON format does not change USB wire v1. Web Locks gives one writer per origin/storage bucket, not cross-browser or device-wide ownership. Local storage is plaintext and clearing it removes recovery history.

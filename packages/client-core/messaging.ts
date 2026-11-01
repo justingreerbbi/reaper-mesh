@@ -1,6 +1,7 @@
 import { Synchronizer } from './sync.ts';
 import type { Message } from '../protocol/messages.ts';
-import { encodeMessage } from '../protocol/messages.ts';
+import * as recovery from './recovery-data.ts';
+import { encodeMessage, validateField } from '../protocol/messages.ts';
 type Status = Extract<Message, { type: 'messageStatus' }>;
 export type Upload = Omit<Extract<Message, { type: 'submit' }>, 'link'>;
 export type MessageQuery = Omit<Extract<Message, { type: 'messageQuery' }>, 'link'>;
@@ -11,6 +12,13 @@ type Entry = {
 };
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+export function messageChunks(text: string): readonly string[] {
+  const bytes = encoder.encode(text);
+  if (!bytes.length || bytes.length > 1024 || decoder.decode(bytes) !== text || /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) throw new Error('message must contain 1–1024 UTF-8 bytes of text');
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += 32) chunks.push(Array.from(bytes.subarray(i, i + 32), byte => byte.toString(16).padStart(2, '0')).join(''));
+  return chunks;
+}
 /** Bounded message upload, same-link retries, and read-only recovery. Never replays on reconnect. */
 export class Messaging {
   #entries = new Map<string, Entry>();
@@ -22,14 +30,32 @@ export class Messaging {
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(incarnation)) throw new Error('invalid message owner');
   }
   get history() { return [...this.#entries.values()].map(({ chunks: _, ...entry }) => Object.freeze({ ...entry })); }
+  exportState() {
+    return { counter: this.#counter, entries: this.history.map(({ session: _, part: _part, deadline: _deadline, pollAt: _poll, expiresAt: _expires, ...item }) => item) };
+  }
+  restoreState(value: unknown) {
+    if (this.sync.state !== 'disconnected' || this.#counter || this.#entries.size) throw new Error('restore requires a fresh disconnected message manager');
+    const state = recovery.object(value), counter = recovery.u32(state.counter); const entries = new Map<string, Entry>();
+    for (const raw of recovery.list(state.entries)) {
+      const item = recovery.object(raw); const identity = recovery.sequence(item.id, this.incarnation);
+      const text = recovery.string(item.text), chunks = messageChunks(text); const boot = recovery.id(item.boot);
+      const destination = recovery.id(item.destination), device = recovery.id(item.device), channel = recovery.u32(item.channel);
+      const status = recovery.string(item.state); validateField('messageState', status);
+      if (channel > 7 || identity.sequence > counter || entries.has(identity.id)) throw new Error('invalid recovery message sequence/channel');
+      const messageId = item.messageId !== undefined ? recovery.id(item.messageId) : undefined;
+      const reason = item.reason !== undefined ? recovery.id(item.reason) : undefined;
+      if (status === 'acknowledged' && !messageId) throw new Error('acknowledged recovery message lacks identity');
+      entries.set(identity.id, { id: identity.id, boot, device, destination, channel, text, chunks,
+        session: this.sync.session, part: 0, attempts: 1, deadline: 0, pollAt: 0, expiresAt: 70000,
+        state: ['receiving', 'queued', 'transmitted'].includes(status) ? 'unknown' : status as Entry['state'], messageId, reason });
+    }
+    this.#counter = counter; this.#entries = entries;
+  }
   send(text: string, destination: string, channel: number, device: string, now: number): Upload {
     this.#time(now); const context = this.sync.mutationContext();
-    const bytes = encoder.encode(text);
-    if (!bytes.length || bytes.length > 1024 || decoder.decode(bytes) !== text || /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) throw new Error('message must contain 1–1024 UTF-8 bytes of text');
+    const chunks = messageChunks(text);
     if (this.#entries.size >= 32 || this.#counter >= 0xffffffff) throw new Error('message history or sequence exhausted');
     if ([...this.#entries.values()].some(entry => entry.state === 'receiving')) throw new Error('message upload already pending');
-    const chunks: string[] = [];
-    for (let i = 0; i < bytes.length; i += 32) chunks.push(Array.from(bytes.subarray(i, i + 32), byte => byte.toString(16).padStart(2, '0')).join(''));
     const entry: Entry = { id: `${this.incarnation}:${this.#counter + 1}`, boot: context.boot, session: context.session,
       device, text, destination, channel, chunks, part: 0, attempts: 1, deadline: now + 1000,
       pollAt: now + 2000, expiresAt: now + 70000, state: 'receiving' };
@@ -43,7 +69,7 @@ export class Messaging {
         status.boot !== this.sync.boot || ['acknowledged', 'failed', 'rejected'].includes(entry.state)) return;
     if (status.messageId && entry.messageId && status.messageId !== entry.messageId) return;
     if (status.state === 'receiving') {
-      if (entry.state !== 'receiving') return; // Never resume a partial upload on a new link.
+      if (entry.state !== 'receiving') { if (entry.state === 'unknown') entry.reason = 'partial-upload-not-resumed'; return; } // Never resume a partial upload on a new link.
       if (!(status.received & (1 << entry.part))) return;
       if (entry.part + 1 === entry.chunks.length) return; // Final acceptance must say queued/rejected.
       entry.part++; entry.attempts = 1; entry.deadline = now + 1000;
@@ -80,7 +106,7 @@ export class Messaging {
     this.#time(now); const context = this.sync.mutationContext(); const entry = this.#get(id);
     if (device !== entry.device) throw new Error('message belongs to another device');
     if (context.boot !== entry.boot) return;
-    entry.session = context.session;
+    entry.session = context.session; entry.expiresAt = now + 70000;
     return { type: 'messageQuery', boot: entry.boot, id };
   }
   forget(id: string) {

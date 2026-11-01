@@ -1,3 +1,4 @@
+import * as recovery from './recovery-data.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { Synchronizer, type Config } from './sync.ts';
@@ -20,7 +21,10 @@ export class Connection {
   device: string | undefined;
   error: string | undefined;
   capabilities: Capabilities | undefined;
-  get writeBlockReason() { return writeBlockReason(this.capabilities); }
+  recoveryError: string | undefined;
+  #persist: ((state: ReturnType<Connection['exportJournal']>) => void) | undefined;
+  #checkpointing = false;
+  get writeBlockReason() { return this.recoveryError ?? writeBlockReason(this.capabilities); }
   #decoder = new FrameDecoder();
   #outgoing: Uint8Array[] = [];
   #link = '';
@@ -39,6 +43,38 @@ export class Connection {
     this.messaging = new Messaging(this.sync, incarnation);
   }
 
+  exportJournal() {
+    return { version: 1, incarnation: this.commands.incarnation, commands: this.commands.exportState(),
+      commandDevices: this.commands.history.map(entry => ({ id: entry.command.id, device: this.#commandDevices.get(entry.command.id) })),
+      messages: this.messaging.exportState(), received: this.inbox.history };
+  }
+  static fromJournal(value: unknown) {
+    const state = recovery.object(value);
+    if (state.version !== 1) throw new Error('unsupported recovery journal');
+    const connection = new Connection(recovery.id(state.incarnation));
+    connection.commands.restoreState(state.commands); connection.messaging.restoreState(state.messages); connection.inbox.restoreHistory(state.received);
+    const mapping = new Map<string, string>();
+    for (const raw of recovery.list(state.commandDevices)) {
+      const item = recovery.object(raw); const id = recovery.sequence(item.id, connection.commands.incarnation).id;
+      if (mapping.has(id) || !connection.commands.history.some(entry => entry.command.id === id)) throw new Error('invalid recovery device map');
+      mapping.set(id, recovery.id(item.device));
+    }
+    if (mapping.size !== connection.commands.history.length) throw new Error('missing recovery device map');
+    connection.#commandDevices = mapping; return connection;
+  }
+  persistence(save: (state: ReturnType<Connection['exportJournal']>) => void) { this.#persist = save; this.#checkpoint(); }
+  retryRecoveryStorage() { this.#checkpoint(); return !this.recoveryError; }
+  forgetMessage(id: string) { this.messaging.forget(id); this.#checkpoint(); }
+  #checkpoint(strict = false) {
+    if (!this.#persist || this.#checkpointing) return;
+    this.#checkpointing = true;
+    try { this.#persist(this.exportJournal()); this.recoveryError = undefined; }
+    catch (error) {
+      this.recoveryError = `Recovery storage unavailable: ${error instanceof Error ? error.message : String(error)}`;
+      if (strict) { this.close(this.recoveryError); throw new Error(this.recoveryError); }
+    } finally { this.#checkpointing = false; }
+  }
+
   get messageBlockReason() {
     if (this.writeBlockReason) return this.writeBlockReason;
     const c = this.capabilities;
@@ -49,7 +85,7 @@ export class Connection {
     this.#time(now); if (this.#expired(now)) throw new Error('connection timed out');
     if (this.messageBlockReason) throw new Error(this.messageBlockReason);
     const packet = this.messaging.send(text, destination, channel, this.device!, now);
-    this.#send({ ...packet, link: this.#link }); return packet.id;
+    this.#checkpoint(true); this.#send({ ...packet, link: this.#link }); return packet.id;
   }
   recoverMessage(id: string, now: number) {
     if (!this.capabilities || !(this.capabilities.features & 8) || this.capabilities.messageVersion !== 1) throw new Error('device does not support message queries');
@@ -81,7 +117,7 @@ export class Connection {
       expectedRevision: this.sync.revision, region: config.region, label: config.label, ...radioFields(config.radio) } as Message);
     const command = this.commands.submit(config, now);
     this.#commandDevices.set(command.id, this.device!);
-    this.#sendCommand(command);
+    this.#checkpoint(true); this.#sendCommand(command);
     return command.id;
   }
 
@@ -97,7 +133,7 @@ export class Connection {
 
   forget(id: string) {
     this.commands.forget(id);
-    this.#commandDevices.delete(id);
+    this.#commandDevices.delete(id); this.#checkpoint();
   }
 
   open(link: string, now: number) {
@@ -134,7 +170,7 @@ export class Connection {
     this.#outgoing = [];
     this.error = reason;
     this.device = undefined;
-    this.capabilities = undefined;
+    this.capabilities = undefined; this.#checkpoint();
   }
 
   receive(session: number, bytes: Uint8Array, now: number) {
@@ -148,6 +184,7 @@ export class Connection {
       if (message.link !== this.#link) return;
       this.#dispatch(message);
     });
+    this.#checkpoint();
   }
 
   tick(now: number) {
@@ -168,6 +205,7 @@ export class Connection {
     const inbox = this.capabilities?.inboxVersion === 1 && this.capabilities?.inboxCapacity && this.capabilities.features & 64;
     const request = this.inbox.tick(now, inbox && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined);
     if (request) this.#send({ ...request, link: this.#link });
+    this.#checkpoint();
     if (this.sync.state !== 'ready') return;
     if (this.capabilities && (this.capabilities.features & 32) && this.#radioTimeouts < 3) {
       if (this.#radioPending && now >= this.#radioDeadline) { this.#radioPending = 0; this.radioInfo = undefined; this.radioError = 'radio diagnostics timed out'; this.#radioTimeouts++; this.#nextRadio = now + 1000; }
@@ -231,7 +269,7 @@ export class Connection {
         this.#awaitingPong = false;
       }
     } else if (message.type === 'result') {
-      if (this.#commandDevices.get(message.id) !== this.device) return;
+      if (!this.device || !this.#commandDevices.has(message.id) || this.#commandDevices.get(message.id) !== this.device) return;
       const accepted = this.commands.receive(this.sync.session, message);
       // A receipt does not carry authoritative config. Reconcile even if its event was lost.
       const outcome = this.commands.status(message.id).outcome;

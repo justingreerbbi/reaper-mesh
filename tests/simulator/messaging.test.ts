@@ -42,7 +42,7 @@ test('lost acceptance recovers by query while old boot remains unknown', () => {
   const { messages, send, reopen, status } = setup(); const packet = send(); const session = reopen();
   assert.deepEqual(messages.recover(packet.id, 'node-A', 11), { type: 'messageQuery', boot: 'boot-A', id: packet.id });
   messages.receive(session, status(packet.id, 'queued', 1), 12); assert.equal(messages.history[0].state, 'queued');
-  messages.tick(70000, 'node-A'); assert.equal(messages.history[0].state, 'unknown');
+  messages.tick(70011, 'node-A'); assert.equal(messages.history[0].state, 'unknown');
   const other = setup(); const old = other.send(); other.reopen('boot-B');
   assert.equal(other.messages.recover(old.id, 'node-A', 11), undefined);
   assert.throws(() => other.messages.recover(old.id, 'node-B', 11), /another device/);

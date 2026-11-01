@@ -2,6 +2,8 @@ import './style.css';
 import { DEFAULT_CHANNELS, validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { ConfigModel } from './model.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
+import { BrowserRecovery } from './recovery.ts';
+import { SerialAdapter } from '../../packages/client-core/serial.ts';
 import type { SerialPortLike } from '../../packages/client-core/serial.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -16,7 +18,10 @@ const disconnect = element<HTMLButtonElement>('disconnect');
 const save = element<HTMLButtonElement>('save');
 const reset = element<HTMLButtonElement>('reset');
 const demo = new SimulatedDevice();
-const models = { demo: new ConfigModel(), usb: new ConfigModel() };
+let recovery: BrowserRecovery;
+try { recovery = await BrowserRecovery.open(localStorage, navigator.locks); }
+catch (error) { recovery = BrowserRecovery.unavailable(`Recovery storage unavailable: ${String(error)}`); }
+const models = { demo: new ConfigModel(), usb: new ConfigModel(new SerialAdapter(recovery.connection)) };
 const serial = (navigator as Navigator & { serial?: { requestPort(): Promise<SerialPortLike> } }).serial;
 let busy = false;
 let attempt = 0;
@@ -80,6 +85,8 @@ function render() {
   const message = cleanupError || error || connection.error || '';
   text('error', message);
   element('error').hidden = !message;
+  text('recovery-status', recovery.connection.recoveryError ?? 'USB history is saved in this browser before commands are sent.');
+  element<HTMLButtonElement>('recovery-reset').disabled = busy || models.usb.adapter.active;
   renderRadio();
   renderMessages();
   renderInbox();
@@ -164,7 +171,7 @@ element('configuration').addEventListener('submit', event => {
 reset.addEventListener('click', () => { try { current().reset(); error = ''; render(); } catch (e) { showError(e); } });
 element('reboot').addEventListener('click', () => { demo.reboot(); render(); });
 const timer = setInterval(render, 100);
-window.addEventListener('pagehide', () => { clearInterval(timer); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); });
+window.addEventListener('pagehide', () => { clearInterval(timer); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); recovery.release(); });
 render();
 
 function renderMessages() {
@@ -206,10 +213,10 @@ function renderMessages() {
     const id = document.createElement('span'); id.className = 'mono'; id.textContent = `${entry.destination} / ${entry.messageId ?? entry.id}`;
     content.append(body, status, id); const actions = document.createElement('div'); actions.className = 'actions';
     if (entry.state !== 'receiving') {
-      const query = document.createElement('button'); query.textContent = 'Query status'; query.disabled = !ready || !!blocked;
+      const query = document.createElement('button'); query.textContent = 'Query status'; query.disabled = !ready || connection.capabilities?.messageVersion !== 1;
       query.addEventListener('click', () => { try { if (!current().adapter.recoverMessage(entry.id)) throw new Error('Previous-boot result is unknown; message will not be resent.'); } catch (e) { showError(e); } });
       const clear = document.createElement('button'); clear.textContent = 'Forget message';
-      clear.addEventListener('click', () => { if (['unknown', 'queued', 'transmitted'].includes(entry.state) && !confirm('Forget recovery history? This does not cancel or undo device work.')) return; connection.messaging.forget(entry.id); render(); });
+      clear.addEventListener('click', () => { if (['unknown', 'queued', 'transmitted'].includes(entry.state) && !confirm('Forget recovery history? This does not cancel or undo device work.')) return; connection.forgetMessage(entry.id); render(); });
       actions.append(query, clear);
     }
     row.append(content, actions); list.append(row);
@@ -255,7 +262,7 @@ element('radio-form').addEventListener('submit', event => {
       power: Number(element<HTMLInputElement>('radio-power').value), relay: element<HTMLInputElement>('radio-relay').checked,
       channels: ['Public', ...Array.from({ length: 7 }, (_, i) => element<HTMLInputElement>(`channel-${i + 1}`).value)].join('|'), preset: 'US915_LAB1' };
     if (!validRadio(radio, currentConfig.region)) throw new Error('Use US region, power 0–10 dBm, and channel names of up to 8 letters, numbers, underscores or hyphens.');
-    const id = model.adapter.configure({ ...currentConfig, radio }); model.history.push({ id, label: 'Radio/channel settings' });
+    model.adapter.configure({ ...currentConfig, radio });
     radioDirty = false; error = ''; render();
   } catch (e) { showError(e); }
 });
@@ -267,7 +274,7 @@ function renderInbox() {
   const history = connection.inbox.history;
   const supported = connection.capabilities?.inboxVersion === 1;
   text('inbox-status', connection.inbox.error ?? (connection.inbox.gap ? 'Some earlier messages are no longer retained on the device.' :
-    !supported ? 'Connect to firmware with inbox support.' : history.length ? 'Received by this device · not a human-read receipt. History is retained for this page session.' : 'No received messages yet.'));
+    !supported ? 'Connect to firmware with inbox support.' : history.length ? 'Received by this device · not a human-read receipt. USB history is saved in this browser.' : 'No received messages yet.'));
   const signature = mode.value + ':' + JSON.stringify(history);
   if (signature === inboxSignature) return; inboxSignature = signature;
   const list = element('inbox-history'); list.replaceChildren();
@@ -278,3 +285,17 @@ function renderInbox() {
     content.append(body, metadata); row.append(content); list.append(row);
   }
 }
+
+element('recovery-retry').addEventListener('click', () => { recovery.retry(); render(); });
+element('recovery-export').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([recovery.exportText()], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'reaper-mesh-recovery.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+element('recovery-reset').addEventListener('click', () => {
+  if (!confirm('Discard saved USB history and allocate a new client identity? Unknown device work is not cancelled. Export your history first if you need it. Device owner slots are limited.')) return;
+  try {
+    recovery.reset(); models.usb = new ConfigModel(new SerialAdapter(recovery.connection));
+    historySignature = messageSignature = inboxSignature = ''; error = ''; render();
+  } catch (error) { showError(error); }
+});
