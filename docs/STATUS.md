@@ -1,6 +1,6 @@
 # Completion tracker
 
-Product status: **Phase 1 complete; Phase 2 active (2.1 discovery complete; 2.2 position next)**. See [ROADMAP.md](ROADMAP.md) for all four phases and [PHASE2.md](PHASE2.md) for the next implementation contract. Discovery is implemented and physically checked; location and the redesigned portal remain ahead. The qualification details below remain relevant release gates.
+Product status: **Phase 1 complete; Phase 2 active (2.1 discovery complete; 2.2a fixed position complete; GPS next)**. See [ROADMAP.md](ROADMAP.md) for all four phases and [PHASE2.md](PHASE2.md) for the next implementation contract. Discovery is implemented and physically checked; fixed-position reporting is checked; GPS and the redesigned portal remain ahead. The qualification details below remain relevant release gates.
 
 The focused single-board USB prototype is implemented and verified to the limits below. This is not a production release or a claim of real multi-node mesh qualification. Later BLE/mobile/encryption/EU support remains outside this slice.
 
@@ -35,3 +35,7 @@ Owner-requested T-Beam V1.2 support is installed and hardware-qualified for USB/
 ## Discovery slice
 
 Heltec7/T-Beam2 from a44319b are installed. Actual disabled-response silence, bidirectional discovery/name responses and a timed periodic beacon pass; ordinary 1024-byte RF/ACK messaging still passes. No locations transmitted. Automatic beacon/response flags restoredoff. See PHASE2.md for resource measurements, exact boundaries, serial-driver observation and remaining Phase2 work.
+
+## Fixed-position checkpoint
+
+Heltec8/T-Beam3 from clean source4209679 are installed with all ROM hashes verified and NVS preserved. Synthetic fixed coordinates, disabled-sharing identity-only responses and actual reboot persistence pass on both boards. Both older/newer mixed firmware and upgraded/upgraded pairs retain1024-byte direct RF delivery/destination ACK/inbox behavior. Current host checks220/220; CTest67/67. See PHASE2.md for complete evidence, interrupted Heltec flash/reinstall, one recovered T-Beam node-read timeout, resource measurements and final policies. GPS acquisition, manual browser QA, map-first portal and extended fault/field qualification remain outstanding. No Phase2 completion claim.

@@ -39,3 +39,17 @@ test('node snapshots commit atomically, restart on generation change, and reject
   client.tick(2005); assert.equal(client.nodes[0].name, 'Bravo');
   client.tick(2006, { ...context, device: 'other', session: 2 }); assert.equal(client.nodes.length, 0);
 });
+test('exhausted node reads recover on reconnect using a new snapshot and no mutation replay', () => {
+  const client = new Discovery('owner'); const first = client.tick(0, context)[0];
+  assert.equal(first.type, 'nodeQuery');
+  assert.equal(client.tick(1000, context)[0].type, 'nodeQuery');
+  assert.equal(client.tick(2000, context)[0].type, 'nodeQuery');
+  assert.deepEqual(client.tick(3000, context), []); assert.match(client.error!, /reconnect/);
+  client.tick(3001); const next = client.tick(3002, { ...context, session: 2 })[0];
+  assert.equal(client.error, undefined); assert.equal(next.type, 'nodeQuery');
+  if (first.type !== 'nodeQuery' || next.type !== 'nodeQuery') throw Error();
+  assert.ok(next.request > first.request); assert.equal(next.generation, 0);
+  client.receive(1, { type: 'nodeReply', link: 'l', boot: 'boot-A', request: first.request, generation: 0, cursor: 0, total: 0, state: 'head' }, 3003);
+  client.receive(2, { type: 'nodeReply', link: 'l', boot: 'boot-A', request: next.request, generation: 0, cursor: 0, total: 0, state: 'head' }, 3004);
+  assert.deepEqual(client.nodes, []); assert.deepEqual(client.tick(3005, { ...context, session: 2 }), []);
+});

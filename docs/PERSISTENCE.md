@@ -41,3 +41,7 @@ The app initializes only reaper_nvs, opens namespace reaper, and commits a singl
 ## Radio settings record extension
 
 Record 2 is now supported alongside record 1, with a maximum 151-byte blob. Existing/default radio configuration retains record 1; nondefault policy writes record 2 on an explicit revision-checked commit. The fields and fail-closed migration/downgrade behavior are specified in RADIO_CONFIG.md. Missing radio fields in old USB commands preserve current policy rather than replacing it with defaults.
+
+## Fixed-position record4
+
+The current reader accepts records1–4. Record4 keeps the complete record3 layout and inserts10 bytes immediately before CRC32: share0/1 byte, source0(none)/1(fixed) byte, latitudeLE32, longitudeLE32. Coordinates use degree*10^7 offsets+90/+180 (see PROTOCOL.md), including a valid geographic0,0. Maximum record166 bytes. Default position policy continues writing the applicable earlier format; nondefault saved coordinates/source/sharing require4. Unsupported older readers fail closed without erasing. All fields commit with label/region/radio/discovery under the existing CAS and durable-publication boundary. Legacy mutations omitting all position fields preserve them. Failed commits preserve prior policy; indeterminate commits block authority/snapshots and require reboot reconciliation. The actual Heltec8/T-Beam3 NVS record retained fixed coordinates across separately verified fresh boot identities with sharing disabled; see PHASE2.md. This does not qualify power-cut atomicity at every commit phase.

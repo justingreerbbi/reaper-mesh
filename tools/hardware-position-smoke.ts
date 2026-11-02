@@ -7,17 +7,17 @@ const [python, heltec, tbeam] = process.argv.slice(2);
 if (!python || !heltec || !tbeam || heltec === tbeam) throw new Error('usage: node tools/hardware-position-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT');
 const boards: Awaited<ReturnType<typeof openBoard>>[] = [], originals: Config[] = [];
 const reports: { source: string; coordinates: boolean; replies: number }[] = [];
-async function waitFor(predicate: () => boolean, timeout = 18000) {
+async function waitFor(predicate: () => boolean, timeout = 18000, checkNodes = true) {
   const until = performance.now() + timeout;
   while (!predicate()) {
-    if (performance.now() >= until || boards.some(b => b.connection.sync.state === 'disconnected' || !!b.connection.discovery.error)) throw new Error('position timeout/disconnect: ' + boards.map(b => b.connection.error ?? b.connection.discovery.error ?? b.connection.discovery.last?.state).join(', '));
+    if (performance.now() >= until || boards.some(b => b.connection.sync.state === 'disconnected' || (checkNodes && !!b.connection.discovery.error))) throw new Error('position timeout/disconnect: ' + boards.map(b => b.connection.error ?? b.connection.discovery.error ?? b.connection.discovery.last?.state).join(', '));
     await new Promise(resolve => setTimeout(resolve, 25));
   }
 }
 async function save(index: number, config: Config) {
   const b = boards[index], id = b.adapter.configure(config);
-  await waitFor(() => b.connection.commands.status(id).outcome !== 'pending'); assert.equal(b.connection.commands.status(id).outcome, 'committed');
-  await waitFor(() => b.connection.sync.state === 'ready' && b.connection.radioInfo?.revision === b.connection.sync.revision);
+  await waitFor(() => b.connection.commands.status(id).outcome !== 'pending', 18000, false); assert.equal(b.connection.commands.status(id).outcome, 'committed');
+  await waitFor(() => b.connection.sync.state === 'ready' && b.connection.radioInfo?.revision === b.connection.sync.revision, 18000, false);
   assert.deepEqual(b.connection.sync.config?.position, config.position);
 }
 async function discover(index: number, located: boolean) {

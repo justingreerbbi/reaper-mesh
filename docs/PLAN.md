@@ -124,3 +124,5 @@ Use STATUS.md for implemented/evidenced versus remaining work. Integrated board 
 ## Second board scope
 
 Owner explicitly requested T-Beam V1.2 support after connecting it beside the Heltec. Add only the required board/radio/power adapter and safe target-aware build/update validation. Reuse the independent protocol and state machines; qualify USB/probe/local behavior before two-node RF. See TBEAM.md.
+
+Current Phase2 checkpoint: discovery2.1 and fixed-position2.2a are implemented/physically checked. Next2.2b is actual T-Beam GPS, followed by map/nodes/messaging portal2.3. See PHASE2.md for current evidence and transient fault observations; the historical milestones above do not reorder owner phases.
