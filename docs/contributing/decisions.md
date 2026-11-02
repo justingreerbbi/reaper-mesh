@@ -107,7 +107,7 @@ Add a separate ESP32/4MB board target with bootloader at 0x1000, preserving Helt
 
 ## Owner-directed phases (November 1, 2026)
 
-Phase 1 is complete. Phase 2 adds discovery/beacons, independently enabled responses, opt-in GPS/fixed-position reports and a map/nodes/messaging portal. Phase 3 is channel encryption/configuration; Phase 4 is screen/sleep/RX-TX/battery presentation. ROADMAP.md is canonical and PHASE2.md defines the proposed Phase 2 bounds and acceptance gates. Discovery response acknowledges discovery, not text delivery; no reply-to-reply ACK loop. GPS hardware alone never authorizes RF location sharing. Preserve working text compatibility while adding negotiated control capabilities. Use the supplied design references for original Reaper UI styling; prioritize code/CLI tests over repeated desktop exploration per owner token preference.
+Phase 1 is complete. Phase 2 adds discovery/beacons, independently enabled responses, opt-in GPS/fixed-position reports and a map/nodes/messaging portal. Phase 3 is channel encryption/configuration; Phase 4 is screen/sleep/RX-TX/battery presentation. ../overview/roadmap.md is canonical and phase-2.md defines the proposed Phase 2 bounds and acceptance gates. Discovery response acknowledges discovery, not text delivery; no reply-to-reply ACK loop. GPS hardware alone never authorizes RF location sharing. Preserve working text compatibility while adding negotiated control capabilities. Use the supplied design references for original Reaper UI styling; prioritize code/CLI tests over repeated desktop exploration per owner token preference.
 
 ## Discovery v1 vertical slice
 

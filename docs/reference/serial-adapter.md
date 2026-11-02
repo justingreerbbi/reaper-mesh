@@ -1,6 +1,6 @@
 # Web Serial adapter
 
-`packages/client-core/serial.ts` connects the existing `Connection` byte/state layer to a structurally compatible Web Serial port. It does not select ports, request permissions, toggle DTR/RTS, reset a device, reconnect automatically, or flash firmware. The local browser console is documented in docs/WEB.md.
+`packages/client-core/serial.ts` connects the existing `Connection` byte/state layer to a structurally compatible Web Serial port. It does not select ports, request permissions, toggle DTR/RTS, reset a device, reconnect automatically, or flash firmware. The local browser console is documented in ../guides/web-portal.md.
 
 The UI must feature-detect `navigator.serial`, request a port from a user gesture, and pass that port to `SerialAdapter.connect(port, crypto.randomUUID(), baudRate)`. Port selection is browser-managed and requires a supported secure context. See [Chrome's Web Serial documentation](https://developer.chrome.com/docs/capabilities/serial) for permission, stream locking, and close behavior. The default 115,200 baud is a proposed Reaper Mesh setting, now verified for the installed Reaper USB prototype.
 
@@ -22,14 +22,14 @@ Host tests use standard ReadableStream/WritableStream implementations with simul
 
 Configuration commands now use `adapter.configure(config)`; read their status through `adapter.connection.commands.status(id)`. After reconnecting and reaching readiness, use `adapter.recover(id)` for query-only recovery. `adapter.connection.forget(id)` explicitly releases non-pending client history. Results trigger snapshot reconciliation when appropriate; no mutation is automatically replayed into a new link.
 
-Full-stack simulated USB tests cover lost events/results, duplicate-safe retries, query-only recovery, reboot ambiguity, device identity mismatch, revision conflicts, invalid config, receipt eviction, and continued sequential use past history capacity. Static checks/CI configuration and capability negotiation are implemented. The UI can inspect `connection.writeBlockReason` and `connection.capabilities` before enabling mutations. Next add owner-retirement/recovery UX, browser automation, target integration of the generated embedded codec, and page-reload history recovery. The web UI has been manually verified in simulation; see docs/WEB.md. Verify the actual hardware and firmware before physical protocol testing.
+Full-stack simulated USB tests cover lost events/results, duplicate-safe retries, query-only recovery, reboot ambiguity, device identity mismatch, revision conflicts, invalid config, receipt eviction, and continued sequential use past history capacity. Static checks/CI configuration and capability negotiation are implemented. The UI can inspect `connection.writeBlockReason` and `connection.capabilities` before enabling mutations. Next add owner-retirement/recovery UX, browser automation, target integration of the generated embedded codec, and page-reload history recovery. The web UI has been manually verified in simulation; see ../guides/web-portal.md. Verify the actual hardware and firmware before physical protocol testing.
 
-## USB reset during port open
+## Startup recovery on a resetting port
 
-USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
-
-The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
-
-## Browser hardware evidence
-
-November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.
+Opening the observed CP2102 port resets the board, so the client must survive losing its
+first `hello` during boot. It repeats the same `hello` at most once per 500 ms while
+negotiating, without extending the five-second deadline; retries do not accumulate behind
+queued writes, and no configuration mutation is replayed. This startup path is qualified on
+hardware over a Python byte bridge; native browser permission, chooser, and stream behavior
+are tracked separately. See the [changelog](../overview/changelog.md#usb-startup-recovery)
+for timings and the [browser QA record](../overview/changelog.md#browser-hardware-qa--november-1).

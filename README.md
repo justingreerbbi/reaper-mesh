@@ -1,58 +1,82 @@
 # Reaper Mesh
 
-A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
+**Long-range text messaging over LoRa radio — no internet, no cell service, no cloud.**
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol; Meshtastic is a functional reference. The custom Heltec firmware and USB web console support persistent settings, public/named channels, 1024-byte messages, local delivery/inbox, diagnostics and recovery. The independent mesh core has deterministic multi-node tests; direct Heltec/T-Beam RF delivery is verified, while relay and field qualification remain outstanding. See [current status](docs/STATUS.md).
+Reaper Mesh is custom firmware for inexpensive LoRa boards plus a desktop browser client
+that talks to them over USB. The goal is deliberately narrow: dependable messaging between a
+small number of devices, with small firmware and careful compatibility across releases.
 
-## Start here
+Reaper Mesh uses its own independent, documented protocol. [Meshtastic](https://meshtastic.org/)
+is used only as a functional reference, not for interoperability.
 
-- [Product roadmap](docs/ROADMAP.md): Phase 1 complete; Phase 2 discovery implemented, position and field portal next.
-- [Phase 2 contract](docs/PHASE2.md): behavior, privacy, compatibility and RACE acceptance criteria.
+> [!IMPORTANT]
+> This is a working development prototype, not a production or certified release. It is
+> careful to state exactly what has and has not been verified on hardware. See the
+> [current status](docs/overview/status.md).
 
-- [AI.md](AI.md): project context and instructions for AI contributors.
-- [Development plan](docs/PLAN.md): proposed architecture, milestones, and acceptance criteria.
-- [Decisions](docs/DECISIONS.md): assumptions and unresolved product choices.
-- [Protocol draft](docs/PROTOCOL.md): synchronization semantics and implementation limits.
-- [Compatibility and RACE coverage](docs/COMPATIBILITY.md): version matrix, automated and physical evidence.
-- [Device storage contract](docs/PERSISTENCE.md): commit, uncertain-write, and recovery behavior.
-- [Embedded foundation](firmware/README.md): C++ codec contracts, builds, and target integration limits.
-- [T-Beam V1.2](docs/TBEAM.md): ESP32 firmware, safe per-board updater, and verified bidirectional Heltec/T-Beam RF.
-- [Hardware inventory](docs/HARDWARE.md): read-only USB findings and outstanding verification.
+## What works today
 
-## Run the host tests
+- Connect a board over USB and configure it from the browser — verified on hardware.
+- Public and named channels, transmit power, radio mode, and 1,024-byte messages with
+  fragmentation — verified on hardware.
+- **Direct radio delivery between two boards with destination acknowledgment** — verified on
+  a Heltec V3 and a LILYGO T-Beam V1.2.
+- Node discovery, fixed-position sharing, a local inbox, and recovery after disconnects.
+- A first implementation of client-side channel encryption (verified on two boards, not audited).
 
-Use Node 24–25 (Node 24 is the proposed baseline; locally tested with 25.9.0):
+Still outstanding: three-node relaying, field range, power-loss durability, EU transmission,
+BLE/mobile clients, signed releases, and a security audit.
+
+## Documentation
+
+The full documentation set lives in [`docs/`](docs/README.md). Quick links:
+
+| If you want to… | Read |
+| --- | --- |
+| Understand what this is | [Introduction](docs/overview/introduction.md) |
+| Try it with no hardware | [Getting started](docs/guides/getting-started.md) |
+| See what works today | [Status](docs/overview/status.md) · [Roadmap](docs/overview/roadmap.md) |
+| Flash a board | [Hardware](docs/guides/hardware.md) · [Flashing firmware](docs/guides/flashing-firmware.md) |
+| Use the app | [Web portal](docs/guides/web-portal.md) · [Channel encryption](docs/guides/encryption.md) |
+| Understand the internals | [Protocol](docs/reference/protocol.md) · [Radio protocol](docs/reference/radio-protocol.md) |
+| Contribute | [Development plan](docs/contributing/plan.md) · [Development & CI](docs/contributing/development.md) |
+
+## Quick start (no hardware required)
+
+Use Node 24 or 25, Python 3.9+, and a C++17 compiler.
 
 ```sh
 npm ci --ignore-scripts
 npm run check
 ```
 
-Python 3.9+ and a C++17 compiler are required by the cross-language host tests. Pinned development dependencies provide strict TypeScript checking. Node's built-in runner executes the tests; generated protocol declarations are also checked. GitHub CI is configured; remote results have not been verified here. See [development checks](docs/DEVELOPMENT.md). After editing `packages/protocol/schema.json`, run `npm run generate:protocol`. Native Brave USB connect/save/reconnect and reload history, plus physical TS client recovery, have been checked. See [serial integration](docs/SERIAL.md).
-
-## Run the web console
-
 ```sh
 npm run dev:web
 ```
 
-Open the printed localhost URL, then connect the simulated Heltec. Configuration saves, lost replies, disconnects, and result queries can be exercised without hardware. [Web console guide](docs/WEB.md). The development Heltec runs custom firmware with working OLED status, USB configuration and local messaging. RF qualification is tracked separately. See [USB updates](docs/UPDATES.md) for validated installation and recovery.
+Open the printed localhost URL and connect the built-in **Simulator** — it speaks the real
+protocol, so you can exercise configuration, lost replies, disconnects, and query-only
+recovery without a board. Full walkthrough: [Getting started](docs/guides/getting-started.md).
 
 ## Repository layout
 
 ```text
-firmware/              Embedded core and board-specific adapters
-clients/web/           Desktop browser application, USB first
+firmware/              Embedded C++ core and board-specific adapters
+clients/web/           Desktop browser application (field portal), USB first
 packages/protocol/     Shared schemas, generated bindings, compatibility fixtures
 packages/client-core/  Transport-independent connection and message state
 tools/                 Build, flash, diagnostics, and release tooling
 tests/simulator/       Deterministic virtual nodes and fault injection
 tests/hardware/        Explicitly invoked physical-device checks
-docs/                  Architecture, protocol, decisions, and release guidance
+docs/                  All documentation (see docs/README.md)
 ```
 
-Future desktop and mobile clients can live under `clients/` or move to separate repositories while consuming a versioned protocol/SDK.
+## Project status and scope
 
-## Development status
+The USB/local-messaging slice and two-board direct RF delivery work on hardware. Relay,
+power-cut, and field-soak qualification remain release gates. The Git repository tracks
+`origin/main`; remote CI is configured but should be verified separately from local checks.
+Licensing is deliberately deferred by the owner — no third-party code should be copied without
+checking its license. See [Third-party notices](docs/contributing/third-party-notices.md).
 
-The initial USB/local messaging slice works on hardware. RF delivery/relays, power-cut and field-soak qualification remain. The Git repository is initialized and now tracks origin/main. Verify remote CI separately from local checks. License selection is deferred by the owner; no third-party code should be copied without checking its license.
+Contributors should read [`AGENTS.md`](AGENTS.md) and [`AI.md`](AI.md) before making changes.

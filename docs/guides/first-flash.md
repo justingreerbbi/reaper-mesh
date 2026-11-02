@@ -84,34 +84,22 @@ USB startup recovery is implemented: repeat the same hello at most once per 500 
 
 The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
 
-## Browser hardware evidence
+## Results and later builds
 
-November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.
+The first flash and every firmware build since are recorded with their evidence in the
+[changelog](../overview/changelog.md). In short: the board progressed from the USB-only
+`usb-prototype-0` through OLED status, message acceptance, radio configuration, diagnostics
+and inbox, the SPI-DMA fix that unblocked full-fragment transmission, discovery, and fixed
+position. Routine USB firmware updates and testing are owner-authorized; use the same reviewed
+write offsets and ROM recovery route for each one and never erase NVS.
 
-## OLED prototype update
+For the ongoing build-validate-install flow against the current firmware, see
+[Flashing firmware](flashing-firmware.md). For current board state and qualification limits,
+see [Status](../overview/status.md) — do not read the historical RF-disabled statements above
+as current board policy.
 
-The usb-prototype-1 image adds best-effort OLED status and keeps the same partition table and USB protocol. Routine USB firmware updates/testing are authorized by the owner. Use the same reviewed write offsets and ROM recovery route; do not erase NVS. The current manifest is regenerated for each build. The screen should show version, USB status, revision, storage health, and RADIO OFF; a successful serial check alone does not verify visible pixels.
-
-Pin/power references: [Espressif Heltec V3 variant](https://github.com/espressif/arduino-esp32/blob/master/variants/heltec_wifi_lora_32_V3/pins_arduino.h), [Heltec power polarity](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.h), and [Heltec controller/address](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.cpp). Reviewed against the pinned ESP-IDF 5.5.4 I2C headers/SSD1306 driver.
-
-Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 227,440 bytes; SHA-256 3baba75a548faca771733ec7e917c8d79fc25f9ee9f104c65de95c3fdbd70c7a. Esptool verified all three artifacts. Three physical TypeScript Connection/SerialAdapter opens confirmed usb-prototype-1 and persisted revision 3, reaching ready in 650/649/648 ms. NVS was not erased. These serial results do not verify visible OLED pixels or actual display-fault behavior; visual confirmation and real I2C fault injection remain pending.
-
-## Physical recovery and message tests
-
-`node tools/hardware-recovery-smoke.ts PYTHON PORT --confirm-write` writes the existing settings values twice, discards their commit replies, verifies query-only reconnect recovery and duplicate suppression, then resets and checks persistence/reboot ambiguity. It does not erase NVS.
-
-`node tools/hardware-client-smoke.ts PYTHON PORT usb-prototype-2 --message-test` submits one 1024-byte test message and verifies queued -> expired failure with RF off, then repeats USB opens. It waits about a minute for the actual queue lifetime. Device queue acceptance is not RF delivery. OLED operation was confirmed visually by the owner.
-
-## Hardware message acceptance evidence
-
-usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
-
-Physical usb-prototype-3 testing now passes named-channel queue acceptance and radio-policy quiesce. A power change caused radio-config-changed; the client now preserves accepted messages during config snapshot resync and observes the failure by query. Previous settings were restored to mode off, power 2, relay enabled, Public/Camp channels; revision 12 survives repeated opens. No RF was enabled. The failed first test exposed an integration path omitting device identity; a Connection-level regression now covers it.
-
-## Integrated board hardware check
-
-For usb-prototype-4, `node tools/hardware-client-smoke.ts PYTHON PORT usb-prototype-4 --local-test` checks the actual SX1262 probe, main-stack headroom, 1024-byte local delivery/inbox retrieval, receive-only initialization and restoration of off mode across repeated opens. Local acknowledgment is not RF evidence. Antenna verification in board_profile.hpp remains false, so no remote transmissions are admitted. The manifest now records probe/RX support and the separate antenna gate rather than claiming the transceiver stays permanently in reset.
-
-## Current prototype-6 result
-
-The current manifest-validating updater installed prototype-6 from 56c8cf0 with all image hashes verified and NVS preserved. Full-message RF TX now passes after fixing the non-DMA SPI limit: seven broadcast fragments completed TX_DONE; unreachable unicast reached TX 10 total and failed without ACK. Test off policy was restored; three opens reached ready in 648/644/647 ms at revision 20. Subsequent owner browser use selected mesh/revision 21. Current state and qualification limits are in STATUS.md; do not interpret earlier historical RF-disabled statements as current board policy.
+Pin and power references reviewed during bring-up:
+[Espressif Heltec V3 variant](https://github.com/espressif/arduino-esp32/blob/master/variants/heltec_wifi_lora_32_V3/pins_arduino.h),
+[Heltec power polarity](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.h),
+and [Heltec controller/address](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/src/heltec.cpp),
+against the pinned ESP-IDF 5.5.4 I2C headers and SSD1306 driver.

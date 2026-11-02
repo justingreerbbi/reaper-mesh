@@ -1,6 +1,6 @@
 # Phase 2: discovery, position and field portal
 
-Status: slice 2.1 discovery is implemented and physically checked on Heltec7/T-Beam2. Fixed-position slice2.2a is implemented and physically checked; GPS and field-portal sections remain the contract for subsequent slices. See PROTOCOL.md for the implemented discovery wire layout.
+Status: slice 2.1 discovery is implemented and physically checked on Heltec7/T-Beam2. Fixed-position slice2.2a is implemented and physically checked; GPS and field-portal sections remain the contract for subsequent slices. See ../reference/protocol.md for the implemented discovery wire layout.
 
 ## Discovery behavior
 
@@ -58,7 +58,7 @@ Reproduce with tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; 
 
 ## Slice 2.2a: fixed position
 
-Implemented saved fixed coordinates on both boards, independent opt-in sharing, additive USB/location capability, record4 persistence/migration, radio control payloadv2 and node-snapshot position fields. Manual discovery stays v1; Phase1 text/ACK is unchanged. The minimal console offers none/fixed source, coordinate inputs, sharing switch and received fixed-position details. No map or GPS acquisition is implemented in this slice. See PROTOCOL.md for exact coordinate representation, compatibility and privacy boundaries.
+Implemented saved fixed coordinates on both boards, independent opt-in sharing, additive USB/location capability, record4 persistence/migration, radio control payloadv2 and node-snapshot position fields. Manual discovery stays v1; Phase1 text/ACK is unchanged. The minimal console offers none/fixed source, coordinate inputs, sharing switch and received fixed-position details. No map or GPS acquisition is implemented in this slice. See ../reference/protocol.md for exact coordinate representation, compatibility and privacy boundaries.
 
 Host tests cover (0,0), coordinate boundaries, invalid/partial fields, failed/ambiguous persistence, reboot, legacy writes, lost-reply recovery, stale/duplicate observations, frozen node snapshots and cancellation of selected location-bearing control flights. Both target builds pass; see the qualification evidence below. Reproduce synthetic-coordinate RF checks with tools/hardware-position-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; original policies are restored afterward.
 
