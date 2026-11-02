@@ -1,8 +1,8 @@
 # Development plan
 
-Current product priorities are in [ROADMAP.md](ROADMAP.md). Phase 1 is complete by owner direction; Phase 2 is active. Its contract and acceptance criteria are in [PHASE2.md](PHASE2.md). The M0–M5 table below is historical engineering organization, not the current product phase order.
+Current product priorities are in the [roadmap](../overview/roadmap.md). Phase 1 is complete by owner direction; Phase 2 is active. Its contract and acceptance criteria are in the [Phase 2 contract](phase-2.md). The M0–M5 table below is historical engineering organization, not the current product phase order.
 
-Status: focused USB/local-messaging prototype implemented and hardware-tested. Independent protocol, US-first operation, synchronization/recovery focus and licensing deferral are confirmed. See STATUS.md for evidence and remaining external qualification gates.
+Status: focused USB/local-messaging prototype implemented and hardware-tested. Independent protocol, US-first operation, synchronization/recovery focus and licensing deferral are confirmed. See ../overview/status.md for evidence and remaining external qualification gates.
 
 ## Progress
 
@@ -93,7 +93,7 @@ Recheck implementation APIs against the exact pinned versions before coding.
 
 ## Immediate priority: first USB-only board test
 
-The USB-only application and NVS adapter are implemented and target-built. The owner waived backup/preservation, authorized the first flash, and the initial USB hardware checks now pass; see FIRST_FLASH.md. The partial backup is not a recovery image. Display and RF remain disabled.
+The USB-only application and NVS adapter are implemented and target-built. The owner waived backup/preservation, authorized the first flash, and the initial USB hardware checks now pass; see ../guides/first-flash.md. The partial backup is not a recovery image. Display and RF remain disabled.
 
 ## USB startup recovery evidence
 
@@ -119,10 +119,10 @@ The actual C++ Mesh/codec passes bounded line/triangle topology tests. Regional 
 
 ## Current completion tracking
 
-Use STATUS.md for implemented/evidenced versus remaining work. Integrated board SPI, diagnostics, inbox, local delivery, durable browser recovery and guided updater validation are implemented and exercised on hardware where applicable. Public release requires the separate hardening gates above. Physical multi-node gates remain explicit.
+Use ../overview/status.md for implemented/evidenced versus remaining work. Integrated board SPI, diagnostics, inbox, local delivery, durable browser recovery and guided updater validation are implemented and exercised on hardware where applicable. Public release requires the separate hardening gates above. Physical multi-node gates remain explicit.
 
 ## Second board scope
 
-Owner explicitly requested T-Beam V1.2 support after connecting it beside the Heltec. Add only the required board/radio/power adapter and safe target-aware build/update validation. Reuse the independent protocol and state machines; qualify USB/probe/local behavior before two-node RF. See TBEAM.md.
+Owner explicitly requested T-Beam V1.2 support after connecting it beside the Heltec. Add only the required board/radio/power adapter and safe target-aware build/update validation. Reuse the independent protocol and state machines; qualify USB/probe/local behavior before two-node RF. See ../guides/t-beam-v12.md.
 
-Current Phase2 checkpoint: discovery2.1 and fixed-position2.2a are implemented/physically checked. Next2.2b is actual T-Beam GPS, followed by map/nodes/messaging portal2.3. See PHASE2.md for current evidence and transient fault observations; the historical milestones above do not reorder owner phases.
+Current Phase2 checkpoint: discovery2.1 and fixed-position2.2a are implemented/physically checked. Next2.2b is actual T-Beam GPS, followed by map/nodes/messaging portal2.3. See phase-2.md for current evidence and transient fault observations; the historical milestones above do not reorder owner phases.

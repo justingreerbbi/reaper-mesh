@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. The development board runs usb-prototype-6; physical USB smoke tests pass. See [first flash and recovery](../docs/FIRST_FLASH.md).
+This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. The development board runs usb-prototype-6; physical USB smoke tests pass. See [first flash and recovery](../docs/guides/first-flash.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Build and test
@@ -41,8 +41,10 @@ The board adapter, atomic NVS authority, independent mesh core and SX1262 integr
 
 ## Target build
 
-Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and FIRST_FLASH.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, initializes the status OLED and probes SX1262 over bounded DMA-backed SPI. Radio is off by default; explicit mesh mode requires the confirmed US band/antenna facts. It uses a single factory application partition; OTA rollback is not implemented.
+Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and ../docs/guides/first-flash.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, initializes the status OLED and probes SX1262 over bounded DMA-backed SPI. Radio is off by default; explicit mesh mode requires the confirmed US band/antenna facts. It uses a single factory application partition; OTA rollback is not implemented.
 
-## OLED status implementation
+## OLED status
 
-OLED status is implemented for Heltec V3 SSD1306: SDA17/SCL18, reset21, active-low Vext36, address0x3c. The first-party driver/font uses a fixed 1025-byte transfer buffer, 400 kHz I2C, 40 ms per-transfer timeout, and redraw-on-change at most twice per second. An initialization/transfer failure disables further display updates without blocking USB indefinitely. Screen rows show REAPER USB 1, logical USB READY/IDLE, persisted revision or UNKNOWN, STORE OK/FAULT, and RADIO OFF. READY requires synchronized state and a successful reply within eight seconds; it is not physical cable detection. Firmware advertises usb-prototype-1. All 134 host tests and the target build pass. Visual OLED rendering remains unverified until observed on the physical screen.
+The Heltec V3 SSD1306 OLED shows firmware ID, logical USB status, persisted revision, storage
+health, and radio state through a bounded, fail-closed first-party driver. The pin map, timing,
+and test evidence are in the [changelog](../docs/overview/changelog.md#oled-status--november-1).

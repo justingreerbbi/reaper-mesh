@@ -1,6 +1,6 @@
 # Completion tracker
 
-Product status: **Phase 1 complete; Phase 2 active (2.1 discovery complete; 2.2a fixed position complete; GPS next)**. See [ROADMAP.md](ROADMAP.md) for all four phases and [PHASE2.md](PHASE2.md) for the next implementation contract. Discovery is implemented and physically checked; fixed-position reporting is checked; GPS and the redesigned portal remain ahead. The qualification details below remain relevant release gates.
+Product status: **Phase 1 complete; Phase 2 active (2.1 discovery complete; 2.2a fixed position complete; GPS next)**. See the [roadmap](roadmap.md) for all four phases and the [Phase 2 contract](../contributing/phase-2.md) for the next implementation contract. Discovery is implemented and physically checked; fixed-position reporting is checked; GPS and the redesigned portal remain ahead. The qualification details below remain relevant release gates.
 
 The focused single-board USB prototype is implemented and verified to the limits below. This is not a production release or a claim of real multi-node mesh qualification. Later BLE/mobile/encryption/EU support remains outside this slice.
 
@@ -22,11 +22,11 @@ usb-prototype-6 from clean commit 56c8cf0, ESP32-S3/Heltec V3, owner-confirmed U
 
 Physical prototype-6 RF test: a 1024-byte broadcast completed seven fragment TX_DONE events. An unreachable unicast made three transmissions then failed, never claiming recipient acknowledgment. TX counter reached 10. Original off policy was restored; three opens reached ready in 648/644/647 ms with revision 20 preserved. The owner subsequently used the browser to select mesh mode and send tests; final native browser observation showed prototype-6, revision 21, probe OK, ready, TX 1 and a locally delivered message. Those user-selected settings were preserved.
 
-Host verification: npm run check passes 194 Node/compiler-backed tests (including eight Python updater/package groups) and the production web build; standalone CMake/CTest passes 53 tests. Endurance seed 0x73550728 acknowledges 103/120 under injected faults, including all 12 clean recovery intervals, without false ACKs or unbounded traffic. See COMPATIBILITY.md for conditions and limits.
+Host verification: npm run check passes 194 Node/compiler-backed tests (including eight Python updater/package groups) and the production web build; standalone CMake/CTest passes 53 tests. Endurance seed 0x73550728 acknowledges 103/120 under injected faults, including all 12 clean recovery intervals, without false ACKs or unbounded traffic. See ../reference/compatibility.md for conditions and limits.
 
 ## Further work
 
-The added T-Beam V1.2 now passes actual bidirectional 1024-byte direct delivery/destination-ACK/inbox tests with the Heltec on the same computer (see TBEAM.md). A third board is required for relay qualification. Power-cut and field/coexistence tests remain release gates. Source licensing is deferred at the owner's request. Encryption, BLE, other boards, mobile/native clients and EU transmission remain later work. Signed releases and dual-slot rollback must be designed and qualified before presenting an automatic public updater as production-ready.
+The added T-Beam V1.2 now passes actual bidirectional 1024-byte direct delivery/destination-ACK/inbox tests with the Heltec on the same computer (see ../guides/t-beam-v12.md). A third board is required for relay qualification. Power-cut and field/coexistence tests remain release gates. Source licensing is deferred at the owner's request. Encryption, BLE, other boards, mobile/native clients and EU transmission remain later work. Signed releases and dual-slot rollback must be designed and qualified before presenting an automatic public updater as production-ready.
 
 ## T-Beam extension
 
@@ -34,8 +34,8 @@ Owner-requested T-Beam V1.2 support is installed and hardware-qualified for USB/
 
 ## Discovery slice
 
-Heltec7/T-Beam2 from a44319b are installed. Actual disabled-response silence, bidirectional discovery/name responses and a timed periodic beacon pass; ordinary 1024-byte RF/ACK messaging still passes. No locations transmitted. Automatic beacon/response flags restoredoff. See PHASE2.md for resource measurements, exact boundaries, serial-driver observation and remaining Phase2 work.
+Heltec7/T-Beam2 from a44319b are installed. Actual disabled-response silence, bidirectional discovery/name responses and a timed periodic beacon pass; ordinary 1024-byte RF/ACK messaging still passes. No locations transmitted. Automatic beacon/response flags restoredoff. See ../contributing/phase-2.md for resource measurements, exact boundaries, serial-driver observation and remaining Phase2 work.
 
 ## Fixed-position checkpoint
 
-Heltec8/T-Beam3 from clean source4209679 are installed with all ROM hashes verified and NVS preserved. Synthetic fixed coordinates, disabled-sharing identity-only responses and actual reboot persistence pass on both boards. Both older/newer mixed firmware and upgraded/upgraded pairs retain1024-byte direct RF delivery/destination ACK/inbox behavior. Current host checks220/220; CTest67/67. See PHASE2.md for complete evidence, interrupted Heltec flash/reinstall, one recovered T-Beam node-read timeout, resource measurements and final policies. GPS acquisition, manual browser QA, map-first portal and extended fault/field qualification remain outstanding. No Phase2 completion claim.
+Heltec8/T-Beam3 from clean source4209679 are installed with all ROM hashes verified and NVS preserved. Synthetic fixed coordinates, disabled-sharing identity-only responses and actual reboot persistence pass on both boards. Both older/newer mixed firmware and upgraded/upgraded pairs retain1024-byte direct RF delivery/destination ACK/inbox behavior. Current host checks220/220; CTest67/67. See ../contributing/phase-2.md for complete evidence, interrupted Heltec flash/reinstall, one recovered T-Beam node-read timeout, resource measurements and final policies. GPS acquisition, manual browser QA, map-first portal and extended fault/field qualification remain outstanding. No Phase2 completion claim.
