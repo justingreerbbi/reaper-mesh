@@ -1,7 +1,9 @@
+import { conversations, threadMessages, conversationKey, canonicalNode, ConversationDrafts } from './conversations.ts';
 import { coordinate, degrees } from '../../packages/protocol/position-config.ts';
 import './style.css';
 import { DEFAULT_CHANNELS, validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { ConfigModel } from './model.ts';
+import { FieldMap, type MapPoint } from './map.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 import { BrowserRecovery } from './recovery.ts';
 import { SerialAdapter } from '../../packages/client-core/serial.ts';
@@ -18,6 +20,9 @@ const connect = element<HTMLButtonElement>('connect');
 const disconnect = element<HTMLButtonElement>('disconnect');
 const save = element<HTMLButtonElement>('save');
 const reset = element<HTMLButtonElement>('reset');
+const app = document.querySelector('.app') as HTMLElement;
+const manage = element<HTMLDialogElement>('manage');
+
 const demo = new SimulatedDevice();
 let recovery: BrowserRecovery;
 try { recovery = await BrowserRecovery.open(localStorage, navigator.locks); }
@@ -29,20 +34,78 @@ let attempt = 0;
 let error = '';
 let historySignature = '';
 let messageSignature = '';
-let inboxSignature = '';
+const recentConversations = new Map<string, { destination: string; channel: number }>();
+const drafts = new ConversationDrafts();
+let draftKey = '';
+let lastDevice: string | undefined = recovery.connection.messaging.history.at(-1)?.device ?? recovery.connection.inbox.history.at(-1)?.device;
+let lastScope = '';
+const observedOrder = new Map<string, number>();
+let nextOrder = 0;
 let positionDirty = false, positionBase = '';
 let discoveryDirty = false, discoveryBase = '', nodeSignature = '';
 let radioDirty = false;
 let radioBase = '';
+let selectedNode = '';
+const fieldMap = new FieldMap(element('map'));
+fieldMap.onSelect = id => { selectedNode = id ?? ''; render(); };
+
 for (let slot = 1; slot < 8; slot++) {
   const wrapper = document.createElement('div'); const title = document.createElement('label');
   title.htmlFor = `channel-${slot}`; title.textContent = `Named channel ${slot}`;
   const input = document.createElement('input'); input.id = `channel-${slot}`; input.type = 'text'; input.maxLength = 8; input.autocomplete = 'off';
   wrapper.append(title, input); element('channel-settings').append(wrapper);
 }
+
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
 
+type Panel = 'device' | 'nodes' | 'messages';
+function setPanelOpen(_open: boolean) { fieldMap.invalidate(); }
+function setView(view: 'map' | Panel) {
+  if (view === 'device') { openManage('device'); return; }
+  app.dataset.view = view === 'nodes' ? 'map' : view;
+  for (const button of document.querySelectorAll<HTMLElement>('[data-view-target]')) {
+    const active = button.dataset.viewTarget === app.dataset.view;
+    button.classList.toggle('is-active', active); button.setAttribute('aria-current', active ? 'page' : 'false');
+  }
+  fieldMap.invalidate();
+}
+function setDock(panel: Panel) { setView(panel); }
+function chooseConversation(destination: string, channel = 0) {
+  if (draftKey) drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value);
+  element<HTMLInputElement>('message-destination').value = destination;
+  const select = element<HTMLSelectElement>('message-channel');
+  if (![...select.options].some(o => o.value === String(channel))) select.add(new Option(`Channel ${channel}`, String(channel)));
+  select.value = String(channel);
+  draftKey = `${mode.value}:${lastDevice ?? ''}:${conversationKey(destination, channel)}`;
+  recentConversations.set(draftKey, { destination, channel });
+  while (recentConversations.size > 64) recentConversations.delete(recentConversations.keys().next().value!);
+  element<HTMLTextAreaElement>('message-body').value = drafts.get(draftKey);
+  app.classList.add('has-conversation'); messageSignature = ''; renderMessages();
+}
+function setManage(panel: string) {
+  for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
+    tab.classList.toggle('is-active', tab.dataset.manage === panel);
+  }
+  for (const section of document.querySelectorAll<HTMLElement>('[data-manage-panel]')) {
+    const active = section.dataset.managePanel === panel;
+    section.classList.toggle('is-active', active);
+    section.hidden = !active;
+  }
+}
+
+function openManage(panel = 'radio') {
+  setManage(panel);
+  if (!manage.open) manage.showModal();
+  const tab = manage.querySelector<HTMLButtonElement>(`[data-manage="${panel}"]`); tab?.focus();
+}
+
+function selectNode(id: string, options: { message?: boolean; focusMap?: boolean } = {}) {
+  selectedNode = id;
+  if (options.message) { chooseConversation(id); setView('messages'); element('message-body').focus(); }
+  else { setView('map'); if (options.focusMap) fieldMap.focus(id); else fieldMap.select(id); }
+  render();
+}
 function render() {
   const model = current();
   model.refresh();
@@ -52,16 +115,34 @@ function render() {
   const writable = ready && !connection.writeBlockReason;
   mode.disabled = busy || active;
   connect.disabled = busy || active || (mode.value === 'usb' && (!serial || !isSecureContext));
-  connect.textContent = busy ? 'Opening connection…' : mode.value === 'demo' ? 'Connect simulator' : 'Choose USB device';
+  connect.textContent = busy ? 'Opening…' : mode.value === 'demo' ? 'Connect simulator' : 'Connect USB';
   disconnect.disabled = !busy && !active;
   text('support', mode.value === 'demo' ? 'An in-memory device. No USB access or radio traffic.' :
     !isSecureContext ? 'USB requires HTTPS or localhost.' : !serial ? 'Use a desktop browser with Web Serial support.' :
-    'Choose the Heltec USB serial port. Reaper Mesh firmware must already be installed; browser installation is not implemented.');
-  text('status', busy ? 'Opening' : sync.state === 'ready' ? (writable ? 'Connected · synchronized' : 'Connected · read-only') : sync.state);
+    'Choose Heltec (usbserial-0001) or T-Beam (wchusbserial…) in the browser port chooser. One device at a time.');
+  text('status', busy ? 'Opening' : sync.state === 'ready' ? (writable ? 'Connected' : 'Read-only') : sync.state);
   element('status').dataset.state = sync.state;
-  text('source-caption', connection.device ? `${mode.value === 'demo' ? 'SIMULATION / ' : ''}${connection.device}` : 'No device connected');
+  element('rail-status').dataset.state = busy ? 'opening' : sync.state;
+  text('source-caption', connection.device ? connection.device : 'No device');
   text('revision', ready ? `REV ${sync.revision}` : 'REV —');
   text('write-reason', ready ? connection.writeBlockReason ?? 'Settings are synchronized with the device.' : 'Connect and synchronize to edit settings.');
+  const note = element('capability-note');
+  if (!ready) {
+    note.hidden = true;
+    text('capability-note', '');
+  } else {
+    const gaps: string[] = [];
+    if (connection.messageBlockReason) gaps.push('messaging');
+    if (connection.radioBlockReason) gaps.push('radio');
+    if (!connection.supportsDiscovery) gaps.push('discovery');
+    if (!connection.supportsPosition) gaps.push('position');
+    note.hidden = gaps.length === 0;
+    text('capability-note', gaps.length
+      ? mode.value === 'demo'
+        ? `Simulator identity only — ${gaps.join(', ')} need a USB firmware device.`
+        : `This firmware does not expose: ${gaps.join(', ')}.`
+      : '');
+  }
   if (document.activeElement !== label && label.value !== model.draft.label) label.value = model.draft.label;
   if (document.activeElement !== region) region.value = model.draft.region;
   label.disabled = !writable || model.pending;
@@ -96,6 +177,7 @@ function render() {
   renderRadio();
   renderMessages();
   renderInbox();
+  renderMap();
   element('simulation').hidden = mode.value !== 'demo';
   element<HTMLButtonElement>('reboot').disabled = busy;
   readOnly.disabled = active || busy;
@@ -104,6 +186,43 @@ function render() {
     historySignature = signature;
     renderHistory(model, ready);
   }
+}
+
+function renderMap() {
+  const selected = current().adapter.connection.discovery.nodes.find(n => n.node === selectedNode);
+  element('selected-asset').hidden = !selected;
+  if (selected) { text('asset-name', selected.name || selected.node); text('asset-detail', selected.position ? `${selected.node} · fixed ${degrees(selected.position.latitude, 90)}, ${degrees(selected.position.longitude, 180)}` : `${selected.node} · no reported position`); }
+
+  const connection = current().adapter.connection;
+  const points: MapPoint[] = [];
+  const position = connection.sync.config?.position;
+  if (connection.device && position?.source === 1) {
+    points.push({
+      id: connection.device,
+      name: connection.sync.config?.label || connection.device,
+      latitude: Number(degrees(position.latitude, 90)),
+      longitude: Number(degrees(position.longitude, 180)),
+      kind: 'self',
+      detail: position.share ? 'Local fixed · sharing on' : 'Local fixed · not shared over radio',
+    });
+  }
+  for (const node of connection.discovery.nodes) {
+    if (!node.position || canonicalNode(node.node) === canonicalNode(connection.device ?? '')) continue;
+    points.push({
+      id: node.node,
+      name: node.name || node.node,
+      latitude: Number(degrees(node.position.latitude, 90)),
+      longitude: Number(degrees(node.position.longitude, 180)),
+      kind: 'peer',
+      detail: `Heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago · fixed`,
+    });
+  }
+  element('map-empty').hidden = points.length > 0;
+  text('map-caption', points.length
+    ? `${points.length} plotted`
+    : 'No shared positions');
+  fieldMap.setPoints(points);
+  fieldMap.select(selectedNode || undefined);
 }
 
 function renderHistory(model: ConfigModel, ready: boolean) {
@@ -129,7 +248,6 @@ function renderHistory(model: ConfigModel, ready: boolean) {
         try {
           error = '';
           if (!model.adapter.recover(entry.id)) error = 'The device rebooted. Its old receipt is unavailable; the outcome stays unknown.';
-          // The row itself shows the returned outcome; query success is not an error.
         } catch (e) { showError(e); }
         render();
       });
@@ -151,20 +269,31 @@ connect.addEventListener('click', async () => {
   busy = true; error = ''; render();
   try {
     const port = mode.value === 'demo' ? demo.createPort() : await serial!.requestPort();
-    if (token !== attempt) return; // Ignore a chooser result after cancellation.
+    if (token !== attempt) return;
     demo.readOnly = readOnly.checked;
     await model.adapter.connect(port, crypto.randomUUID());
   } catch (e) { if (token === attempt) showError(e); }
-  finally { if (token === attempt) { busy = false; render(); } }
+  finally {
+    if (token === attempt) {
+      busy = false;
+      if (model.adapter.connection.sync.state === 'ready') {
+        setView('messages');
+        setPanelOpen(true);
+      }
+      render();
+      fieldMap.invalidate();
+    }
+  }
 });
 disconnect.addEventListener('click', async () => {
   ++attempt; busy = false; error = '';
   const model = current();
   try { await model.adapter.disconnect(); } catch (e) { showError(e); }
+  selectedNode = '';
   render();
 });
-mode.addEventListener('change', () => { error = ''; historySignature = ''; render(); });
-const edit = () => { current().edit({ label: label.value, region: region.value }); render(); };
+mode.addEventListener('change', () => { if (draftKey) drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value); lastDevice = current().adapter.connection.device ?? current().adapter.connection.messaging.history.at(-1)?.device ?? current().adapter.connection.inbox.history.at(-1)?.device; lastScope = ''; error = ''; historySignature = ''; selectedNode = ''; render(); });
+const edit = () => { current().edit({ ...current().draft, label: label.value, region: region.value }); render(); };
 label.addEventListener('input', edit); region.addEventListener('change', edit);
 element('configuration').addEventListener('submit', event => {
   event.preventDefault();
@@ -176,64 +305,141 @@ element('configuration').addEventListener('submit', event => {
 });
 reset.addEventListener('click', () => { try { current().reset(); error = ''; render(); } catch (e) { showError(e); } });
 element('reboot').addEventListener('click', () => { demo.reboot(); render(); });
+
+for (const button of document.querySelectorAll<HTMLElement>('[data-view-target]')) {
+  button.addEventListener('click', () => setView(button.dataset.viewTarget as 'map' | Panel));
+}
+for (const tab of document.querySelectorAll<HTMLElement>('.dock-tab')) {
+  tab.addEventListener('click', () => {
+    setDock(tab.dataset.dock as Panel);
+    setPanelOpen(true);
+  });
+}
+for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
+  tab.addEventListener('click', () => setManage(tab.dataset.manage!));
+}
+for (const button of document.querySelectorAll<HTMLElement>('[data-open-manage]')) {
+  button.addEventListener('click', () => openManage(button.dataset.openManage));
+}
+element('open-manage').addEventListener('click', () => openManage('device'));
+element('fit-map').addEventListener('click', () => fieldMap.fit());
+setView('messages');
+element('new-conversation').addEventListener('click', () => { element('recipient-controls').hidden = false; element('recipient-toggle').setAttribute('aria-expanded', 'true'); app.classList.add('has-conversation'); element('message-destination').focus(); });
+element('recipient-toggle').addEventListener('click', () => { const controls = element('recipient-controls'); controls.hidden = !controls.hidden; element('recipient-toggle').setAttribute('aria-expanded', String(!controls.hidden)); });
+element('recipient-done').addEventListener('click', () => { chooseConversation(element<HTMLInputElement>('message-destination').value.trim(), Number(element<HTMLSelectElement>('message-channel').value)); element('recipient-controls').hidden = true; element('recipient-toggle').setAttribute('aria-expanded', 'false'); renderMessages(); });
+element('back-conversations').addEventListener('click', () => app.classList.remove('has-conversation'));
+element('conversation-connect').addEventListener('click', () => connect.click());
+element('conversation-search').addEventListener('input', renderMessages);
+element('locate-conversation').addEventListener('click', () => selectNode(element<HTMLInputElement>('message-destination').value, { focusMap: true }));
+element('asset-message').addEventListener('click', () => { if (selectedNode) selectNode(selectedNode, { message: true }); });
+element('message-channel').addEventListener('change', () => chooseConversation(element<HTMLInputElement>('message-destination').value, Number(element<HTMLSelectElement>('message-channel').value)));
+element('broadcast-destination').addEventListener('click', () => {
+  chooseConversation('broadcast', Number(element<HTMLSelectElement>('message-channel').value));
+  selectedNode = '';
+  fieldMap.select(undefined);
+  renderMessages();
+});
+
 const timer = setInterval(render, 100);
 window.addEventListener('pagehide', () => { clearInterval(timer); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); recovery.release(); });
+window.addEventListener('resize', () => fieldMap.invalidate());
 render();
+fieldMap.invalidate();
 
 function renderMessages() {
   const { connection } = current().adapter;
-  const body = element<HTMLTextAreaElement>('message-body');
-  const destination = element<HTMLInputElement>('message-destination');
-  const bytes = new TextEncoder().encode(body.value).length;
-  const ready = connection.sync.state === 'ready';
-  const blocked = connection.messageBlockReason;
-  const history = connection.messaging.history;
-  const uploading = history.some(entry => entry.state === 'receiving');
-  text('message-bytes', `${bytes} / 1024 bytes`);
-  text('message-support', !ready ? 'Connect and synchronize to queue messages.' : blocked ??
-    (destination.value === connection.device ? 'Local delivery stays on this device and does not transmit by radio.' : connection.radioInfo?.reason === 'ready' ? 'Queued and transmitted do not prove destination acceptance. Broadcast has no recipient ACK.' : `Remote transmission is blocked: ${connection.radioInfo?.reason ?? 'waiting for radio status'}. Use this device for a local test.`));
-  body.disabled = destination.disabled = !ready || !!blocked || uploading;
+  if (connection.device) lastDevice = connection.device;
+  const scope = `${mode.value}:${lastDevice ?? ''}`;
+  const unboundDraft = lastScope === `${mode.value}:` ? element<HTMLTextAreaElement>('message-body').value : '';
+  if (scope !== lastScope) {
+    if (draftKey) drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value);
+    lastScope = scope; selectedNode = ''; element<HTMLInputElement>('message-destination').value = 'broadcast';
+    element<HTMLSelectElement>('message-channel').value = '0'; draftKey = `${scope}:0:broadcast`;
+    element<HTMLTextAreaElement>('message-body').value = drafts.get(draftKey) || unboundDraft; messageSignature = '';
+  }
+  const body = element<HTMLTextAreaElement>('message-body'), destination = element<HTMLInputElement>('message-destination');
   const channel = element<HTMLSelectElement>('message-channel');
-  channel.disabled = body.disabled;
+  const bytes = new TextEncoder().encode(body.value).length, ready = connection.sync.state === 'ready';
+  const history = connection.messaging.history, incoming = connection.inbox.history;
+  const uploading = history.some(entry => entry.state === 'receiving');
+  body.disabled = uploading; destination.disabled = channel.disabled = uploading;
+  text('message-bytes', `${bytes} / 1024 bytes`);
   const names = (connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
-  const channelSignature = JSON.stringify(names);
-  if (channel.dataset.names !== channelSignature) {
-    const selected = channel.value; channel.replaceChildren();
-    names.forEach((name, slot) => { if (name) { const option = document.createElement('option'); option.value = String(slot); option.textContent = `${slot} · ${name}`; channel.append(option); } });
-    if (Array.from(channel.options).some(option => option.value === selected)) channel.value = selected;
-    channel.dataset.names = channelSignature;
+  if (channel.dataset.names !== JSON.stringify(names)) {
+    const selected = channel.value; channel.replaceChildren(); names.forEach((name, slot) => { if (name) channel.add(new Option(name, String(slot))); });
+    if ([...channel.options].some(o => o.value === selected)) channel.value = selected;
+    channel.dataset.names = JSON.stringify(names);
   }
+  const selectedChannel = Number(channel.value), key = conversationKey(destination.value, selectedChannel);
   const remoteBlocked = destination.value !== connection.device && connection.capabilities?.radioVersion === 1 && connection.radioInfo?.reason !== 'ready';
-  element<HTMLButtonElement>('self-destination').disabled = !ready || !!blocked || uploading;
-  element<HTMLButtonElement>('message-send').disabled = !ready || !!blocked || uploading || bytes === 0 || bytes > 1024 || history.length >= 32 || remoteBlocked;
-  const signature = mode.value + ':' + ready + ':' + JSON.stringify(history);
-  if (signature === messageSignature) return;
-  messageSignature = signature;
-  const list = element('message-history'); list.replaceChildren();
-  for (const entry of [...history].reverse()) {
-    const row = document.createElement('li'); const content = document.createElement('div');
-    const body = document.createElement('strong'); body.className = 'message-text'; body.textContent = entry.text;
-    const status = document.createElement('p');
-    const labels = { receiving: 'Uploading to device', queued: 'Queued on device · not transmitted', transmitted: 'Transmitted · recipient delivery unconfirmed', acknowledged: 'Accepted by destination · not read status', failed: 'Failed', rejected: 'Rejected by device', unknown: 'Unknown · never automatically resent' };
-    status.textContent = entry.state === 'transmitted' && entry.destination === 'broadcast' ? 'Broadcast transmitted · no recipient acknowledgment' : entry.reason === 'local-delivery' ? 'Delivered locally · no radio transmission' : `${labels[entry.state]}${entry.reason ? ' · ' + entry.reason : ''}`;
-    const id = document.createElement('span'); id.className = 'mono'; id.textContent = `${entry.destination} / ${entry.messageId ?? entry.id}`;
-    content.append(body, status, id); const actions = document.createElement('div'); actions.className = 'actions';
-    if (entry.state !== 'receiving') {
-      const query = document.createElement('button'); query.textContent = 'Query status'; query.disabled = !ready || connection.capabilities?.messageVersion !== 1;
-      query.addEventListener('click', () => { try { if (!current().adapter.recoverMessage(entry.id)) throw new Error('Previous-boot result is unknown; message will not be resent.'); } catch (e) { showError(e); } });
-      const clear = document.createElement('button'); clear.textContent = 'Forget message';
-      clear.addEventListener('click', () => { if (['unknown', 'queued', 'transmitted'].includes(entry.state) && !confirm('Forget recovery history? This does not cancel or undo device work.')) return; connection.forgetMessage(entry.id); render(); });
-      actions.append(query, clear);
-    }
-    row.append(content, actions); list.append(row);
+  text('message-support', !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading'));
+  element<HTMLButtonElement>('message-send').disabled = !ready || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > 1024 || history.length >= 32 || remoteBlocked || !element('recipient-controls').hidden;
+  element<HTMLButtonElement>('self-destination').disabled = !connection.device || uploading;
+  const rows = conversations(lastDevice, names, connection.discovery.nodes, history, incoming);
+  if (!rows.some(row => row.key === key) && destination.value.trim()) rows.push({ key, destination: destination.value, channel: selectedChannel, name: destination.value, preview: 'New conversation', kind: destination.value === 'broadcast' ? 'channel' : 'direct' });
+  for (const [savedKey, target] of recentConversations) {
+    const draft = drafts.get(savedKey);
+    if (savedKey.startsWith(scope + ':') && draft && !rows.some(row => row.key === conversationKey(target.destination, target.channel))) rows.push({ key: conversationKey(target.destination, target.channel), ...target, name: target.destination, preview: `Draft: ${draft}`, kind: 'direct' });
   }
+  for (let i = 0; i < rows.length; i++) { const draft = drafts.get(`${scope}:${rows[i].key}`); if (draft) rows[i] = { ...rows[i], preview: `Draft: ${draft}` }; }
+  const currentRow = rows.find(row => row.key === key);
+  text('conversation-title', currentRow?.name ?? (destination.value || 'New conversation'));
+  text('conversation-avatar', destination.value === 'broadcast' ? '#' : (currentRow?.name ?? destination.value).slice(0, 2).toUpperCase());
+  text('conversation-subtitle', destination.value === 'broadcast' ? `${names[selectedChannel] || 'Channel ' + selectedChannel} · traffic received by this device` : `${destination.value} · ${names[selectedChannel] || 'Channel ' + selectedChannel}`);
+  element<HTMLButtonElement>('locate-conversation').disabled = !connection.discovery.nodes.some(n => canonicalNode(n.node) === canonicalNode(destination.value) && n.position);
+  element('conversation-connect').hidden = ready;
+  const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
+  const listSignature = JSON.stringify(rows) + key + filter;
+  const list = element('conversation-list');
+  if (list.dataset.signature !== listSignature) {
+    list.dataset.signature = listSignature; list.replaceChildren();
+    const visible = rows.filter(row => `${row.name} ${row.destination}`.toLowerCase().includes(filter));
+    element('conversation-search-empty').hidden = visible.length !== 0;
+    for (const row of visible) {
+      const button = document.createElement('button'); button.className = 'conversation-row'; button.classList.toggle('is-selected', row.key === key); button.setAttribute('aria-pressed', String(row.key === key));
+      const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.textContent = row.kind === 'channel' ? '#' : row.name.slice(0, 2).toUpperCase();
+      const content = document.createElement('span'); content.className = 'conversation-summary';
+      const name = document.createElement('strong'); name.textContent = row.name;
+      const preview = document.createElement('span'); preview.textContent = row.preview; content.append(name, preview);
+      const badge = document.createElement('span'); badge.className = 'thread-kind'; badge.textContent = row.kind === 'channel' ? 'CH' : 'DM';
+      button.append(avatar, content, badge); button.addEventListener('click', () => chooseConversation(row.destination, row.channel)); list.append(button);
+    }
+  }
+  const messages = threadMessages(lastDevice, destination.value, selectedChannel, history, incoming);
+  const orderScope = scope + ':';
+  for (const m of messages) if (!observedOrder.has(orderScope + m.key)) observedOrder.set(orderScope + m.key, ++nextOrder);
+  while (observedOrder.size > 256) observedOrder.delete(observedOrder.keys().next().value!);
+  messages.sort((a, b) => observedOrder.get(orderScope + a.key)! - observedOrder.get(orderScope + b.key)!);
+  const signature = scope + key + ready + JSON.stringify(messages);
+  element('conversation-empty').hidden = messages.length > 0;
+  if (signature === messageSignature) return; messageSignature = signature;
+  const scroller = element('thread-scroll'), stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  const thread = element('message-history'); thread.replaceChildren();
+  for (const m of messages) {
+    const row = document.createElement('li'); row.className = `message-row ${m.direction}`;
+    const bubble = document.createElement('div'); bubble.className = 'message-bubble';
+    if (m.direction === 'incoming') { const sender = document.createElement('span'); sender.className = 'message-sender'; sender.textContent = connection.discovery.nodes.find(n => canonicalNode(n.node) === canonicalNode(m.origin))?.name || m.origin; bubble.append(sender); }
+    const content = document.createElement('p'); content.className = 'message-text'; content.textContent = m.text;
+    const status = document.createElement('span'); status.className = 'message-state'; status.textContent = m.status; status.dataset.state = m.entry?.state ?? 'received'; bubble.append(content, status);
+    if (m.entry && m.entry.state !== 'receiving') {
+      const entry = m.entry, details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Message details';
+      const identity = document.createElement('span'); identity.className = 'mono'; identity.textContent = `${entry.messageId ?? entry.id}${entry.reason ? ' · ' + entry.reason : ''}`;
+      const query = document.createElement('button'); query.textContent = 'Check delivery'; query.disabled = !ready;
+      query.addEventListener('click', () => { try { if (!current().adapter.recoverMessage(entry.id)) throw Error('Previous-boot outcome is unknown. Nothing was resent.'); } catch (e) { showError(e); } });
+      const clear = document.createElement('button'); clear.textContent = 'Remove from history'; clear.addEventListener('click', () => { if (['unknown', 'queued', 'transmitted'].includes(entry.state) && !confirm('Remove recovery history? Device work is not cancelled.')) return; connection.forgetMessage(entry.id); render(); });
+      details.append(summary, identity, query, clear); bubble.append(details);
+    }
+    row.append(bubble); thread.append(row);
+  }
+  if (stick) requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
 }
-element('message-body').addEventListener('input', renderMessages);
+element('message-body').addEventListener('input', () => { drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value); renderMessages(); });
+element('message-body').addEventListener('keydown', event => { const e = event as KeyboardEvent; if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!element<HTMLButtonElement>('message-send').disabled) element<HTMLFormElement>('message-form').requestSubmit(); } });
 element('message-form').addEventListener('submit', event => {
   event.preventDefault();
   try {
     current().adapter.sendMessage(element<HTMLTextAreaElement>('message-body').value, element<HTMLInputElement>('message-destination').value, Number(element<HTMLSelectElement>('message-channel').value));
-    element<HTMLTextAreaElement>('message-body').value = ''; error = ''; render();
+    element<HTMLTextAreaElement>('message-body').value = ''; drafts.save(draftKey, ''); error = ''; render();
   } catch (e) { showError(e); }
 });
 
@@ -273,25 +479,16 @@ element('radio-form').addEventListener('submit', event => {
   } catch (e) { showError(e); }
 });
 
-element('self-destination').addEventListener('click', () => { const device = current().adapter.connection.device; if (device) element<HTMLInputElement>('message-destination').value = device; renderMessages(); });
+element('self-destination').addEventListener('click', () => {
+  const device = current().adapter.connection.device;
+  if (device) selectNode(device, { message: true });
+  else renderMessages();
+});
 element('message-destination').addEventListener('input', renderMessages);
 function renderInbox() {
   const connection = current().adapter.connection;
-  const history = connection.inbox.history;
-  const supported = connection.capabilities?.inboxVersion === 1;
-  text('inbox-status', connection.inbox.error ?? (connection.inbox.gap ? 'Some earlier messages are no longer retained on the device.' :
-    !supported ? 'Connect to firmware with inbox support.' : history.length ? 'Received by this device · not a human-read receipt. USB history is saved in this browser.' : 'No received messages yet.'));
-  const signature = mode.value + ':' + JSON.stringify(history);
-  if (signature === inboxSignature) return; inboxSignature = signature;
-  const list = element('inbox-history'); list.replaceChildren();
-  for (const item of [...history].reverse()) {
-    const row = document.createElement('li'); const content = document.createElement('div');
-    const body = document.createElement('strong'); body.className = 'message-text'; body.textContent = item.text;
-    const metadata = document.createElement('span'); metadata.className = 'mono'; metadata.textContent = `${item.origin} · channel ${item.channel} · ${item.messageId}`;
-    content.append(body, metadata); row.append(content); list.append(row);
-  }
+  text('inbox-status', connection.inbox.error ?? (connection.inbox.gap ? 'Earlier messages are no longer retained on the device.' : connection.sync.state !== 'ready' ? 'History stays available while disconnected.' : 'Device history · received does not mean read'));
 }
-
 element('recovery-retry').addEventListener('click', () => { recovery.retry(); render(); });
 element('recovery-export').addEventListener('click', () => {
   const url = URL.createObjectURL(new Blob([recovery.exportText()], { type: 'application/json' }));
@@ -302,7 +499,7 @@ element('recovery-reset').addEventListener('click', () => {
   if (!confirm('Discard saved USB history and allocate a new client identity? Unknown device work is not cancelled. Export your history first if you need it. Device owner slots are limited.')) return;
   try {
     recovery.reset(); models.usb = new ConfigModel(new SerialAdapter(recovery.connection));
-    historySignature = messageSignature = inboxSignature = ''; error = ''; render();
+    historySignature = messageSignature = ''; error = ''; render();
   } catch (error) { showError(error); }
 });
 
@@ -360,25 +557,51 @@ function renderDiscovery() {
     element<HTMLInputElement>('beacon-interval').value = String(settings.interval); discoveryBase = context;
   }
   const stale = discoveryDirty && discoveryBase !== context;
-  text('discovery-support', !supported ? 'Connect to firmware with discovery support.' : stale ? 'Device state changed. Load the latest discovery settings.' : connection.writeBlockReason ?? 'Beacons and responses are separate, opt-in settings.');
+  const support = !supported ? 'Connect to firmware with discovery support.' : stale ? 'Device state changed. Load the latest discovery settings.' : connection.writeBlockReason ?? 'Beacons and responses are separate, opt-in settings.';
+  text('discovery-support', support);
+  text('discovery-panel-support', support);
   element<HTMLButtonElement>('discover').disabled = !writable || connection.radioInfo?.reason !== 'ready' || connection.discovery.last?.state === 'collecting';
   element<HTMLButtonElement>('discovery-query').disabled = !ready || !connection.discovery.last;
   element<HTMLButtonElement>('discovery-save').disabled = !writable || !discoveryDirty || stale || model.pending;
   element<HTMLButtonElement>('discovery-reset').disabled = !ready;
   for (const id of ['beacon-enabled', 'respond-enabled', 'beacon-interval']) element<HTMLInputElement>(id).disabled = !writable || model.pending;
   const result = connection.discovery.last;
-  text('discovery-result', connection.discovery.error ?? (result ? `${result.state} · ${result.replies} replies · ${result.id}` : 'No discovery requested.'));
-  const nodes = connection.discovery.nodes; element('nodes-empty').hidden = nodes.length > 0; const signature = mode.value + ':' + JSON.stringify(nodes) + ':' + Math.floor(performance.now() / 1000);
+  text('discovery-result', connection.discovery.error ?? (result ? `${result.state} · ${result.replies} replies` : ''));
+  const nodes = connection.discovery.nodes;
+  element('nodes-empty').hidden = nodes.length > 0;
+  text('node-count', String(nodes.length));
+  const signature = mode.value + ':' + selectedNode + ':' + JSON.stringify(nodes) + ':' + Math.floor(performance.now() / 1000);
   if (signature === nodeSignature) return; nodeSignature = signature;
   const list = element('nodes'); list.replaceChildren();
   for (const node of nodes) {
-    const row = document.createElement('li'), content = document.createElement('div'), name = document.createElement('strong'), detail = document.createElement('span');
-    name.textContent = node.name || node.node; detail.className = 'mono';
+    const row = document.createElement('li');
+    row.classList.toggle('is-selected', node.node === selectedNode);
+    const content = document.createElement('div');
+    const name = document.createElement('strong');
+    const detail = document.createElement('span');
+    name.textContent = node.name || node.node;
+    detail.className = 'mono';
     detail.textContent = `${node.node} · last heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago`;
     if (node.position) detail.textContent += ` · fixed ${degrees(node.position.latitude, 90)}, ${degrees(node.position.longitude, 180)}`;
-    const message = document.createElement('button'); message.textContent = 'Message'; message.disabled = sync.state !== 'ready';
-    message.addEventListener('click', () => { element<HTMLInputElement>('message-destination').value = node.node; renderMessages(); element('message-body').focus(); });
-    content.append(name, detail); row.append(content, message); list.append(row);
+    else detail.textContent += ' · no position';
+    content.append(name, detail);
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', () => selectNode(node.node, { focusMap: !!node.position }));
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const message = document.createElement('button');
+    message.textContent = 'Message';
+    message.disabled = sync.state !== 'ready';
+    message.addEventListener('click', () => selectNode(node.node, { message: true, focusMap: !!node.position }));
+    actions.append(message);
+    if (node.position) {
+      const locate = document.createElement('button');
+      locate.textContent = 'Locate';
+      locate.addEventListener('click', () => selectNode(node.node, { focusMap: true }));
+      actions.append(locate);
+    }
+    row.append(content, actions);
+    list.append(row);
   }
 }
 element('discovery-form').addEventListener('input', () => { discoveryDirty = true; render(); });

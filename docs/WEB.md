@@ -1,19 +1,31 @@
-# Local device console
+# Field portal
 
-The first web client lives in `clients/web/`. It uses TypeScript and Vite with native DOM controls, keeping this small console free of a runtime UI framework. Protocol/state logic stays in `packages/client-core/`; the form model only owns drafts and bounded command history.
+The web client lives in `clients/web/`. It uses TypeScript and Vite with native DOM controls plus Leaflet for the map. Protocol/state logic stays in `packages/client-core/`; the form model only owns drafts and bounded command history. Firmware and wire contracts are unchanged by portal layout work.
 
 ```sh
 npm ci --ignore-scripts
 npm run dev:web
 ```
 
-Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server binds to loopback only. `npm run build:web` creates the static client in ignored `dist/web/`. `npm run check` now includes the production build as well as type checks, schema checks, and host tests. Nothing is deployed or published.
+Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server binds to loopback only. `npm run build:web` creates the static client in ignored `dist/web/`. `npm run check` includes the production build as well as type checks, schema checks, and host tests. Nothing is deployed or published.
+
+## Layout
+
+Dark technical workspace with Messages and Assets navigation. On desktop, conversations have an inbox, a message thread and a compact asset tracker; at narrower sizes the tracker gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
+
+- Search channel and peer conversations by name or node ID; start a recipient from New message or an asset action.
+- Incoming/outgoing messages share a thread. Destination ACK means delivered, never read; unknown work has query-only recovery in Message details.
+- Drafts are isolated by transport/device/conversation and retained in this tab across switching/disconnect. Enter sends when allowed; Shift+Enter adds a line. Drafts are not saved across page reload.
+- Assets shows the map, heard-node list, last-heard age and fixed positions. Selecting a marker selects the asset; messaging is an explicit action. Missing/stale observations never imply online status.
+- Settings contains device, radio, position, discovery, command history, recovery and diagnostics. No firmware changes are needed for this layout.
+
+Missing positions are never plotted. Map tiles load from Esri’s dark canvas service and may fail offline; node and message controls remain available. One USB device at a time remains the writer boundary until per-device journaling lands. Use the browser port chooser to pick Heltec or T-Beam.
 
 ## Try it without hardware
 
-1. Keep **Simulated Heltec V3** selected and connect.
-2. Change the device label, then **Save to device**. The revision advances and the history shows device acceptance.
-3. Set **Next save** to **Disconnect after commit**, edit the label, and save. The connection closes and its command becomes unknown.
+1. Select **Simulator** and connect, then open Settings → Device with label/region editing; messaging, radio, discovery, and position stay gated until USB firmware advertises them.
+2. Change the device label, then **Save**. The revision advances and history shows device acceptance.
+3. Set **Next save** under Recovery to **Disconnect after commit**, edit the label, and save. The connection closes and its command becomes unknown.
 4. Reconnect and select **Query result** on that command. A retained receipt resolves it without resending the configuration change.
 5. **Lose result and change event** suppresses all replies for the next command, including its retries. After the bounded retry window it becomes unknown; result queries still work. **Read-only on next connect** demonstrates capability-based mutation blocking.
 
@@ -21,11 +33,11 @@ The simulator is shared with host tests under `packages/simulator/`. It uses the
 
 ## USB and recovery boundaries
 
-**USB device** uses an explicit browser port chooser. The browser must support Web Serial in a secure context such as localhost. Reaper Mesh firmware is required; the development Heltec is running it. Native Brave USB is physically qualified for the checks below. Firmware installation uses the manifest-validating CLI in UPDATES.md.
+**USB device** uses an explicit browser port chooser. The browser must support Web Serial in a secure context such as localhost. Reaper Mesh firmware is required; the development Heltec and T-Beam are running it. Native Brave USB is physically qualified for the checks below. Firmware installation uses the manifest-validating CLI in UPDATES.md.
 
 Device status/capabilities are readable even when writes are blocked. The UI displays the blocking reason, advertised byte limit, region availability, owner admission, receipt/owner capacities, and firmware/radio identifiers. The messaging UI exposes local delivery, bounded outgoing history and received messages; remote sends require live radio readiness.
 
-Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest settings** is selected. Pending changes cannot be resubmitted or cleared. Unknown commands can be queried after synchronization; they are never automatically resent. **Forget uncertain command** explicitly confirms loss of result recovery and does not undo/cancel device work. Clear non-pending history to release the client's 32-entry limit.
+Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest** is selected. Pending changes cannot be resubmitted or cleared. Unknown commands can be queried after synchronization; they are never automatically resent. **Forget uncertain command** explicitly confirms loss of result recovery and does not undo/cancel device work. Clear non-pending history to release the client's 32-entry limit.
 
 Each connection source retains its own client manager for this page session. Mode switching is disabled during an active connection/open/cleanup. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. USB history/incarnation survives reload in plaintext local storage, with a Web Lock preventing simultaneous writers in this browser bucket. Other browsers/profiles have separate identities. Device owner marks are not silently evicted; exhausted admission is read-only until an explicit device reboot, which loses volatile receipts/queues. Export/query pending history first. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
 
@@ -43,13 +55,9 @@ November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototy
 
 The public-channel composer accepts up to 1024 UTF-8 bytes and a destination node ID or broadcast. It requires message capability v1 and displays upload/queue/transmit/ACK/failure/unknown separately. Status queries never resend text. Clearing uncertain or active queue history requires explicit abandonment; it does not cancel device work. Until radio integration, queues expire without transmission. The current in-memory config simulator does not advertise messaging, so its composer is disabled; native firmware wire tests cover the actual message engine.
 
-## Hardware message acceptance evidence
-
-usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
-
 ## Inbox, local testing and diagnostics
 
-The integrated firmware supports local delivery by selecting Use this device (local test). An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The client reads the inbox with independent bounded cursors, displays retention gaps and keeps received history to 32 entries. Live radio probe/effective state and RX/TX counters appear in device details; memory/stack headroom is under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
+The integrated firmware supports local delivery by selecting This device. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The client reads the inbox with independent bounded cursors, displays retention gaps and keeps received history to 32 entries. Live radio probe/effective state and RX/TX counters appear in device details; memory/stack headroom is under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
 
 ## Reload recovery
 
@@ -57,8 +65,12 @@ USB identity, monotonic request counters and bounded command/message/inbox histo
 
 ## Discovery controls
 
-Firmware with discoveryVersion1/nodeCapacity32 exposes a Who’s listening panel: independent opt-in beacons/responses, 60–3600-second interval, manual discovery and query-only recovery. Heard nodes show configured name, canonical ID and last-heard age, with a Message action. Missing positions are not fabricated; fixed-position-capable firmware optionally reports explicitly shared coordinates. A node list is a bounded observation snapshot, not an online/offline guarantee. Settings use the existing CAS/atomic persistence and survive reconnect. Both firmware policies defaultoff; a peer must have mesh radio mode and responding enabled to answer. The existing one-device browser writer lock remains until per-device portal journaling is implemented.
+Firmware with discoveryVersion1/nodeCapacity32 exposes Discover on the map toolbar and discovery policy under Manage: independent opt-in beacons/responses, 60–3600-second interval, manual discovery and query-only recovery. Heard nodes show configured name, canonical ID and last-heard age, with Message and Locate actions when a shared fixed position exists. Missing positions are not fabricated. A node list is a bounded observation snapshot, not an online/offline guarantee. Settings use the existing CAS/atomic persistence and survive reconnect. Both firmware policies default off; a peer must have mesh radio mode and responding enabled to answer. The existing one-device browser writer lock remains until per-device portal journaling is implemented.
 
 ## Fixed-position controls
 
-locationVersion1 plus the discovery capability exposes device source none/fixed, explicit decimal-degree coordinates and an independent Share position switch. Coordinates are saved on the device; geographic0,0 is valid. Saving uses revision-checked atomic configuration and the existing persisted command journal/query-only recovery. Dirty drafts become stale on device/boot/revision changes and require loading current settings. Received node rows show fixed coordinates with independent last-heard age; missing positions are not fabricated. Sharing defaults off, stored positions alone never authorize transmission, and other receivers may retain old data. No browser geolocation is requested, GPS source is not yet implemented, and no map is included in this slice. These controls compile and use the physically tested protocol/core; native browser interaction remains unchecked.
+locationVersion1 plus the discovery capability exposes device source none/fixed, explicit decimal-degree coordinates and an independent Share position switch under Manage → Position. Coordinates are saved on the device; geographic 0,0 is valid. Saving uses revision-checked atomic configuration and the existing persisted command journal/query-only recovery. Dirty drafts become stale on device/boot/revision changes and require loading current settings. The local fixed position is plotted for the connected device; received shared peer coordinates appear as map markers. Sharing defaults off, stored positions alone never authorize transmission, and other receivers may retain old data. No browser geolocation is requested, and GPS source is not yet implemented. These controls compile and use the physically tested protocol/core; native browser interaction remains unchecked.
+
+## Portal verification / data limits (November 2)
+
+223 host tests and the production build pass. Browser checked at390px and1440px: settings, navigation, offline drafts and conversation switching; no horizontal overflow or observed console errors. No USB/RF regression was repeated for presentation-only changes. The inbox protocol supplies sender/channel but no original destination or timestamp. Channel views therefore show traffic received by this device, including potentially direct traffic; peer views group by sender. No fake sent time/read status is displayed. Cross-direction order after restoring history is reconstructed because the device does not provide a common timestamp/order. All content is rendered as text, including map names/tooltips. Basemap failure keeps local asset/message functions available. GPS remains deferred.

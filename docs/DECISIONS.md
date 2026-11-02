@@ -116,3 +116,7 @@ Use a separate direct-listener control namespace (radio3/4/5, USB22–25) while 
 ## Fixed-position vertical slice (Phase2.2a)
 
 Implement saved coordinates before GPS. Use offset fixed-point integers shared by USB/storage/RF, explicit none/fixed source and independently opt-in sharing; no implicit computer position. Keep manual discovery requests name-only v1 so older responders still work; position-bearing announcements/replies use control payload v2. Advertise fixed-location capability separately from discovery. Older discovery receivers cannot interpret v2 reports, but text/ACK stays compatible. Record4 preserves old record reads and legacy-client omission semantics. GPS acquisition/reporting and the map portal remain subsequent work; do not call all of2.2 complete from fixed-position checks.
+
+## November 2: portal direction supersedes map-first/light styling
+
+Owner defers T-Beam GPS and prioritizes a polished messaging/asset workspace. Use a Signal-like conversation list/thread, dark technical surfaces and restrained corners. Asset map/list is a dedicated view plus a wide-screen companion panel; settings are separate from daily messaging. Preserve shared transport, journaling, unknown-result and query-only recovery behavior. Do not invent read receipts, timestamps, positions or online state.

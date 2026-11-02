@@ -37,3 +37,5 @@ Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry,
 Phase 3 requires an encryption/key-lifecycle design and tests before implementation: power-loss-safe nonce handling, tamper/replay rejection, wrong keys, rotation, unsupported peers and explicit failure. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
 
 EU transmit support, BLE/mobile/native clients, additional boards, licensing, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
+
+November2 owner update: GPS2.2b is deferred. Prioritize2.3 messaging and asset UX now, using already qualified fixed positions. Messaging-first dark technical styling supersedes the earlier consumer/light/map-first treatment. See WEB.md for implementation, browser checks and remaining data limitations.

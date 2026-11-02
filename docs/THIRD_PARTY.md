@@ -10,6 +10,10 @@ The radio component vendors the unmodified core of Semtech's official sx126x_dri
 
 Firmware uses pinned ESP-IDF v5.5.4. Preserve its Apache-2.0 license and applicable bundled third-party notices in firmware distributions; inspect the actual pinned SDK's LICENSE/NOTICE materials when packaging releases. Local SDK/tool downloads remain ignored.
 
+## Web client map library
+
+The field portal bundles Leaflet 1.9.4 (BSD-2-Clause) for the interactive position map. Preserve Leaflet copyright and license notices when redistributing the web client build. Map tiles are loaded at runtime from Esri’s publicly reachable World Dark Gray Canvas service; the client remains usable when tiles cannot load. Leaflet does not select a license for Reaper Mesh.
+
 ## Web tooling
 
-The shipped web client has no runtime package dependencies. Development tooling is pinned in package-lock.json; preserve applicable notices for any tooling/runtime code actually redistributed. No root project license has been selected.
+Development tooling is pinned in package-lock.json; preserve applicable notices for any tooling/runtime code actually redistributed. No root project license has been selected.
