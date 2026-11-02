@@ -25,7 +25,7 @@ template<std::size_t N> d::Text<N> text(const char* value) {
 void set(p::FieldValue& field, const char* value) { field.present = true; field.length = std::strlen(value); std::memcpy(field.text.data(), value, field.length); }
 void num(p::FieldValue& field, std::uint32_t value) { field.present = true; field.number = value; }
 bool is(const p::FieldValue& field, const char* value) { return field.length == std::strlen(value) && std::memcmp(field.text.data(), value, field.length) == 0; }
-p::Message hello(const char* link = "link-A", const char* owner = "client-A") {
+p::Message hello(const char* link = "link-A", const char* owner = "agent-A") {
   p::Message request{}; request.type = p::MessageType::Hello;
   set(request.fields[p::kHelloLink], link); set(request.fields[p::kHelloOwner], owner);
   num(request.fields[p::kHelloMinVersion], 1); num(request.fields[p::kHelloMaxVersion], 1); return request;
@@ -35,7 +35,7 @@ p::Message sync(const char* link = "link-A", const char* boot = "boot-A") {
   set(request.fields[p::kSyncLink], link); set(request.fields[p::kSyncBoot], boot);
   num(request.fields[p::kSyncRequest], 1); return request;
 }
-p::Message configure(const char* link = "link-A", const char* id = "client-A:1") {
+p::Message configure(const char* link = "link-A", const char* id = "agent-A:1") {
   p::Message request{}; request.type = p::MessageType::Configure;
   set(request.fields[p::kConfigureLink], link); set(request.fields[p::kConfigureBoot], "boot-A");
   set(request.fields[p::kConfigureId], id); num(request.fields[p::kConfigureExpectedRevision], 0);
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
     CHECK(!session.handle(configure(), reply));
     CHECK(session.handle(sync("link-B"), reply));
     p::Message query{}; query.type = p::MessageType::Query;
-    set(query.fields[p::kQueryLink], "link-B"); set(query.fields[p::kQueryBoot], "boot-A"); set(query.fields[p::kQueryId], "client-A:1");
+    set(query.fields[p::kQueryLink], "link-B"); set(query.fields[p::kQueryBoot], "boot-A"); set(query.fields[p::kQueryId], "agent-A:1");
     CHECK(session.handle(query, reply) && is(reply.fields[p::kResultOutcome], "committed"));
     CHECK(store.writes == 1);
     CHECK(session.synchronized()); session.reset(); CHECK(!session.synchronized());

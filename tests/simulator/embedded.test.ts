@@ -40,11 +40,11 @@ function compare(streams: Uint8Array[], chunk = 1) {
 }
 const sampleValues: Record<string, unknown> = {
   discoveryVersion: 1, nodeCapacity: 32, beacon: 0, respond: 0, beaconInterval: 300, action: 1, replies: 0, generation: 1, cursor: 0, total: 1, node: 'node-0000000000000001', peerBoot: 'boot-B', peerSequence: 1, name: 'Peer', ageMs: 12,
-  link: 'link-A', device: 'node-A', boot: 'boot-A', owner: 'client-A', minVersion: 1, maxVersion: 1,
+  link: 'link-A', device: 'node-A', boot: 'boot-A', owner: 'agent-A', minVersion: 1, maxVersion: 1,
   configSchema: 1, features: 7, maxPayload: 2048, receiptCapacity: 32, ownerCapacity: 8,
   ownerAdmitted: 1, regions: 3, maxLabelBytes: 64, firmware: 'sim-0', radioVersion: 0,
   request: 1, sequence: 0xffffffff, revision: 0xffffffff, expectedRevision: 0,
-  region: 'US', label: 'Café 📻', id: 'client-A:4294967295', outcome: 'committed', code: 'storage-unavailable', messageVersion: 1, maxMessageBytes: 1024, messageCapacity: 8,
+  region: 'US', label: 'Café 📻', id: 'agent-A:4294967295', outcome: 'committed', code: 'storage-unavailable', messageVersion: 1, maxMessageBytes: 1024, messageCapacity: 8,
   channel: 0, destination: 'broadcast', part: 0, count: 1, data: '6869', state: 'queued', received: 1, messageId: 'boot-A_1', reason: 'queued', radioMode: 'off', txPower: 0, relay: 0, channels: 'Public|||||||', preset: 'US915_LAB1', radioSchema: 1, maxChannels: 8, inboxVersion: 1, inboxCapacity: 8, oldest: 1, latest: 1, origin: 'node-B', probe: 1, transmitted: 0, heapFree: 200000, stackFree: 10000,
 };
 const messages = Object.entries(schema).map(([type, message]) => Object.fromEntries([
@@ -86,7 +86,7 @@ test('optional, unknown, and reordered fields preserve compatibility across lang
   compare([frame(hello), encodeFrame(extended), encodeFrame(joinBytes(payload.slice(0, 2), ...fields.reverse()))]);
 });
 
-test('all truncated payloads and corrupt bit positions agree with the client decoder', () => {
+test('all truncated payloads and corrupt bit positions agree with the agent decoder', () => {
   const samples: Uint8Array[] = [];
   for (const message of messages) {
     const payload = encodeMessage(message);
@@ -102,7 +102,7 @@ test('all truncated payloads and corrupt bit positions agree with the client dec
   compare(samples);
 });
 
-test('boundary text, Unicode and command IDs match the client validation contract', () => {
+test('boundary text, Unicode and command IDs match the agent validation contract', () => {
   const snapshot = messages.find(message => message.type === 'snapshot')!;
   const streams = ['', 'a'.repeat(64), '📻'.repeat(16), '\ufefftest'].map(label => frame({ ...snapshot, label } as Message));
   const payload = encodeMessage({ ...snapshot, label: 'X' } as Message);

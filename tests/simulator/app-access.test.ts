@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AppAccess } from '../../clients/web/app-access.ts';
-import { EncryptionVault, ENCRYPTION_VAULT_KEY } from '../../clients/web/encryption.ts';
+import { AppAccess } from '../../agents/web/app-access.ts';
+import { EncryptionVault, ENCRYPTION_VAULT_KEY } from '../../agents/web/encryption.ts';
 class MemoryStorage {
   values = new Map<string, string>();
   getItem(key: string) { return this.values.get(key) ?? null; }

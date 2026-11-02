@@ -31,7 +31,7 @@ export class Commands {
 
   constructor(sync: Synchronizer, incarnation: string,
     { capacity = 32, timeoutMs = 1000, maxAttempts = 3 } = {}) {
-    if (!/^[A-Za-z0-9_-]{1,64}$/.test(incarnation)) throw new Error('invalid client incarnation');
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(incarnation)) throw new Error('invalid agent incarnation');
     for (const value of [capacity, timeoutMs, maxAttempts]) {
       if (!Number.isSafeInteger(value) || value < 1) throw new Error('invalid command limit');
     }

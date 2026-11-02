@@ -6,7 +6,7 @@ Owner-directed phases, November 1, 2026. This is the product roadmap; ../contrib
 | --- | --- | --- | --- |
 | 1 — Working communications | Two supported devices communicate reliably through the independent Reaper protocol | Heltec V3 and T-Beam V1.2 firmware; USB console; persistent configuration; public/named channels; 1024-byte messages; fragmentation; bounded mesh/relay core; destination ACKs; RACE recovery; validated firmware installation | Complete: actual bidirectional direct RF/ACK/inbox checks pass. Three-node relay, power-cut and field qualification remain release gates. |
 | 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: slice 2.1 and fixed-position 2.2a are checked; GPS is deferred; messaging/asset portal work is active. |
-| 3 — Encrypted channels | Encrypt at client agents while devices route ciphertext without keys | Reviewed client-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place; automated and both-board qualification still pending. See [Channel encryption](../guides/encryption.md). |
+| 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without keys | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place; automated and both-board qualification still pending. See [Channel encryption](../guides/encryption.md). |
 | 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | Planned |
 
 ## Phase 2 delivery order
@@ -21,7 +21,7 @@ Owner-directed phases, November 1, 2026. This is the product roadmap; ../contrib
 
 Slice 2.1 evidence: opt-out silence, one discovery response in each direction with names verified, and an actual periodic T-Beam beacon received without any reply TX. Heltec7/T-Beam2 retain bidirectional 1024-byte text/ACK behavior. Automatic beacons and responses were restored off after tests.
 
-Implement each slice vertically: contract and tests, firmware, shared client core, then UI. Do not mark all of Phase 2 complete when only its UI or simulator works. Discovery2.1 and fixed-position2.2a are checked; add GPS next so mapping can be tested without a satellite fix. The working Phase 1 console remains usable during the transition.
+Implement each slice vertically: contract and tests, firmware, shared agent core, then UI. Do not mark all of Phase 2 complete when only its UI or simulator works. Discovery2.1 and fixed-position2.2a are checked; add GPS next so mapping can be tested without a satellite fix. The working Phase 1 console remains usable during the transition.
 
 ## Phase 2 portal direction
 
@@ -39,9 +39,9 @@ Plan a simple extension architecture for optional portal functionality, to revis
 
 Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry, cloud accounts, MQTT, remote administration or device-screen features. Discovery/location is plaintext and unauthenticated until the relevant protection is implemented; the portal must display that plainly. Phase 3 must define whether/how discovery metadata is protected, rather than implying channel encryption automatically hides beacons.
 
-Phase 3 uses the implemented client-side group-key profile described in [Channel encryption](../guides/encryption.md). Acceptance includes tamper/replay rejection, wrong keys, rotation, unsupported peers, explicit no-downgrade behavior, RACE recovery, both target builds and two-board checks. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
+Phase 3 uses the implemented agent-side group-key profile described in [Channel encryption](../guides/encryption.md). Acceptance includes tamper/replay rejection, wrong keys, rotation, unsupported peers, explicit no-downgrade behavior, RACE recovery, both target builds and two-board checks. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
 
-EU transmit support, BLE/mobile/native clients, additional boards, licensing, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
+EU transmit support, BLE/mobile/native agents, additional boards, licensing, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
 
 ## Phase 3 delivery order
 

@@ -37,7 +37,7 @@ function aad(header: Uint8Array, channel: number, sender: string, destination: s
 }
 function validateChannel(channel: number) { if (!Number.isInteger(channel) || channel < 0 || channel > 7) throw new Error('invalid channel'); }
 
-/** Client-only channel key vault. The device sees only the opaque RME1 envelope. */
+/** Agent-only channel key vault. The device sees only the opaque RME1 envelope. */
 export class EncryptionVault {
   #storage: Pick<Storage, 'getItem' | 'setItem'>;
   #writable: () => boolean;

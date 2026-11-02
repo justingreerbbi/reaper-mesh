@@ -11,8 +11,8 @@ import { clearLocalAppData, WIPE_SIGNAL, RECOVERY_LOCK } from './local-data.ts';
 import { AppAccess } from './app-access.ts';
 import { EncryptionVault } from './encryption.ts';
 import { ENCRYPTED_HEADER_BYTES, ENCRYPTED_TAG_BYTES } from '../../packages/protocol/encrypted-message.ts';
-import { SerialAdapter } from '../../packages/client-core/serial.ts';
-import type { SerialPortLike } from '../../packages/client-core/serial.ts';
+import { SerialAdapter } from '../../packages/agent-core/serial.ts';
+import type { SerialPortLike } from '../../packages/agent-core/serial.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
@@ -844,7 +844,7 @@ element('recovery-export').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 element('recovery-reset').addEventListener('click', () => {
-  if (!confirm('Discard saved USB history and allocate a new client identity? Unknown device work is not cancelled. Export your history first if you need it. Device owner slots are limited.')) return;
+  if (!confirm('Discard saved USB history and allocate a new agent identity? Unknown device work is not cancelled. Export your history first if you need it. Device owner slots are limited.')) return;
   try {
     recovery.reset(); models.usb = new ConfigModel(new SerialAdapter(recovery.connection));
     historySignature = messageSignature = ''; error = ''; render();

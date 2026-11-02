@@ -2,7 +2,7 @@
 
 **Long-range text messaging over LoRa radio — no internet, no cell service, no cloud.**
 
-Reaper Mesh is custom firmware for inexpensive LoRa boards plus a desktop browser client
+Reaper Mesh is custom firmware for inexpensive LoRa boards plus a desktop browser agent
 that talks to them over USB. The goal is deliberately narrow: dependable messaging between a
 small number of devices, with small firmware and careful compatibility across releases.
 
@@ -22,10 +22,10 @@ is used only as a functional reference, not for interoperability.
 - **Direct radio delivery between two boards with destination acknowledgment** — verified on
   a Heltec V3 and a LILYGO T-Beam V1.2.
 - Node discovery, fixed-position sharing, a local inbox, and recovery after disconnects.
-- A first implementation of client-side channel encryption (verified on two boards, not audited).
+- A first implementation of agent-side channel encryption (verified on two boards, not audited).
 
 Still outstanding: three-node relaying, field range, power-loss durability, EU transmission,
-BLE/mobile clients, signed releases, and a security audit.
+BLE/mobile agents, signed releases, and a security audit.
 
 ## Documentation
 
@@ -62,9 +62,9 @@ recovery without a board. Full walkthrough: [Getting started](docs/guides/gettin
 
 ```text
 firmware/              Embedded C++ core and board-specific adapters
-clients/web/           Desktop browser application (field portal), USB first
+agents/web/           Desktop browser application (field portal), USB first
 packages/protocol/     Shared schemas, generated bindings, compatibility fixtures
-packages/client-core/  Transport-independent connection and message state
+packages/agent-core/  Transport-independent connection and message state
 tools/                 Build, flash, diagnostics, and release tooling
 tests/simulator/       Deterministic virtual nodes and fault injection
 tests/hardware/        Explicitly invoked physical-device checks

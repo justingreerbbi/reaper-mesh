@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Synchronizer } from '../../packages/client-core/sync.ts';
-import { Messaging } from '../../packages/client-core/messaging.ts';
+import { Synchronizer } from '../../packages/agent-core/sync.ts';
+import { Messaging } from '../../packages/agent-core/messaging.ts';
 import type { Message } from '../../packages/protocol/messages.ts';
 type Status = Extract<Message, { type: 'messageStatus' }>;
 function setup() {

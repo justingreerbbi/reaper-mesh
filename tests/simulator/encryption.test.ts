@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EncryptionVault, ENCRYPTION_VAULT_KEY, ENCRYPTION_POLICY_KEY } from '../../clients/web/encryption.ts';
+import { EncryptionVault, ENCRYPTION_VAULT_KEY, ENCRYPTION_POLICY_KEY } from '../../agents/web/encryption.ts';
 
 class MemoryStorage {
   values = new Map<string, string>();

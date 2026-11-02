@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Connection } from '../../packages/client-core/connection.ts';
+import { Connection } from '../../packages/agent-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { encodeMessage, decodeMessage, type Message } from '../../packages/protocol/messages.ts';
 
@@ -21,9 +21,9 @@ execFileSync(process.env.CXX || 'c++', [
 ], { stdio: 'pipe', timeout: 30000 });
 const wire = (message: Message) => encodeFrame(encodeMessage(message));
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
-const hello = (link: string): Message => ({ type: 'hello', link, minVersion: 1, maxVersion: 1, owner: 'client-A' });
+const hello = (link: string): Message => ({ type: 'hello', link, minVersion: 1, maxVersion: 1, owner: 'agent-A' });
 const sync = (link: string, request: number): Message => ({ type: 'sync', link, boot: 'boot-A', request });
-const change: Message = { type: 'configure', link: 'link-A', boot: 'boot-A', id: 'client-A:1',
+const change: Message = { type: 'configure', link: 'link-A', boot: 'boot-A', id: 'agent-A:1',
   expectedRevision: 0, region: 'US', label: 'native C++ device' };
 function transcript(messages: Message[], uncertain = false) {
   const lines = execFileSync(binary, uncertain ? ['uncertain'] : [], {
@@ -39,47 +39,47 @@ function expectRequest(connection: Connection, expected: Message) {
   assert.deepEqual(messages, [expected]);
 }
 
-test('TypeScript client synchronizes and saves against the actual native session engine', () => {
+test('TypeScript agent synchronizes and saves against the actual native session engine', () => {
   const requests = [hello('link-A'), sync('link-A', 1), change, sync('link-A', 2)];
   const replies = transcript(requests);
-  const client = new Connection('client-A'); const session = client.open('link-A', 0);
-  expectRequest(client, requests[0]); client.receive(session, replies[0][0], 0);
-  expectRequest(client, requests[1]); client.receive(session, replies[1][0], 0);
-  const id = client.configure({ region: 'US', label: 'native C++ device' }, 0);
-  expectRequest(client, requests[2]); client.receive(session, replies[2][0], 0);
-  expectRequest(client, requests[3]); client.receive(session, replies[3][0], 0);
-  assert.equal(client.sync.state, 'ready');
-  assert.equal(client.sync.config?.label, 'native C++ device');
-  assert.equal(client.commands.status(id).outcome, 'committed');
+  const agent = new Connection('agent-A'); const session = agent.open('link-A', 0);
+  expectRequest(agent, requests[0]); agent.receive(session, replies[0][0], 0);
+  expectRequest(agent, requests[1]); agent.receive(session, replies[1][0], 0);
+  const id = agent.configure({ region: 'US', label: 'native C++ device' }, 0);
+  expectRequest(agent, requests[2]); agent.receive(session, replies[2][0], 0);
+  expectRequest(agent, requests[3]); agent.receive(session, replies[3][0], 0);
+  assert.equal(agent.sync.state, 'ready');
+  assert.equal(agent.sync.config?.label, 'native C++ device');
+  assert.equal(agent.commands.status(id).outcome, 'committed');
 });
 
-test('TypeScript client queries a lost native receipt on reconnect without replaying config', () => {
+test('TypeScript agent queries a lost native receipt on reconnect without replaying config', () => {
   const requests: Message[] = [hello('link-A'), sync('link-A', 1), change, hello('link-B'), sync('link-B', 2),
-    { type: 'query', link: 'link-B', boot: 'boot-A', id: 'client-A:1' }, sync('link-B', 3)];
+    { type: 'query', link: 'link-B', boot: 'boot-A', id: 'agent-A:1' }, sync('link-B', 3)];
   const replies = transcript(requests);
-  const client = new Connection('client-A'); let session = client.open('link-A', 0);
-  expectRequest(client, requests[0]); client.receive(session, replies[0][0], 0);
-  expectRequest(client, requests[1]); client.receive(session, replies[1][0], 0);
-  const id = client.configure({ region: 'US', label: 'native C++ device' }, 0);
-  expectRequest(client, requests[2]); // Drop native result at index 2.
-  client.close(); session = client.open('link-B', 1);
-  expectRequest(client, requests[3]); client.receive(session, replies[3][0], 1);
-  expectRequest(client, requests[4]); client.receive(session, replies[4][0], 1);
-  client.recover(id, 1); expectRequest(client, requests[5]); client.receive(session, replies[5][0], 1);
-  expectRequest(client, requests[6]); client.receive(session, replies[6][0], 1);
-  assert.equal(client.commands.status(id).outcome, 'committed');
-  assert.equal(client.sync.revision, 1);
+  const agent = new Connection('agent-A'); let session = agent.open('link-A', 0);
+  expectRequest(agent, requests[0]); agent.receive(session, replies[0][0], 0);
+  expectRequest(agent, requests[1]); agent.receive(session, replies[1][0], 0);
+  const id = agent.configure({ region: 'US', label: 'native C++ device' }, 0);
+  expectRequest(agent, requests[2]); // Drop native result at index 2.
+  agent.close(); session = agent.open('link-B', 1);
+  expectRequest(agent, requests[3]); agent.receive(session, replies[3][0], 1);
+  expectRequest(agent, requests[4]); agent.receive(session, replies[4][0], 1);
+  agent.recover(id, 1); expectRequest(agent, requests[5]); agent.receive(session, replies[5][0], 1);
+  expectRequest(agent, requests[6]); agent.receive(session, replies[6][0], 1);
+  assert.equal(agent.commands.status(id).outcome, 'committed');
+  assert.equal(agent.sync.revision, 1);
 });
 
-test('native uncertain persistence ends the client connection with an unknown command', () => {
+test('native uncertain persistence ends the agent connection with an unknown command', () => {
   const requests = [hello('link-A'), sync('link-A', 1), change];
   const replies = transcript(requests, true);
-  const client = new Connection('client-A'); const session = client.open('link-A', 0);
-  client.drain(); client.receive(session, replies[0][0], 0);
-  client.drain(); client.receive(session, replies[1][0], 0);
-  const id = client.configure({ region: 'US', label: 'native C++ device' }, 0);
-  for (const reply of replies[2]) client.receive(session, reply, 0);
-  assert.equal(client.sync.state, 'disconnected');
-  assert.equal(client.commands.status(id).outcome, 'unknown');
-  assert.match(client.error!, /storage unavailable/);
+  const agent = new Connection('agent-A'); const session = agent.open('link-A', 0);
+  agent.drain(); agent.receive(session, replies[0][0], 0);
+  agent.drain(); agent.receive(session, replies[1][0], 0);
+  const id = agent.configure({ region: 'US', label: 'native C++ device' }, 0);
+  for (const reply of replies[2]) agent.receive(session, reply, 0);
+  assert.equal(agent.sync.state, 'disconnected');
+  assert.equal(agent.commands.status(id).outcome, 'unknown');
+  assert.match(agent.error!, /storage unavailable/);
 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Connection } from '../../packages/client-core/connection.ts';
+import { Connection } from '../../packages/agent-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../../packages/protocol/messages.ts';
 import { deviceCapabilities } from './capabilities.ts';

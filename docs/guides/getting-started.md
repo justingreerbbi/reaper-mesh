@@ -8,7 +8,7 @@ portal before you ever flash a board.
 
 | Tool | Version | Why |
 | --- | --- | --- |
-| [Node.js](https://nodejs.org/) | 24 (baseline) or 25 | Runs the host tests and builds the web client |
+| [Node.js](https://nodejs.org/) | 24 (baseline) or 25 | Runs the host tests and builds the web agent |
 | Python | 3.9+ | Required by the cross-language host tests |
 | A C++17 compiler | `c++` on `PATH`, or set `CXX` | Compiles and runs the firmware codec tests |
 
@@ -30,7 +30,7 @@ npm run check
 ```
 
 `check` runs strict TypeScript checking across every package, verifies the generated TS/C++
-protocol descriptors, runs the compiler-backed host suite, and builds the web client. This is
+protocol descriptors, runs the compiler-backed host suite, and builds the web agent. This is
 the one command to run before any change. For the full breakdown, see
 [Development & CI](../contributing/development.md).
 
@@ -61,7 +61,7 @@ Walk through a recovery scenario to see the honesty guarantees in action:
    retries); after the bounded retry window it becomes **unknown**, and a query still works.
 5. **Read-only on next connect** demonstrates capability-based mutation blocking.
 
-A page reload resets the simulator and client history. A simulated reboot preserves config but
+A page reload resets the simulator and agent history. A simulated reboot preserves config but
 clears receipts and owner marks and changes the boot identity.
 
 ## Where to go next

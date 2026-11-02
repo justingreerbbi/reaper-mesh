@@ -1,5 +1,5 @@
 import { WIPE_SIGNAL } from './local-data.ts';
-import { Connection } from '../../packages/client-core/connection.ts';
+import { Connection } from '../../packages/agent-core/connection.ts';
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 export const RECOVERY_KEY = 'reaper-mesh.usb-recovery.v1';
 /** One writer per browser storage bucket. Loaded counters are never reused on reload. */
@@ -48,7 +48,7 @@ export class BrowserRecovery {
     if (this.#store?.getItem(WIPE_SIGNAL)) throw new Error('A local data wipe is in progress.');
     if (!this.#held || !this.#store || this.connection.sync.state !== 'disconnected') throw new Error('Disconnect this console and hold its recovery lock before resetting history.');
     const next = new Connection();
-    if (next.commands.incarnation === this.connection.commands.incarnation) throw new Error('fresh client identity allocation failed');
+    if (next.commands.incarnation === this.connection.commands.incarnation) throw new Error('fresh agent identity allocation failed');
     const text = JSON.stringify(next.exportJournal()); this.#store.setItem(RECOVERY_KEY, text);
     this.connection = next; this.#text = this.#last = text; this.#invalid = undefined; this.#bind();
   }

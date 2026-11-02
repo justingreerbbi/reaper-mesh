@@ -1,5 +1,5 @@
-import type { Config } from '../client-core/sync.ts';
-import type { ConfigCommand, Result } from '../client-core/commands.ts';
+import type { Config } from '../agent-core/sync.ts';
+import type { ConfigCommand, Result } from '../agent-core/commands.ts';
 
 /** Host reference only. FIFO receipts with non-evicting per-owner high-water marks. */
 export class ConfigDevice {

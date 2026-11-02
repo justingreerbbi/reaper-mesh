@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InboxReader } from '../../packages/client-core/inbox.ts';
+import { InboxReader } from '../../packages/agent-core/inbox.ts';
 import type { Message } from '../../packages/protocol/messages.ts';
 const context = { device: 'node-A', boot: 'boot-A', session: 1 };
 function head(reader: InboxReader, oldest: number, latest: number, now = 0) {

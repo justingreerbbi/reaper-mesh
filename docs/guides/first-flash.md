@@ -64,7 +64,7 @@ If the app fails to boot/connect, reenter ROM and reinstall the same verified ar
 
 First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. Browser Web Serial startup/retry handling needs qualification before calling the web path ready. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
 
-The opt-in smoke check uses a small independent Python wire peer, not the browser or TypeScript client. It intentionally sets region US and label `Reaper hardware test`, then resets the board. Run only when those changes are intended:
+The opt-in smoke check uses a small independent Python wire peer, not the browser or TypeScript agent. It intentionally sets region US and label `Reaper hardware test`, then resets the board. Run only when those changes are intended:
 
 ```sh
 .tools/espressif/python_env/idf5.5_py3.12_env/bin/python tools/hardware-smoke.py --port /dev/cu.usbserial-0001 --confirm-write
@@ -72,15 +72,15 @@ The opt-in smoke check uses a small independent Python wire peer, not the browse
 
 Its local result is build/heltec-v3/hardware-smoke.json. The reviewed build manifest describes the pre-flash artifacts; it is not a live hardware-status record. Future builds need fresh hash review.
 
-## Physical TypeScript client check
+## Physical TypeScript agent check
 
 After the startup fix, three serial opens reached ready without a fixed boot delay. This check is read-only at the protocol level; opening the observed bridge resets the board. It exercises the real Connection through a Python byte bridge, not browser Web Serial:
 
 ```sh
-node tools/hardware-client-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001
+node tools/hardware-agent-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001
 ```
 
-USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
+USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the agent protocol startup path; browser permission/stream behavior remains unverified on hardware.
 
 The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
 

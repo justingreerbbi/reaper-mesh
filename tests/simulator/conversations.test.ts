@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canonicalNode, conversationKey, conversations, threadMessages, ConversationDrafts, deliveryLabel } from '../../clients/web/conversations.ts';
+import { canonicalNode, conversationKey, conversations, threadMessages, ConversationDrafts, deliveryLabel } from '../../agents/web/conversations.ts';
 const out = { id: 'x:1', device: 'device-A', destination: 'node-0000000000000002', channel: 0, text: 'hello', state: 'unknown' };
 const incoming = { device: 'device-A', origin: 'node-0000000000000002', destination: 'device-A', channel: 0, text: 'reply', messageId: 'remote-1' };
 test('conversation projection isolates device, channel and recipient with canonical Heltec identities', () => {

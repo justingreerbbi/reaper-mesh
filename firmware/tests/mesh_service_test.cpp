@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
   }
   if (scenario == "discovery") {
     config.settings.discovery.respond = true; service.tick(&config, 1);
-    const auto result = service.discovery().request(text<64>("client"), text<75>("client:1"), true, 2);
+    const auto result = service.discovery().request(text<64>("agent"), text<75>("agent:1"), true, 2);
     CHECK(result.sequence); service.tick(&config, 2); CHECK(transmitted);
     m::Packet request{}; CHECK(m::decode_packet(sent.data(), sent.size(), request) && request.kind == m::PacketKind::Discover);
     irq = 1; service.tick(&config, 3);
@@ -56,30 +56,30 @@ int main(int argc, char** argv) {
     response.destination = 1; response.count = response.hops = 1; response.size = response.total = 26; response.bytes[0] = 1; response.bytes[1] = 4;
     std::memcpy(response.bytes.data() + 2, "Peer", 4); std::memcpy(response.bytes.data() + 6, nonce.data(), 16); response.bytes[22] = result.sequence;
     inject(response); service.tick(&config, 4);
-    CHECK(service.discovery().count() == 1 && service.discovery().query(text<75>("client:1"), 4).replies == 1);
+    CHECK(service.discovery().count() == 1 && service.discovery().query(text<75>("agent:1"), 4).replies == 1);
     CHECK(inbox.latest() == 0 && info.transmitted == 1); std::cout << "ok discovery\n"; return 0;
   }
   const auto destination = scenario == "local" ? device : text<64>("heltec-000000000002");
   const std::uint8_t body[] = {'h','i'};
-  auto result = messages.submit(text<64>("client"), text<75>("client:1"), 0, destination, 0, 1, body, sizeof(body), 1);
+  auto result = messages.submit(text<64>("agent"), text<75>("agent:1"), 0, destination, 0, 1, body, sizeof(body), 1);
   CHECK(result.state == d::MessageState::Queued); service.tick(&config, 1);
   if (scenario == "local") {
-    CHECK(messages.query(text<75>("client:1")).state == d::MessageState::Acknowledged);
+    CHECK(messages.query(text<75>("agent:1")).state == d::MessageState::Acknowledged);
     CHECK(inbox.latest() == 1 && inbox.find(1)->size == 2 && info.transmitted == 0 && !transmitted);
     service.tick(&config, 2); CHECK(inbox.latest() == 1);
   } else if (scenario == "gate") {
-    CHECK(messages.query(text<75>("client:1")).state == d::MessageState::Failed && !transmitted);
+    CHECK(messages.query(text<75>("agent:1")).state == d::MessageState::Failed && !transmitted);
     CHECK(info.state.length == 9 && info.reason.length == 19); // receiving, antenna-unconfirmed
   } else if (scenario == "tx") {
-    CHECK(transmitted && messages.query(text<75>("client:1")).state == d::MessageState::Queued);
+    CHECK(transmitted && messages.query(text<75>("agent:1")).state == d::MessageState::Queued);
     irq = 1; service.tick(&config, 2);
-    CHECK(info.transmitted == 1 && messages.query(text<75>("client:1")).state == d::MessageState::Transmitted);
+    CHECK(info.transmitted == 1 && messages.query(text<75>("agent:1")).state == d::MessageState::Transmitted);
     m::Packet ack{}; ack.kind = m::PacketKind::Ack; ack.key.origin = 1; ack.key.boot = nonce; ack.key.sequence = 1; ack.destination = 2; ack.hops = 3;
-    inject(ack); service.tick(&config, 3); CHECK(messages.query(text<75>("client:1")).state == d::MessageState::Acknowledged);
+    inject(ack); service.tick(&config, 3); CHECK(messages.query(text<75>("agent:1")).state == d::MessageState::Acknowledged);
     CHECK(info.received == 1);
   } else if (scenario == "policy") {
     CHECK(transmitted); config.settings.radio.mode = d::RadioMode::Off; ++config.revision;
-    service.tick(&config, 2); CHECK(messages.query(text<75>("client:1")).state == d::MessageState::Failed);
+    service.tick(&config, 2); CHECK(messages.query(text<75>("agent:1")).state == d::MessageState::Failed);
     irq = 1; service.tick(&config, 3); CHECK(info.transmitted == 0);
   } else return 3;
   std::cout << "ok " << scenario << '\n';

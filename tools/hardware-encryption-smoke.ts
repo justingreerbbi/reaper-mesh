@@ -1,9 +1,9 @@
 /** Two-board opaque-ciphertext, shared-key, direct-ACK check; restores radio policy. */
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { EncryptionVault } from '../clients/web/encryption.ts';
+import { EncryptionVault } from '../agents/web/encryption.ts';
 import { openBoard } from './hardware-port.ts';
-import type { Config } from '../packages/client-core/sync.ts';
+import type { Config } from '../packages/agent-core/sync.ts';
 
 const [python, heltecPort, tbeamPort] = process.argv.slice(2);
 if (!python || !heltecPort || !tbeamPort || heltecPort === tbeamPort) throw new Error('usage: node tools/hardware-encryption-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT');

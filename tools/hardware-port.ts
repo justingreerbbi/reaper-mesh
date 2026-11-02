@@ -1,7 +1,7 @@
 /** Real serial bytes for explicitly invoked physical checks; never auto-replays work. */
 import { spawn } from 'node:child_process';
-import { Connection } from '../packages/client-core/connection.ts';
-import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
+import { Connection } from '../packages/agent-core/connection.ts';
+import { SerialAdapter, type SerialPortLike } from '../packages/agent-core/serial.ts';
 export async function openBoard(python: string, port: string) {
   const child = spawn(python, ['-u', '-c', `
 import serial,sys,threading

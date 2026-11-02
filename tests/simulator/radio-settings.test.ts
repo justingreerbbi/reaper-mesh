@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Synchronizer } from '../../packages/client-core/sync.ts';
-import { Connection } from '../../packages/client-core/connection.ts';
+import { Synchronizer } from '../../packages/agent-core/sync.ts';
+import { Connection } from '../../packages/agent-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { encodeMessage, decodeMessage, type Message } from '../../packages/protocol/messages.ts';
 import { DEFAULT_CHANNELS, validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { deviceCapabilities } from './capabilities.ts';
 function ready(supported = true) {
-  const connection = new Connection('client-A'); const generation = connection.open('link-A', 0); connection.drain();
+  const connection = new Connection('agent-A'); const generation = connection.open('link-A', 0); connection.drain();
   const receive = (message: Message) => connection.receive(generation, encodeFrame(encodeMessage(message)), 0);
   receive({ type: 'welcome', link: 'link-A', boot: 'boot-A', device: 'device-A', minVersion: 1, maxVersion: 1,
     ...deviceCapabilities, ...(supported ? { features: 31, radioSchema: 1, maxChannels: 8 } : {}) }); connection.drain();
@@ -20,7 +20,7 @@ const radio: RadioConfig = { mode: 'receive', power: 5, relay: true, channels: '
 test('radio extensions require capabilities before consuming IDs, while legacy edits remain supported', () => {
   const { connection, drain } = ready(false);
   assert.throws(() => connection.configure({ region: 'US', label: 'node', radio }, 0), /radio configuration/);
-  assert.deepEqual(drain(), []); assert.equal(connection.configure({ region: 'US', label: 'legacy' }, 0), 'client-A:1');
+  assert.deepEqual(drain(), []); assert.equal(connection.configure({ region: 'US', label: 'legacy' }, 0), 'agent-A:1');
   const packet = drain()[0]; assert.equal(packet.type, 'configure'); assert.ok(!('radioMode' in packet));
 });
 test('radio settings preserve nested immutable snapshots and retry bodies', () => {
@@ -30,7 +30,7 @@ test('radio settings preserve nested immutable snapshots and retry bodies', () =
   const id = connection.configure({ region: 'US', label: 'node', radio: draft }, 0); draft.power = 10;
   const packet = drain()[0]; assert.equal(packet.type, 'configure');
   if (packet.type === 'configure') { assert.equal(packet.txPower, 5); assert.equal(packet.channels, 'Public|Camp||||||'); }
-  connection.tick(1000); assert.deepEqual(drain(), [packet]); assert.equal(id, 'client-A:1');
+  connection.tick(1000); assert.deepEqual(drain(), [packet]); assert.equal(id, 'agent-A:1');
 });
 test('regional, power and channel bounds are enforced consistently before sending', () => {
   const { connection } = ready();

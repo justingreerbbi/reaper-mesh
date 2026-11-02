@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clearLocalAppData, WIPE_SIGNAL } from '../../clients/web/local-data.ts';
+import { clearLocalAppData, WIPE_SIGNAL } from '../../agents/web/local-data.ts';
 class MemoryStorage {
   values = new Map<string, string>();
   get length() { return this.values.size; }

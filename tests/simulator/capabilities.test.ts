@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Connection } from '../../packages/client-core/connection.ts';
+import { Connection } from '../../packages/agent-core/connection.ts';
 import { encodeFrame } from '../../packages/protocol/framing.ts';
 import { encodeMessage, decodeMessage, type Message } from '../../packages/protocol/messages.ts';
 import { ConfigDevice } from './config-device.ts';
 import { deviceCapabilities } from './capabilities.ts';
 
 function ready(metadata: Partial<typeof deviceCapabilities> = deviceCapabilities) {
-  const connection = new Connection('client-A');
+  const connection = new Connection('agent-A');
   const session = connection.open('link-A', 0);
   connection.drain();
   const send = (message: Message) => connection.receive(session, encodeFrame(encodeMessage(message)), 0);
@@ -36,7 +36,7 @@ test('advertised write/query/sequence-suppression guarantees gate mutation', () 
     assert.throws(() => connection.configure(config, 0), /lacks safe/);
   }
   // Unknown feature bits do not disable the known compatible behavior.
-  assert.equal(ready({ ...deviceCapabilities, features: 7 | 128 }).configure(config, 0), 'client-A:1');
+  assert.equal(ready({ ...deviceCapabilities, features: 7 | 128 }).configure(config, 0), 'agent-A:1');
 });
 
 test('unknown config schema and unusable resource limits block writes', () => {
@@ -60,7 +60,7 @@ test('region and UTF-8 byte limits are enforced before retaining a command', () 
   const connection = ready({ ...deviceCapabilities, maxLabelBytes: 4 });
   assert.throws(() => connection.configure({ region: 'EU', label: 'test' }, 0), /region/);
   assert.throws(() => connection.configure({ region: 'US', label: '📻x' }, 0), /label/);
-  assert.equal(connection.configure({ region: 'US', label: '📻' }, 0), 'client-A:1');
+  assert.equal(connection.configure({ region: 'US', label: '📻' }, 0), 'agent-A:1');
 });
 
 test('capabilities are immutable and cleared when a connection closes', () => {
@@ -80,8 +80,8 @@ test('optional handshake fields round-trip and legacy required fields remain suf
 
 test('owner admission is idempotent, bounded, and does not consume command sequence one', () => {
   const device = new ConfigDevice(2, 1);
-  assert.equal(device.admit('client-A'), true);
-  assert.equal(device.admit('client-A'), true);
-  assert.equal(device.admit('client-B'), false);
-  assert.equal(device.apply({ id: 'client-A:1', boot: device.boot, expectedRevision: 0, config }).outcome, 'committed');
+  assert.equal(device.admit('agent-A'), true);
+  assert.equal(device.admit('agent-A'), true);
+  assert.equal(device.admit('agent-B'), false);
+  assert.equal(device.apply({ id: 'agent-A:1', boot: device.boot, expectedRevision: 0, config }).outcome, 'committed');
 });

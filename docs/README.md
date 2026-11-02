@@ -1,7 +1,7 @@
 # Reaper Mesh documentation
 
 Reaper Mesh is a small, dependable LoRa mesh messaging system: custom firmware for
-hobbyist LoRa boards plus a desktop browser client that talks to them over USB.
+hobbyist LoRa boards plus a desktop browser agent that talks to them over USB.
 
 This folder is the full documentation set. Start with the section that matches what
 you want to do.
@@ -30,7 +30,7 @@ you want to do.
 | [Flashing firmware](guides/flashing-firmware.md) | Build, validate, install, and recover firmware over USB |
 | [First flash walkthrough](guides/first-flash.md) | Detailed record of the original Heltec V3 bring-up |
 | [Web portal](guides/web-portal.md) | Using the field portal: messaging, assets, settings, recovery |
-| [Channel encryption](guides/encryption.md) | Setting up client-side encryption and its security limits |
+| [Channel encryption](guides/encryption.md) | Setting up agent-side encryption and its security limits |
 
 ## Reference — how it works in detail
 
@@ -62,7 +62,7 @@ See also [`AI.md`](../AI.md) (the maintained handoff for AI contributors),
 ## Conventions used in these docs
 
 - **Node** — a radio device running Reaper Mesh firmware.
-- **Client / agent** — software (the browser portal) connected to a node.
+- **Agent** — software (the browser portal) connected to a node.
 - **RACE** — designing and testing for **s**ynchronization and **r**ecovery across
   interrupted connections and concurrent operations. It is a discipline, not a framework.
 - **Delivery states** are kept distinct on purpose: *queued*, *transmitted*,

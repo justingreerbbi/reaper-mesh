@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { openBoard } from './hardware-port.ts';
-import type { Config } from '../packages/client-core/sync.ts';
+import type { Config } from '../packages/agent-core/sync.ts';
 const [python, heltec, tbeam] = process.argv.slice(2);
 if (!python || !heltec || !tbeam || heltec === tbeam) throw new Error('usage: node tools/hardware-position-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT');
 const boards: Awaited<ReturnType<typeof openBoard>>[] = [], originals: Config[] = [];

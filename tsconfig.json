@@ -13,5 +13,5 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": false
   },
-  "include": ["packages/**/*.ts", "tests/**/*.ts", "tools/**/*.ts", "clients/**/*.ts"]
+  "include": ["packages/**/*.ts", "tests/**/*.ts", "tools/**/*.ts", "agents/**/*.ts"]
 }

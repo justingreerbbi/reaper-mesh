@@ -49,7 +49,7 @@ Full detail is in the [first-flash walkthrough](../guides/first-flash.md).
 
 ## USB startup recovery
 
-The client repeats the same `hello` at most once per 500 ms while negotiating, without
+The agent repeats the same `hello` at most once per 500 ms while negotiating, without
 extending the five-second deadline. Retries do not accumulate behind queued writes, and no
 configuration mutation is replayed. The TypeScript `Connection` reached ready on three
 consecutive physical serial opens in 647/646/650 ms over a Python byte bridge, with
@@ -88,7 +88,7 @@ outcome left uncertain. Reproduced by `tools/hardware-recovery-smoke.ts`.
 after the RF-disabled queue lifetime. Native Brave queued a multiline message, queried it,
 and showed *unknown* on disconnect without resending. The C++ radio codec and mesh core pass
 host topology/fault tests. `usb-prototype-3` added named-channel acceptance and radio-policy
-quiesce; a power change caused `radio-config-changed`, and the client preserved accepted
+quiesce; a power change caused `radio-config-changed`, and the agent preserved accepted
 messages during config resync. No RF transmission occurred in either.
 
 ## Integrated board and browser recovery — November 1

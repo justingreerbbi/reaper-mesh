@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ConfigModel } from '../../clients/web/model.ts';
-import { SerialAdapter } from '../../packages/client-core/serial.ts';
+import { ConfigModel } from '../../agents/web/model.ts';
+import { SerialAdapter } from '../../packages/agent-core/serial.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 
 const settle = () => new Promise<void>(resolve => setImmediate(resolve));

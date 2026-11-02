@@ -21,7 +21,7 @@ for (const [scenario, description] of Object.entries({
   identity: 'rejects stale links, wrong boot, wrong owner and unsupported region',
   reconnect: 'retains receipts across reconnect for query-only recovery',
   storage: 'emits unknown then a storage error without serving stale snapshots',
-  version: 'does not admit incompatible clients or consume their owner slots',
+  version: 'does not admit incompatible agents or consume their owner slots',
 })) {
   test(`C++ session ${description}`, () => {
     assert.equal(execFileSync(binary, [scenario], { encoding: 'utf8', timeout: 10000 }).trim(), `ok ${scenario}`);

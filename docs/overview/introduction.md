@@ -11,7 +11,7 @@ of devices, with small firmware and careful compatibility across releases.**
 
 - **Custom firmware** for hobbyist LoRa boards — currently the Heltec WiFi LoRa 32 V3 and
   the LILYGO T-Beam V1.2.
-- **A desktop browser client** (the "field portal") that connects to a board over USB using
+- **A desktop browser agent** (the "field portal") that connects to a board over USB using
   the [Web Serial API](https://developer.chrome.com/docs/capabilities/serial), with no app
   to install.
 - **An independent, documented protocol.** Reaper Mesh does not interoperate with other
@@ -28,7 +28,7 @@ of devices, with small firmware and careful compatibility across releases.**
 | Direct radio delivery between two boards, with acknowledgment | Works, verified on two boards |
 | Local inbox, delivery states, and recovery after disconnects | Works, verified on hardware |
 | Discover nearby nodes and share a fixed position | Works, verified on two boards |
-| Client-side channel encryption | First implementation; verified on two boards, not audited |
+| Agent-side channel encryption | First implementation; verified on two boards, not audited |
 | Three-node relaying, field range, and power-loss durability | **Not yet qualified** |
 
 See the [status tracker](status.md) for the precise evidence behind each line, and the
@@ -51,7 +51,7 @@ See the [status tracker](status.md) for the precise evidence behind each line, a
 │  UI: messages, assets,     │    Serial     │  USB protocol engine      │
 │  settings, recovery        │ ◀──────────▶ │  Config authority + NVS   │
 │                            │   framed      │  Message queue + inbox    │
-│  client-core:              │   binary      │  Independent mesh core    │
+│  agent-core:              │   binary      │  Independent mesh core    │
 │  connection + state        │   frames      │  SX126x / SX1276 radio    │
 └───────────────────────────┘               └──────────┬───────────────┘
                                                         │ LoRa RF
@@ -63,7 +63,7 @@ See the [status tracker](status.md) for the precise evidence behind each line, a
   a copy and may only change it through revision-checked, atomic writes.
 - The **browser never talks to the radio directly.** It hands the firmware a message; the
   firmware decides whether and how to transmit based on confirmed region, antenna, and mode.
-- **Transport is kept independent** so a future BLE or mobile client can reuse the same
+- **Transport is kept independent** so a future BLE or mobile agent can reuse the same
   protocol and state machine.
 
 ## Design principles
@@ -74,7 +74,7 @@ See the [status tracker](status.md) for the precise evidence behind each line, a
 2. **Bound everything.** Memory, queues, retries, message size, fragment count, reassembly
    lifetime, and airtime all have explicit limits. There is no unbounded flooding.
 3. **Stay compatible.** USB, radio, configuration, and firmware versions are negotiated
-   independently. A firmware build-string change never forces a client upgrade.
+   independently. A firmware build-string change never forces a agent upgrade.
 4. **Don't overclaim.** Host tests qualify logic, not radios. Hardware limitations are
    stated plainly and untested cases are recorded rather than assumed.
 

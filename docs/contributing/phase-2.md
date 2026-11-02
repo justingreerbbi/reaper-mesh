@@ -54,7 +54,7 @@ Discovery core, persistent settings, capability-gated USB, fixed node snapshots,
 
 Installed images: Heltec usb-prototype-7 and T-Beam tbeam-usb-prototype-2 from clean commit a44319b, with all ROM artifact hashes verified and NVS preserved. Application sizes274256/244416 bytes. Observed free heap260592/187924 bytes and minimum free main stack16892/17116 bytes respectively. The coherent node snapshot trades a bounded RAM increase for paging that cannot starve under incoming reports. Final persisted state: Heltec revision28 mesh, T-Beam revision17 off; beacon/response flags false and interval300 on both. The T-Beam serial driver needed a USB reconnect before installation; failed preflight attempts wrote nothing.
 
-Reproduce with tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; append --beacon-only for the timed periodic test. Both restore original settings. Local ignored reports: build/tbeam-v12/discovery-smoke.json, beacon-smoke.json and discovery-final-state.json. Native browser interaction with the new controls has not been manually checked; shared client/core and actual USB protocol behavior are tested.
+Reproduce with tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; append --beacon-only for the timed periodic test. Both restore original settings. Local ignored reports: build/tbeam-v12/discovery-smoke.json, beacon-smoke.json and discovery-final-state.json. Native browser interaction with the new controls has not been manually checked; shared agent/core and actual USB protocol behavior are tested.
 
 ## Slice 2.2a: fixed position
 

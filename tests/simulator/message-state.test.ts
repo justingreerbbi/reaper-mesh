@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MessageState, MESSAGE_UI_KEY, receivedKey, sentKey, messageScope } from '../../clients/web/message-state.ts';
-import { threadMessages, conversationKey } from '../../clients/web/conversations.ts';
+import { MessageState, MESSAGE_UI_KEY, receivedKey, sentKey, messageScope } from '../../agents/web/message-state.ts';
+import { threadMessages, conversationKey } from '../../agents/web/conversations.ts';
 function store() { const data = new Map<string,string>(); return { getItem:(k:string)=>data.get(k)??null, setItem:(k:string,v:string)=>{ data.set(k,v); }, data }; }
 const first = { device:'device-A', origin:'node-0000000000000002', destination:'device-A', channel:0, messageId:'remote-1', text:'hello' };
 const second = {...first, messageId:'remote-2', text:'new'};

@@ -44,7 +44,7 @@ struct Store : d::Storage {
     return uncertain_writes_next ? d::CommitStatus::Indeterminate : d::CommitStatus::Committed;
   }
 };
-d::Command command(std::uint32_t sequence = 1, std::uint32_t revision = 0, std::string label = "changed", std::string owner = "client-A") {
+d::Command command(std::uint32_t sequence = 1, std::uint32_t revision = 0, std::string label = "changed", std::string owner = "agent-A") {
   d::Command result{};
   result.id = text<75>(owner + ":" + std::to_string(sequence));
   result.boot = text<64>("boot-A"); result.expected_revision = revision;
@@ -73,9 +73,9 @@ int main(int argc, char** argv) {
     CHECK(store.writes == 1);
   } else if (scenario == "conflict") {
     CHECK(authority.apply(command()).outcome == d::Outcome::Committed);
-    CHECK(authority.apply(command(1, 0, "other", "client-B")).outcome == d::Outcome::Conflict);
+    CHECK(authority.apply(command(1, 0, "other", "agent-B")).outcome == d::Outcome::Conflict);
     CHECK(store.writes == 1);
-    CHECK(authority.apply(command(1, 0, "other", "client-B")).outcome == d::Outcome::Conflict);
+    CHECK(authority.apply(command(1, 0, "other", "agent-B")).outcome == d::Outcome::Conflict);
   } else if (scenario == "failure") {
     store.definite_failure = true;
     CHECK(authority.apply(command()).outcome == d::Outcome::Rejected);
@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
     for (std::size_t n = 0; n < size; ++n) { d::Snapshot out{}; CHECK(!d::decode_record(encoded.data(), n, out)); }
   } else if (scenario == "validation") {
     CHECK(!authority.admit(text<64>("bad:owner")));
-    auto bad = command(); bad.id = text<75>("client-A:01");
+    auto bad = command(); bad.id = text<75>("agent-A:01");
     CHECK(authority.apply(bad).outcome == d::Outcome::Rejected);
     bad = command(); bad.settings.label = text<64>("bad\nlabel");
     CHECK(authority.apply(bad).outcome == d::Outcome::Rejected);
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
     };
     set(message.fields[p::kConfigureLink], "link-A");
     set(message.fields[p::kConfigureBoot], "boot-A");
-    set(message.fields[p::kConfigureId], "client-A:1");
+    set(message.fields[p::kConfigureId], "agent-A:1");
     set(message.fields[p::kConfigureRegion], "US");
     set(message.fields[p::kConfigureLabel], "from framed USB");
     message.fields[p::kConfigureExpectedRevision].present = true;

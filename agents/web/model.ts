@@ -1,5 +1,5 @@
-import { SerialAdapter } from '../../packages/client-core/serial.ts';
-import type { Config } from '../../packages/client-core/sync.ts';
+import { SerialAdapter } from '../../packages/agent-core/serial.ts';
+import type { Config } from '../../packages/agent-core/sync.ts';
 
 /** UI drafts/history only. The shared core owns all connection and protocol state. */
 export class ConfigModel {

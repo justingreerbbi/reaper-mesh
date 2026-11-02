@@ -1,7 +1,7 @@
 import { ConfigDevice } from './config-device.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
-import type { SerialPortLike } from '../client-core/serial.ts';
+import type { SerialPortLike } from '../agent-core/serial.ts';
 
 /** In-memory browser/host demo. No radio or flash persistence is simulated. */
 export class SimulatedDevice {

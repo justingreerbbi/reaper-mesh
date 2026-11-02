@@ -1,4 +1,4 @@
-/** Stable binary envelope framing; cryptographic operations live in the client agent. */
+/** Stable binary envelope framing; cryptographic operations live in the agent. */
 export const ENCRYPTED_MAGIC = new Uint8Array([0x52, 0x4d, 0x45, 0x01]); // RME1
 export const ENCRYPTED_SUITE_XCHACHA20_POLY1305 = 1;
 export const ENCRYPTED_HEADER_BYTES = 58;

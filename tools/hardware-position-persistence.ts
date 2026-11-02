@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { writeFile } from 'node:fs/promises';
 import { openBoard } from './hardware-port.ts';
-import type { Config } from '../packages/client-core/sync.ts';
+import type { Config } from '../packages/agent-core/sync.ts';
 const execute = promisify(execFile);
 const [python, heltec, tbeam] = process.argv.slice(2);
 if (!python || !heltec || !tbeam || heltec === tbeam) throw Error('usage: node tools/hardware-position-persistence.ts PYTHON HELTEC_PORT TBEAM_PORT');

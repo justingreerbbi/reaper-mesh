@@ -9,7 +9,7 @@ npm ci --ignore-scripts
 npm run check
 ```
 
-`check` runs strict TypeScript checks across packages, tools, and tests, verifies generated TS/C++ protocol descriptors, runs the host suite, and builds the web client. `npm test` still runs generated checks and tests without static checking; `npm run typecheck` checks types alone. After editing the schema, use `npm run generate:protocol`, review the generated diff, then run the combined check.
+`check` runs strict TypeScript checks across packages, tools, and tests, verifies generated TS/C++ protocol descriptors, runs the host suite, and builds the web agent. `npm test` still runs generated checks and tests without static checking; `npm run typecheck` checks types alone. After editing the schema, use `npm run generate:protocol`, review the generated diff, then run the combined check.
 
 `package-lock.json` pins TypeScript 7.0.2 and Node 24 type definitions 24.19.2, including transitive integrity hashes and platform-specific compiler packages. Install scripts are not required. Vite 8.3.5 is also pinned for the local browser build/dev server (MIT; retained dependency license notices apply). The field portal runtime depends on Leaflet 1.9.4 (BSD-2-Clause); see third-party-notices.md. Development-only tools: TypeScript/compiler packages use Apache-2.0, and Node/Undici type definitions use MIT. These dependency licenses do not select a license for Reaper Mesh, whose licensing decision remains deferred.
 

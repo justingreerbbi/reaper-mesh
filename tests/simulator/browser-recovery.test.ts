@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BrowserRecovery, RECOVERY_KEY } from '../../clients/web/recovery.ts';
+import { BrowserRecovery, RECOVERY_KEY } from '../../agents/web/recovery.ts';
 function storage(initial?: string) {
   let value = initial; let failing = false;
   return { getItem: (key: string) => key === RECOVERY_KEY ? value ?? null : null, setItem: (key: string, text: string) => {

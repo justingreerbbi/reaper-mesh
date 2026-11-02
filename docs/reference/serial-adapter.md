@@ -1,6 +1,6 @@
 # Web Serial adapter
 
-`packages/client-core/serial.ts` connects the existing `Connection` byte/state layer to a structurally compatible Web Serial port. It does not select ports, request permissions, toggle DTR/RTS, reset a device, reconnect automatically, or flash firmware. The local browser console is documented in ../guides/web-portal.md.
+`packages/agent-core/serial.ts` connects the existing `Connection` byte/state layer to a structurally compatible Web Serial port. It does not select ports, request permissions, toggle DTR/RTS, reset a device, reconnect automatically, or flash firmware. The local browser console is documented in ../guides/web-portal.md.
 
 The UI must feature-detect `navigator.serial`, request a port from a user gesture, and pass that port to `SerialAdapter.connect(port, crypto.randomUUID(), baudRate)`. Port selection is browser-managed and requires a supported secure context. See [Chrome's Web Serial documentation](https://developer.chrome.com/docs/capabilities/serial) for permission, stream locking, and close behavior. The default 115,200 baud is a proposed Reaper Mesh setting, now verified for the installed Reaper USB prototype.
 
@@ -20,13 +20,13 @@ The UI must feature-detect `navigator.serial`, request a port from a user gestur
 
 Host tests use standard ReadableStream/WritableStream implementations with simulated serial ports. They exercise handshake/snapshot dispatch, pending-open cancellation, open failure, read failure, EOF/removal, write failure, stalled writes during close, timeout cleanup, missing streams, close failure, and reopen without old-frame replay. These establish host lifecycle semantics, not browser/USB driver or board behavior. A separately documented physical Python peer now passes USB/NVS smoke tests on the installed image; the actual browser adapter remains unqualified. Opening the observed CP2102 port reset the board, so initial hello loss during boot needs bounded negotiation recovery. The portable C++ protocol component is documented in firmware/README.md.
 
-Configuration commands now use `adapter.configure(config)`; read their status through `adapter.connection.commands.status(id)`. After reconnecting and reaching readiness, use `adapter.recover(id)` for query-only recovery. `adapter.connection.forget(id)` explicitly releases non-pending client history. Results trigger snapshot reconciliation when appropriate; no mutation is automatically replayed into a new link.
+Configuration commands now use `adapter.configure(config)`; read their status through `adapter.connection.commands.status(id)`. After reconnecting and reaching readiness, use `adapter.recover(id)` for query-only recovery. `adapter.connection.forget(id)` explicitly releases non-pending agent history. Results trigger snapshot reconciliation when appropriate; no mutation is automatically replayed into a new link.
 
 Full-stack simulated USB tests cover lost events/results, duplicate-safe retries, query-only recovery, reboot ambiguity, device identity mismatch, revision conflicts, invalid config, receipt eviction, and continued sequential use past history capacity. Static checks/CI configuration and capability negotiation are implemented. The UI can inspect `connection.writeBlockReason` and `connection.capabilities` before enabling mutations. Next add owner-retirement/recovery UX, browser automation, target integration of the generated embedded codec, and page-reload history recovery. The web UI has been manually verified in simulation; see ../guides/web-portal.md. Verify the actual hardware and firmware before physical protocol testing.
 
 ## Startup recovery on a resetting port
 
-Opening the observed CP2102 port resets the board, so the client must survive losing its
+Opening the observed CP2102 port resets the board, so the agent must survive losing its
 first `hello` during boot. It repeats the same `hello` at most once per 500 ms while
 negotiating, without extending the five-second deadline; retries do not accumulate behind
 queued writes, and no configuration mutation is replayed. This startup path is qualified on

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SerialAdapter, type SerialPortLike } from '../../packages/client-core/serial.ts';
-import { Connection } from '../../packages/client-core/connection.ts';
+import { SerialAdapter, type SerialPortLike } from '../../packages/agent-core/serial.ts';
+import { Connection } from '../../packages/agent-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../../packages/protocol/messages.ts';
 import { ConfigDevice } from './config-device.ts';
@@ -16,7 +16,7 @@ function setup(device = new ConfigDevice()) {
   let dropEvents = false;
   let identity = 'device-A';
   const requests: Message[] = [];
-  const adapter = new SerialAdapter(new Connection('client-A'), {
+  const adapter = new SerialAdapter(new Connection('agent-A'), {
     now: () => now,
     schedule(callback) { tick = callback; return () => { tick = undefined; }; },
   });
@@ -123,7 +123,7 @@ test('an evicted receipt remains unknown after resync without replaying the old 
   const id = f.adapter.configure(config);
   await settle();
   await f.adapter.disconnect();
-  f.device.apply({ id: 'client-B:1', boot: f.device.boot, expectedRevision: 1,
+  f.device.apply({ id: 'agent-B:1', boot: f.device.boot, expectedRevision: 1,
     config: { ...config, label: 'later change' } });
   await f.connect('link-B');
   f.adapter.recover(id);
@@ -166,12 +166,12 @@ test('revision conflict over USB refreshes authoritative state', async t => {
   const f = setup();
   t.after(() => f.adapter.disconnect());
   await f.connect('link-A');
-  f.device.apply({ id: 'client-B:1', boot: f.device.boot, expectedRevision: 0,
-    config: { ...config, label: 'other client' } });
+  f.device.apply({ id: 'agent-B:1', boot: f.device.boot, expectedRevision: 0,
+    config: { ...config, label: 'other agent' } });
   const id = f.adapter.configure(config);
   await settle();
   assert.equal(f.adapter.connection.commands.status(id).outcome, 'conflict');
-  assert.equal(f.adapter.connection.sync.config?.label, 'other client');
+  assert.equal(f.adapter.connection.sync.config?.label, 'other agent');
   assert.equal(f.device.commits, 1);
 });
 
@@ -181,14 +181,14 @@ test('malformed config never consumes command history or reaches USB', async t =
   await f.connect('link-A');
   assert.throws(() => f.adapter.configure({ ...config, label: 'bad\nlabel' }));
   const id = f.adapter.configure(config);
-  assert.equal(id, 'client-A:1');
+  assert.equal(id, 'agent-A:1');
   await settle();
   assert.equal(f.device.commits, 1);
   f.adapter.connection.forget(id);
   assert.throws(() => f.adapter.connection.commands.status(id));
 });
 
-test('normal sequential use continues past both client and device receipt capacities', async t => {
+test('normal sequential use continues past both agent and device receipt capacities', async t => {
   const f = setup();
   t.after(() => f.adapter.disconnect());
   await f.connect('link-A');
@@ -201,5 +201,5 @@ test('normal sequential use continues past both client and device receipt capaci
   }
   assert.equal(f.device.commits, 40);
   assert.equal(f.adapter.connection.sync.config?.label, 'change 40');
-  assert.equal(f.device.query('client-A:1').outcome, 'unknown');
+  assert.equal(f.device.query('agent-A:1').outcome, 'unknown');
 });

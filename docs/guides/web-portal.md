@@ -1,13 +1,13 @@
 # Field portal
 
-The web client lives in `clients/web/`. It uses TypeScript and Vite with native DOM controls plus Leaflet for the map. Protocol/state logic stays in `packages/client-core/`; the form model only owns drafts and bounded command history. Firmware and wire contracts are unchanged by portal layout work.
+The web agent lives in `agents/web/`. It uses TypeScript and Vite with native DOM controls plus Leaflet for the map. Protocol/state logic stays in `packages/agent-core/`; the form model only owns drafts and bounded command history. Firmware and wire contracts are unchanged by portal layout work.
 
 ```sh
 npm ci --ignore-scripts
 npm run dev:web
 ```
 
-Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server binds to loopback only. `npm run build:web` creates the static client in ignored `dist/web/`. `npm run check` includes the production build as well as type checks, schema checks, and host tests. Nothing is deployed or published.
+Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server binds to loopback only. `npm run build:web` creates the static agent in ignored `dist/web/`. `npm run check` includes the production build as well as type checks, schema checks, and host tests. Nothing is deployed or published.
 
 ## Layout
 
@@ -29,7 +29,7 @@ Missing positions are never plotted. Map tiles load from Esri’s dark canvas se
 4. Reconnect and select **Query result** on that command. A retained receipt resolves it without resending the configuration change.
 5. **Lose result and change event** suppresses all replies for the next command, including its retries. After the bounded retry window it becomes unknown; result queries still work. **Read-only on next connect** demonstrates capability-based mutation blocking.
 
-The simulator is shared with host tests under `packages/simulator/`. It uses the same framed/typed protocol and serial adapter as the USB path, but only models in-memory configuration and request retention. Reconnects preserve its state; a page reload resets the simulator and client history. Reboot preserves simulated config but clears receipts/owner marks and changes boot identity. No flash durability or radio is simulated.
+The simulator is shared with host tests under `packages/simulator/`. It uses the same framed/typed protocol and serial adapter as the USB path, but only models in-memory configuration and request retention. Reconnects preserve its state; a page reload resets the simulator and agent history. Reboot preserves simulated config but clears receipts/owner marks and changes boot identity. No flash durability or radio is simulated.
 
 ## USB and recovery boundaries
 
@@ -37,9 +37,9 @@ The simulator is shared with host tests under `packages/simulator/`. It uses the
 
 Device status/capabilities are readable even when writes are blocked. The UI displays the blocking reason, advertised byte limit, region availability, owner admission, receipt/owner capacities, and firmware/radio identifiers. The messaging UI exposes local delivery, bounded outgoing history and received messages; remote sends require live radio readiness.
 
-Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest** is selected. Pending changes cannot be resubmitted or cleared. Unknown commands can be queried after synchronization; they are never automatically resent. **Forget uncertain command** explicitly confirms loss of result recovery and does not undo/cancel device work. Clear non-pending history to release the client's 32-entry limit.
+Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest** is selected. Pending changes cannot be resubmitted or cleared. Unknown commands can be queried after synchronization; they are never automatically resent. **Forget uncertain command** explicitly confirms loss of result recovery and does not undo/cancel device work. Clear non-pending history to release the agent's 32-entry limit.
 
-Each connection source retains its own client manager for this page session. Mode switching is disabled during an active connection/open/cleanup. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. USB history/incarnation survives reload in plaintext local storage, with a Web Lock preventing simultaneous writers in this browser bucket. Other browsers/profiles have separate identities. Device owner marks are not silently evicted; exhausted admission is read-only until an explicit device reboot, which loses volatile receipts/queues. Export/query pending history first. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
+Each connection source retains its own agent manager for this page session. Mode switching is disabled during an active connection/open/cleanup. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. USB history/incarnation survives reload in plaintext local storage, with a Web Lock preventing simultaneous writers in this browser bucket. Other browsers/profiles have separate identities. Device owner marks are not silently evicted; exhausted admission is read-only until an explicit device reboot, which loses volatile receipts/queues. Export/query pending history first. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
 
 ## Validation recorded
 
@@ -53,7 +53,7 @@ The public-channel composer accepts up to 1024 UTF-8 bytes and a destination nod
 
 ## Inbox, local testing and diagnostics
 
-The integrated firmware supports local delivery by selecting This device. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The client reads the inbox with independent bounded cursors, displays retention gaps and keeps received history to 32 entries. Live radio probe/effective state and RX/TX counters appear in device details; memory/stack headroom is under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
+The integrated firmware supports local delivery by selecting This device. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The agent reads the inbox with independent bounded cursors, displays retention gaps and keeps received history to 32 entries. Live radio probe/effective state and RX/TX counters appear in device details; memory/stack headroom is under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
 
 ## Reload recovery
 

@@ -1,6 +1,6 @@
 # Prototype compatibility and RACE coverage
 
-There is no stable/public release yet. Firmware identifiers describe development builds; USB, radio, config and storage versions evolve independently. Do not force a client update merely because the firmware build string changes. Negotiate capabilities and block unsupported writes while retaining readable device state.
+There is no stable/public release yet. Firmware identifiers describe development builds; USB, radio, config and storage versions evolve independently. Do not force a agent update merely because the firmware build string changes. Negotiate capabilities and block unsupported writes while retaining readable device state.
 
 | Firmware slice | USB v1 | Config schema | Record reads | Optional functions |
 | --- | --- | --- | --- | --- |
@@ -12,9 +12,9 @@ There is no stable/public release yet. Firmware identifiers describe development
 | tbeam-usb-prototype-1 | Same USB v1 | 1 | 1, 2 | ESP32/4MB, AXP2101/SX1276; real direct RF with Heltec6 passed |
 | usb-prototype-6 | Same wire/schema | 1 | 1, 2 | DMA-backed full-fragment transfer; owner-confirmed US board/antenna |
 
-Current client to older firmware: missing message/radio/inbox capabilities disable those functions. Unknown optional fields are skipped by length; unsupported required behavior fails closed. Base clients editing label/region on newer firmware omit the five radio fields, preserving device-authoritative radio policy. A radio policy update is all-or-none, shares the revision CAS, and cancels stale queued work. Storage schema 1 remains readable; schema 2 is written only for nondefault radio policy. Downgrading to schema-1-only firmware with schema 2 on disk is unsupported: storage must fail closed, never erase itself.
+Current agent to older firmware: missing message/radio/inbox capabilities disable those functions. Unknown optional fields are skipped by length; unsupported required behavior fails closed. Base agents editing label/region on newer firmware omit the five radio fields, preserving device-authoritative radio policy. A radio policy update is all-or-none, shares the revision CAS, and cancels stale queued work. Storage schema 1 remains readable; schema 2 is written only for nondefault radio policy. Downgrading to schema-1-only firmware with schema 2 on disk is unsupported: storage must fail closed, never erase itself.
 
-Frozen envelopes/messages remain unchanged as additive fixtures are appended. Generated TS/C++ descriptors and vendor integrity are checked on every host run. The suite executes the actual C++ codec/session/authority/queue/mesh and real TS client over byte transcripts, rather than relying solely on a parallel simulator model.
+Frozen envelopes/messages remain unchanged as additive fixtures are appended. Generated TS/C++ descriptors and vendor integrity are checked on every host run. The suite executes the actual C++ codec/session/authority/queue/mesh and real TS agent over byte transcripts, rather than relying solely on a parallel simulator model.
 
 | RACE boundary | Automated evidence | Physical evidence / limit |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ Frozen envelopes/messages remain unchanged as additive fixtures are appended. Ge
 
 The endurance seed is 0x73550728. It spans over four virtual hours with 10% per-link drops, 5% corruption and 2% TX failures during faulted intervals, plus duplicate/reordered traffic. This deterministic run acknowledges 103/120 messages (all 12 clean intervals recover), checks every delivered body and never accepts an ACK without complete destination data. Faulted-message failure is explicit, not silently converted to success. These are bounded-recovery checks, not a promised RF delivery rate; there is no shared-air/coexistence model in this core test.
 
-Before a stable release, define the support window, qualify current/previous stable client and firmware releases, sign artifacts, settle licensing, and run physical power-cut, two-node delivery, three-node relay and field-soak tests. Future EU transmission, BLE and encryption require separately negotiated capabilities and qualification; no present compatibility promise covers them.
+Before a stable release, define the support window, qualify current/previous stable agent and firmware releases, sign artifacts, settle licensing, and run physical power-cut, two-node delivery, three-node relay and field-soak tests. Future EU transmission, BLE and encryption require separately negotiated capabilities and qualification; no present compatibility promise covers them.
 
 T-Beam V1.2 support was explicitly added by the owner. Actual 1024-byte direct RF reception/destination ACK/exact inbox verification passes in both directions with Heltec prototype-6, using two simultaneous USB ports. This does not extend the result to three-node relays or field conditions. See ../guides/t-beam-v12.md for exact hardware, image source, settings restoration and the initial first-write interruption observation.
 
@@ -36,6 +36,6 @@ Discovery extension: Heltec usb-prototype-7 / T-Beam tbeam-usb-prototype-2 retai
 
 ## Fixed position (Heltec8 / T-Beam3)
 
-USB/radio framing stays1; base config schema stays1. locationVersion1/feature256 gates none/fixed settings; discoveryVersion1/nodeCapacity32/feature128 is also required. Records1–4 are readable; nondefault position uses record4 (max166 bytes). Old clients omit location fields and preserve its policy. Future unsupported location capabilities leave this client's base configuration usable while position edits are disabled. Existing frozen fixture bytes remain unchanged, with three position fixtures appended.
+USB/radio framing stays1; base config schema stays1. locationVersion1/feature256 gates none/fixed settings; discoveryVersion1/nodeCapacity32/feature128 is also required. Records1–4 are readable; nondefault position uses record4 (max166 bytes). Old agents omit location fields and preserve its policy. Future unsupported location capabilities leave this agent's base configuration usable while position edits are disabled. Existing frozen fixture bytes remain unchanged, with three position fixtures appended.
 
 Location-bearing beacon/presence payloadv2 is rejected by discovery-v1-only receivers; name-only payloadv1 and manual requests remain supported. Text/data1/ACK2 are unchanged. Physically checked Heltec8↔T-Beam2 and Heltec8↔T-Beam3 with1024-byte messages, destination ACK and exact inbox body in each direction. New/new fixed reports and sharing-off identity-only responses are separately checked. This does not establish old firmware reading record4 after downgrade, relay, range or security.

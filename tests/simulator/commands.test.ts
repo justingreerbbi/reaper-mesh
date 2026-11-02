@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Synchronizer } from '../../packages/client-core/sync.ts';
-import { Commands } from '../../packages/client-core/commands.ts';
+import { Synchronizer } from '../../packages/agent-core/sync.ts';
+import { Commands } from '../../packages/agent-core/commands.ts';
 import { ConfigDevice } from './config-device.ts';
 
 function setup(options = {}) {
@@ -14,7 +14,7 @@ function setup(options = {}) {
       sequence: device.revision, revision: device.revision, config: device.config });
   };
   ready();
-  return { sync, device, ready, commands: new Commands(sync, 'client-A', options) };
+  return { sync, device, ready, commands: new Commands(sync, 'agent-A', options) };
 }
 const config = { region: 'US', label: 'changed' };
 
@@ -30,10 +30,10 @@ test('lost commit response retries the same request without committing twice', (
   assert.equal(sync.config?.label, 'initial'); // Receipt is not a config snapshot.
 });
 
-test('concurrent clients cannot overwrite a newer configuration revision', () => {
+test('concurrent agents cannot overwrite a newer configuration revision', () => {
   const { commands, device } = setup();
   const first = commands.submit(config, 0);
-  const second = { ...first, id: 'client-B:1', config: { ...config, label: 'other' } };
+  const second = { ...first, id: 'agent-B:1', config: { ...config, label: 'other' } };
   assert.equal(device.apply(first).outcome, 'committed');
   assert.equal(device.apply(second).outcome, 'conflict');
   assert.equal(device.config.label, 'changed');
@@ -114,30 +114,30 @@ test('receipt reclamation never allows an evicted request to execute again', () 
   const device = new ConfigDevice(1);
   const first = commands.submit(config, 0);
   assert.equal(device.apply(first).outcome, 'committed');
-  assert.equal(device.apply({ ...first, id: 'client-B:1', expectedRevision: 1 }).outcome, 'committed');
+  assert.equal(device.apply({ ...first, id: 'agent-B:1', expectedRevision: 1 }).outcome, 'committed');
   assert.equal(device.query(first.id).outcome, 'unknown');
   assert.equal(device.apply(first).outcome, 'unknown');
   assert.equal(device.commits, 2);
 });
 
-test('one client continues beyond receipt capacity while delayed IDs remain suppressed', () => {
+test('one agent continues beyond receipt capacity while delayed IDs remain suppressed', () => {
   const device = new ConfigDevice(2);
   for (let i = 1; i <= 100; i++) {
-    assert.equal(device.apply({ id: `client-A:${i}`, boot: device.boot, expectedRevision: i - 1,
+    assert.equal(device.apply({ id: `agent-A:${i}`, boot: device.boot, expectedRevision: i - 1,
       config: { ...config, label: `${i}` } }).outcome, 'committed');
   }
-  assert.equal(device.query('client-A:1').outcome, 'unknown');
-  assert.equal(device.apply({ id: 'client-A:1', boot: device.boot, expectedRevision: 100,
+  assert.equal(device.query('agent-A:1').outcome, 'unknown');
+  assert.equal(device.apply({ id: 'agent-A:1', boot: device.boot, expectedRevision: 100,
     config }).outcome, 'unknown');
   assert.equal(device.commits, 100);
 });
 
 test('owner table exhaustion rejects newcomers without forgetting old request marks', () => {
   const device = new ConfigDevice(1, 1);
-  const command = { id: 'client-A:2', boot: device.boot, expectedRevision: 0, config };
+  const command = { id: 'agent-A:2', boot: device.boot, expectedRevision: 0, config };
   assert.equal(device.apply(command).outcome, 'committed');
-  assert.equal(device.apply({ ...command, id: 'client-B:1', expectedRevision: 1 }).outcome, 'rejected');
-  assert.equal(device.apply({ ...command, id: 'client-A:1', expectedRevision: 1 }).outcome, 'unknown');
+  assert.equal(device.apply({ ...command, id: 'agent-B:1', expectedRevision: 1 }).outcome, 'rejected');
+  assert.equal(device.apply({ ...command, id: 'agent-A:1', expectedRevision: 1 }).outcome, 'unknown');
   assert.equal(device.commits, 1);
 });
 

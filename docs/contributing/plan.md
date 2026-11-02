@@ -10,13 +10,13 @@ USB authority/NVS, RACE recovery, OLED, public/named channels and radio settings
 
 ## Product boundary
 
-Deliver reliable text messaging and device configuration through a small USB web client, backed by custom firmware on Heltec V3. Start with one public channel and a fixed regional radio preset. Add bounded long-message fragmentation, relay behavior, and additional logical channels deliberately. BLE, mobile/native clients, encryption, and extra boards follow later. No cloud service is required.
+Deliver reliable text messaging and device configuration through a small USB web agent, backed by custom firmware on Heltec V3. Start with one public channel and a fixed regional radio preset. Add bounded long-message fragmentation, relay behavior, and additional logical channels deliberately. BLE, mobile/native agents, encryption, and extra boards follow later. No cloud service is required.
 
 Longer messages consume more radio airtime and may reduce reliability. A successful first release needs explicit resource budgets and realistic measurements, not just a larger text field. Maintaining old versions indefinitely is also not a security strategy: publish a support window, compatible release ranges, and security advisories without making routine upgrades mandatory for communication.
 
 ## Architecture
 
-Use a monorepo with separately testable embedded core, board adapter, schema package, transport-independent client core, and web UI. Firmware is provisionally ESP-IDF/C++; the first client uses TypeScript/Vite with native DOM controls; a runtime UI framework is deferred until needed. Evaluate a maintained SX1262 driver and bounded Protocol Buffers implementation before committing dependencies. Pin toolchains and dependencies once validated.
+Use a monorepo with separately testable embedded core, board adapter, schema package, transport-independent agent core, and web UI. Firmware is provisionally ESP-IDF/C++; the first agent uses TypeScript/Vite with native DOM controls; a runtime UI framework is deferred until needed. Evaluate a maintained SX1262 driver and bounded Protocol Buffers implementation before committing dependencies. Pin toolchains and dependencies once validated.
 
 The board adapter owns pins, reset/boot behavior, SX1262 access, display, and storage. The embedded core owns scheduling, queues, messages, configuration, and forwarding. UI and firmware consume generated bindings from reviewed schemas and common golden fixtures; hand-maintained duplicate schemas are prohibited.
 
@@ -26,7 +26,7 @@ Desktop USB uses Web Serial in a supported Chromium browser with explicit port s
 
 Initial development and operation are in the US; EU support is an explicit future requirement. Design a versioned regional-profile interface in M0 and implement the verified US profile first. Keep frequency plans, permitted modem settings, transmit-power constraints, and airtime/access policies in profiles rather than scattering US assumptions throughout routing and UI code. Numeric regulatory limits must be researched against current authoritative sources when implementing each profile.
 
-Validate the selected profile against the board's supported band and antenna configuration in firmware; client-side validation alone is insufficient. An unset, unsupported, or incompatible profile leaves transmission disabled while USB configuration remains available. Expose the active profile and profile version through the handshake and configuration snapshot. Region changes use revision-checked configuration and must quiesce pending transmissions so queued packets cannot leak out under stale settings.
+Validate the selected profile against the board's supported band and antenna configuration in firmware; agent-side validation alone is insufficient. An unset, unsupported, or incompatible profile leaves transmission disabled while USB configuration remains available. Expose the active profile and profile version through the handshake and configuration snapshot. Region changes use revision-checked configuration and must quiesce pending transmissions so queued packets cannot leak out under stale settings.
 
 The airtime scheduler must account for fragments, retries, ACKs, and forwarded traffic under the active profile. Test profile mismatch, invalid power/frequency requests, region changes during queued sends, reboot persistence, and airtime exhaustion from the beginning. Use synthetic restrictive profiles for host tests until actual EU profiles are specified; simulation is not evidence of regulatory compliance.
 
@@ -46,7 +46,7 @@ Specify USB and radio protocols independently before implementing the core:
 - Start with bounded managed flooding: randomized forwarding, duplicate suppression, hop limit, queue limits, expiry, and airtime scheduling. Freeze retransmission/dedup rules in fixtures.
 - Unicast destination ACKs indicate complete reassembly/acceptance at the destination; they do not prove a human read the message. Broadcast has no all-recipient delivery guarantee. Never ACK every broadcast at every node.
 - Distinguish channel identity from physical frequency/modem presets. Nodes need compatible radio settings to communicate; logical channels do not create additional RF capacity or confidentiality.
-- Unknown optional fields remain compatible; unsupported required behavior is rejected explicitly. Publish a release compatibility matrix and fixtures, with a proposed minimum of current and previous stable client/device minor versions within one major protocol version.
+- Unknown optional fields remain compatible; unsupported required behavior is rejected explicitly. Publish a release compatibility matrix and fixtures, with a proposed minimum of current and previous stable agent/device minor versions within one major protocol version.
 
 ## Mandatory verification
 
@@ -62,7 +62,7 @@ One physical board can validate USB, local state, flash/recovery, and radio-driv
 
 Provide a guided USB installer: identify board, show installed/target versions and protocol compatibility, offer configuration export, validate image/manifest and board target, flash with progress and recovery instructions, reconnect, then verify boot identity, version, configuration migration, and USB health. Research a browser serial flasher such as Espressif's implementation in M0; keep a documented CLI recovery route.
 
-Separate factory installation through ROM serial flashing from application-level updates. Whole-flash writes do not inherit application rollback guarantees. Prototype a dual-slot application update path over USB only after boot/partition support is verified; hash images, validate target/size, retain a working slot, mark the new image valid after self-tests, and roll back failed boots. Test interrupted transfers, power loss, wrong-board/corrupt images, full storage, failed migrations, and older client/newer firmware combinations.
+Separate factory installation through ROM serial flashing from application-level updates. Whole-flash writes do not inherit application rollback guarantees. Prototype a dual-slot application update path over USB only after boot/partition support is verified; hash images, validate target/size, retain a working slot, mark the new image valid after self-tests, and roll back failed boots. Test interrupted transfers, power loss, wrong-board/corrupt images, full storage, failed migrations, and older agent/newer firmware combinations.
 
 Release artifacts need a board-specific manifest with firmware version, USB/radio protocol ranges, config schema, size, hash, toolchain, and release notes. Plan authenticated release manifests/images and trust-key distribution before public updater release; checksums alone do not authenticate firmware. Do not enable irreversible secure-boot/anti-rollback eFuses in development. Config migration must be transactional and recovery-aware, including what happens if downgraded firmware cannot read a newer schema.
 
@@ -72,15 +72,15 @@ Release artifacts need a board-specific manifest with firmware version, USB/radi
 | --- | --- | --- |
 | M0: foundations | Confirm hardware/region, defer license per owner, choose dependencies, freeze first schemas, budgets and compatibility policy, reproducible toolchains and CI | Reviewed protocol fixtures and race-test harness run on host; resource budget documented; no RF or flashing required |
 | M1: USB vertical slice | Firmware handshake/status/config storage; web connect/status/config UI | One board connects, safely reconnects, persists config, rejects incompatible peers and stale revisions; mandatory USB race cases pass |
-| M2: message model | Client send/history/status with simulated peers and bounded firmware queues | Duplicate/retry/loss cases converge or report unknown; ACK semantics and overflow behavior visible and tested |
+| M2: message model | Agent send/history/status with simulated peers and bounded firmware queues | Duplicate/retry/loss cases converge or report unknown; ACK semantics and overflow behavior visible and tested |
 | M3: radio and mesh | Regional preset, public channel, fragmentation, unicast ACK, forwarding | Simulator topology suite passes; real two-node and three-node gates separately recorded; RF claims blocked until hardware available |
 | M4: channels and release UX | Named channels, roles, transmit-power configuration; guided USB installer/recovery | Channel isolation semantics documented; region enforcement tested; update interruption, migration, and compatibility tests pass |
 | M5: release hardening | Resource/airtime measurements, soak tests, signed release artifacts, published support policy | No unresolved release-critical race faults; supported matrix passes; remaining hardware gaps block relevant reliability claims |
-| Later | Authenticated channel encryption, BLE, other boards, native/mobile clients | Separate reviewed requirements and protocol extensions; no scope expansion by default |
+| Later | Authenticated channel encryption, BLE, other boards, native/mobile agents | Separate reviewed requirements and protocol extensions; no scope expansion by default |
 
 ## Documentation and evidence
 
-Each milestone records what ran, against which firmware/client versions, simulation seed or hardware revision, pass/fail, and remaining limits. Track firmware size, peak RAM, queue/reassembly capacity, latency, retry counts, and radio airtime. Define numerical thresholds during M0/M3 measurement work before declaring a release ready.
+Each milestone records what ran, against which firmware/agent versions, simulation seed or hardware revision, pass/fail, and remaining limits. Track firmware size, peak RAM, queue/reassembly capacity, latency, retry counts, and radio airtime. Define numerical thresholds during M0/M3 measurement work before declaring a release ready.
 
 ## Primary references checked during planning
 
@@ -97,7 +97,7 @@ The USB-only application and NVS adapter are implemented and target-built. The o
 
 ## USB startup recovery evidence
 
-USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the client protocol startup path; browser permission/stream behavior remains unverified on hardware.
+USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the agent protocol startup path; browser permission/stream behavior remains unverified on hardware.
 
 The physical check was also extended to the real SerialAdapter using standard Web Streams over the Python serial byte bridge. Three consecutive opens reached ready in 626/645/648 ms, with revision 2 unchanged. Native browser permission, chooser, and browser-specific stream behavior remain pending.
 
@@ -113,7 +113,7 @@ Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 
 
 ## Message/mesh progress
 
-usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
+usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS agent/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
 
 The actual C++ Mesh/codec passes bounded line/triangle topology tests. Regional policy, persisted channel/radio configuration, board radio I/O, inbox synchronization, firmware updater UX, and real multi-node qualification remain.
 
@@ -130,9 +130,13 @@ Current Phase2 checkpoint: discovery2.1 and fixed-position2.2a are implemented/p
 
 ## November 2: app-wide PIN and portal spacing
 
-Owner replaces the vault UI with a browser-local, app-wide 4–6 digit PIN gate on device connection. One unlock opens every channel key and the workspace; manual Lock app, disconnect/reconnect and reload clear key access. Existing encrypted key records migrate without discarding key epochs or replay records. Argon2id/encrypted storage is retained, with a credential marker and persisted failed-attempt cooldown. This is not firmware/device authentication or an OS-backed login; short PINs remain susceptible to offline guessing. No USB/RF schemas or firmware changed. Settings and channel editor spacing now share a consistent rhythm, with anchored, viewport-bounded scrolling dialogs. Type checks, client tests and web build are checked separately; full npm check is blocked by CRLF generated-file comparison and unavailable C++ compiler on this Windows host. No hardware qualification repeated.
+Owner replaces the vault UI with a browser-local, app-wide 4–6 digit PIN gate on device connection. One unlock opens every channel key and the workspace; manual Lock app, disconnect/reconnect and reload clear key access. Existing encrypted key records migrate without discarding key epochs or replay records. Argon2id/encrypted storage is retained, with a credential marker and persisted failed-attempt cooldown. This is not firmware/device authentication or an OS-backed login; short PINs remain susceptible to offline guessing. No USB/RF schemas or firmware changed. Settings and channel editor spacing now share a consistent rhythm, with anchored, viewport-bounded scrolling dialogs. Type checks, agent tests and web build are checked separately; full npm check is blocked by CRLF generated-file comparison and unavailable C++ compiler on this Windows host. No hardware qualification repeated.
 
 
 ### Optional PIN and emergency local wipe (owner clarification)
 
-PIN protection is optional, off by default. Settings → Privacy enables or removes the browser-only PIN without losing channel keys or replay records. Unprotected storage is explicitly version2/protection=none; existing encrypted version1 records remain readable and protected until unlocked/migrated. The PIN does not authenticate or configure a device. Privacy and the lock screen offer a typed-WIPE local reset, with a cross-tab stop marker, checkpoint suppression, writer-lock coordination, local/session namespace deletion and a static replacement document. Never invoke the actual wipe against owner data merely to test it. Device inboxes/settings, exports, other profiles and forensic remnants are outside the local reset. No firmware/protocol files changed. Type checking, 166 non-compiler client tests and production build pass; the full project check remains limited by Windows CRLF generated-file comparison and missing C++ toolchain.
+PIN protection is optional, off by default. Settings → Privacy enables or removes the browser-only PIN without losing channel keys or replay records. Unprotected storage is explicitly version2/protection=none; existing encrypted version1 records remain readable and protected until unlocked/migrated. The PIN does not authenticate or configure a device. Privacy and the lock screen offer a typed-WIPE local reset, with a cross-tab stop marker, checkpoint suppression, writer-lock coordination, local/session namespace deletion and a static replacement document. Never invoke the actual wipe against owner data merely to test it. Device inboxes/settings, exports, other profiles and forensic remnants are outside the local reset. No firmware/protocol files changed. Type checking, 166 non-compiler agent tests and production build pass; the full project check remains limited by Windows CRLF generated-file comparison and missing C++ toolchain.
+
+## November 2: agent terminology
+
+Repository terminology and application/core/tool paths now use agent consistently. Acceptance: imports and build commands resolve the renamed paths; strict TypeScript, frozen TS/C++ compatibility checks, compiler-backed recovery tests and the web build pass through `npm run check`. Validation: `npm ci --ignore-scripts` and `npm run check` pass on macOS, including strict TypeScript, generated schema/vendor verification, compiler-backed host tests and the production web build. This rename introduces no synchronization behavior change or new hardware qualification claim.
