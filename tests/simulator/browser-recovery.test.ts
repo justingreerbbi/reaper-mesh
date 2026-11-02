@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { BrowserRecovery, RECOVERY_KEY } from '../../clients/web/recovery.ts';
 function storage(initial?: string) {
   let value = initial; let failing = false;
-  return { getItem: (_key: string) => value ?? null, setItem: (key: string, text: string) => {
+  return { getItem: (key: string) => key === RECOVERY_KEY ? value ?? null : null, setItem: (key: string, text: string) => {
     assert.equal(key, RECOVERY_KEY); if (failing) throw new Error('quota'); value = text;
   }, fail: (next: boolean) => { failing = next; }, read: () => value };
 }
@@ -42,4 +42,17 @@ test('unsupported locks and blocked local storage leave reads available and writ
   const store = storage(); store.fail(true); const blocked = await BrowserRecovery.open(store, locks());
   assert.match(blocked.connection.writeBlockReason!, /quota/); store.fail(false); assert.equal(blocked.retry(), true);
   blocked.release();
+});
+
+test('wipe marker blocks checkpoints before another tab receives its storage event', async () => {
+  const values = new Map<string, string>();
+  const store = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
+  const session = await BrowserRecovery.open(store, locks());
+  const before = values.get(RECOVERY_KEY);
+  values.set('reaper-mesh.wipe.v1', 'in-progress');
+  assert.equal(session.writable, false);
+  session.retry(); assert.equal(values.get(RECOVERY_KEY), before);
+  assert.throws(() => session.reset(), /wipe/i);
+  session.release(); values.delete(RECOVERY_KEY); session.retry();
+  assert.equal(values.has(RECOVERY_KEY), false);
 });

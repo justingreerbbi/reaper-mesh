@@ -10,7 +10,7 @@ await sodium.ready;
 
 type KeyRecord = { channel: number; keyId: string; epoch: number; keyHex: string };
 type VaultRecord = { v: 1; keys: KeyRecord[]; seen: [string, string][] };
-type StoredVault = { version: 1; salt: string; nonce: string; ciphertext: string };
+type StoredVault = { version: 1; salt: string; nonce: string; ciphertext: string; credential?: 'pin' };
 export type Decryption = { state: 'decrypted'; text: string } | { state: 'key-needed' | 'invalid' | 'replay' | 'plaintext-rejected' | 'locked' | 'unsupported'; text: string };
 
 function hex(bytes: Uint8Array) { return sodium.to_hex(bytes); }
@@ -47,8 +47,19 @@ export class EncryptionVault {
   #seen = new Map<string, string>();
   #policies = new Set<number>();
   #exists = false;
+  #pin = false;
+  #unprotected = false;
   constructor(storage: Pick<Storage, 'getItem' | 'setItem'>, writable: () => boolean = () => true) {
     this.#storage = storage; this.#writable = writable; this.#exists = !!storage.getItem(ENCRYPTION_VAULT_KEY);
+    if (this.#exists) {
+      try {
+        const stored = JSON.parse(storage.getItem(ENCRYPTION_VAULT_KEY)!);
+        if (stored.version === 2 && stored.protection === 'none') {
+          this.#loadRecord(stored.record); this.#unprotected = true;
+        } else if (stored.version === 1) this.#pin = stored.credential === 'pin';
+        else throw new Error();
+      } catch { throw new Error('Saved keys are damaged; the original data was preserved.'); }
+    } else this.#unprotected = true;
     const saved = storage.getItem(ENCRYPTION_POLICY_KEY);
     if (saved) {
       try {
@@ -58,16 +69,20 @@ export class EncryptionVault {
       } catch { throw new Error('Encryption policy is malformed; it was preserved and sending is blocked.'); }
     }
   }
+  get protected() { return this.#exists && !this.#unprotected; }
+  get pinConfigured() { return this.#pin; }
   get exists() { return this.#exists; }
-  get unlocked() { return !!this.#vaultKey; }
+  get unlocked() { return this.#unprotected || !!this.#vaultKey; }
   get requiredChannels() { return [...this.#policies].sort((a, b) => a - b); }
   isRequired(channel: number) { return this.#policies.has(channel); }
   hasKey(channel: number) { return !!this.#current(channel); }
   unlock(passphrase: string, confirmation?: string) {
     if (!this.#writable()) throw new Error('This tab is read-only; open the device-owning tab to manage keys.');
-    if (!passphrase || passphrase.length < 12) throw new Error('Use a vault passphrase of at least 12 characters.');
+    if (!passphrase || (!/^[0-9]{4,6}$/u.test(passphrase) && passphrase.length < 12)) throw new Error('Use a vault passphrase of at least 12 characters.');
     if (!this.#exists && passphrase !== confirmation) throw new Error('Vault passphrases do not match.');
     if (!this.#exists) {
+      this.#unprotected = false;
+      this.#pin = /^[0-9]{4,6}$/u.test(passphrase);
       const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
       const key = this.#derive(passphrase, salt); this.#vaultKey = key; this.#salt = salt; this.#keys = []; this.#seen.clear();
       try { this.#save(); this.#exists = true; }
@@ -84,13 +99,33 @@ export class EncryptionVault {
     try {
       const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, textEncoder.encode('Reaper Mesh key vault v1'), nonce, key);
       const record = JSON.parse(textDecoder.decode(plaintext)) as VaultRecord;
-      if (record.v !== 1 || !Array.isArray(record.keys) || !Array.isArray(record.seen) || record.keys.length > 64 || record.seen.length > 1024) throw new Error();
-      for (const item of record.keys) this.#validateKey(item);
-      this.#keys = record.keys; this.#seen = new Map(record.seen);
+      this.#loadRecord(record);
       this.#vaultKey = key; this.#salt = salt;
     } catch { sodium.memzero(key); throw new Error('Incorrect passphrase or damaged key vault.'); }
   }
-  lock() { this.#lock(); }
+  /** Re-encrypt all existing keys with the app PIN without discarding history. */
+  setPin(pin: string, confirmation: string) {
+    this.#assertUnlocked();
+    if (!/^[0-9]{4,6}$/u.test(pin)) throw new Error('Use 4–6 numbers.');
+    if (pin !== confirmation) throw new Error('PINs do not match.');
+    const previousKey = this.#vaultKey!, previousSalt = this.#salt!, previousPin = this.#pin, previousUnprotected = this.#unprotected;
+    const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+    const key = this.#derive(pin, salt);
+    this.#vaultKey = key; this.#salt = salt; this.#pin = true; this.#unprotected = false;
+    try { this.#save(); this.#exists = true; if (previousKey) sodium.memzero(previousKey); }
+    catch (error) { sodium.memzero(key); this.#vaultKey = previousKey; this.#salt = previousSalt; this.#pin = previousPin; this.#unprotected = previousUnprotected; throw error; }
+  }
+  /** Removing protection preserves keys but stores them without a password. */
+  removeProtection() {
+    this.#assertUnlocked();
+    const record = JSON.stringify({ version: 2, protection: 'none', record: this.#record() });
+    this.#storage.setItem(ENCRYPTION_VAULT_KEY, record);
+    if (this.#vaultKey) sodium.memzero(this.#vaultKey);
+    this.#vaultKey = undefined; this.#salt = undefined; this.#pin = false; this.#unprotected = true; this.#exists = true;
+  }
+  lock() { if (!this.#unprotected) this.#lock(); }
+  dispose() { this.#lock(); this.#unprotected = false; }
+
   generate(channel: number) {
     validateChannel(channel); this.#assertUnlocked();
     const epoch = this.#keys.filter(key => key.channel === channel).reduce((max, key) => Math.max(max, key.epoch), 0) + 1;
@@ -144,7 +179,7 @@ export class EncryptionVault {
     const header = parseEncryptedHeader(envelope);
     if (!header) return { state: 'unsupported', text: 'Encrypted message · unsupported or malformed envelope' };
     if (header.channel !== channel) return { state: 'invalid', text: 'Encrypted message · channel mismatch' };
-    if (!this.#vaultKey) return { state: 'locked', text: 'Encrypted message · unlock the key vault' };
+    if (!this.unlocked) return { state: 'locked', text: 'Encrypted message · unlock the app' };
     const key = this.#keys.find(item => item.channel === channel && item.epoch === header.epoch && item.keyId === header.keyId);
     if (!key) return { state: 'key-needed', text: `Encrypted message · key ${header.keyId.slice(0, 8)} / epoch ${header.epoch} unavailable` };
     const replayId = `${key.keyId}:${hex(header.messageId)}`;
@@ -164,6 +199,13 @@ export class EncryptionVault {
     catch { return { state: 'invalid', text: 'Encrypted message · invalid plaintext' }; }
     finally { sodium.memzero(plaintext); }
   }
+  #record(): VaultRecord { return { v: 1, keys: this.#keys, seen: [...this.#seen] }; }
+  #loadRecord(record: VaultRecord) {
+    if (!record || record.v !== 1 || !Array.isArray(record.keys) || !Array.isArray(record.seen) || record.keys.length > 64 || record.seen.length > 1024) throw new Error('Invalid saved keys.');
+    for (const key of record.keys) this.#validateKey(key);
+    for (const row of record.seen) if (!Array.isArray(row) || row.length !== 2 || row.some(value => typeof value !== 'string' || value.length > 512)) throw new Error('Invalid replay record.');
+    this.#keys = record.keys; this.#seen = new Map(record.seen);
+  }
   #current(channel: number) { return this.#keys.filter(key => key.channel === channel).sort((a, b) => b.epoch - a.epoch)[0]; }
   #validateKey(key: KeyRecord) {
     if (!key || !Number.isInteger(key.channel) || key.channel < 0 || key.channel > 7 || !Number.isInteger(key.epoch) || key.epoch < 1 || key.epoch > 0xffffffff || !/^[0-9a-f]{16}$/u.test(key.keyId) || !/^[0-9a-f]{64}$/u.test(key.keyHex) || hex(sodium.crypto_generichash(8, fromHex(key.keyHex), null)) !== key.keyId) throw new Error('Invalid channel key record.');
@@ -177,12 +219,16 @@ export class EncryptionVault {
   }
   #save() {
     this.#assertUnlocked();
-    const plaintext = textEncoder.encode(JSON.stringify({ v: 1, keys: this.#keys, seen: [...this.#seen] } satisfies VaultRecord));
+    if (this.#unprotected) {
+      this.#storage.setItem(ENCRYPTION_VAULT_KEY, JSON.stringify({ version: 2, protection: 'none', record: this.#record() }));
+      this.#exists = true; return;
+    }
+    const plaintext = textEncoder.encode(JSON.stringify(this.#record()));
     const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
     const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, textEncoder.encode('Reaper Mesh key vault v1'), null, nonce, this.#vaultKey!);
-    try { this.#storage.setItem(ENCRYPTION_VAULT_KEY, JSON.stringify({ version: 1, salt: hex(this.#salt!), nonce: hex(nonce), ciphertext: hex(ciphertext) } satisfies StoredVault)); }
+    try { this.#storage.setItem(ENCRYPTION_VAULT_KEY, JSON.stringify({ version: 1, salt: hex(this.#salt!), nonce: hex(nonce), ciphertext: hex(ciphertext), ...(this.#pin ? { credential: 'pin' as const } : {}) } satisfies StoredVault)); }
     finally { sodium.memzero(plaintext); sodium.memzero(nonce); sodium.memzero(ciphertext); }
   }
-  #assertUnlocked() { if (!this.#vaultKey || !this.#salt) throw new Error('Unlock the local encryption vault first.'); if (!this.#writable()) throw new Error('This tab is read-only; open the device-owning tab to manage keys.'); }
+  #assertUnlocked() { if (!this.unlocked) throw new Error('Unlock the local encryption vault first.'); if (!this.#writable()) throw new Error('This tab is read-only; open the device-owning tab to manage keys.'); }
   #lock() { if (this.#vaultKey) sodium.memzero(this.#vaultKey); for (const key of this.#keys) { const bytes = fromHex(key.keyHex); sodium.memzero(bytes); } this.#vaultKey = undefined; this.#salt = undefined; this.#keys = []; this.#seen.clear(); }
 }

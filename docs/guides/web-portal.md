@@ -85,3 +85,18 @@ Verification:232 host tests, generated/type checks and production build pass. An
 ### Channel and direct-message separation
 
 The message inbox has separate Channels and Direct Messages lists. Configured nonempty slots (including Public) always appear as channel rows. Peer conversations remain scoped to their numeric channel. Received inbox items use the RF destination to distinguish broadcast traffic from messages addressed to the connected node. Inbox protocol version 2 carries this metadata; version-1 devices have no route field, so legacy received traffic stays in the channel view rather than being duplicated into a peer thread. This affects presentation only; ACKs and RF routing are unchanged.
+
+
+Channel settings now have their own settings section, separate from radio controls. Channel names remain part of the revision-checked device radio configuration; message privacy and keys remain local to the browser. Password fields are hidden while keys are unlocked. This UI revision has not yet passed browser verification: Windows locked the installed bundler binary during npm ci, leaving dependencies incomplete.
+
+Channels now lists configured slots only, with a capacity-gated Create channel action and a separate channel editor. Naming saves the latest device radio configuration through the existing revision-checked command path; key controls become available once a channel is configured. Settings dialogs are anchored near the top and scroll within the available viewport. Browser verification remains pending.
+
+
+### App access
+
+PIN protection is optional, off by default, and configured in Settings → Privacy. Enable it with 4–6 digits, or remove it using the current PIN while retaining all channel keys. Without PIN protection, keys are stored locally without a password and connections require no unlock. When enabled, one app-wide PIN gates device connections, including unencrypted channels; previous key passwords are requested once to preserve and re-encrypt existing keys. Lock app clears key access and blocks interaction with the workspace. Disconnect/reconnect and reload require another unlock. Channel editors contain only per-channel privacy/key actions, with no vault controls. The lock is local to this browser origin, not a password on the radio device. See encryption.md for storage, cooldown and short-PIN limitations.
+
+Spacing uses 8/12/16/24/32px tokens, larger form gaps and wrapping action groups. Dialog headers/navigation stay fixed while their bodies scroll at viewport limits. PIN setup and disconnected Settings were visually checked in the in-app browser; PIN cryptography, migration and cooldowns have automated tests. Full physical USB workflows have not been requalified for this change.
+
+
+Privacy includes a confirmed Wipe local data action, also reachable from the lock screen without unlocking. It stops open app sessions, clears all namespaced local/session data, then replaces the live app with a static completion page. It does not erase connected device settings or inboxes. Messages still retained on the device may return after reconnect. Tests cover optional PIN transitions, preserved keys/replay state, storage failures, namespace deletion and checkpoint suppression during a wipe.

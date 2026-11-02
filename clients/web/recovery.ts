@@ -1,3 +1,4 @@
+import { WIPE_SIGNAL } from './local-data.ts';
 import { Connection } from '../../packages/client-core/connection.ts';
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 export const RECOVERY_KEY = 'reaper-mesh.usb-recovery.v1';
@@ -37,10 +38,14 @@ export class BrowserRecovery {
       }).catch(error => resolve(new BrowserRecovery(store, false, `Recovery lock unavailable: ${String(error)}`)));
     });
   }
-  get writable() { return this.#held && !this.#invalid; }
+  get writable() {
+    try { return this.#held && !this.#invalid && !this.#store?.getItem(WIPE_SIGNAL); }
+    catch { return false; }
+  }
   exportText() { return this.#invalid && this.#text ? this.#text : JSON.stringify(this.connection.exportJournal(), null, 2); }
   retry() { return this.connection.retryRecoveryStorage(); }
   reset() {
+    if (this.#store?.getItem(WIPE_SIGNAL)) throw new Error('A local data wipe is in progress.');
     if (!this.#held || !this.#store || this.connection.sync.state !== 'disconnected') throw new Error('Disconnect this console and hold its recovery lock before resetting history.');
     const next = new Connection();
     if (next.commands.incarnation === this.connection.commands.incarnation) throw new Error('fresh client identity allocation failed');
@@ -51,7 +56,7 @@ export class BrowserRecovery {
   #bind() {
     const connection = this.connection;
     connection.persistence(state => {
-      if (!this.#held || connection !== this.connection || this.#invalid || !this.#store) throw new Error(this.#invalid ?? 'This console does not own recovery storage.');
+      if (!this.writable || connection !== this.connection || !this.#store) throw new Error(this.#invalid ?? 'This console does not own recovery storage.');
       const text = JSON.stringify(state);
       if (text.length > 262144) throw new Error('recovery data exceeds its limit');
       if (text !== this.#last) { this.#store.setItem(RECOVERY_KEY, text); this.#last = this.#text = text; }

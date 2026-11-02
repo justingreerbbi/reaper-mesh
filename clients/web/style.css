@@ -1282,3 +1282,86 @@ button.danger { color:#ffd3cb; border-color:#98584d; background:#542e26; }
 .thread-status { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; }
 .management-status { margin:0; padding:8px 20px; font-size:11px; color:#e6bd82; background:#2a261d; }
 @media(max-width:720px) { .conversation-head #delete-conversation { font-size:9px; padding:4px 6px; } .pane-heading { gap:6px; } .pane-heading>div { flex:1; } }
+
+/* Channel setup keeps device naming separate from local message privacy. */
+.channel-names { padding: 16px; border: 1px solid var(--border, #293139); border-radius: 10px; margin: 20px 0; }
+.channel-names summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.channel-names .channel-grid { margin: 16px 0; gap: 16px; }
+.encryption-tools { display: grid; gap: 12px; }
+.encryption-tools .actions { flex-wrap: wrap; gap: 10px; }
+.manage-tabs { overflow-x: auto; flex-wrap: wrap; gap: 8px; }
+.manage-panel > h2 { margin-top: 0; }
+
+/* Keep the settings origin stable as content changes between sections. */
+.manage { position: fixed; inset: 32px auto auto 50%; transform: translateX(-50%); margin: 0; max-height: calc(100dvh - 64px); }
+.manage[open] { display: flex; flex-direction: column; }
+.manage-head, .manage-tabs { flex-shrink: 0; }
+.manage-body { min-height: 0; max-height: none; overflow-y: auto; scrollbar-gutter: stable; }
+.channel-editor { width: min(580px, calc(100vw - 24px)); top: 48px; max-height: calc(100dvh - 72px); }
+.managed-channels { display: flex; flex-direction: column; gap: 10px; }
+.managed-channels button { text-align: left; padding: 16px; }
+#channel-name-form { padding-bottom: 24px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+@media (max-width: 600px) { .manage { top: 12px; max-height: calc(100dvh - 24px); } }
+
+/* Shared rhythm for forms, settings and daily workspace controls. */
+:root { --space-1: 8px; --space-2: 12px; --space-3: 16px; --space-4: 24px; --space-5: 32px; }
+.manage { border-radius: 12px; }
+.manage-head { padding: 24px; gap: 24px; }
+.manage-tabs { padding: 16px 24px; gap: 8px; }
+.manage-body { padding: 24px; }
+.manage-panel { gap: 20px; }
+.manage label { margin: 20px 0 8px; line-height: 1.5; }
+.manage input, .manage select { margin-bottom: 0; }
+.manage form > label:first-child { margin-top: 0; }
+.manage .columns { gap: 20px; }
+.manage .columns label { margin-top: 0; }
+.manage .actions { margin-top: 24px; gap: 12px; flex-wrap: wrap; }
+.manage .check { margin: 20px 0; gap: 12px; }
+.manage .section-title { gap: 16px; align-items: center; }
+.manage .detail-grid { row-gap: 14px; margin-top: 24px; }
+.manage .small { line-height: 1.65; }
+.encryption-tools { gap: 0; margin-top: 24px; padding-top: 24px; }
+.encryption-tools .section-title { margin-bottom: 12px; }
+.encryption-tools .actions { margin: 16px 0 8px; }
+.encryption-tools .warning { margin-top: 20px; }
+#channel-name-form { margin-bottom: 0; }
+#channel-name-save { margin-top: 16px; }
+.conversation-head { gap: 12px; padding: 20px 24px; flex-wrap: wrap; }
+.conversation-title { flex: 1; min-width: 140px; }
+.recipient-controls { gap: 12px; padding: 20px 24px; }
+.compose { padding: 16px 24px 24px; }
+.compose-bottom { gap: 16px; padding-top: 12px; flex-wrap: wrap; }
+.asset-toolbar { gap: 12px; padding: 20px 16px 12px; flex-wrap: wrap; }
+.tracker-pane > .small { margin: 4px 16px 12px; line-height: 1.6; }
+.node-list { padding: 8px 16px 16px; }
+.node-list > li { margin-bottom: 8px; }
+.access-dialog { width: min(420px, calc(100vw - 32px)); padding: 32px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); color: var(--text); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.access-dialog::backdrop { background: #090e12f5; }
+.access-mark { color: var(--accent); font: 600 18px var(--mono); margin-bottom: 24px; }
+.access-dialog h2 { font-size: 22px; margin-bottom: 12px; }
+.access-dialog p { color: var(--muted); line-height: 1.6; }
+.access-dialog label { margin-top: 20px; margin-bottom: 8px; }
+.access-dialog input[inputmode=numeric] { font: 24px var(--mono); letter-spacing: 8px; min-height: 52px; }
+.access-dialog button { width: 100%; margin-top: 12px; min-height: 42px; }
+.access-dialog #access-error { color: #ffb5a7; margin-top: 16px; }
+@media (max-width: 720px) {
+  .manage-head, .manage-body { padding: 20px; }
+  .manage-tabs { padding: 12px 20px; }
+  .manage-tab { min-height: 36px; font-size: 12px; padding: 8px 12px; }
+  .conversation-head { padding: 16px; gap: 10px; }
+  .compose { padding: 12px 16px 20px; }
+  .compose-bottom { gap: 10px; }
+  .bar { height: auto; min-height: 64px; flex-wrap: wrap; padding-block: 10px; }
+  .bar-connect { flex-wrap: wrap; }
+}
+
+.privacy-card { padding: 20px; border: 1px solid var(--line); border-radius: 8px; }
+.privacy-card > p { margin: 12px 0; }
+.danger-zone { border-color: #70443e; }
+.danger-zone > button { margin-top: 12px; }
+#wipe-result { color: #ffb5a7; margin-top: 16px; }
+.local-reset-screen { min-height: 100dvh; display: grid; place-content: center; padding: 32px; gap: 16px; max-width: 600px; margin: auto; }
+
+#pin-new-fields { margin-top: 20px; }
+#pin-new-fields[hidden] { display: none; }
+.privacy-card .actions { margin-bottom: 0; }

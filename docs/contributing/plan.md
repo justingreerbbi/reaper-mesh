@@ -126,3 +126,13 @@ Use ../overview/status.md for implemented/evidenced versus remaining work. Integ
 Owner explicitly requested T-Beam V1.2 support after connecting it beside the Heltec. Add only the required board/radio/power adapter and safe target-aware build/update validation. Reuse the independent protocol and state machines; qualify USB/probe/local behavior before two-node RF. See ../guides/t-beam-v12.md.
 
 Current Phase2 checkpoint: discovery2.1 and fixed-position2.2a are implemented/physically checked. Next2.2b is actual T-Beam GPS, followed by map/nodes/messaging portal2.3. See phase-2.md for current evidence and transient fault observations; the historical milestones above do not reorder owner phases.
+
+
+## November 2: app-wide PIN and portal spacing
+
+Owner replaces the vault UI with a browser-local, app-wide 4–6 digit PIN gate on device connection. One unlock opens every channel key and the workspace; manual Lock app, disconnect/reconnect and reload clear key access. Existing encrypted key records migrate without discarding key epochs or replay records. Argon2id/encrypted storage is retained, with a credential marker and persisted failed-attempt cooldown. This is not firmware/device authentication or an OS-backed login; short PINs remain susceptible to offline guessing. No USB/RF schemas or firmware changed. Settings and channel editor spacing now share a consistent rhythm, with anchored, viewport-bounded scrolling dialogs. Type checks, client tests and web build are checked separately; full npm check is blocked by CRLF generated-file comparison and unavailable C++ compiler on this Windows host. No hardware qualification repeated.
+
+
+### Optional PIN and emergency local wipe (owner clarification)
+
+PIN protection is optional, off by default. Settings → Privacy enables or removes the browser-only PIN without losing channel keys or replay records. Unprotected storage is explicitly version2/protection=none; existing encrypted version1 records remain readable and protected until unlocked/migrated. The PIN does not authenticate or configure a device. Privacy and the lock screen offer a typed-WIPE local reset, with a cross-tab stop marker, checkpoint suppression, writer-lock coordination, local/session namespace deletion and a static replacement document. Never invoke the actual wipe against owner data merely to test it. Device inboxes/settings, exports, other profiles and forensic remnants are outside the local reset. No firmware/protocol files changed. Type checking, 166 non-compiler client tests and production build pass; the full project check remains limited by Windows CRLF generated-file comparison and missing C++ toolchain.

@@ -7,6 +7,8 @@ import { ConfigModel } from './model.ts';
 import { FieldMap, type MapPoint } from './map.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 import { BrowserRecovery } from './recovery.ts';
+import { clearLocalAppData, WIPE_SIGNAL, RECOVERY_LOCK } from './local-data.ts';
+import { AppAccess } from './app-access.ts';
 import { EncryptionVault } from './encryption.ts';
 import { ENCRYPTED_HEADER_BYTES, ENCRYPTED_TAG_BYTES } from '../../packages/protocol/encrypted-message.ts';
 import { SerialAdapter } from '../../packages/client-core/serial.ts';
@@ -25,6 +27,7 @@ const save = element<HTMLButtonElement>('save');
 const reset = element<HTMLButtonElement>('reset');
 const app = document.querySelector('.app') as HTMLElement;
 const manage = element<HTMLDialogElement>('manage');
+let localAppStopped = false;
 
 const demo = new SimulatedDevice();
 let recovery: BrowserRecovery;
@@ -37,6 +40,139 @@ catch (e) { messageStateError = `Message management unavailable: ${String(e)}`; 
 let encryption: EncryptionVault | undefined, encryptionError = '';
 try { encryption = new EncryptionVault(localStorage, () => recovery.writable); }
 catch (e) { encryptionError = `Encryption state unavailable: ${String(e)}`; }
+const access = encryption ? new AppAccess(encryption, localStorage) : undefined;
+const accessDialog = element<HTMLDialogElement>('app-unlock');
+function renderAccess(active: boolean): boolean {
+  const locked = access ? access.requiresUnlock(active) : active;
+  if (wipeDialog.open) return true;
+  app.inert = locked;
+  element('lock-app').hidden = !active || locked || !access?.protected;
+  if (locked) {
+    for (const dialog of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) if (dialog !== accessDialog) dialog.close();
+    element('message-history').replaceChildren(); messageSignature = '';
+    element<HTMLTextAreaElement>('channel-key-transfer').value = '';
+    text('app-unlock-submit', access?.setup ? 'Set PIN' : access?.migration ? 'Save PIN' : 'Unlock app');
+    text('access-title', access?.setup ? 'Set your app PIN' : access?.migration ? 'Switch to an app PIN' : 'Unlock Reaper Mesh');
+    text('access-description', access?.migration ? 'Enter your existing key password once, then choose a PIN for the whole app.' : access?.setup ? 'Choose 4–6 numbers to unlock this app on this browser.' : 'Enter your PIN to continue.');
+    element('legacy-access').hidden = !access?.migration;
+    element('pin-confirmation').hidden = !(access?.setup || access?.migration);
+    element<HTMLInputElement>('app-pin-confirm').required = !!(access?.setup || access?.migration);
+    element<HTMLButtonElement>('app-unlock-submit').disabled = !access || !recovery.writable;
+    if (!access || !recovery.writable) text('access-error', encryptionError || 'Open the device-owning tab to unlock the app.');
+    if (!accessDialog.open) accessDialog.showModal();
+  } else if (accessDialog.open) accessDialog.close();
+  return locked;
+}
+accessDialog.addEventListener('cancel', event => event.preventDefault());
+accessDialog.addEventListener('close', () => {
+  for (const id of ['app-pin', 'app-pin-confirm', 'legacy-password']) element<HTMLInputElement>(id).value = '';
+  text('access-error', '');
+});
+element('app-unlock-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    if (!access) throw Error('App access is unavailable.');
+    access.unlock(element<HTMLInputElement>('app-pin').value, element<HTMLInputElement>('app-pin-confirm').value, element<HTMLInputElement>('legacy-password').value);
+    for (const id of ['app-pin', 'app-pin-confirm', 'legacy-password']) element<HTMLInputElement>(id).value = '';
+    text('access-error', ''); render();
+  } catch (e) { text('access-error', e instanceof Error ? e.message : 'Could not unlock.'); element<HTMLInputElement>('app-pin').value = ''; element<HTMLInputElement>('app-pin').focus(); }
+});
+element('lock-app').addEventListener('click', () => { access?.lock(); render(); });
+element('locked-disconnect').addEventListener('click', async () => {
+  try { await current().adapter.disconnect(); }
+  catch { text('access-error', 'Could not disconnect. Try again.'); }
+  finally { access?.lock(); render(); }
+});
+
+function renderPinSettings() {
+  const protectedKeys = !!access?.protected;
+  text('pin-setting-status', protectedKeys ? 'PIN protection is on' : 'PIN protection is off · keys are saved without a password');
+  element('pin-current-field').hidden = !protectedKeys;
+  element('pin-new-fields').hidden = protectedKeys;
+  element('pin-enable').hidden = protectedKeys;
+  element('pin-remove').hidden = !protectedKeys;
+  element<HTMLInputElement>('pin-new').required = !protectedKeys;
+  element<HTMLInputElement>('pin-new-confirm').required = !protectedKeys;
+  for (const id of ['pin-enable', 'pin-remove']) element<HTMLButtonElement>(id).disabled = !access || !recovery.writable;
+}
+function clearPinFields() {
+  for (const id of ['pin-current', 'pin-new', 'pin-new-confirm']) element<HTMLInputElement>(id).value = '';
+}
+element('pin-settings-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    if (!access || access.protected) throw Error('PIN settings are unavailable.');
+    access.unlock(element<HTMLInputElement>('pin-new').value, element<HTMLInputElement>('pin-new-confirm').value);
+    clearPinFields(); text('pin-settings-result', 'PIN protection enabled.'); render();
+  } catch (e) { text('pin-settings-result', e instanceof Error ? e.message : 'Could not enable PIN protection.'); }
+});
+element('pin-remove').addEventListener('click', () => {
+  try {
+    if (!access) throw Error('PIN settings are unavailable.');
+    access.removeProtection(element<HTMLInputElement>('pin-current').value);
+    clearPinFields(); text('pin-settings-result', 'PIN protection removed. Your keys are kept.'); render();
+  } catch (e) { clearPinFields(); text('pin-settings-result', e instanceof Error ? e.message : 'Could not remove PIN protection.'); render(); }
+});
+manage.addEventListener('close', clearPinFields);
+const wipeDialog = element<HTMLDialogElement>('wipe-local-dialog');
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-wipe-local]')) button.addEventListener('click', () => {
+  element<HTMLInputElement>('wipe-confirmation').value = '';
+  element<HTMLButtonElement>('wipe-confirm').disabled = true;
+  text('wipe-result', ''); wipeDialog.showModal();
+});
+element('wipe-confirmation').addEventListener('input', () => {
+  element<HTMLButtonElement>('wipe-confirm').disabled = element<HTMLInputElement>('wipe-confirmation').value !== 'WIPE';
+});
+element('wipe-cancel').addEventListener('click', () => wipeDialog.close());
+wipeDialog.addEventListener('cancel', event => { if (localAppStopped) event.preventDefault(); });
+function stopLocalApp() {
+  localAppStopped = true; clearInterval(timer); recovery.release(); encryption?.dispose();
+  messageState = undefined; deletePlan = undefined; recentConversations.clear();
+  for (const input of document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea')) if (!wipeDialog.contains(input)) input.value = '';
+  app.replaceChildren(); app.inert = true;
+  for (const dialog of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) if (dialog !== wipeDialog) dialog.close();
+  document.title = 'Reaper Mesh · Local data';
+}
+async function disconnectLocalApp() {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.allSettled([models.usb.adapter.disconnect(), models.demo.adapter.disconnect()]),
+      new Promise<void>(resolve => { timeout = setTimeout(resolve, 1500); }),
+    ]);
+  } finally { clearTimeout(timeout); }
+}
+function resetLanding(wiped = false) { location.replace(new URL(wiped ? 'local-data-cleared.html' : 'local-session-closed.html', location.href).href); }
+window.addEventListener('storage', event => {
+  if (event.key !== WIPE_SIGNAL || !event.newValue || localAppStopped) return;
+  stopLocalApp();
+  try { clearLocalAppData(sessionStorage); } catch { /* The initiating tab reports any persistent storage failures. */ }
+  void disconnectLocalApp().finally(() => resetLanding());
+});
+element('wipe-local-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (element<HTMLInputElement>('wipe-confirmation').value !== 'WIPE') return;
+  element<HTMLButtonElement>('wipe-confirm').disabled = true;
+  element<HTMLButtonElement>('wipe-cancel').disabled = true;
+  try {
+    // The marker blocks checkpoints immediately, before other tabs process the event.
+    localStorage.setItem(WIPE_SIGNAL, crypto.randomUUID());
+    stopLocalApp(); text('wipe-result', 'Disconnecting and clearing local data…');
+    await disconnectLocalApp();
+    const erase = () => {
+      clearLocalAppData(sessionStorage);
+      clearLocalAppData(localStorage, true);
+      localStorage.removeItem(WIPE_SIGNAL);
+    };
+    if (navigator.locks) await navigator.locks.request(RECOVERY_LOCK, { mode: 'exclusive', signal: AbortSignal.timeout(5000) }, erase);
+    else erase(); // Without Web Locks, BrowserRecovery never admits any writer.
+    resetLanding(true);
+  } catch {
+    text('wipe-result', 'Wipe could not finish. Close other Reaper Mesh tabs, then try again. The app remains stopped.');
+    element<HTMLButtonElement>('wipe-confirm').disabled = false;
+  }
+});
+
 const deleteDialog = element<HTMLDialogElement>('delete-history');
 let deletePlan: { source: string; device: string; connection: SerialAdapter['connection']; keys: string[]; outgoing: string[]; conversation?: { scope: string; key: string }; clearDraft?: string } | undefined;
 function requestDelete(keys: string[], outgoing: string[], description: string, conversation?: { scope: string; key: string }) {
@@ -85,10 +221,45 @@ fieldMap.onSelect = id => { selectedNode = id ?? ''; render(); };
 
 for (let slot = 1; slot < 8; slot++) {
   const wrapper = document.createElement('div'); const title = document.createElement('label');
-  title.htmlFor = `channel-${slot}`; title.textContent = `Named channel ${slot}`;
-  const input = document.createElement('input'); input.id = `channel-${slot}`; input.type = 'text'; input.maxLength = 8; input.autocomplete = 'off';
+  title.htmlFor = `channel-${slot}`; title.textContent = `Channel ${slot}`;
+  const input = document.createElement('input'); input.id = `channel-${slot}`; input.setAttribute('form', 'radio-form'); input.type = 'text'; input.maxLength = 8; input.autocomplete = 'off';
   wrapper.append(title, input); element('channel-settings').append(wrapper);
 }
+
+const channelEditor = element<HTMLDialogElement>('channel-editor');
+let editingChannel = 0;
+function editChannel(slot: number) {
+  editingChannel = slot;
+  const names = (current().adapter.connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
+  text('channel-editor-title', names[slot] || 'Create channel');
+  element<HTMLInputElement>('channel-name').value = names[slot] || '';
+  element<HTMLInputElement>('channel-name').disabled = slot === 0;
+  text('channel-editor-status', `Channel ${slot} · use this number on every device`);
+  element<HTMLSelectElement>('encryption-channel').dataset.names = '';
+  renderEncryption();
+  element<HTMLSelectElement>('encryption-channel').value = String(slot);
+  renderEncryption();
+  if (!channelEditor.open) channelEditor.showModal();
+}
+element('create-channel').addEventListener('click', () => {
+  const names = current().adapter.connection.sync.config?.radio?.channels.split('|') ?? [];
+  const slot = Array.from({ length: 7 }, (_, i) => i + 1).find(i => !names[i]);
+  if (slot !== undefined) editChannel(slot);
+});
+element('channel-name-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    const model = current(), config = model.adapter.connection.sync.config;
+    if (!config?.radio || model.pending || model.adapter.connection.radioBlockReason) throw Error('Connect a device before saving.');
+    const names = config.radio.channels.split('|');
+    if (editingChannel !== 0) names[editingChannel] = element<HTMLInputElement>('channel-name').value.trim();
+    const radio = { ...config.radio, channels: names.join('|') };
+    if (!validRadio(radio, config.region)) throw Error('Use up to 8 letters, numbers, underscores or hyphens.');
+    model.adapter.configure({ ...config, radio });
+    text('channel-editor-status', 'Saving to device…'); render();
+  } catch (e) { text('channel-editor-status', e instanceof Error ? e.message : 'Could not save channel.'); }
+});
+channelEditor.addEventListener('close', () => { element<HTMLTextAreaElement>('channel-key-transfer').value = ''; });
 
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
@@ -98,26 +269,27 @@ function hexBytes(value: string) {
 }
 function encryptionLabel(state: string | undefined) {
   return ({ decrypted: 'Encrypted', 'key-needed': 'Key needed', invalid: 'Authentication failed', replay: 'Duplicate suppressed',
-    'plaintext-rejected': 'Plaintext rejected', locked: 'Vault locked', unsupported: 'Unsupported envelope' } as Record<string, string>)[state ?? ''] ?? 'Encrypted';
+    'plaintext-rejected': 'Plaintext rejected', locked: 'App locked', unsupported: 'Unsupported envelope' } as Record<string, string>)[state ?? ''] ?? 'Encrypted';
 }
 function renderEncryption() {
   const channel = element<HTMLSelectElement>('encryption-channel');
+  channel.hidden = true;
+  document.querySelector<HTMLLabelElement>('label[for="encryption-channel"]')!.hidden = true;
   const names = (current().adapter.connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
   if (channel.dataset.names !== JSON.stringify(names)) {
-    const selected = channel.value; channel.replaceChildren(); names.forEach((name, slot) => { if (name) channel.add(new Option(`${name} · ${slot}`, String(slot))); });
+    const selected = channel.value; channel.replaceChildren(); names.forEach((name, slot) => { if (name || slot === editingChannel) channel.add(new Option(`${name || "New channel"} · ${slot}`, String(slot))); });
     if ([...channel.options].some(option => option.value === selected)) channel.value = selected;
     channel.dataset.names = JSON.stringify(names);
   }
+  const configured = !!names[editingChannel];
+  const tools = document.querySelector<HTMLElement>('.encryption-tools')!;
+  tools.hidden = !configured;
+  tools.style.display = configured ? '' : 'none';
   const slot = Number(channel.value), policy = element<HTMLSelectElement>('encryption-policy');
   if (document.activeElement !== policy) policy.value = encryption?.isRequired(slot) ? 'required' : 'plaintext';
-  const exists = !!encryption?.exists, unlocked = !!encryption?.unlocked;
-  text('encryption-status', encryptionError || (!encryption ? 'Encryption state unavailable; sending is blocked.' : unlocked ? `Vault unlocked · slot ${slot} ${encryption.isRequired(slot) ? 'requires encryption' : 'uses plaintext'}. Keys remain in this browser.` : exists ? 'Vault locked · unlock to use channel keys. Required channels block sending.' : 'No key vault yet · create one to manage channel keys.'));
-  element<HTMLInputElement>('vault-confirm').hidden = exists;
-  element<HTMLLabelElement>('vault-confirm-label').hidden = exists;
-  element<HTMLButtonElement>('vault-unlock').textContent = exists ? 'Unlock vault' : 'Create vault';
-  element<HTMLButtonElement>('vault-unlock').disabled = !recovery.writable || unlocked || !encryption;
-  element<HTMLButtonElement>('vault-lock').hidden = !unlocked;
-  element<HTMLButtonElement>('vault-lock').disabled = !unlocked;
+  const unlocked = !!encryption?.unlocked;
+  element<HTMLButtonElement>('channel-key-generate').textContent = encryption?.hasKey(slot) ? 'Replace key' : 'Create key';
+  text('encryption-status', encryptionError || (encryption?.isRequired(slot) ? 'Encrypted' : 'Unencrypted'));
   element<HTMLButtonElement>('channel-key-generate').disabled = !unlocked || !recovery.writable;
   element<HTMLButtonElement>('channel-key-export').disabled = !unlocked || !encryption?.hasKey(slot);
   element<HTMLButtonElement>('channel-key-import').disabled = !unlocked || !recovery.writable;
@@ -153,7 +325,9 @@ function chooseConversation(destination: string, channel = 0) {
 }
 function setManage(panel: string) {
   for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
-    tab.classList.toggle('is-active', tab.dataset.manage === panel);
+    const active = tab.dataset.manage === panel;
+    tab.classList.toggle('is-active', active);
+    if (active) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
   }
   for (const section of document.querySelectorAll<HTMLElement>('[data-manage-panel]')) {
     const active = section.dataset.managePanel === panel;
@@ -162,7 +336,7 @@ function setManage(panel: string) {
   }
 }
 
-function openManage(panel = 'radio') {
+function openManage(panel = 'device') {
   setManage(panel);
   if (!manage.open) manage.showModal();
   const tab = manage.querySelector<HTMLButtonElement>(`[data-manage="${panel}"]`); tab?.focus();
@@ -175,9 +349,11 @@ function selectNode(id: string, options: { message?: boolean; focusMap?: boolean
   render();
 }
 function render() {
+  if (localAppStopped) return;
   const model = current();
   model.refresh();
   const { connection, active, cleanupError } = model.adapter;
+  if (renderAccess(active)) return;
   const { sync, capabilities } = connection;
   const ready = sync.state === 'ready';
   const writable = ready && !connection.writeBlockReason;
@@ -240,6 +416,7 @@ function render() {
   element('error').hidden = !message;
   text('recovery-status', recovery.connection.recoveryError ?? 'USB history is saved in this browser before commands are sent.');
   element<HTMLButtonElement>('recovery-reset').disabled = busy || models.usb.adapter.active;
+  renderPinSettings();
   renderPosition();
   renderDiscovery();
   renderRadio();
@@ -410,6 +587,7 @@ element('broadcast-destination').addEventListener('click', () => {
 });
 
 const timer = setInterval(render, 100);
+if (localStorage.getItem(WIPE_SIGNAL)) { stopLocalApp(); void disconnectLocalApp().finally(() => resetLanding()); }
 window.addEventListener('pagehide', () => { clearInterval(timer); encryption?.lock(); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); recovery.release(); });
 window.addEventListener('resize', () => fieldMap.invalidate());
 render();
@@ -437,20 +615,20 @@ function renderMessages() {
     if (messageState.deleted(receivedKey(mode.value, m))) connection.forgetReceived(m.device, m.origin, m.messageId);
   }
   const scroller = element('thread-scroll');
-  const attended = document.visibilityState === 'visible' && document.hasFocus() && !manage.open && !deleteDialog.open && app.dataset.view === 'messages' && (innerWidth > 720 || app.classList.contains('has-conversation')) && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  const attended = document.visibilityState === 'visible' && document.hasFocus() && !manage.open && !channelEditor.open && !accessDialog.open && !deleteDialog.open && app.dataset.view === 'messages' && (innerWidth > 720 || app.classList.contains('has-conversation')) && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
   const sources = (['usb', 'demo'] as const).map(source => ({ source, messages: models[source].adapter.connection.inbox.history }));
   try { messageState?.observe(sources, attended && lastDevice ? { source: mode.value, device: lastDevice, destination: destination.value, channel: Number(channel.value) } : undefined); if (messageState) messageStateError = ''; }
   catch (e) { messageStateError = `Message history: ${String(e)}`; }
   const history = connection.messaging.history.filter(m => !messageState?.deleted(sentKey(mode.value, m.device, m.id))).map(m => {
     if (!m.payloadHex) return m;
     const result = encryption?.decrypt(hexBytes(m.payloadHex), m.channel, connection.device ?? m.device, m.destination);
-    return { ...m, text: result?.text ?? 'Encrypted message · key vault unavailable', encryptionState: encryptionLabel(result?.state) };
+    return { ...m, text: result?.text ?? 'Encrypted message · app locked', encryptionState: encryptionLabel(result?.state) };
   });
   const incoming = connection.inbox.history.filter(m => !messageState?.deleted(receivedKey(mode.value, m))).map(m => {
     if (m.payloadHex) {
       const identity = `${mode.value}:${m.device}:${canonicalNode(m.origin)}:${m.messageId}`;
       const result = encryption?.decrypt(hexBytes(m.payloadHex), m.channel, m.origin, m.destination ?? 'broadcast', identity);
-      return { ...m, text: result?.text ?? 'Encrypted message · key vault unavailable', encryptionState: encryptionLabel(result?.state) };
+      return { ...m, text: result?.text ?? 'Encrypted message · app locked', encryptionState: encryptionLabel(result?.state) };
     }
     if (encryption?.isRequired(m.channel)) return { ...m, text: 'Plaintext rejected · channel requires encryption', encryptionState: 'Plaintext rejected' };
     return m;
@@ -476,7 +654,7 @@ function renderMessages() {
   }
   const key = conversationKey(destination.value, selectedChannel);
   const remoteBlocked = destination.value !== connection.device && connection.capabilities?.radioVersion === 1 && connection.radioInfo?.reason !== 'ready';
-  text('message-support', encryptionError || (encryptedRequired && !encryption?.unlocked ? 'Encryption required · unlock the key vault before sending' : !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : encryptedRequired ? 'Encrypted channel · device ACK confirms ciphertext delivery only' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading')));
+  text('message-support', encryptionError || (encryptedRequired && !encryption?.unlocked ? 'Encryption required · unlock the app before sending' : !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : encryptedRequired ? 'Encrypted channel · device ACK confirms ciphertext delivery only' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading')));
   element<HTMLButtonElement>('message-send').disabled = !ready || !!encryptionError || (encryptedRequired && !encryption?.unlocked) || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > maxBytes || history.length >= 32 || remoteBlocked || !element('recipient-controls').hidden;
   element<HTMLButtonElement>('self-destination').disabled = !connection.device || uploading;
   const uiScope = messageScope(mode.value, lastDevice ?? '');
@@ -583,6 +761,21 @@ function renderRadio() {
     const names = radio.channels.split('|');
     for (let slot = 1; slot < 8; slot++) element<HTMLInputElement>(`channel-${slot}`).value = names[slot];
   }
+  const channelNames = (sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
+  const list = element('managed-channels');
+  const signature = JSON.stringify(channelNames);
+  if (list.dataset.signature !== signature) {
+    list.dataset.signature = signature; list.replaceChildren();
+    channelNames.forEach((name, slot) => {
+      if (!name) return;
+      const button = document.createElement('button'); button.type = 'button';
+      button.textContent = `${name} · Channel ${slot}`;
+      button.addEventListener('click', () => editChannel(slot)); list.append(button);
+    });
+  }
+  element<HTMLButtonElement>('create-channel').disabled = !supported || model.pending || channelNames.filter(Boolean).length >= 8;
+  text('channels-status', !supported ? 'Connect a device to manage channels.' : `${channelNames.filter(Boolean).length} of 8 channels in use`);
+  element<HTMLButtonElement>('channel-name-save').disabled = !supported || model.pending || editingChannel === 0;
   const stale = radioDirty && radioBase !== context;
   text('radio-support', !ready ? 'Connect and synchronize to configure radio settings.' : connection.radioBlockReason ??
     (stale ? 'Device state changed. Load its latest radio settings before saving.' : connection.radioInfo ? `Radio ${connection.radioInfo.state} · ${connection.radioInfo.reason}` : 'Settings are synchronized. Waiting for live radio status.'));
@@ -591,20 +784,13 @@ function renderRadio() {
   element<HTMLButtonElement>('radio-reset').disabled = !supported || model.pending;
 }
 element('radio-form').addEventListener('input', () => { radioDirty = true; render(); });
+element('channel-settings').addEventListener('input', () => { radioDirty = true; render(); });
 element('radio-reset').addEventListener('click', () => { radioDirty = false; render(); });
 element('encryption-channel').addEventListener('change', render);
 element('encryption-policy').addEventListener('change', () => {
   try { if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.'); encryption.setRequired(Number(element<HTMLSelectElement>('encryption-channel').value), element<HTMLSelectElement>('encryption-policy').value === 'required'); render(); }
   catch (e) { showError(e); }
 });
-element('vault-unlock').addEventListener('click', () => {
-  try {
-    if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
-    encryption.unlock(element<HTMLInputElement>('vault-passphrase').value, element<HTMLInputElement>('vault-confirm').value);
-    element<HTMLInputElement>('vault-passphrase').value = ''; element<HTMLInputElement>('vault-confirm').value = ''; error = ''; render();
-  } catch (e) { showError(e); }
-});
-element('vault-lock').addEventListener('click', () => { encryption?.lock(); element<HTMLTextAreaElement>('channel-key-transfer').value = ''; render(); });
 element('channel-key-generate').addEventListener('click', () => {
   try {
     if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');

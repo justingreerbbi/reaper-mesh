@@ -124,3 +124,13 @@ Owner defers T-Beam GPS and prioritizes a polished messaging/asset workspace. Us
 ## November 2: local message deletion and unread state
 
 Use browser-only, identity-scoped deletion/read metadata instead of a new device command or RF receipt. Keep message/conversation deletion explicit and confirmation-bound; capture a fixed set of identities so concurrent arrivals survive. Remove local journal bodies and retain bounded identity tombstones to prevent reconnect resurrection. Sent-history removal retains request counters and cannot cancel transmissions. Unread badges/title represent local UX only, not device ACK/read status. Reuse the existing writer lock and fail closed on unavailable/corrupt/full metadata; do not silently discard tombstones.
+
+
+## November 2: app-wide PIN and portal spacing
+
+Owner replaces the vault UI with a browser-local, app-wide 4–6 digit PIN gate on device connection. One unlock opens every channel key and the workspace; manual Lock app, disconnect/reconnect and reload clear key access. Existing encrypted key records migrate without discarding key epochs or replay records. Argon2id/encrypted storage is retained, with a credential marker and persisted failed-attempt cooldown. This is not firmware/device authentication or an OS-backed login; short PINs remain susceptible to offline guessing. No USB/RF schemas or firmware changed. Settings and channel editor spacing now share a consistent rhythm, with anchored, viewport-bounded scrolling dialogs. Type checks, client tests and web build are checked separately; full npm check is blocked by CRLF generated-file comparison and unavailable C++ compiler on this Windows host. No hardware qualification repeated.
+
+
+### Optional PIN and emergency local wipe (owner clarification)
+
+PIN protection is optional, off by default. Settings → Privacy enables or removes the browser-only PIN without losing channel keys or replay records. Unprotected storage is explicitly version2/protection=none; existing encrypted version1 records remain readable and protected until unlocked/migrated. The PIN does not authenticate or configure a device. Privacy and the lock screen offer a typed-WIPE local reset, with a cross-tab stop marker, checkpoint suppression, writer-lock coordination, local/session namespace deletion and a static replacement document. Never invoke the actual wipe against owner data merely to test it. Device inboxes/settings, exports, other profiles and forensic remnants are outside the local reset. No firmware/protocol files changed. Type checking, 166 non-compiler client tests and production build pass; the full project check remains limited by Windows CRLF generated-file comparison and missing C++ toolchain.

@@ -24,6 +24,7 @@
 <span id="source-caption" class="mono">No device</span>
 </div>
 <div class="bar-connect">
+<button id="lock-app" type="button" hidden>Lock app</button>
 <label class="sr-only" for="mode">Connection source</label>
 <select id="mode">
 <option value="usb">USB device</option>
@@ -105,7 +106,7 @@
 <div id="thread-scroll" class="thread-scroll">
 <div id="conversation-empty" class="thread-empty">
 <span class="empty-symbol">⌁</span>
-<h3>Your mesh. Your conversations.</h3>
+<h3>Start a conversation</h3>
 <p>Connect a device to send messages. Discover nearby assets to start a direct conversation.</p>
 <button id="conversation-connect" class="primary">Connect device</button>
 </div>
@@ -167,7 +168,7 @@
 </span>
 <button id="asset-message">Message asset</button>
 </div>
-<p id="nodes-empty" class="empty">No assets heard yet. Connect a device, then discover listeners. A missing reply does not mean an asset is offline.</p>
+<p id="nodes-empty" class="empty">No assets yet. Connect a device and select Discover.</p>
 <ul id="nodes" class="node-list" aria-label="Heard assets">
 </ul>
 <div class="tracker-footer mono">LAST-KNOWN POSITIONS · FIXED SOURCE</div>
@@ -177,24 +178,74 @@
 <span>REAPER MESH / FIELD PORTAL</span>
 <span>USB TRANSPORT <span class="footer-dot">·</span> LOCAL HISTORY <span class="footer-dot">·</span> NO READ RECEIPTS</span>
 </footer>
-</div>  <dialog id="manage" class="manage">
+</div>  <dialog id="wipe-local-dialog" class="access-dialog" aria-labelledby="wipe-title">
+  <h2 id="wipe-title">Wipe this browser’s data?</h2>
+  <p>This permanently removes local keys, PIN, messages and settings. All open Reaper Mesh tabs will disconnect. Device memory is unchanged; messages still on a device can return after reconnecting.</p>
+  <form id="wipe-local-form"><label for="wipe-confirmation">Type WIPE to confirm</label><input id="wipe-confirmation" autocomplete="off" required pattern="WIPE">
+    <p id="wipe-result" role="alert"></p>
+    <button type="submit" id="wipe-confirm" class="danger" disabled>Wipe local data</button><button type="button" id="wipe-cancel">Cancel</button>
+  </form>
+</dialog>
+<dialog id="app-unlock" class="access-dialog" aria-labelledby="access-title" aria-describedby="access-description">
+  <div class="access-mark" aria-hidden="true">R/M</div>
+  <h2 id="access-title">Unlock Reaper Mesh</h2>
+  <p id="access-description">Enter your app PIN.</p>
+  <form id="app-unlock-form">
+    <div id="legacy-access" hidden><label for="legacy-password">Existing key password</label><input id="legacy-password" type="password" autocomplete="current-password"></div>
+    <label for="app-pin">PIN</label><input id="app-pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="current-password" required autofocus>
+    <div id="pin-confirmation" hidden><label for="app-pin-confirm">Confirm PIN</label><input id="app-pin-confirm" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password"></div>
+    <p id="access-error" role="alert"></p>
+    <button id="app-unlock-submit" type="submit" class="primary">Unlock app</button>
+    <button id="locked-disconnect" type="button">Disconnect device</button>
+    <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
+  </form>
+</dialog>
+<dialog id="channel-editor" class="manage channel-editor" aria-labelledby="channel-editor-title">
+<form method="dialog" class="manage-head"><h2 id="channel-editor-title">Channel</h2><button type="submit">Close</button></form>
+<div class="manage-body">
+<form id="channel-name-form">
+<label for="channel-name">Channel name</label><input id="channel-name" maxlength="8" pattern="[A-Za-z0-9_-]{1,8}" required autocomplete="off">
+<p class="small muted">Up to 8 letters, numbers, underscores or hyphens.</p>
+<button id="channel-name-save" type="submit" class="primary">Save channel</button>
+<p id="channel-editor-status" role="status" class="small muted"></p>
+</form>
+        <section class="encryption-tools" aria-labelledby="encryption-heading">
+          <div class="section-title"><h3 id="encryption-heading">Message privacy</h3><span class="mono">CLIENT KEYS</span></div>
+          <p id="encryption-status" role="status" class="small muted">Messages are plaintext unless a channel key is enabled.</p>
+          <label for="encryption-channel">Channel</label>
+          <select id="encryption-channel"><option value="0">Public</option></select>
+          <label for="encryption-policy">Messages</label>
+          <select id="encryption-policy"><option value="plaintext">Unencrypted</option><option value="required">Encrypted</option></select>
+          <div class="actions">
+            <button id="channel-key-generate" type="button">Create new key</button>
+            <button id="channel-key-export" type="button">Export key</button>
+          </div>
+          <label for="channel-key-transfer">Key transfer bundle · secret</label>
+          <textarea id="channel-key-transfer" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste RMKEY1 bundle to import"></textarea>
+          <div class="actions"><button id="channel-key-import" type="button">Import key</button></div>
+          <p class="small warning">Share key bundles only with trusted agents using a private transfer. Anyone with a channel key can read and forge that channel’s messages. Direct routes still use the selected channel key.</p>
+        </section>
+</div></dialog>
+<dialog id="manage" class="manage">
     <form method="dialog" class="manage-head">
       <div>
-        <p class="eyebrow">Settings</p>
-        <h2>Device &amp; system</h2>
+        <p class="eyebrow">Reaper Mesh</p>
+        <h2>Settings</h2>
       </div>
       <button value="close" type="submit" class="ghost">Close</button>
     </form>
     <div class="manage-tabs" aria-label="Settings sections">
-<button type="button" class="manage-tab" data-manage="device">Device</button>
-      <button type="button" class="manage-tab is-active" data-manage="radio">Radio</button>
+<button type="button" class="manage-tab is-active" data-manage="device">Device</button>
+      <button type="button" class="manage-tab" data-manage="radio">Radio</button>
+      <button type="button" class="manage-tab" data-manage="channels">Channels</button>
       <button type="button" class="manage-tab" data-manage="position">Position</button>
       <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
       <button type="button" class="manage-tab" data-manage="history">History</button>
       <button type="button" class="manage-tab" data-manage="recovery">Recovery</button>
+      <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
       <button type="button" class="manage-tab" data-manage="details">Details</button>
     </div>
-    <div class="manage-body">        <section class="manage-panel" data-manage-panel="device" hidden aria-labelledby="device-heading">
+    <div class="manage-body">        <section class="manage-panel is-active" data-manage-panel="device" aria-labelledby="device-heading">
           <div class="section-title">
             <h2 id="device-heading">Device</h2>
             <span id="revision" class="mono">REV —</span>
@@ -218,16 +269,10 @@
             <p id="draft-warning" class="warning" hidden>Device state changed while you were editing. Load the latest settings before saving.</p>
             <div class="actions">
               <button id="save" type="submit" class="primary" disabled>Save</button>
-              <button id="reset" type="button" disabled>Reload</button>
-              <button id="export-settings" type="button" disabled>Export</button>
+              <button id="reset" type="button" disabled>Discard changes</button>
+              <button id="export-settings" type="button" disabled>Export settings</button>
             </div>
           </form>
-          <div class="actions">
-            <button type="button" data-open-manage="radio">Radio</button>
-            <button type="button" data-open-manage="position">Position</button>
-            <button type="button" data-open-manage="discovery">Discovery</button>
-            <button type="button" data-open-manage="history">History</button>
-          </div>
           <dl class="detail-grid compact">
             <dt>ID</dt>
 <dd id="device" class="mono">—</dd>
@@ -239,7 +284,7 @@
         </section>
 
 
-      <section class="manage-panel is-active" data-manage-panel="radio">
+      <section class="manage-panel" data-manage-panel="radio" hidden>
         <p id="radio-support" class="muted">
 </p>
         <form id="radio-form">
@@ -260,40 +305,19 @@
           <p class="small muted">US 915 lab preset. Transmission also requires the board antenna check.</p>
           <label class="check">
 <input id="radio-relay" type="checkbox">Relay messages for other nodes</label>
-          <p class="small muted">Channel 0 is Public. Encryption is client-side; devices route ciphertext without keys.</p>
-          <div id="channel-settings" class="channel-grid">
-</div>
           <div class="actions">
             <button id="radio-save" class="primary" type="submit" disabled>Save radio settings</button>
             <button id="radio-reset" type="button">Load latest</button>
           </div>
         </form>
-        <section class="encryption-tools" aria-labelledby="encryption-heading">
-          <div class="section-title"><h3 id="encryption-heading">Channel encryption</h3><span class="mono">CLIENT KEYS</span></div>
-          <p id="encryption-status" role="status" class="small muted">Messages are plaintext unless a channel key is enabled.</p>
-          <label for="vault-passphrase">Local key-vault passphrase</label>
-          <input id="vault-passphrase" type="password" autocomplete="current-password" minlength="12" placeholder="12 characters minimum">
-          <label for="vault-confirm" id="vault-confirm-label" hidden>Confirm new passphrase</label>
-          <input id="vault-confirm" type="password" autocomplete="new-password" minlength="12" hidden>
-          <div class="actions">
-            <button id="vault-unlock" type="button">Create / unlock vault</button>
-            <button id="vault-lock" type="button" hidden>Lock vault</button>
-          </div>
-          <label for="encryption-channel">Radio channel slot</label>
-          <select id="encryption-channel"><option value="0">Public</option></select>
-          <label for="encryption-policy">Outgoing policy</label>
-          <select id="encryption-policy"><option value="plaintext">Plaintext</option><option value="required">Require encryption</option></select>
-          <div class="actions">
-            <button id="channel-key-generate" type="button">Generate / rotate key</button>
-            <button id="channel-key-export" type="button">Export key</button>
-          </div>
-          <label for="channel-key-transfer">Key transfer bundle · secret</label>
-          <textarea id="channel-key-transfer" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste RMKEY1 bundle to import"></textarea>
-          <div class="actions"><button id="channel-key-import" type="button">Import for selected channel</button></div>
-          <p class="small warning">Share key bundles only with trusted agents using a private transfer. Anyone with a channel key can read and forge that channel’s messages. Direct routes still use the selected channel key.</p>
-        </section>
       </section>
-
+      <section class="manage-panel" data-manage-panel="channels" hidden>
+<h2>Channels</h2>
+<p id="channels-status" role="status" class="small muted"></p>
+<div id="managed-channels" class="managed-channels"></div>
+<button id="create-channel" type="button" class="primary">Create channel</button>
+<div id="channel-settings" hidden></div>
+      </section>
       <section class="manage-panel" data-manage-panel="position" hidden>
         <p id="position-support" role="status" class="muted">
 </p>
@@ -373,6 +397,23 @@
         </section>
       </section>
 
+      <section class="manage-panel" data-manage-panel="privacy" hidden aria-labelledby="privacy-heading">
+        <h2 id="privacy-heading">Privacy</h2>
+        <section class="privacy-card">
+          <h3>PIN protection</h3><p id="pin-setting-status" class="small muted" role="status"></p>
+          <p class="small muted">Optional. A PIN protects saved channel keys and locks the app when connected.</p>
+          <form id="pin-settings-form">
+            <div id="pin-current-field" hidden><label for="pin-current">Current PIN</label><input id="pin-current" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="current-password"></div>
+            <div id="pin-new-fields" class="columns"><div><label for="pin-new">New PIN (4–6 numbers)</label><input id="pin-new" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password"></div><div><label for="pin-new-confirm">Confirm PIN</label><input id="pin-new-confirm" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password"></div></div>
+            <div class="actions"><button id="pin-enable" class="primary" type="submit">Enable PIN</button><button id="pin-remove" type="button" hidden>Remove PIN protection</button></div>
+            <p id="pin-settings-result" class="small" role="status"></p>
+          </form>
+        </section>
+        <section class="privacy-card danger-zone"><h3>Wipe local data</h3>
+          <p class="small muted">Delete this browser’s keys, PIN, settings and message history. Devices and other browsers keep their data.</p>
+          <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
+        </section>
+      </section>
       <section class="manage-panel" data-manage-panel="details" hidden>
         <dl class="detail-grid">
           <dt>Configuration schema</dt>
