@@ -115,6 +115,26 @@ class UpdateTests(unittest.TestCase):
             with self.subTest(flash=f, security=s):
                 with self.assertRaises(ValueError): updater.preflight(f, s)
 
+    def test_tbeam_target_and_security_are_not_interchangeable_with_heltec(self):
+        self.manifest["board"] = "LILYGO T-Beam V1.2"; self.manifest["target"] = "esp32"
+        self.manifest["sdk"]["target"] = "esp32"; self.manifest["flash_settings"]["flash_size"] = "4MB"
+        for entry in self.manifest["artifacts"]:
+            if entry["offset"] == "0x0": entry["offset"] = "0x1000"
+            if entry["file"].endswith("partition-table.bin"): continue
+            path = self.root / entry["file"]; data = bytearray(esp_image()); data[3] = 0x20
+            struct.pack_into("<H", data, 12, 0); data[-32:] = hashlib.sha256(data[:-32]).digest(); path.write_bytes(data)
+            entry["sha256"] = hashlib.sha256(data).hexdigest()
+        self.validate()
+        self.manifest["target"] = "esp32s3"
+        with self.assertRaises(ValueError): self.validate()
+        fields = {name: {"readable": True, "value": 0} for name in ["FLASH_CRYPT_CNT", "ABS_DONE_0", "ABS_DONE_1", "DISABLE_DL_ENCRYPT", "DISABLE_DL_DECRYPT", "DISABLE_DL_CACHE", "SECURE_VERSION"]}
+        flash = "esptool.py v4.12.0\nChip is ESP32-D0WDQ6-V3\nDetected flash size: 4MB"
+        summary = lambda: "espefuse.py v4.12.0\n" + json.dumps(fields)
+        updater.preflight(flash, summary(), "esp32")
+        fields["ABS_DONE_1"]["value"] = True
+        with self.assertRaises(ValueError): updater.preflight(flash, summary(), "esp32")
+        with self.assertRaises(ValueError): updater.preflight(flash, summary(), "esp32s3")
+
     def test_package_round_trip_retains_exact_images_and_required_notices(self):
         spec = importlib.util.spec_from_file_location("packager", Path(__file__).resolve().parents[1] / "tools/package-firmware.py")
         packager = importlib.util.module_from_spec(spec); spec.loader.exec_module(packager)

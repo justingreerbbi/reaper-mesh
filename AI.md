@@ -41,6 +41,10 @@ The owner confirmed an independent, documented Reaper Mesh protocol and defined 
 
 Proceed with M0 foundations within the confirmed independent-protocol and synchronization scope. Define observable acceptance criteria before coding. Run appropriate checks and report evidence and limitations. Update this file, the plan status, and decision log when scope or architecture changes. Keep protocol fixtures for previous supported releases so future agents cannot silently break compatibility.
 
+## T-Beam work in progress
+
+Owner added a connected US/915 T-Beam V1.2 and confirmed its antenna. This explicitly expands the board scope. Read docs/TBEAM.md before hardware work. New target firmware/tbeam-v12 shares the protocol/session/NVS/mesh service and has board-specific AXP2101, SPI/UART/display wiring. SX1276 register probe must pass; no chip-family assumption from USB inventory. First target build and host driver tests pass; installation and physical acceptance follow. Preserve Heltec settings and select the correct per-board manifest/port.
+
 ## Next work
 
 Use docs/STATUS.md as the current completion/qualification tracker. The focused single-board implementation and available hardware tests are complete; next qualify real two-/three-node receive/ACK/relay operation when hardware exists. Additional work should target the documented release gates, not add unrelated features. Never overwrite the owner's live radio settings as a side effect of a read-only check. The historical checkpoints below record earlier firmware states and must not override this current section.

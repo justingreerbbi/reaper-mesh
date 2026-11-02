@@ -2,7 +2,11 @@
 #include "nvs_storage.hpp"
 #include "status_display.hpp"
 #include "mesh_service.hpp"
+#ifdef REAPER_TBEAM_V12
+#include "tbeam_profile.hpp"
+#else
 #include "board_profile.hpp"
+#endif
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_mac.h"
@@ -19,7 +23,11 @@ namespace p = reaper::protocol;
 namespace d = reaper::device;
 namespace {
 constexpr auto kUart = UART_NUM_0;
+#ifdef REAPER_TBEAM_V12
+constexpr int kTx = 1, kRx = 3;
+#else
 constexpr int kTx = 43, kRx = 44;
+#endif
 static p::FrameDecoder decoder;
 static p::Message reply;
 static std::int64_t last_reply = 0;
@@ -46,9 +54,14 @@ void halt() { for (;;) vTaskDelay(pdMS_TO_TICKS(1000)); }
 } // namespace
 
 extern "C" void app_main() {
-  // Keep the external SX1262 in reset throughout this USB-only prototype.
-  gpio_set_level(GPIO_NUM_12, 0);
-  if (gpio_set_direction(GPIO_NUM_12, GPIO_MODE_OUTPUT) != ESP_OK) halt();
+  // Hold the board radio in reset until its adapter initializes.
+#ifdef REAPER_TBEAM_V12
+  constexpr auto reset_pin = GPIO_NUM_23;
+#else
+  constexpr auto reset_pin = GPIO_NUM_12;
+#endif
+  gpio_set_level(reset_pin, 0);
+  if (gpio_set_direction(reset_pin, GPIO_MODE_OUTPUT) != ESP_OK) halt();
   uart_config_t uart{};
   uart.baud_rate = 115200; uart.data_bits = UART_DATA_8_BITS; uart.parity = UART_PARITY_DISABLE;
   uart.stop_bits = UART_STOP_BITS_1; uart.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
@@ -68,7 +81,11 @@ extern "C" void app_main() {
   std::array<std::uint8_t, 6> mac{};
   if (esp_efuse_mac_get_default(mac.data()) != ESP_OK) halt();
   char device_string[32]{};
+#ifdef REAPER_TBEAM_V12
+  std::snprintf(device_string, sizeof(device_string), "node-0000%02x%02x%02x%02x%02x%02x",
+#else
   std::snprintf(device_string, sizeof(device_string), "heltec-%02x%02x%02x%02x%02x%02x",
+#endif
     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   d::Text<64> boot{}, device{};
   boot.assign(reinterpret_cast<const std::uint8_t*>(boot_string), 32);

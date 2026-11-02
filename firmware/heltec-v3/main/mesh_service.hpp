@@ -1,5 +1,8 @@
 #pragma once
 #include "radio_bus.hpp"
+#ifdef REAPER_TBEAM_V12
+#include "reaper/sx1276.hpp"
+#endif
 #include "reaper/session.hpp"
 #include "reaper/mesh.hpp"
 class MeshService {
@@ -17,7 +20,11 @@ class MeshService {
   std::uint64_t node_;
   const bool antenna_verified_;
   RadioBus bus_{};
+#ifdef REAPER_TBEAM_V12
+  reaper::radio::Sx1276 radio_;
+#else
   reaper::radio::Radio radio_;
+#endif
   reaper::mesh::Mesh mesh_;
   reaper::device::Settings settings_{};
   bool configured_ = false, pending_ = false, tx_ = false;

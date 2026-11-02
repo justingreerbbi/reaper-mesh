@@ -12,4 +12,4 @@ if [ "$(git -C "$sdk_root" rev-parse HEAD)" != "$sdk_commit" ]; then
   echo 'ESP-IDF checkout does not match firmware/esp-idf.lock.json' >&2
   exit 1
 fi
-"$sdk_root/install.sh" esp32s3
+"$sdk_root/install.sh" esp32s3,esp32

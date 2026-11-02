@@ -28,10 +28,10 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def image(data):
+def image(data, chip_id=9, flash_byte=0x30):
     require(len(data) >= 64 and data[0] == 0xe9, "invalid ESP image header")
-    require(1 <= data[1] <= 16 and data[2:4] == b"\x02\x30", "image needs DIO / 8MB / 40MHz")
-    require(struct.unpack_from("<H", data, 12)[0] == 9 and data[23] == 1, "image must be hashed ESP32-S3")
+    require(1 <= data[1] <= 16 and data[2:4] == bytes([2, flash_byte]), "image flash mode/size/frequency mismatch")
+    require(struct.unpack_from("<H", data, 12)[0] == chip_id and data[23] == 1, "image target or embedded digest flag mismatch")
     position, checksum = 24, 0xef
     for _ in range(data[1]):
         require(position + 8 <= len(data), "truncated image segment header")
@@ -63,20 +63,24 @@ def validate(path):
     path = Path(path).resolve()
     require(path.stat().st_size <= 65536, "manifest too large")
     manifest = json.loads(path.read_text())
-    require(manifest.get("board") == "Heltec WiFi LoRa 32 V3" and manifest.get("target") == "esp32s3", "wrong board/target")
+    tbeam = manifest.get("board") == "LILYGO T-Beam V1.2"
+    target = "esp32" if tbeam else "esp32s3"
+    require(manifest.get("board") == ("LILYGO T-Beam V1.2" if tbeam else "Heltec WiFi LoRa 32 V3") and manifest.get("target") == target, "wrong board/target")
+    files = dict(FILES)
+    if tbeam: files[0x1000] = (files.pop(0)[0], 0x7000)
     require(re.fullmatch(r"[0-9a-f]{40}", manifest.get("source_commit", "")) is not None and manifest.get("source_dirty") is False,
             "build must identify a clean committed source")
     require(re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", manifest.get("firmware", "")) is not None, "invalid firmware ID")
-    require(manifest.get("sdk", {}).get("commit") == SDK and manifest["sdk"].get("target") == "esp32s3", "unreviewed SDK")
-    require(manifest.get("flash_settings") == {"flash_mode": "dio", "flash_size": "8MB", "flash_freq": "40m"}, "unsupported flash settings")
+    require(manifest.get("sdk", {}).get("commit") == SDK and manifest["sdk"].get("target") == target, "unreviewed SDK")
+    require(manifest.get("flash_settings") == {"flash_mode": "dio", "flash_size": "4MB" if tbeam else "8MB", "flash_freq": "40m"}, "unsupported flash settings")
     require((manifest.get("usb_protocol"), manifest.get("config_schema"), manifest.get("record_schema"), manifest.get("read_record_schemas")) == (1, 1, 2, [1, 2]), "unsupported configuration compatibility")
     records = manifest.get("artifacts")
     require(isinstance(records, list) and len(records) == 3, "expected exactly three flash artifacts")
     artifacts = {}
     for entry in records:
         offset = int(entry["offset"], 16)
-        require(offset in FILES and offset not in artifacts, "unexpected/duplicate flash offset")
-        name, maximum = FILES[offset]
+        require(offset in files and offset not in artifacts, "unexpected/duplicate flash offset")
+        name, maximum = files[offset]
         require(entry["file"] == name, "unexpected artifact path")
         artifact = path.parent / name
         require(not artifact.is_symlink() and artifact.resolve().is_relative_to(path.parent), "artifact escapes build directory")
@@ -84,13 +88,13 @@ def validate(path):
         data = artifact.read_bytes()
         require(type(entry["size"]) is int and entry["size"] == len(data), "artifact size mismatch")
         require(hashlib.sha256(data).hexdigest() == entry["sha256"], "artifact SHA256 mismatch")
-        (partitions if offset == 0x8000 else image)(data)
+        partitions(data) if offset == 0x8000 else image(data, 0 if tbeam else 9, 0x20 if tbeam else 0x30)
         artifacts[offset] = data
     return manifest, artifacts
 
 
-def run_tool(python, port, command, *args):
-    result = subprocess.run([str(python), "-m", "esptool", "--chip", "esp32s3", "--port", port, "--baud", "115200",
+def run_tool(python, port, command, *args, chip="esp32s3"):
+    result = subprocess.run([str(python), "-m", "esptool", "--chip", chip, "--port", port, "--baud", "115200",
                              "--before", "default_reset", "--after", "hard_reset", command, *map(str, args)],
                             capture_output=True, text=True, timeout=180 if command == "write_flash" else 30)
     # Report only the intended serial tool's output; never pass it to a shell.
@@ -99,12 +103,31 @@ def run_tool(python, port, command, *args):
     return result.stdout
 
 
-def preflight(flash, security):
-    require("esptool.py v4.12.0" in flash and "esptool.py v4.12.0" in security, "unexpected esptool version")
-    require(re.search(r"Chip is ESP32-S3(?:\s|\s*\()", flash) is not None and "Detected flash size: 8MB" in flash, "target must be ESP32-S3 with 8MB flash")
+def preflight(flash, security, target="esp32s3"):
+    require("esptool.py v4.12.0" in flash, "unexpected esptool version")
+    pattern = r"Chip is ESP32-D0WD" if target == "esp32" else r"Chip is ESP32-S3(?:\s|\s*\()"
+    size = "4MB" if target == "esp32" else "8MB"
+    require(re.search(pattern, flash) is not None and f"Detected flash size: {size}" in flash, "target processor/flash mismatch")
+    if target == "esp32":
+        require(security.startswith("espefuse.py v4.12.0\n"), "unexpected security reader version")
+        fields = json.loads(security.split("\n", 1)[1])
+        for name in ["FLASH_CRYPT_CNT", "ABS_DONE_0", "ABS_DONE_1", "DISABLE_DL_ENCRYPT", "DISABLE_DL_DECRYPT", "DISABLE_DL_CACHE", "SECURE_VERSION"]:
+            field = fields.get(name, {})
+            require(field.get("readable") is True and field.get("value") in (0, False), f"unsupported ESP32 security state: {name}")
+        return
+    require("esptool.py v4.12.0" in security, "unexpected esptool version")
     require("Secure Boot: Disabled" in security and "Flash Encryption: Disabled" in security, "secured targets need a separate reviewed update flow")
     flags = re.search(r"^Flags: (0x[0-9a-fA-F]+)", security, re.MULTILINE)
     require(flags is not None and int(flags.group(1), 16) == 0, "unexpected ROM security flags")
+
+
+def esp32_security(python, port, directory):
+    report = Path(directory) / "security.json"
+    names = ["FLASH_CRYPT_CNT", "ABS_DONE_0", "ABS_DONE_1", "DISABLE_DL_ENCRYPT", "DISABLE_DL_DECRYPT", "DISABLE_DL_CACHE", "SECURE_VERSION"]
+    result = subprocess.run([str(python), "-m", "espefuse", "--chip", "esp32", "--port", port,
+                             "summary", "--format", "json", "--file", str(report), *names], capture_output=True, text=True, timeout=30)
+    require(result.returncode == 0 and "espefuse.py v4.12.0" in result.stdout, "ESP32 security summary failed")
+    return "espefuse.py v4.12.0\n" + report.read_text()
 
 
 def main():
@@ -129,11 +152,11 @@ def main():
         for offset, data in sorted(artifacts.items()):
             destination = Path(directory) / f"{offset:x}.bin"
             destination.write_bytes(data); staged += [hex(offset), str(destination)]
-        flash = run_tool(python, options.port, "flash_id")
-        security = run_tool(python, options.port, "get_security_info")
-        preflight(flash, security)
+        flash = run_tool(python, options.port, "flash_id", chip=manifest["target"])
+        security = esp32_security(python, options.port, directory) if manifest["target"] == "esp32" else run_tool(python, options.port, "get_security_info", chip=manifest["target"])
+        preflight(flash, security, manifest["target"])
         print("Installing; keep USB connected. NVS is outside every write range.")
-        written = run_tool(python, options.port, "write_flash", "--flash_mode", "dio", "--flash_size", "8MB", "--flash_freq", "40m", *staged)
+        written = run_tool(python, options.port, "write_flash", "--flash_mode", "dio", "--flash_size", manifest["flash_settings"]["flash_size"], "--flash_freq", "40m", *staged, chip=manifest["target"])
         require(written.count("Hash of data verified.") == 3, "ROM did not verify all three images")
     receipt = {"time_utc": datetime.now(timezone.utc).isoformat(), "firmware": manifest["firmware"],
                "source_commit": manifest["source_commit"], "artifacts": manifest["artifacts"], "verified_images": 3,

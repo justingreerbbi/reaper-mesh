@@ -19,3 +19,6 @@ sdkconfig.old
 firmware/heltec-v3/sdkconfig
 firmware/heltec-v3/sdkconfig.old
 __pycache__/
+
+firmware/tbeam-v12/sdkconfig
+firmware/tbeam-v12/sdkconfig.old

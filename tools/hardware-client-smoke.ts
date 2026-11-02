@@ -6,7 +6,7 @@ import { decodeMessage } from '../packages/protocol/messages.ts';
 import { Connection } from '../packages/client-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/client-core/serial.ts';
 const [python, port, expectedFirmware, messageTest] = process.argv.slice(2);
-if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test|--local-test|--rf-test]');
+if (!python || !port) throw new Error('usage: node tools/hardware-client-smoke.ts PYTHON SERIAL_PORT [EXPECTED_FIRMWARE] [--message-test|--radio-test|--local-test|--tbeam-test|--rf-test]');
 const bridge = `
 import serial,sys,threading
 s=serial.Serial(port=None,baudrate=115200,timeout=.05,exclusive=True)
@@ -79,7 +79,7 @@ for (let run = 0; run < 3; run++) {
     assert.ok([0, 1].includes(client.capabilities?.radioVersion ?? -1));
     if (expectedFirmware) assert.equal(client.capabilities?.firmware, expectedFirmware);
     const readyAt = now();
-    if (messageTest === '--local-test') {
+    if (messageTest === '--local-test' || messageTest === '--tbeam-test') {
       const waitFor = async (test: () => boolean) => {
         const until = now() + 10000;
         while (!test()) {
@@ -87,6 +87,12 @@ for (let run = 0; run < 3; run++) {
           await new Promise(resolve => setTimeout(resolve, 25));
         }
       };
+      if (run === 0 && messageTest === '--tbeam-test' && client.sync.config?.region === 'UNSET') {
+        assert.equal(client.capabilities?.firmware, 'tbeam-usb-prototype-1');
+        const first = adapter.configure({ region: 'US', label: 'Reaper T-Beam V1.2',
+          radio: { ...client.sync.config.radio!, mode: 'off', power: 2 } });
+        await waitFor(() => client.commands.status(first).outcome === 'committed' && client.sync.state === 'ready');
+      }
       await waitFor(() => !!client.radioInfo);
       console.log('Physical radio diagnostic:', client.radioInfo?.state, client.radioInfo?.reason, 'probe', client.radioInfo?.probe,
         'heap', client.radioInfo?.heapFree, 'stack', client.radioInfo?.stackFree);

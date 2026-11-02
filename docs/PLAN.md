@@ -118,3 +118,7 @@ The actual C++ Mesh/codec passes bounded line/triangle topology tests. Regional 
 ## Current completion tracking
 
 Use STATUS.md for implemented/evidenced versus remaining work. Integrated board SPI, diagnostics, inbox, local delivery, durable browser recovery and guided updater validation are implemented and exercised on hardware where applicable. Public release requires the separate hardening gates above. Physical multi-node gates remain explicit.
+
+## Second board scope
+
+Owner explicitly requested T-Beam V1.2 support after connecting it beside the Heltec. Add only the required board/radio/power adapter and safe target-aware build/update validation. Reuse the independent protocol and state machines; qualify USB/probe/local behavior before two-node RF. See TBEAM.md.

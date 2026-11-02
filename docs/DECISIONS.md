@@ -100,3 +100,7 @@ Validate build identity, compatibility, fixed partitions, outer/embedded image h
 ## Full-fragment physical RF qualification
 
 The first TX attempt found ESP32-S3's non-DMA SPI limit of 64 bytes. Retain the failed evidence; use DMA with aligned persistent buffers and verify actual host transaction capacity at startup. Prototype-6 then completed seven full-message fragment TX_DONE events and correctly failed an unreachable unicast after retries. Test restoration left off mode/revision 20; later owner browser changes selected mesh/revision 21 and were preserved. Neither TX_DONE nor local inbox delivery proves a remote receiver/relay works. The focused single-board prototype is ready for the separate physical multi-node qualification stage.
+
+## T-Beam V1.2
+
+Add a separate ESP32/4MB board target with bootloader at 0x1000, preserving Heltec ESP32-S3/8MB rules and NVS. Only verified AXP2101 radio-rail bits may change. Use a first-party bounded SX1276 register driver with the same Reaper radio profile and mandatory version/configuration readback; wrong radios fail closed. A canonical node-016hex identity works with the installed Heltec without changing wire semantics. Antenna is owner-confirmed; mode defaults off. ESP32 ROM lacks get_security_info, so read named security eFuses without writes before flashing.
