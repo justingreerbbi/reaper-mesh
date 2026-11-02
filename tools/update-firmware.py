@@ -73,7 +73,7 @@ def validate(path):
     require(re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", manifest.get("firmware", "")) is not None, "invalid firmware ID")
     require(manifest.get("sdk", {}).get("commit") == SDK and manifest["sdk"].get("target") == target, "unreviewed SDK")
     require(manifest.get("flash_settings") == {"flash_mode": "dio", "flash_size": "4MB" if tbeam else "8MB", "flash_freq": "40m"}, "unsupported flash settings")
-    require((manifest.get("usb_protocol"), manifest.get("config_schema")) == (1, 1) and (manifest.get("record_schema"), manifest.get("read_record_schemas")) in [(2, [1, 2]), (3, [1, 2, 3])], "unsupported configuration compatibility")
+    require((manifest.get("usb_protocol"), manifest.get("config_schema")) == (1, 1) and (manifest.get("record_schema"), manifest.get("read_record_schemas")) in [(2, [1, 2]), (3, [1, 2, 3]), (4, [1, 2, 3, 4])], "unsupported configuration compatibility")
     records = manifest.get("artifacts")
     require(isinstance(records, list) and len(records) == 3, "expected exactly three flash artifacts")
     artifacts = {}

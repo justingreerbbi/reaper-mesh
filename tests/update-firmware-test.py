@@ -82,6 +82,13 @@ class UpdateTests(unittest.TestCase):
         self.manifest["artifacts"].append(self.manifest["artifacts"][0].copy())
         with self.assertRaises(ValueError): self.validate()
 
+    def test_position_record_compatibility(self):
+        self.manifest["record_schema"] = 4
+        self.manifest["read_record_schemas"] = [1, 2, 3, 4]
+        self.validate()
+        self.manifest["read_record_schemas"] = [4]
+        with self.assertRaises(ValueError): self.validate()
+
     def test_corrupt_embedded_image_even_if_manifest_rehashed(self):
         valid = esp_image()
         for position in [0, 1, 2, 3, 12, 23, 28, 32, len(valid) - 33, len(valid) - 1]:

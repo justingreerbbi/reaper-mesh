@@ -23,6 +23,7 @@ execFileSync(process.env.CXX || 'c++', [
   'firmware/components/reaper_device/discovery.cpp', 'firmware/components/reaper_device/messages.cpp', 'firmware/components/reaper_device/inbox.cpp', 'firmware/tests/mesh_service_test.cpp', vendor, '-o', binary,
 ], { stdio: 'pipe', timeout: 30000 });
 for (const [scenario, description] of Object.entries({
+  privacy: 'stops an old location-bearing control flight after a committed privacy change',
   discovery: 'routes real driver control frames through the independent discovery cache without chat delivery',
   local: 'delivers to the local inbox without claiming RF transmission',
   gate: 'refuses remote transmit admission while the antenna is unconfirmed',

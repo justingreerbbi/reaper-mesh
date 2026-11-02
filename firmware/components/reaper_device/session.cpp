@@ -68,7 +68,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     reply.type = p::MessageType::Welcome;
     set(reply.fields[p::kWelcomeLink], link_); set(reply.fields[p::kWelcomeDevice], device_); set(reply.fields[p::kWelcomeBoot], boot_);
     number(reply.fields[p::kWelcomeMinVersion], 1); number(reply.fields[p::kWelcomeMaxVersion], 1);
-    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) | (discovery_ ? 128 : 0));
+    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -83,7 +83,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       number(reply.fields[p::kWelcomeMaxMessageBytes], 1024);
       number(reply.fields[p::kWelcomeMessageCapacity], MessageQueue::kCapacity);
     }
-    if (discovery_) { number(reply.fields[p::kWelcomeDiscoveryVersion], 1); number(reply.fields[p::kWelcomeNodeCapacity], 32); }
+    if (discovery_) { number(reply.fields[p::kWelcomeLocationVersion], 1); number(reply.fields[p::kWelcomeDiscoveryVersion], 1); number(reply.fields[p::kWelcomeNodeCapacity], 32); }
     return true;
   }
   if (!active_ || !compatible_ || !same(request.fields[0], link_)) return false;
@@ -105,7 +105,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       const auto generation = request.fields[p::kNodeQueryGeneration].number; const auto cursor = request.fields[p::kNodeQueryCursor].number;
       if (!generation && !cursor) {
         node_generation_ = discovery_->generation(); node_count_ = discovery_->count();
-        for (std::size_t i = 0; i < node_count_; ++i) { const auto* item = discovery_->peer(i); node_snapshot_[i] = {item->key, item->name, item->seen}; }
+        for (std::size_t i = 0; i < node_count_; ++i) { const auto* item = discovery_->peer(i); node_snapshot_[i] = {item->key, item->name, item->position, item->seen}; }
       }
       const bool current = generation == node_generation_; const auto* peer = current && cursor < node_count_ ? &node_snapshot_[cursor] : nullptr;
       reply.type = p::MessageType::NodeReply;
@@ -117,6 +117,10 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
         char node[32]{}, nonce[33]{}; std::snprintf(node, sizeof(node), "node-%016llx", static_cast<unsigned long long>(peer->key.origin));
         for (std::size_t i = 0; i < 16; ++i) std::snprintf(nonce + i * 2, 3, "%02x", peer->key.boot[i]);
         literal(reply.fields[p::kNodeReplyNode], node); literal(reply.fields[p::kNodeReplyPeerBoot], nonce); number(reply.fields[p::kNodeReplyPeerSequence], peer->key.sequence);
+        if (peer->position.source) {
+          number(reply.fields[p::kNodeReplyPositionSource], peer->position.source); number(reply.fields[p::kNodeReplyLatitude], peer->position.latitude);
+          number(reply.fields[p::kNodeReplyLongitude], peer->position.longitude); number(reply.fields[p::kNodeReplyPositionAgeMs], peer->position.age_ms);
+        }
         set(reply.fields[p::kNodeReplyName], peer->name); number(reply.fields[p::kNodeReplyAgeMs], std::min<std::uint64_t>(now_ >= peer->seen ? now_ - peer->seen : 0, 0xffffffff));
       }
     }
@@ -204,6 +208,11 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kSnapshotTxPower], radio.power); number(reply.fields[p::kSnapshotRelay], radio.relay ? 1 : 0);
     set(reply.fields[p::kSnapshotChannels], radio.channels); literal(reply.fields[p::kSnapshotPreset], "US915_LAB1");
     if (discovery_) { number(reply.fields[p::kSnapshotBeacon], snapshot.settings.discovery.beacon); number(reply.fields[p::kSnapshotRespond], snapshot.settings.discovery.respond); number(reply.fields[p::kSnapshotBeaconInterval], snapshot.settings.discovery.interval); }
+    if (discovery_) {
+      const auto& position = snapshot.settings.position;
+      number(reply.fields[p::kSnapshotShareLocation], position.share); number(reply.fields[p::kSnapshotPositionSource], position.source);
+      number(reply.fields[p::kSnapshotLatitude], position.latitude); number(reply.fields[p::kSnapshotLongitude], position.longitude);
+    }
     synchronized_ = true; return true;
   }
   Text<75> id{}; const auto& id_field = request.fields[2]; id.assign(id_field.text.data(), id_field.length);
@@ -213,7 +222,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     Command command{};
     const bool owns = owner_.length && id.length > owner_.length && id.bytes[owner_.length] == ':' &&
       std::memcmp(id.bytes.data(), owner_.bytes.data(), owner_.length) == 0;
-    if (synchronized_ && admitted_ && owns && decode_command(request, command) && command.settings.region != Region::Eu) {
+    if (synchronized_ && admitted_ && owns && decode_command(request, command) && (!command.has_position || discovery_) && command.settings.region != Region::Eu) {
       result = authority_.apply(command);
       Snapshot current{};
       if (messages_ && result.outcome == Outcome::Committed && authority_.snapshot(current)) {

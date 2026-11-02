@@ -18,7 +18,7 @@ std::size_t Discovery::count() const { std::size_t n = 0; for (const auto& p : p
 const Peer* Discovery::peer(std::size_t cursor) const { for (const auto& p : peers_) if (p.used) { if (!cursor) return &p; --cursor; } return nullptr; }
 void Discovery::policy(const Settings* settings, bool may_transmit, std::uint64_t now) {
   const bool allowed = settings && may_transmit && settings->region == Region::Us && settings->radio.mode == RadioMode::Mesh;
-  const bool changed = !settings || !configured_ || allowed != allowed_ || !same(settings_.label, settings->label) ||
+  const bool changed = (settings && !same_position(settings_.position, settings->position)) || !settings || !configured_ || allowed != allowed_ || !same(settings_.label, settings->label) ||
     settings_.discovery.beacon != settings->discovery.beacon || settings_.discovery.respond != settings->discovery.respond || settings_.discovery.interval != settings->discovery.interval;
   if (changed) {
     for (auto& p : pending_) { if (p.used) for (auto& r : receipts_) if (r.sequence == p.packet.key.sequence) r.failed = true; p.used = false; }
@@ -35,6 +35,11 @@ bool Discovery::queue(mesh::PacketKind kind, std::uint64_t destination, const me
     p.bytes[0] = 1; p.bytes[1] = settings_.label.length; std::memcpy(p.bytes.data() + 2, settings_.label.bytes.data(), settings_.label.length);
     p.size = 2 + settings_.label.length;
     if (parent) { std::memcpy(p.bytes.data() + p.size, parent->boot.data(), 16); write32(p.bytes.data() + p.size + 16, parent->sequence); p.size += 20; }
+    const auto& position = settings_.position;
+    if (kind != mesh::PacketKind::Discover && position.share && position.source == 1 && valid_position(position)) {
+      p.bytes[0] = 2; auto* extra = p.bytes.data() + p.size; extra[0] = 1;
+      write32(extra + 1, position.latitude); write32(extra + 5, position.longitude); write32(extra + 9, 0); p.size += 13;
+    }
     p.total = p.size; pending = {true, p, due, until}; return true;
   }
   return false;
@@ -71,7 +76,7 @@ bool Discovery::observe(const mesh::Packet& packet, std::uint64_t now) {
     if (!slot) { slot = &peers_[0]; for (auto& p : peers_) if (p.seen < slot->seen) slot = &p; }
     *slot = {};
   }
-  slot->used = true; slot->key = packet.key; slot->seen = now; slot->name.assign(packet.bytes.data() + 2, packet.bytes[1]); ++generation_; return true;
+  slot->used = true; slot->key = packet.key; slot->seen = now; slot->position = mesh::position_report(packet); slot->name.assign(packet.bytes.data() + 2, packet.bytes[1]); ++generation_; return true;
 }
 bool Discovery::receive(const mesh::Packet& packet, std::uint64_t now) {
   if (!control(packet.kind) || !mesh::valid_packet(packet) || packet.key.origin == node_ || (packet.destination != mesh::kBroadcast && packet.destination != node_)) return false;

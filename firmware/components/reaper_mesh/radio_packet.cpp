@@ -6,14 +6,24 @@ namespace {
 void write(std::uint8_t* p, std::uint64_t value, unsigned size) { for (unsigned i = 0; i < size; ++i) p[i] = static_cast<std::uint8_t>(value >> (i * 8)); }
 std::uint64_t read(const std::uint8_t* p, unsigned size) { std::uint64_t v = 0; for (unsigned i = 0; i < size; ++i) v |= std::uint64_t(p[i]) << (i * 8); return v; }
 }
+PositionReport position_report(const Packet& p) {
+  if (p.bytes[0] != 2) return {};
+  const auto* extra = p.bytes.data() + 2 + p.bytes[1] + (p.kind == PacketKind::Presence ? 20 : 0);
+  return {extra[0], static_cast<std::uint32_t>(read(extra + 1, 4)), static_cast<std::uint32_t>(read(extra + 5, 4)), static_cast<std::uint32_t>(read(extra + 9, 4))};
+}
 bool valid_packet(const Packet& p) {
   bool nonce = false; for (auto byte : p.key.boot) nonce = nonce || byte != 0;
   if (!p.key.origin || p.key.origin == kBroadcast || !p.destination || !p.key.sequence || !nonce || p.hops > 7 || p.channel > 7) return false;
   if (p.kind == PacketKind::Ack) return p.destination != kBroadcast && !p.count && !p.index && !p.total && !p.size;
   if (p.kind == PacketKind::Beacon || p.kind == PacketKind::Discover || p.kind == PacketKind::Presence) {
     const bool reply = p.kind == PacketKind::Presence;
-    if (p.channel || p.hops != 1 || p.count != 1 || p.index || p.total != p.size || p.size < 2 || p.bytes[0] != 1 || p.bytes[1] > 64 ||
-        p.size != 2u + p.bytes[1] + (reply ? 20u : 0u) || (reply ? p.destination == kBroadcast : p.destination != kBroadcast)) return false;
+    if (p.channel || p.hops != 1 || p.count != 1 || p.index || p.total != p.size || p.size < 2 || (p.bytes[0] != 1 && p.bytes[0] != 2) || p.bytes[1] > 64 ||
+        p.size != 2u + p.bytes[1] + (reply ? 20u : 0u) + (p.bytes[0] == 2 ? 13u : 0u) || (reply ? p.destination == kBroadcast : p.destination != kBroadcast)) return false;
+    if (p.bytes[0] == 2) {
+      if (p.kind == PacketKind::Discover) return false; // Requests stay v1 so old listeners can respond.
+      const auto position = position_report(p);
+      if (position.source != 1 || position.latitude > 1800000000 || position.longitude > 3600000000U || position.age_ms) return false;
+    }
     if (p.bytes[1] && !protocol::valid_message_text(p.bytes.data() + 2, p.bytes[1])) return false;
     for (std::size_t i = 2; i < 2u + p.bytes[1]; ++i) if (p.bytes[i] < 32 || p.bytes[i] == 127) return false;
     if (reply) { bool nonce = false; for (unsigned i = 0; i < 16; ++i) nonce = nonce || p.bytes[2 + p.bytes[1] + i]; if (!nonce || !read(p.bytes.data() + 18 + p.bytes[1], 4)) return false; }

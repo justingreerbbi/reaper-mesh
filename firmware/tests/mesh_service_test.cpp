@@ -31,10 +31,21 @@ int main(int argc, char** argv) {
   const std::string scenario = argv[1]; const auto device = text<64>("heltec-000000000001");
   const auto boot = text<64>("2a00000000000000000000000000000000"); std::array<std::uint8_t, 16> nonce{}; nonce[0] = 42;
   d::MessageQueue messages(boot); d::Inbox inbox; d::RadioInfo info{};
-  MeshService service(messages, inbox, info, device, nonce, 1, scenario == "tx" || scenario == "policy" || scenario == "discovery");
+  MeshService service(messages, inbox, info, device, nonce, 1, scenario == "tx" || scenario == "policy" || scenario == "discovery" || scenario == "privacy");
   service.begin(); CHECK(info.probe); d::Snapshot config{}; config.settings.region = d::Region::Us;
   if (scenario != "local") config.settings.radio.mode = d::RadioMode::Mesh;
   service.tick(&config, 0);
+  if (scenario == "privacy") {
+    config.settings.position = {true, 1, 900000000, 1800000000}; config.settings.discovery.beacon = true; service.tick(&config, 1);
+    service.tick(&config, 400000); CHECK(transmitted);
+    m::Packet report{}; CHECK(m::decode_packet(sent.data(), sent.size(), report) && report.bytes[0] == 2);
+    config.settings.position.share = false; ++config.revision; transmitted = false; service.tick(&config, 400001);
+    CHECK(!transmitted);
+    // No TX_DONE is needed to stop an old control flight; the next beacon is name-only.
+    service.tick(&config, 800000); CHECK(transmitted);
+    CHECK(m::decode_packet(sent.data(), sent.size(), report) && report.bytes[0] == 1);
+    std::cout << "ok privacy\n"; return 0;
+  }
   if (scenario == "discovery") {
     config.settings.discovery.respond = true; service.tick(&config, 1);
     const auto result = service.discovery().request(text<64>("client"), text<75>("client:1"), true, 2);

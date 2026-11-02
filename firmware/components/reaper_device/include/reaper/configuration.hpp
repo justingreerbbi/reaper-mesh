@@ -24,14 +24,21 @@ struct RadioSettings {
   RadioSettings() { const std::uint8_t names[] = "Public|||||||"; channels.assign(names, sizeof(names) - 1); }
 };
 struct DiscoverySettings { bool beacon = false, respond = false; std::uint32_t interval = 300; };
-struct Settings { DiscoverySettings discovery{}; RadioSettings radio{}; Region region = Region::Unset; Text<64> label{}; };
+// Coordinates use degrees * 1e7, offset by +90/+180 degrees for unsigned wire/storage.
+struct PositionSettings {
+  bool share = false; std::uint8_t source = 0;
+  std::uint32_t latitude = 900000000, longitude = 1800000000;
+};
+inline bool valid_position(const PositionSettings& p) { return p.source <= 1 && p.latitude <= 1800000000 && p.longitude <= 3600000000U; }
+inline bool same_position(const PositionSettings& a, const PositionSettings& b) { return a.share == b.share && a.source == b.source && a.latitude == b.latitude && a.longitude == b.longitude; }
+struct Settings { PositionSettings position{}; DiscoverySettings discovery{}; RadioSettings radio{}; Region region = Region::Unset; Text<64> label{}; };
 struct Snapshot { Settings settings{}; std::uint32_t revision = 0; };
-struct Command { Text<75> id{}; Text<64> boot{}; std::uint32_t expected_revision = 0; Settings settings{}; bool has_radio = false, has_discovery = false; };
+struct Command { Text<75> id{}; Text<64> boot{}; std::uint32_t expected_revision = 0; Settings settings{}; bool has_radio = false, has_discovery = false, has_position = false; };
 enum class Outcome { Committed, Conflict, Rejected, Unknown };
 struct Result { Outcome outcome = Outcome::Unknown; std::uint32_t revision = 0; };
 enum class ReadStatus { Missing, Loaded, Failed };
 enum class CommitStatus { Committed, NotCommitted, Indeterminate };
-inline constexpr std::size_t kMaxRecord = 156;
+inline constexpr std::size_t kMaxRecord = 166;
 
 // Implementations must retain the prior complete record or the next complete record.
 // Committed means durably accepted; NotCommitted guarantees no change. Any ambiguous

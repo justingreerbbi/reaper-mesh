@@ -34,7 +34,8 @@
       "inboxVersion": "u32?",
       "inboxCapacity": "u32?",
       "discoveryVersion": "u32?",
-      "nodeCapacity": "u32?"
+      "nodeCapacity": "u32?",
+      "locationVersion": "u32?"
     }
   },
   "sync": {
@@ -62,7 +63,11 @@
       "preset": "id?",
       "beacon": "u32?",
       "respond": "u32?",
-      "beaconInterval": "u32?"
+      "beaconInterval": "u32?",
+      "shareLocation": "u32?",
+      "positionSource": "u32?",
+      "latitude": "u32?",
+      "longitude": "u32?"
     }
   },
   "event": {
@@ -81,7 +86,11 @@
       "preset": "id?",
       "beacon": "u32?",
       "respond": "u32?",
-      "beaconInterval": "u32?"
+      "beaconInterval": "u32?",
+      "shareLocation": "u32?",
+      "positionSource": "u32?",
+      "latitude": "u32?",
+      "longitude": "u32?"
     }
   },
   "ping": {
@@ -115,7 +124,11 @@
       "preset": "id?",
       "beacon": "u32?",
       "respond": "u32?",
-      "beaconInterval": "u32?"
+      "beaconInterval": "u32?",
+      "shareLocation": "u32?",
+      "positionSource": "u32?",
+      "latitude": "u32?",
+      "longitude": "u32?"
     }
   },
   "result": {
@@ -297,7 +310,11 @@
       "peerBoot": "id?",
       "peerSequence": "u32?",
       "name": "label?",
-      "ageMs": "u32?"
+      "ageMs": "u32?",
+      "positionSource": "u32?",
+      "latitude": "u32?",
+      "longitude": "u32?",
+      "positionAgeMs": "u32?"
     }
   }
 }

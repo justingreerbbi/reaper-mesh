@@ -22,6 +22,9 @@ struct Packet {
   std::uint16_t total = 0;
   std::array<std::uint8_t, kFragmentBytes> bytes{};
 };
+struct PositionReport { std::uint8_t source = 0; std::uint32_t latitude = 0, longitude = 0, age_ms = 0; };
+// Call only after valid_packet: v1 has no position; v2 appends one fixed-position report.
+PositionReport position_report(const Packet&);
 bool valid_packet(const Packet&);
 bool encode_packet(const Packet&, std::uint8_t*, std::size_t capacity, std::size_t& size);
 bool decode_packet(const std::uint8_t*, std::size_t size, Packet&);

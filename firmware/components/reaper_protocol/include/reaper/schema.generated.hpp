@@ -7,13 +7,13 @@ enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex
 enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
-inline constexpr std::size_t kMaxFields = 24;
+inline constexpr std::size_t kMaxFields = 25;
 inline constexpr FieldDescriptor kHelloFields[] = { {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, true} };
 inline constexpr std::size_t kHelloLink = 0;
 inline constexpr std::size_t kHelloMinVersion = 1;
 inline constexpr std::size_t kHelloMaxVersion = 2;
 inline constexpr std::size_t kHelloOwner = 3;
-inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kWelcomeLink = 0;
 inline constexpr std::size_t kWelcomeDevice = 1;
 inline constexpr std::size_t kWelcomeBoot = 2;
@@ -38,11 +38,12 @@ inline constexpr std::size_t kWelcomeInboxVersion = 20;
 inline constexpr std::size_t kWelcomeInboxCapacity = 21;
 inline constexpr std::size_t kWelcomeDiscoveryVersion = 22;
 inline constexpr std::size_t kWelcomeNodeCapacity = 23;
+inline constexpr std::size_t kWelcomeLocationVersion = 24;
 inline constexpr FieldDescriptor kSyncFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false} };
 inline constexpr std::size_t kSyncLink = 0;
 inline constexpr std::size_t kSyncBoot = 1;
 inline constexpr std::size_t kSyncRequest = 2;
-inline constexpr FieldDescriptor kSnapshotFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kSnapshotFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kSnapshotLink = 0;
 inline constexpr std::size_t kSnapshotBoot = 1;
 inline constexpr std::size_t kSnapshotRequest = 2;
@@ -58,7 +59,11 @@ inline constexpr std::size_t kSnapshotPreset = 11;
 inline constexpr std::size_t kSnapshotBeacon = 12;
 inline constexpr std::size_t kSnapshotRespond = 13;
 inline constexpr std::size_t kSnapshotBeaconInterval = 14;
-inline constexpr FieldDescriptor kEventFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr std::size_t kSnapshotShareLocation = 15;
+inline constexpr std::size_t kSnapshotPositionSource = 16;
+inline constexpr std::size_t kSnapshotLatitude = 17;
+inline constexpr std::size_t kSnapshotLongitude = 18;
+inline constexpr FieldDescriptor kEventFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kEventLink = 0;
 inline constexpr std::size_t kEventBoot = 1;
 inline constexpr std::size_t kEventSequence = 2;
@@ -73,6 +78,10 @@ inline constexpr std::size_t kEventPreset = 10;
 inline constexpr std::size_t kEventBeacon = 11;
 inline constexpr std::size_t kEventRespond = 12;
 inline constexpr std::size_t kEventBeaconInterval = 13;
+inline constexpr std::size_t kEventShareLocation = 14;
+inline constexpr std::size_t kEventPositionSource = 15;
+inline constexpr std::size_t kEventLatitude = 16;
+inline constexpr std::size_t kEventLongitude = 17;
 inline constexpr FieldDescriptor kPingFields[] = { {Kind::Id, false}, {Kind::U32, false} };
 inline constexpr std::size_t kPingLink = 0;
 inline constexpr std::size_t kPingRequest = 1;
@@ -80,7 +89,7 @@ inline constexpr FieldDescriptor kPongFields[] = { {Kind::Id, false}, {Kind::Id,
 inline constexpr std::size_t kPongLink = 0;
 inline constexpr std::size_t kPongBoot = 1;
 inline constexpr std::size_t kPongRequest = 2;
-inline constexpr FieldDescriptor kConfigureFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kConfigureFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kConfigureLink = 0;
 inline constexpr std::size_t kConfigureBoot = 1;
 inline constexpr std::size_t kConfigureId = 2;
@@ -95,6 +104,10 @@ inline constexpr std::size_t kConfigurePreset = 10;
 inline constexpr std::size_t kConfigureBeacon = 11;
 inline constexpr std::size_t kConfigureRespond = 12;
 inline constexpr std::size_t kConfigureBeaconInterval = 13;
+inline constexpr std::size_t kConfigureShareLocation = 14;
+inline constexpr std::size_t kConfigurePositionSource = 15;
+inline constexpr std::size_t kConfigureLatitude = 16;
+inline constexpr std::size_t kConfigureLongitude = 17;
 inline constexpr FieldDescriptor kResultFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::Outcome, false}, {Kind::U32, false} };
 inline constexpr std::size_t kResultLink = 0;
 inline constexpr std::size_t kResultBoot = 1;
@@ -196,7 +209,7 @@ inline constexpr std::size_t kNodeQueryBoot = 1;
 inline constexpr std::size_t kNodeQueryRequest = 2;
 inline constexpr std::size_t kNodeQueryGeneration = 3;
 inline constexpr std::size_t kNodeQueryCursor = 4;
-inline constexpr FieldDescriptor kNodeReplyFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::Id, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::Label, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kNodeReplyFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::Id, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::Label, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kNodeReplyLink = 0;
 inline constexpr std::size_t kNodeReplyBoot = 1;
 inline constexpr std::size_t kNodeReplyRequest = 2;
@@ -209,15 +222,19 @@ inline constexpr std::size_t kNodeReplyPeerBoot = 8;
 inline constexpr std::size_t kNodeReplyPeerSequence = 9;
 inline constexpr std::size_t kNodeReplyName = 10;
 inline constexpr std::size_t kNodeReplyAgeMs = 11;
+inline constexpr std::size_t kNodeReplyPositionSource = 12;
+inline constexpr std::size_t kNodeReplyLatitude = 13;
+inline constexpr std::size_t kNodeReplyLongitude = 14;
+inline constexpr std::size_t kNodeReplyPositionAgeMs = 15;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 4},
-  {MessageType::Welcome, kWelcomeFields, 24},
+  {MessageType::Welcome, kWelcomeFields, 25},
   {MessageType::Sync, kSyncFields, 3},
-  {MessageType::Snapshot, kSnapshotFields, 15},
-  {MessageType::Event, kEventFields, 14},
+  {MessageType::Snapshot, kSnapshotFields, 19},
+  {MessageType::Event, kEventFields, 18},
   {MessageType::Ping, kPingFields, 2},
   {MessageType::Pong, kPongFields, 3},
-  {MessageType::Configure, kConfigureFields, 14},
+  {MessageType::Configure, kConfigureFields, 18},
   {MessageType::Result, kResultFields, 5},
   {MessageType::Query, kQueryFields, 3},
   {MessageType::Error, kErrorFields, 3},
@@ -234,6 +251,6 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Discover, kDiscoverFields, 4},
   {MessageType::DiscoveryStatus, kDiscoveryStatusFields, 6},
   {MessageType::NodeQuery, kNodeQueryFields, 5},
-  {MessageType::NodeReply, kNodeReplyFields, 12},
+  {MessageType::NodeReply, kNodeReplyFields, 16},
 };
 } // namespace reaper::protocol

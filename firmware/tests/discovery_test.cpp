@@ -26,6 +26,34 @@ int main(int argc, char** argv) {
     CHECK(!a.next_tx(6000, query)); CHECK(!b.next_tx(6000, reply));
     CHECK(a.request(text<64>("owner"), text<75>("owner:1"), true, 31000).sequence == result.sequence);
     CHECK(!a.next_tx(31000, query)); CHECK(std::string(a.request(text<64>("owner"), text<75>("owner:2"), true, 100).state) == "cooldown");
+  } else if (scenario == "position") {
+    // A disclosure change cancels a queued reply, including a selected flight handed to the service.
+    sb.position = {true, 1, 900000000, 1800000000}; b.policy(&sb, true, 0);
+    CHECK(b.receive(control(3, 3, 1, m::PacketKind::Discover), 1));
+    sb.position.share = false; b.policy(&sb, true, 2); m::Packet out{}; CHECK(!b.next_tx(5002, out));
+    CHECK(b.receive(control(3, 3, 2, m::PacketKind::Discover), 6000)); CHECK(b.next_tx(11000, out)); b.complete_tx(true, 11000);
+    CHECK(out.bytes[0] == 1 && !m::position_report(out).source);
+    sb.position.share = true; b.policy(&sb, true, 12000);
+    CHECK(b.receive(control(3, 3, 3, m::PacketKind::Discover), 12001)); CHECK(b.next_tx(17001, out)); b.complete_tx(true, 17001);
+    CHECK(m::valid_packet(out) && out.bytes[0] == 2 && m::position_report(out).source == 1);
+    CHECK(m::position_report(out).latitude == 900000000 && m::position_report(out).longitude == 1800000000);
+    auto beacon = out; beacon.kind = m::PacketKind::Beacon; beacon.destination = m::kBroadcast;
+    std::memmove(beacon.bytes.data() + 2 + beacon.bytes[1], out.bytes.data() + 22 + out.bytes[1], 13); beacon.size -= 20; beacon.total = beacon.size;
+    std::array<std::uint8_t, 214> bytes{}; std::size_t size = 0; m::Packet decoded{};
+    CHECK(m::encode_packet(beacon, bytes.data(), bytes.size(), size) && m::decode_packet(bytes.data(), size, decoded));
+    CHECK(a.receive(decoded, 18000)); CHECK(a.peer(0)->position.latitude == 900000000); // (0,0) is valid.
+    auto old = decoded; old.key.sequence--; old.bytes[0] = 1; old.size -= 13; old.total = old.size;
+    CHECK(!a.receive(old, 18001) && a.peer(0)->position.source == 1);
+    old.key.sequence = decoded.key.sequence + 1; CHECK(a.receive(old, 18002)); CHECK(!a.peer(0)->position.source);
+    auto bad = beacon; bad.bytes[bad.size - 1] = 1; CHECK(!m::valid_packet(bad)); // Fixed coordinates have no GPS fix age.
+    bad = beacon; bad.bytes[2 + bad.bytes[1]] = 2; CHECK(!m::valid_packet(bad)); // GPS source is not yet implemented.
+    bad = beacon; bad.bytes[3 + bad.bytes[1]] = 255; bad.bytes[4 + bad.bytes[1]] = 255; bad.bytes[5 + bad.bytes[1]] = 255; bad.bytes[6 + bad.bytes[1]] = 255; CHECK(!m::valid_packet(bad));
+    sb.position.source = 0; sb.discovery.beacon = true; b.policy(&sb, true, 20000);
+    CHECK(b.next_tx(400000, out) && out.bytes[0] == 1); b.complete_tx(true, 400000);
+    // Sharing does not change manual requests: they remain readable by name-only peers.
+    sb.position.source = 1; b.policy(&sb, true, 400001);
+    CHECK(b.request(text<64>("owner"), text<75>("owner:1"), true, 400001).sequence);
+    CHECK(b.next_tx(400001, out) && out.kind == m::PacketKind::Discover && out.bytes[0] == 1);
   } else if (scenario == "codec") {
     auto q = control(2, 2, 1, m::PacketKind::Discover); std::array<std::uint8_t, 214> bytes{}; std::size_t size = 0; m::Packet decoded{};
     CHECK(m::encode_packet(q, bytes.data(), bytes.size(), size) && m::decode_packet(bytes.data(), size, decoded));

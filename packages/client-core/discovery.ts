@@ -1,3 +1,4 @@
+import { validCoordinates, type PositionReport } from '../protocol/position-config.ts';
 import type { Message } from '../protocol/messages.ts';
 import * as recovery from './recovery-data.ts';
 type Context = { device: string; boot: string; session: number };
@@ -5,7 +6,7 @@ type Status = Extract<Message, { type: 'discoveryStatus' }>;
 type Reply = Extract<Message, { type: 'nodeReply' }>;
 type Discover = Omit<Extract<Message, { type: 'discover' }>, 'link'>;
 type Packet = Discover | Omit<Extract<Message, { type: 'nodeQuery' }>, 'link'>;
-export type KnownNode = Readonly<{ node: string; peerBoot: string; peerSequence: number; name: string; ageMs: number; receivedAt: number }>;
+export type KnownNode = Readonly<{ node: string; peerBoot: string; peerSequence: number; name: string; position?: PositionReport; ageMs: number; receivedAt: number }>;
 type Attempt = { id: string; device: string; boot: string; state: string; replies: number; sequence: number };
 /** Separate node snapshots/request namespace. Never retries a discovery mutation. */
 export class Discovery {
@@ -90,7 +91,13 @@ export class Discovery {
     } else if (message.state === 'item' && message.generation === this.#generation && message.total === this.#total &&
         message.node !== undefined && message.peerBoot !== undefined && message.peerSequence !== undefined && message.name !== undefined && message.ageMs !== undefined) {
       if (!/^node-[0-9a-f]{16}$/.test(message.node) || ['node-0000000000000000', 'node-ffffffffffffffff'].includes(message.node) || !/^[0-9a-f]{32}$/.test(message.peerBoot) || /^0+$/.test(message.peerBoot) || !message.peerSequence || this.#partial.some(node => node.node === message.node)) return;
-      this.#partial.push(Object.freeze({ node: message.node, peerBoot: message.peerBoot, peerSequence: message.peerSequence, name: message.name, ageMs: message.ageMs, receivedAt: now })); this.#cursor++;
+      const fields = [message.positionSource, message.latitude, message.longitude, message.positionAgeMs];
+      let position: PositionReport | undefined;
+      if (fields.some(v => v !== undefined)) {
+        if (message.positionSource !== 1 || message.latitude === undefined || message.longitude === undefined || message.positionAgeMs !== 0 || !validCoordinates(message.latitude, message.longitude)) return;
+        position = Object.freeze({ source: 1, latitude: message.latitude, longitude: message.longitude, ageMs: 0 });
+      }
+      this.#partial.push(Object.freeze({ ...(position ? { position } : {}), node: message.node, peerBoot: message.peerBoot, peerSequence: message.peerSequence, name: message.name, ageMs: message.ageMs, receivedAt: now })); this.#cursor++;
     } else return;
     this.#pending = undefined; this.#next = now;
     if (this.#cursor === this.#total) { this.#nodes = Object.freeze([...this.#partial]); this.#generation = this.#cursor = 0; this.#next = now + 2000; }

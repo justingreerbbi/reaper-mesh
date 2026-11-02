@@ -12,6 +12,6 @@ execFileSync(process.env.CXX || 'c++', ['-std=c++17', '-O1', '-Wall', '-Wextra',
   '-Ifirmware/components/reaper_protocol/include', '-Ifirmware/components/reaper_mesh/include', '-Ifirmware/components/reaper_device/include',
   'firmware/components/reaper_protocol/protocol.cpp', 'firmware/components/reaper_mesh/radio_packet.cpp', 'firmware/components/reaper_device/configuration.cpp',
   'firmware/components/reaper_device/discovery.cpp', 'firmware/tests/discovery_test.cpp', '-o', binary], { stdio: 'pipe', timeout: 30000 });
-for (const scenario of ['flow', 'expiry', 'codec', 'bounds', 'policy', 'record']) test(`Discovery C++ ${scenario}`, () => {
+for (const scenario of ['flow', 'expiry', 'codec', 'bounds', 'policy', 'record', 'position']) test(`Discovery C++ ${scenario}`, () => {
   assert.equal(execFileSync(binary, [scenario], { encoding: 'utf8', timeout: 10000 }).trim(), `ok ${scenario}`);
 });

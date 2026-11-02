@@ -72,7 +72,7 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     literal(info_.state, "blocked"); literal(info_.reason, "storage-unavailable"); return;
   }
   info_.revision = snapshot->revision;
-  const bool discovery_changed = configured_ && (settings_.label.bytes != snapshot->settings.label.bytes || settings_.discovery.beacon != snapshot->settings.discovery.beacon || settings_.discovery.respond != snapshot->settings.discovery.respond || settings_.discovery.interval != snapshot->settings.discovery.interval);
+  const bool discovery_changed = configured_ && (!d::same_position(settings_.position, snapshot->settings.position) || settings_.label.bytes != snapshot->settings.label.bytes || settings_.discovery.beacon != snapshot->settings.discovery.beacon || settings_.discovery.respond != snapshot->settings.discovery.respond || settings_.discovery.interval != snapshot->settings.discovery.interval);
   if (discovery_changed && control_ && (pending_ || tx_)) { radio_.stop(); discovery_.complete_tx(false, now); pending_ = tx_ = false; configured_ = false; }
   const bool policy_changed = configured_ && changed(settings_, snapshot->settings);
   if (!configured_ || policy_changed) {
@@ -93,7 +93,7 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     literal(info_.reason, settings_.radio.mode == d::RadioMode::Receive ? "receive-only" : !antenna_verified_ ? "antenna-unconfirmed" : "ready");
   }
   discovery_.policy(&snapshot->settings, radio_.healthy() && antenna_verified_, now);
-  settings_.discovery = snapshot->settings.discovery; settings_.label = snapshot->settings.label;
+  settings_.position = snapshot->settings.position; settings_.discovery = snapshot->settings.discovery; settings_.label = snapshot->settings.label;
   mesh_.tick(now);
   auto event = radio_.poll(now);
   if (event.tx_done) { if (control_) discovery_.complete_tx(event.tx_success, now); else mesh_.complete_tx(event.tx_success, now); tx_ = false; if (event.tx_success) increment(info_.transmitted); }

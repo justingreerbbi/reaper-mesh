@@ -1,3 +1,4 @@
+import { coordinate, degrees } from '../../packages/protocol/position-config.ts';
 import './style.css';
 import { DEFAULT_CHANNELS, validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { ConfigModel } from './model.ts';
@@ -29,6 +30,7 @@ let error = '';
 let historySignature = '';
 let messageSignature = '';
 let inboxSignature = '';
+let positionDirty = false, positionBase = '';
 let discoveryDirty = false, discoveryBase = '', nodeSignature = '';
 let radioDirty = false;
 let radioBase = '';
@@ -89,6 +91,7 @@ function render() {
   element('error').hidden = !message;
   text('recovery-status', recovery.connection.recoveryError ?? 'USB history is saved in this browser before commands are sent.');
   element<HTMLButtonElement>('recovery-reset').disabled = busy || models.usb.adapter.active;
+  renderPosition();
   renderDiscovery();
   renderRadio();
   renderMessages();
@@ -313,6 +316,38 @@ element('export-settings').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 
+function renderPosition() {
+  const model = current(), connection = model.adapter.connection, { sync } = connection;
+  const ready = connection.supportsPosition && sync.state === 'ready';
+  const writable = ready && !connection.writeBlockReason && !!sync.config?.position;
+  const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
+  const position = sync.config?.position;
+  if (!positionDirty && position) {
+    element<HTMLSelectElement>('position-source').value = String(position.source);
+    element<HTMLInputElement>('position-share').checked = position.share;
+    element<HTMLInputElement>('position-latitude').value = degrees(position.latitude, 90);
+    element<HTMLInputElement>('position-longitude').value = degrees(position.longitude, 180); positionBase = context;
+  }
+  const stale = positionDirty && positionBase !== context;
+  text('position-support', !connection.supportsPosition ? 'Connect to firmware with fixed-position support.' : stale ? 'Device state changed. Load the latest position settings.' : connection.writeBlockReason ?? (position?.share && position.source === 1 ? 'Fixed-position sharing enabled.' : 'No coordinates will be sent with the current settings.'));
+  for (const id of ['position-source', 'position-share', 'position-latitude', 'position-longitude']) element<HTMLInputElement>(id).disabled = !writable || model.pending;
+  element<HTMLButtonElement>('position-save').disabled = !writable || !positionDirty || stale || model.pending;
+  element<HTMLButtonElement>('position-reset').disabled = !ready;
+}
+element('position-form').addEventListener('input', () => { positionDirty = true; render(); });
+element('position-reset').addEventListener('click', () => { positionDirty = false; render(); });
+element('position-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    const config = current().adapter.connection.sync.config!;
+    const source = element<HTMLSelectElement>('position-source').value;
+    if (source !== '0' && source !== '1') throw new Error('Unsupported position source');
+    current().adapter.configure({ ...config, position: { source: source === '1' ? 1 : 0, share: element<HTMLInputElement>('position-share').checked,
+      latitude: coordinate(element<HTMLInputElement>('position-latitude').value, 90), longitude: coordinate(element<HTMLInputElement>('position-longitude').value, 180) } });
+    positionDirty = false; error = ''; render();
+  } catch (error) { showError(error); }
+});
+
 function renderDiscovery() {
   const model = current(), connection = model.adapter.connection, { sync } = connection;
   const supported = connection.supportsDiscovery;
@@ -340,6 +375,7 @@ function renderDiscovery() {
     const row = document.createElement('li'), content = document.createElement('div'), name = document.createElement('strong'), detail = document.createElement('span');
     name.textContent = node.name || node.node; detail.className = 'mono';
     detail.textContent = `${node.node} · last heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago`;
+    if (node.position) detail.textContent += ` · fixed ${degrees(node.position.latitude, 90)}, ${degrees(node.position.longitude, 180)}`;
     const message = document.createElement('button'); message.textContent = 'Message'; message.disabled = sync.state !== 'ready';
     message.addEventListener('click', () => { element<HTMLInputElement>('message-destination').value = node.node; renderMessages(); element('message-body').focus(); });
     content.append(name, detail); row.append(content, message); list.append(row);

@@ -3,7 +3,7 @@
 
 ## Active product roadmap
 
-The owner marks Phase 1 complete and directs Phase 2 next. Read docs/ROADMAP.md and docs/PHASE2.md before new development; these supersede the older milestone priorities below. Phase 2: bounded discovery/beacons and opt-in responses, optional shared GPS/fixed position, then a map/nodes/messaging portal inspired by the supplied MeshMonitor/EvoCare references. Discovery slice2.1 is done; next implement fixed position, actual T-Beam GPS, and portal integration. Slice2.1 discovery v1, atomic policy persistence, USB/node snapshots, client recovery and minimal discovery UI are implemented. Real two-board requests/replies/names, periodic beacon and text regressions pass. GPS/fixed position and map-first redesign are not implemented yet.
+The owner marks Phase 1 complete and directs Phase 2 next. Read docs/ROADMAP.md and docs/PHASE2.md before new development; these supersede the older milestone priorities below. Phase 2: bounded discovery/beacons and opt-in responses, optional shared GPS/fixed position, then a map/nodes/messaging portal inspired by the supplied MeshMonitor/EvoCare references. Discovery slice2.1 is done. Fixed-position slice2.2a is implemented with qualification pending; actual T-Beam GPS and portal integration follow. Slice2.1 discovery v1, atomic policy persistence, USB/node snapshots, client recovery and minimal discovery UI are implemented. Real two-board requests/replies/names, periodic beacon and text regressions pass. GPS acquisition and map-first redesign are not implemented yet.
 
 Phase 3 is channel encryption plus portal configuration. Phase 4 is screen management/sleep, RX/TX and battery indication. GPS/position work is now explicitly authorized within Phase 2; broad telemetry/cloud/MQTT is not. Automatic beaconing, responses and location sharing default off; do not start broadcasting the owner's position merely because GPS hardware exists. Preserve the Phase 1 text/ACK and recovery contracts with capability-gated additions.
 
@@ -61,7 +61,7 @@ Both ESP32 and ESP32-S3 target builds and manifests validate. 197 host tests and
 
 ## Next work
 
-Implement Phase2 slice2.2 from docs/PHASE2.md: opt-in fixed-position storage/controls and wire extensions before actual T-Beam GPS acquisition/reporting. Preserve name-only discovery and text compatibility. Fixed-position and GPS reporting follow before the map-first portal integration. Mark each slice with implementation and actual hardware evidence. Keep relay/field/power-cut release gates visible without reopening the owner's completed Phase 1 product milestone. Historical checkpoints below do not override the active roadmap.
+Qualify fixed-position slice2.2a from docs/PHASE2.md, then implement actual T-Beam GPS acquisition/reporting. Preserve name-only discovery and text compatibility. Fixed-position and GPS reporting follow before the map-first portal integration. Mark each slice with implementation and actual hardware evidence. Keep relay/field/power-cut release gates visible without reopening the owner's completed Phase 1 product milestone. Historical checkpoints below do not override the active roadmap.
 
 ## USB startup recovery evidence
 
@@ -128,3 +128,7 @@ Phase2.1 uses additive radio kinds3/4/5 and USB22–25, featurebit7, discoveryVe
 Both discovery builds from a44319b are installed: Heltec usb-prototype-7 (274256-byte app) and T-Beam tbeam-usb-prototype-2 (244416). ROM verified all artifacts with NVS preserved. T-Beam driver initially rejected both serial interfaces before writes; owner USB reconnect resolved it. Actual manual discovery verified zero replies when disabled, one reply each direction when enabled, and matching configured node names. The periodic beacon test (60-second interval) passed without manual query or any response TX. Bidirectional 1024-byte text/destination ACK/inbox regression passed. No location transmitted. Both opt-in flags restored false, interval300; final Heltec revision28 mesh and T-Beam revision17 off.
 
 210 host tests and 64 CTests pass. New UI is built but not manually desktop-tested to honor token preference; actual shared client/USB/device behavior is qualified. Heap/stack: Heltec260592/16892 bytes; T-Beam187924/17116. The local-test harness assumed restoration always meant radiooff; corrected it to verify the owner's original mode (Heltec mesh), without changing firmware. PHASE2.md has evidence and remaining scope.
+
+## Fixed-position implementation checkpoint
+
+USB locationVersion1/feature256, opt-in fixed source/sharing, offset degree*1e7 coordinates, record4 (max166/read1–4), payloadv2 beacon/presence and frozen position-bearing node rows are implemented. Manual requests remain name-onlyv1; older discovery receivers reject v2 but text/ACK remains unchanged. Privacy changes cancel queued/selected controls; already emitted RF cannot be recalled. UI supports fixed positions/list details, no map/GPS yet. New RACE and compatibility tests are included. Firmware version strings Heltec8/T-Beam3; builds/hardware evidence pending. Do not claim Phase2.2 complete until GPS and remaining acceptance gates are met.

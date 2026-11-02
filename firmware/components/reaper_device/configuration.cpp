@@ -10,7 +10,7 @@ template <std::size_t N> bool equal(const Text<N>& a, const Text<N>& b) {
 bool equal(const RadioSettings& a, const RadioSettings& b) {
   return a.mode == b.mode && a.power == b.power && a.relay == b.relay && a.profile == b.profile && equal(a.channels, b.channels);
 }
-bool equal(const Settings& a, const Settings& b) { return a.region == b.region && equal(a.label, b.label) && equal(a.radio, b.radio) && a.discovery.beacon == b.discovery.beacon && a.discovery.respond == b.discovery.respond && a.discovery.interval == b.discovery.interval; }
+bool equal(const Settings& a, const Settings& b) { return same_position(a.position, b.position) && a.region == b.region && equal(a.label, b.label) && equal(a.radio, b.radio) && a.discovery.beacon == b.discovery.beacon && a.discovery.respond == b.discovery.respond && a.discovery.interval == b.discovery.interval; }
 bool identity(const Text<64>& value) {
   if (!value.length || value.length > 64) return false;
   for (std::size_t i = 0; i < value.length; ++i) {
@@ -32,6 +32,7 @@ bool valid(const Command& command) {
       static_cast<unsigned>(command.settings.region) > 2) return false;
   if (static_cast<unsigned>(command.settings.radio.mode) > 2 || command.settings.radio.power > 10 || command.settings.radio.profile != 1 ||
       (command.has_radio && command.settings.radio.mode != RadioMode::Off && command.settings.region != Region::Us)) return false;
+  if (!valid_position(command.settings.position)) return false;
   if (command.settings.discovery.interval < 60 || command.settings.discovery.interval > 3600) return false;
   protocol::Message message{};
   message.type = protocol::MessageType::Configure;
@@ -86,11 +87,12 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   size = 0;
   if (!output || !settings_valid(snapshot.settings)) return false;
   const auto& discovery = snapshot.settings.discovery;
-  const bool presence = discovery.beacon || discovery.respond || discovery.interval != 300;
+  const bool position = !same_position(snapshot.settings.position, PositionSettings{});
+  const bool presence = position || discovery.beacon || discovery.respond || discovery.interval != 300;
   const bool extended = presence || !equal(snapshot.settings.radio, RadioSettings{});
-  const auto length = 13 + snapshot.settings.label.length + (extended ? 5 + snapshot.settings.radio.channels.length : 0) + (presence ? 5 : 0);
+  const auto length = 13 + snapshot.settings.label.length + (extended ? 5 + snapshot.settings.radio.channels.length : 0) + (presence ? 5 : 0) + (position ? 10 : 0);
   if (capacity < length) return false;
-  output[0] = 'R'; output[1] = 'C'; output[2] = presence ? 3 : extended ? 2 : 1;
+  output[0] = 'R'; output[1] = 'C'; output[2] = position ? 4 : presence ? 3 : extended ? 2 : 1;
   write32(output + 3, snapshot.revision);
   output[7] = static_cast<std::uint8_t>(snapshot.settings.region);
   output[8] = static_cast<std::uint8_t>(snapshot.settings.label.length);
@@ -101,14 +103,15 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
     extra[3] = radio.channels.length; std::memcpy(extra + 4, radio.channels.bytes.data(), radio.channels.length);
     extra[4 + radio.channels.length] = radio.profile;
   }
-  if (presence) { auto* extra = output + length - 9; extra[0] = (discovery.beacon ? 1 : 0) | (discovery.respond ? 2 : 0); write32(extra + 1, discovery.interval); }
+  if (presence) { auto* extra = output + length - 9 - (position ? 10 : 0); extra[0] = (discovery.beacon ? 1 : 0) | (discovery.respond ? 2 : 0); write32(extra + 1, discovery.interval); }
+  if (position) { auto* extra = output + length - 14; const auto& p = snapshot.settings.position; extra[0] = p.share; extra[1] = p.source; write32(extra + 2, p.latitude); write32(extra + 6, p.longitude); }
   write32(output + length - 4, protocol::crc32(output, length - 4));
   size = length;
   return true;
 }
 
 bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output) {
-  if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' || (data[2] < 1 || data[2] > 3) ||
+  if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' || (data[2] < 1 || data[2] > 4) ||
       data[7] > 2 || data[8] > 64 || (data[2] == 1 && size != std::size_t(data[8]) + 13) ||
       read32(data + size - 4) != protocol::crc32(data, size - 4)) return false;
   Snapshot next{};
@@ -119,12 +122,13 @@ bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output)
     const auto offset = 9u + data[8];
     if (size < offset + 9) return false;
     const auto* extra = data + offset; const auto names = extra[3];
-    if (size != offset + 9u + names + (data[2] == 3 ? 5u : 0u) || extra[0] > 2 || extra[1] > 10 || extra[2] > 1 ||
+    if (size != offset + 9u + names + (data[2] >= 3 ? 5u : 0u) + (data[2] == 4 ? 10u : 0u) || extra[0] > 2 || extra[1] > 10 || extra[2] > 1 ||
         !next.settings.radio.channels.assign(extra + 4, names)) return false;
     next.settings.radio.mode = static_cast<RadioMode>(extra[0]); next.settings.radio.power = extra[1];
     next.settings.radio.relay = extra[2] != 0; next.settings.radio.profile = extra[4 + names];
   }
-  if (data[2] == 3) { const auto* extra = data + size - 9; if (extra[0] > 3) return false; next.settings.discovery = {bool(extra[0] & 1), bool(extra[0] & 2), read32(extra + 1)}; }
+  if (data[2] >= 3) { const auto* extra = data + size - 9 - (data[2] == 4 ? 10 : 0); if (extra[0] > 3) return false; next.settings.discovery = {bool(extra[0] & 1), bool(extra[0] & 2), read32(extra + 1)}; }
+  if (data[2] == 4) { const auto* extra = data + size - 14; if (extra[0] > 1) return false; next.settings.position = {bool(extra[0]), extra[1], read32(extra + 2), read32(extra + 6)}; }
   if (!settings_valid(next.settings)) return false;
   output = next;
   return true;
@@ -166,6 +170,15 @@ bool decode_command(const protocol::Message& message, Command& output) {
     if (!beacon.present || !respond.present || !interval.present || beacon.number > 1 || respond.number > 1) return false;
     next.has_discovery = true; next.settings.discovery = {bool(beacon.number), bool(respond.number), interval.number};
   }
+  bool any_position = false, all_position = true;
+  for (auto index : {protocol::kConfigureShareLocation, protocol::kConfigurePositionSource, protocol::kConfigureLatitude, protocol::kConfigureLongitude}) {
+    any_position = any_position || message.fields[index].present; all_position = all_position && message.fields[index].present;
+  }
+  if (any_position) {
+    if (!all_position || message.fields[protocol::kConfigureShareLocation].number > 1 || message.fields[protocol::kConfigurePositionSource].number > 1) return false;
+    next.has_position = true;
+    next.settings.position = {bool(message.fields[protocol::kConfigureShareLocation].number), static_cast<std::uint8_t>(message.fields[protocol::kConfigurePositionSource].number), message.fields[protocol::kConfigureLatitude].number, message.fields[protocol::kConfigureLongitude].number};
+  }
   if (!valid(next)) return false;
   output = next;
   return true;
@@ -201,7 +214,7 @@ Result Configuration::apply(const Command& command) {
   if (!valid(command) || !equal(command.boot, boot_)) return {Outcome::Rejected, snapshot_.revision};
   for (const auto& receipt : receipts_) if (receipt.used && equal(receipt.command.id, command.id)) {
     const auto& previous = receipt.command;
-    if (previous.expected_revision != command.expected_revision || previous.has_radio != command.has_radio || previous.has_discovery != command.has_discovery || !equal(previous.settings, command.settings)) {
+    if (previous.expected_revision != command.expected_revision || previous.has_position != command.has_position || previous.has_radio != command.has_radio || previous.has_discovery != command.has_discovery || !equal(previous.settings, command.settings)) {
       return {Outcome::Rejected, snapshot_.revision};
     }
     return receipt.result;
@@ -218,6 +231,7 @@ Result Configuration::apply(const Command& command) {
     if (snapshot_.revision == std::numeric_limits<std::uint32_t>::max()) result.outcome = Outcome::Rejected;
     else {
       Snapshot next{command.settings, snapshot_.revision + 1};
+      if (!command.has_position) next.settings.position = snapshot_.settings.position;
       if (!command.has_radio) next.settings.radio = snapshot_.settings.radio;
       if (!command.has_discovery) next.settings.discovery = snapshot_.settings.discovery;
       if (next.settings.region != Region::Us) next.settings.radio.mode = RadioMode::Off;

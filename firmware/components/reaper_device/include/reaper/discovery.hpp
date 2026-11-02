@@ -3,7 +3,7 @@
 #include "reaper/radio_packet.hpp"
 namespace reaper::device {
 struct Peer {
-  bool used = false; mesh::MessageKey key{}; Text<64> name{}; std::uint64_t seen = 0; std::uint32_t replied_to = 0;
+  bool used = false; mesh::MessageKey key{}; mesh::PositionReport position{}; Text<64> name{}; std::uint64_t seen = 0; std::uint32_t replied_to = 0;
   std::array<std::array<std::uint8_t, 16>, 4> retired{}; std::uint8_t next_retired = 0;
 };
 struct DiscoveryResult { const char* state = "unknown"; std::uint32_t replies = 0, sequence = 0; };

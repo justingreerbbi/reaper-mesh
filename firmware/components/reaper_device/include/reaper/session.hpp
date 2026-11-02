@@ -20,7 +20,7 @@ class Session {
   RadioInfo* radio_ = nullptr;
   Inbox* inbox_ = nullptr;
   Discovery* discovery_ = nullptr;
-  struct NodeView { mesh::MessageKey key{}; Text<64> name{}; std::uint64_t seen = 0; };
+  struct NodeView { mesh::MessageKey key{}; Text<64> name{}; mesh::PositionReport position{}; std::uint64_t seen = 0; };
   std::array<NodeView, 32> node_snapshot_{}; std::uint32_t node_generation_ = 0; std::size_t node_count_ = 0;
   std::uint64_t now_ = 0;
   Text<64> device_, boot_, link_{}, owner_{};

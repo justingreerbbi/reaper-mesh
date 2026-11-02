@@ -1,3 +1,4 @@
+import { positionFields, validPosition, type PositionConfig } from '../protocol/position-config.ts';
 import { discoveryFields, validDiscovery, type DiscoveryConfig } from '../protocol/discovery-config.ts';
 import { encodeMessage, validateField } from '../protocol/messages.ts';
 import { radioFields, validRadio, type RadioConfig } from '../protocol/radio-config.ts';
@@ -57,12 +58,19 @@ export class Commands {
           channels: recovery.string(r.channels), preset: recovery.string(r.preset) as RadioConfig['preset'] };
         if (!validRadio(radio, region)) throw new Error('invalid recovery radio policy');
       }
+      let position: PositionConfig | undefined;
+      if (config.position !== undefined) {
+        const p = recovery.object(config.position);
+        if (p.source !== 0 && p.source !== 1) throw new Error('invalid position recovery source');
+        position = { share: p.share as boolean, source: p.source, latitude: recovery.u32(p.latitude), longitude: recovery.u32(p.longitude) };
+        if (!validPosition(position)) throw new Error('invalid position recovery settings');
+      }
       let discovery: DiscoveryConfig | undefined;
       if (config.discovery !== undefined) { const d = recovery.object(config.discovery); discovery = { beacon: d.beacon as boolean, respond: d.respond as boolean, interval: recovery.u32(d.interval) }; if (!validDiscovery(discovery)) throw new Error('invalid discovery recovery settings'); }
       const command: ConfigCommand = Object.freeze({ id: identity.id, boot, expectedRevision: recovery.u32(source.expectedRevision),
-        config: copyConfig({ region, label, ...(discovery ? { discovery } : {}), ...(radio ? { radio } : {}) }) });
+        config: copyConfig({ region, label, ...(position ? { position } : {}), ...(discovery ? { discovery } : {}), ...(radio ? { radio } : {}) }) });
       encodeMessage({ type: 'configure', link: 'recovery', id: command.id, boot, expectedRevision: command.expectedRevision,
-        region, label, ...discoveryFields(discovery), ...radioFields(radio) } as import('../protocol/messages.ts').Message);
+        region, label, ...positionFields(position), ...discoveryFields(discovery), ...radioFields(radio) } as import('../protocol/messages.ts').Message);
       const outcome = recovery.string(item.outcome);
       if (!['pending', 'unknown', 'committed', 'conflict', 'rejected'].includes(outcome)) throw new Error('invalid recovery outcome');
       const attempts = recovery.u32(item.attempts);

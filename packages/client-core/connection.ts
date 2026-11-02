@@ -1,3 +1,4 @@
+import { positionFields, readPosition, validPosition } from '../protocol/position-config.ts';
 import { Discovery } from './discovery.ts';
 import { discoveryFields, validDiscovery } from '../protocol/discovery-config.ts';
 import * as recovery from './recovery-data.ts';
@@ -80,6 +81,7 @@ export class Connection {
     } finally { this.#checkpointing = false; }
   }
 
+  get supportsPosition() { return this.supportsDiscovery && this.capabilities?.locationVersion === 1 && !!(this.capabilities.features & 256); }
   get supportsDiscovery() { return this.capabilities?.discoveryVersion === 1 && this.capabilities.nodeCapacity === 32 && !!(this.capabilities.features & 128); }
   discover(now: number) {
     this.#time(now); this.sync.mutationContext();
@@ -126,6 +128,7 @@ export class Connection {
     this.sync.mutationContext();
     const blocked = this.writeBlockReason;
     if (blocked) throw new Error(blocked);
+    if (config.position && (!this.supportsPosition || !validPosition(config.position))) throw new Error('unsupported or invalid position settings');
     if (config.discovery && (!this.supportsDiscovery || !validDiscovery(config.discovery))) throw new Error('unsupported or invalid discovery settings');
     if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region))) throw new Error(this.radioBlockReason || 'invalid radio/channel settings');
     const regionMask = { UNSET: 1, US: 2, EU: 4 }[config.region];
@@ -135,7 +138,7 @@ export class Connection {
     }
     // Validate before retaining the command, including runtime callers without TS checks.
     encodeMessage({ type: 'configure', link: this.#link, boot: this.sync.boot!, id: 'validation:1',
-      expectedRevision: this.sync.revision, region: config.region, label: config.label, ...discoveryFields(config.discovery), ...radioFields(config.radio) } as Message);
+      expectedRevision: this.sync.revision, region: config.region, label: config.label, ...positionFields(config.position), ...discoveryFields(config.discovery), ...radioFields(config.radio) } as Message);
     const command = this.commands.submit(config, now);
     this.#commandDevices.set(command.id, this.device!);
     this.#checkpoint(true); this.#sendCommand(command);
@@ -278,8 +281,10 @@ export class Connection {
       this.#deadline = this.#now + 5000;
     } else if (message.type === 'snapshot' || message.type === 'event') {
       if (message.boot !== this.sync.boot) return;
+      let position;
+      try { position = readPosition(message); } catch { this.close('invalid-position-settings'); return; }
       const value = { ...message, session: this.sync.session,
-        config: { region: message.region, label: message.label,
+        config: { region: message.region, label: message.label, ...(position ? { position } : {}),
           ...(message.beacon !== undefined && message.respond !== undefined && message.beaconInterval !== undefined && message.beacon <= 1 && message.respond <= 1 && message.beaconInterval >= 60 && message.beaconInterval <= 3600 ? { discovery: { beacon: !!message.beacon, respond: !!message.respond, interval: message.beaconInterval } } : {}),
           ...(message.radioMode !== undefined && message.txPower !== undefined && message.relay !== undefined && message.channels !== undefined && message.preset === 'US915_LAB1' && message.relay <= 1 && message.txPower <= 10 ?
             { radio: { mode: message.radioMode, power: message.txPower, relay: message.relay === 1, channels: message.channels, preset: 'US915_LAB1' as const } } : {}) } };
@@ -323,7 +328,7 @@ export class Connection {
   #sendCommand(command: ConfigCommand) {
     this.#send({ type: 'configure', link: this.#link, boot: command.boot, id: command.id,
       expectedRevision: command.expectedRevision, region: command.config.region,
-      label: command.config.label, ...discoveryFields(command.config.discovery), ...radioFields(command.config.radio) } as Message);
+      label: command.config.label, ...positionFields(command.config.position), ...discoveryFields(command.config.discovery), ...radioFields(command.config.radio) } as Message);
   }
 
   #send(message: Message) {

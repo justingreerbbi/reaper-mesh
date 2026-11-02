@@ -38,12 +38,16 @@ int main(int argc, char** argv) {
     const auto body = std::string(31, 'x') + "\xf0\x9f\x93\xbb" + std::string(989, 'z');
     if (!inbox.append(text<64>("node-B"), text<64>("remote_1"), 0, reinterpret_cast<const std::uint8_t*>(body.data()), body.size())) return 4;
   }
-  const bool with_discovery = argc > 1 && std::string(argv[1]) == "discovery";
+  const bool with_discovery = argc > 1 && (std::string(argv[1]) == "discovery" || std::string(argv[1]) == "position");
   std::array<std::uint8_t, 16> nonce{}; nonce[0] = 1; d::Discovery discovery(1, nonce);
   if (with_discovery) {
     d::Settings settings{}; settings.region = d::Region::Us; settings.radio.mode = d::RadioMode::Mesh; discovery.policy(&settings, true, 0);
     reaper::mesh::Packet peer{}; peer.kind = reaper::mesh::PacketKind::Beacon; peer.key.origin = 2; peer.key.boot[0] = 2; peer.key.sequence = 1;
     peer.destination = reaper::mesh::kBroadcast; peer.count = peer.hops = 1; peer.size = peer.total = 7; peer.bytes[0] = 1; peer.bytes[1] = 5; std::memcpy(peer.bytes.data() + 2, "Bravo", 5);
+    if (std::string(argv[1]) == "position") {
+      peer.bytes[0] = 2; peer.bytes[7] = 1; peer.size = peer.total = 20;
+      for (unsigned i = 0; i < 4; ++i) { peer.bytes[8 + i] = 900000000U >> (8 * i); peer.bytes[12 + i] = 1800000000U >> (8 * i); }
+    }
     if (!discovery.receive(peer, 0)) return 5;
   }
   d::Session session(authority, text<64>("device-A"), text<64>("boot-A"),

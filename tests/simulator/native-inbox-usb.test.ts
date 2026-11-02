@@ -71,3 +71,60 @@ test('native Session capability-gates discovery, deduplicates starts and pages a
   client.receive(generation, Uint8Array.from(Buffer.from(lines[6], 'hex')), 1);
   assert.equal(client.discovery.nodes[0].name, 'Bravo'); assert.equal(client.discovery.nodes[0].node, 'node-0000000000000002');
 });
+
+test('position settings cross TS/native USB, survive lost replies and legacy writes, and reject partial updates', () => {
+  const requests: Message[] = [
+    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'client-A' },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
+    { type: 'configure', link: 'link-A', boot: 'boot-A', id: 'client-A:1', expectedRevision: 0, region: 'US', label: 'fixed', shareLocation: 1, positionSource: 1, latitude: 900000000, longitude: 1800000000 },
+    { type: 'hello', link: 'link-B', minVersion: 1, maxVersion: 1, owner: 'client-A' },
+    { type: 'sync', link: 'link-B', boot: 'boot-A', request: 2 },
+    { type: 'query', link: 'link-B', boot: 'boot-A', id: 'client-A:1' },
+    { type: 'sync', link: 'link-B', boot: 'boot-A', request: 3 },
+    { type: 'configure', link: 'link-B', boot: 'boot-A', id: 'client-A:2', expectedRevision: 1, region: 'US', label: 'legacy edit' },
+    { type: 'sync', link: 'link-B', boot: 'boot-A', request: 4 },
+    { type: 'configure', link: 'link-B', boot: 'boot-A', id: 'client-A:3', expectedRevision: 2, region: 'US', label: 'bad partial', shareLocation: 0 },
+    { type: 'sync', link: 'link-B', boot: 'boot-A', request: 5 },
+  ];
+  const lines = execFileSync(binary, ['discovery'], { input: requests.map(message => hex(wire(message))).join('\n') + '\n', encoding: 'utf8', timeout: 10000 }).trim().split('\n');
+  assert.equal(lines.pop(), 'writes=2');
+  const frames = lines.map(line => Uint8Array.from(Buffer.from(line, 'hex')));
+  const client = new Connection('client-A'); let session = client.open('link-A', 0); client.drain();
+  client.receive(session, frames[0], 0); client.drain(); client.receive(session, frames[1], 0); client.drain();
+  assert.equal(client.supportsPosition, true);
+  const position = { share: true, source: 1 as const, latitude: 900000000, longitude: 1800000000 };
+  const id = client.configure({ region: 'US', label: 'fixed', position }, 1);
+  const sent: Message[] = []; for (const bytes of client.drain()) new FrameDecoder().feed(bytes, payload => sent.push(decodeMessage(payload)));
+  assert.deepEqual(sent, [requests[2]]); // Drop the committed reply.
+  const restored = Connection.fromJournal(client.exportJournal()); assert.equal(restored.commands.status(id).outcome, 'unknown');
+  client.close(); session = client.open('link-B', 2); client.drain();
+  client.receive(session, frames[3], 2); client.drain(); client.receive(session, frames[4], 2); client.drain();
+  assert.deepEqual(client.sync.config?.position, position);
+  client.recover(id, 3);
+  const recovery: Message[] = []; for (const bytes of client.drain()) new FrameDecoder().feed(bytes, payload => recovery.push(decodeMessage(payload)));
+  assert.deepEqual(recovery, [requests[5]]);
+  client.receive(session, frames[5], 3); client.drain(); client.receive(session, frames[6], 3);
+  assert.equal(client.commands.status(id).outcome, 'committed');
+  const responses: Message[] = []; for (const frame of frames) new FrameDecoder().feed(frame, payload => responses.push(decodeMessage(payload)));
+  assert.equal(responses[8].type === 'snapshot' && responses[8].shareLocation, 1);
+  assert.equal(responses[9].type === 'result' && responses[9].outcome, 'rejected');
+  assert.equal(responses[10].type === 'snapshot' && responses[10].revision, 2);
+});
+
+test('native node paging freezes position with identity while a later name-only RF report arrives', () => {
+  const requests: Message[] = [
+    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'client-A' },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
+    { type: 'nodeQuery', link: 'link-A', boot: 'boot-A', request: 1, generation: 0, cursor: 0 },
+    { type: 'nodeQuery', link: 'link-A', boot: 'boot-A', request: 2, generation: 1, cursor: 0 },
+    { type: 'nodeQuery', link: 'link-A', boot: 'boot-A', request: 3, generation: 0, cursor: 0 },
+    { type: 'nodeQuery', link: 'link-A', boot: 'boot-A', request: 4, generation: 2, cursor: 0 },
+  ];
+  const lines = execFileSync(binary, ['position'], { input: requests.map(message => hex(wire(message))).join('\n') + '\n', encoding: 'utf8', timeout: 10000 }).trim().split('\n');
+  assert.equal(lines.pop(), 'writes=0');
+  const responses: Message[] = []; for (const line of lines) new FrameDecoder().feed(Uint8Array.from(Buffer.from(line, 'hex')), payload => responses.push(decodeMessage(payload)));
+  assert.equal(responses[3].type === 'nodeReply' && responses[3].latitude, 900000000);
+  assert.equal(responses[3].type === 'nodeReply' && responses[3].name, 'Bravo');
+  assert.equal(responses[5].type === 'nodeReply' && responses[5].positionSource, undefined);
+  assert.equal(responses[5].type === 'nodeReply' && responses[5].name, 'Delta');
+});

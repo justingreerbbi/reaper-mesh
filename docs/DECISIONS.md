@@ -112,3 +112,7 @@ Phase 1 is complete. Phase 2 adds discovery/beacons, independently enabled respo
 ## Discovery v1 vertical slice
 
 Use a separate direct-listener control namespace (radio3/4/5, USB22–25) while preserving text/ACK wire bytes. Presence replies acknowledge discovery only. Persist independent beacon/response/interval settings atomically in record3; default policy retains older record bytes. Freeze a bounded USB node snapshot per head query so ongoing RF updates cannot prevent paging from completing. Use owner high-water suppression for manual requests, one active collection, jitter and a rolling-six/minute reply limit. No GPS/location or map UI is implied by this slice.
+
+## Fixed-position vertical slice (Phase2.2a)
+
+Implement saved coordinates before GPS. Use offset fixed-point integers shared by USB/storage/RF, explicit none/fixed source and independently opt-in sharing; no implicit computer position. Keep manual discovery requests name-only v1 so older responders still work; position-bearing announcements/replies use control payload v2. Advertise fixed-location capability separately from discovery. Older discovery receivers cannot interpret v2 reports, but text/ACK stays compatible. Record4 preserves old record reads and legacy-client omission semantics. GPS acquisition/reporting and the map portal remain subsequent work; do not call all of2.2 complete from fixed-position checks.

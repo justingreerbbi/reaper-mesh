@@ -194,6 +194,32 @@ int main(int argc, char** argv) {
     decoded.fields[p::kConfigureId].length = 76;
     CHECK(!d::decode_command(decoded, parsed));
     CHECK(authority.apply(parsed).outcome == d::Outcome::Committed && store.writes == 1);
+  } else if (scenario == "position") {
+    auto change = command(); change.has_position = true; change.settings.position = {true, 1, 0, 3600000000U};
+    CHECK(authority.apply(change).outcome == d::Outcome::Committed && store.data[2] == 4);
+    CHECK(authority.apply(change).outcome == d::Outcome::Committed && store.writes == 1);
+    auto reuse = change; reuse.settings.position.share = false;
+    CHECK(authority.apply(reuse).outcome == d::Outcome::Rejected);
+    d::Configuration rebooted(store, text<64>("boot-B")); CHECK(rebooted.snapshot(snapshot) && d::same_position(snapshot.settings.position, change.settings.position));
+    CHECK(authority.apply(command(2, 1, "legacy")).outcome == d::Outcome::Committed);
+    CHECK(authority.snapshot(snapshot) && d::same_position(snapshot.settings.position, change.settings.position));
+    auto invalid = command(3, 2); invalid.has_position = true; invalid.settings.position.latitude = 1800000001;
+    CHECK(authority.apply(invalid).outcome == d::Outcome::Rejected);
+    invalid.settings.position.latitude = 0; invalid.settings.position.source = 2;
+    CHECK(authority.apply(invalid).outcome == d::Outcome::Rejected);
+    auto failed = command(3, 2); failed.has_position = true; store.definite_failure = true;
+    CHECK(authority.apply(failed).outcome == d::Outcome::Rejected);
+    CHECK(authority.snapshot(snapshot) && snapshot.settings.position.share);
+    store.definite_failure = false;
+    auto disable = command(4, 2); disable.has_position = true;
+    CHECK(authority.apply(disable).outcome == d::Outcome::Committed && store.data[2] < 4);
+    CHECK(authority.snapshot(snapshot) && !snapshot.settings.position.share);
+    change = command(5, 3); change.has_position = true; change.settings.position = {true, 1, 900000000, 1800000000};
+    store.uncertain_writes_next = store.copy_uncertain = true;
+    CHECK(authority.apply(change).outcome == d::Outcome::Unknown && !authority.snapshot(snapshot));
+    d::Configuration recovered(store, text<64>("boot-C")); CHECK(recovered.snapshot(snapshot) && snapshot.revision == 4 && snapshot.settings.position.share);
+    CHECK(recovered.query(change.id).outcome == d::Outcome::Unknown);
+    for (std::size_t n = 0; n < store.size; ++n) CHECK(!d::decode_record(store.data.data(), n, snapshot));
   } else if (scenario == "discovery") {
     auto change = command(); change.has_discovery = true; change.settings.discovery = {true, true, 60};
     CHECK(authority.apply(change).outcome == d::Outcome::Committed && store.data[2] == 3);
