@@ -37,3 +37,11 @@ test('node snapshots reject partial/invalid location and cannot overwrite a posi
   client.receive(1, item, 3); assert.equal(client.nodes[0].position?.latitude, 900000000);
   client.tick(4); client.receive(1, item, 5); assert.equal(client.nodes[0].position?.latitude, 900000000);
 });
+test('a future location version remains readable for base configuration without overwriting its policy', () => {
+  const client = new Connection('owner'), session = client.open('link', 0); client.drain();
+  client.receive(session, encodeFrame(encodeMessage({ type: 'welcome', link: 'link', device: 'device', boot: 'boot', minVersion: 1, maxVersion: 1, ...deviceCapabilities, features: 391, discoveryVersion: 1, nodeCapacity: 32, locationVersion: 2 })), 0); client.drain();
+  client.receive(session, encodeFrame(encodeMessage({ type: 'snapshot', link: 'link', boot: 'boot', request: 1, sequence: 0, revision: 0, region: 'US', label: '', shareLocation: 1, positionSource: 2, latitude: 900000000, longitude: 1800000000 })), 0);
+  assert.equal(client.sync.state, 'ready'); assert.equal(client.supportsPosition, false); assert.equal(client.sync.config?.position, undefined);
+  client.configure({ ...client.sync.config!, label: 'base edit' }, 1);
+  assert.equal(client.commands.history.at(-1)?.command.config.position, undefined);
+});

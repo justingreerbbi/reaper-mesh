@@ -282,7 +282,7 @@ export class Connection {
     } else if (message.type === 'snapshot' || message.type === 'event') {
       if (message.boot !== this.sync.boot) return;
       let position;
-      try { position = readPosition(message); } catch { this.close('invalid-position-settings'); return; }
+      try { if (this.supportsPosition) position = readPosition(message); } catch { this.close('invalid-position-settings'); return; }
       const value = { ...message, session: this.sync.session,
         config: { region: message.region, label: message.label, ...(position ? { position } : {}),
           ...(message.beacon !== undefined && message.respond !== undefined && message.beaconInterval !== undefined && message.beacon <= 1 && message.respond <= 1 && message.beaconInterval >= 60 && message.beaconInterval <= 3600 ? { discovery: { beacon: !!message.beacon, respond: !!message.respond, interval: message.beaconInterval } } : {}),
