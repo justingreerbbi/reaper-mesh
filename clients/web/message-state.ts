@@ -7,7 +7,9 @@ export function sentKey(source: string, device: string, id: string) { return JSO
 export function messageScope(source: string, device: string) { return JSON.stringify([source, device]); }
 function threadKey(scope: string, key: string) { return JSON.stringify([scope, key]); }
 export function inConversation(message: Incoming, device: string, destination: string, channel: number) {
-  return message.device === device && message.channel === channel && (destination === 'broadcast' || canonicalNode(message.origin) === canonicalNode(destination));
+  return message.device === device && message.channel === channel && (destination === 'broadcast'
+    ? !message.destination || message.destination === 'broadcast'
+    : canonicalNode(message.origin) === canonicalNode(destination) && !!message.destination && message.destination !== 'broadcast');
 }
 /** Presentation metadata only. Never writes transport state or emits device commands. */
 export class MessageState {

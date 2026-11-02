@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
   const bool with_inbox = argc > 1 && std::string(argv[1]) == "inbox";
   if (with_inbox) {
     const auto body = std::string(31, 'x') + "\xf0\x9f\x93\xbb" + std::string(989, 'z');
-    if (!inbox.append(text<64>("node-B"), text<64>("remote_1"), 0, reinterpret_cast<const std::uint8_t*>(body.data()), body.size())) return 4;
+    if (!inbox.append(text<64>("node-B"), text<64>("remote_1"), text<64>("broadcast"), 0, reinterpret_cast<const std::uint8_t*>(body.data()), body.size())) return 4;
   }
   const bool with_discovery = argc > 1 && (std::string(argv[1]) == "discovery" || std::string(argv[1]) == "position");
   std::array<std::uint8_t, 16> nonce{}; nonce[0] = 1; d::Discovery discovery(1, nonce);

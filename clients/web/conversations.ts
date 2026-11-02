@@ -1,12 +1,12 @@
 /** UI projections only. No transport state, message replay, or fabricated timestamps. */
 export type Outgoing = Readonly<{ id: string; device: string; destination: string; channel: number; text: string; state: string; reason?: string; messageId?: string }>;
-export type Incoming = Readonly<{ device: string; origin: string; channel: number; text: string; messageId: string }>;
+export type Incoming = Readonly<{ device: string; origin: string; destination?: string; channel: number; text: string; messageId: string }>;
 export type Conversation = Readonly<{ key: string; destination: string; channel: number; name: string; preview: string; kind: 'channel' | 'direct' }>;
 export function canonicalNode(id: string) { return /^heltec-[0-9a-f]{12}$/.test(id) ? 'node-0000' + id.slice(7) : id; }
 export function conversationKey(destination: string, channel: number) { return `${channel}:${canonicalNode(destination)}`; }
 export function threadMessages(device: string | undefined, destination: string, channel: number, outgoing: readonly Outgoing[], incoming: readonly Incoming[]) {
   if (!device) return [];
-  const received = incoming.filter(m => m.device === device && m.channel === channel && (destination === 'broadcast' || canonicalNode(m.origin) === canonicalNode(destination)))
+  const received = incoming.filter(m => m.device === device && m.channel === channel && (destination === 'broadcast' ? !m.destination || m.destination === 'broadcast' : canonicalNode(m.origin) === canonicalNode(destination) && !!m.destination && m.destination !== 'broadcast'))
     .map(m => ({ key: `in:${m.origin}:${m.messageId}`, direction: 'incoming' as const, text: m.text, origin: m.origin, status: 'Received on this channel', entry: undefined, received: m }));
   const sent = outgoing.filter(m => m.device === device && m.channel === channel && canonicalNode(m.destination) === canonicalNode(destination))
     .map(m => ({ key: `out:${m.id}`, direction: 'outgoing' as const, text: m.text, origin: 'You', status: deliveryLabel(m), entry: m, received: undefined }));
@@ -28,7 +28,7 @@ export function conversations(device: string | undefined, channels: string[], pe
   };
   channels.forEach((name, channel) => { if (name) add('broadcast', channel); });
   for (const m of outgoing) if (m.device === device) add(m.destination, m.channel);
-  for (const m of incoming) if (m.device === device) add(m.origin, m.channel);
+  for (const m of incoming) if (m.device === device && m.destination && m.destination !== 'broadcast') add(m.origin, m.channel);
   for (const p of peers) add(p.node, 0);
   return [...rows.values()];
 }

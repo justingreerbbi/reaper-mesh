@@ -19,7 +19,7 @@ export type Message =
   | Readonly<{ type: 'inboxQuery'; link: string; boot: string; request: number }>
   | Readonly<{ type: 'inboxHead'; link: string; boot: string; request: number; oldest: number; latest: number }>
   | Readonly<{ type: 'inboxRead'; link: string; boot: string; request: number; sequence: number; part: number }>
-  | Readonly<{ type: 'inboxItem'; link: string; boot: string; request: number; sequence: number; origin: string; messageId: string; channel: number; part: number; count: number; data: string }>
+  | Readonly<{ type: 'inboxItem'; link: string; boot: string; request: number; sequence: number; origin: string; messageId: string; channel: number; part: number; count: number; data: string; destination?: string }>
   | Readonly<{ type: 'inboxMissing'; link: string; boot: string; request: number; sequence: number }>
   | Readonly<{ type: 'discover'; link: string; boot: string; id: string; action: number }>
   | Readonly<{ type: 'discoveryStatus'; link: string; boot: string; id: string; state: string; replies: number; sequence: number }>

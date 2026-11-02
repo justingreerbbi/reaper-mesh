@@ -5,7 +5,7 @@ type Query = Omit<Extract<Message, { type: 'inboxQuery' }>, 'link'>;
 type Read = Omit<Extract<Message, { type: 'inboxRead' }>, 'link'>;
 type Reply = Extract<Message, { type: 'inboxHead' | 'inboxItem' | 'inboxMissing' }>;
 type Context = Readonly<{ device: string; boot: string; session: number }>;
-export type ReceivedMessage = Readonly<{ device: string; boot: string; sequence: number; origin: string; messageId: string; channel: number; text: string }>;
+export type ReceivedMessage = Readonly<{ device: string; boot: string; sequence: number; origin: string; destination?: string; messageId: string; channel: number; text: string }>;
 /** Separate inbox sequence; never shares configuration event counters or executes mutations. */
 export class InboxReader {
   #history: ReceivedMessage[] = [];
@@ -20,14 +20,14 @@ export class InboxReader {
   #context: Context | undefined;
   #cursor = 0; #latest = 0; #request = 0; #next = 0; #now = 0;
   #pending: { packet: Query | Read; deadline: number; attempts: number } | undefined;
-  #partial: { sequence: number; origin: string; messageId: string; channel: number; count: number; part: number; data: string } | undefined;
+  #partial: { sequence: number; origin: string; destination?: string; messageId: string; channel: number; count: number; part: number; data: string } | undefined;
   restoreHistory(value: unknown) {
     if (this.#history.length || this.#context) throw new Error('restore requires a fresh inbox reader');
     const history: ReceivedMessage[] = [];
     for (const raw of recovery.list(value)) {
       const item = recovery.object(raw); const text = recovery.string(item.text); messageChunks(text);
       const entry: ReceivedMessage = Object.freeze({ device: recovery.id(item.device), boot: recovery.id(item.boot),
-        origin: recovery.id(item.origin), messageId: recovery.id(item.messageId), sequence: recovery.u32(item.sequence), channel: recovery.u32(item.channel), text });
+        origin: recovery.id(item.origin), ...(item.destination === undefined ? {} : { destination: recovery.id(item.destination) }), messageId: recovery.id(item.messageId), sequence: recovery.u32(item.sequence), channel: recovery.u32(item.channel), text });
       if (!entry.sequence || entry.channel > 7 || history.some(previous => previous.device === entry.device && previous.origin === entry.origin && previous.messageId === entry.messageId)) throw new Error('invalid recovery inbox history');
       history.push(entry);
     }
@@ -69,10 +69,10 @@ export class InboxReader {
     }
     if (reply.part !== pending.packet.part || !reply.count || reply.count > 32 || reply.part >= reply.count ||
         reply.channel > 7 || (reply.part + 1 < reply.count && reply.data.length !== 64)) return;
-    if (!reply.part) this.#partial = { sequence: reply.sequence, origin: reply.origin, messageId: reply.messageId, channel: reply.channel, count: reply.count, part: 0, data: '' };
+    if (!reply.part) this.#partial = { sequence: reply.sequence, origin: reply.origin, ...(reply.destination === undefined ? {} : { destination: reply.destination }), messageId: reply.messageId, channel: reply.channel, count: reply.count, part: 0, data: '' };
     const part = this.#partial;
     if (!part || part.sequence !== reply.sequence || part.origin !== reply.origin || part.messageId !== reply.messageId ||
-        part.channel !== reply.channel || part.count !== reply.count || part.part !== reply.part) return;
+        part.channel !== reply.channel || part.destination !== reply.destination || part.count !== reply.count || part.part !== reply.part) return;
     if (part.data.length + reply.data.length > 2048) { this.error = 'inbox message exceeds limit'; return; }
     part.data += reply.data; part.part++;
     if (part.part === part.count) {
@@ -81,11 +81,11 @@ export class InboxReader {
         const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
         if (!bytes.length || /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) throw new Error();
         const previous = this.#history.find(item => item.device === this.#context!.device && item.origin === part.origin && item.messageId === part.messageId);
-        if (previous && (previous.channel !== part.channel || previous.text !== text)) { this.error = 'conflicting inbox identity'; return; }
+        if (previous && (previous.channel !== part.channel || previous.destination !== part.destination || previous.text !== text)) { this.error = 'conflicting inbox identity'; return; }
         if (!previous) {
           if (this.#history.length === 32) this.#history.shift();
           this.#history.push(Object.freeze({ device: this.#context.device, boot: this.#context.boot, sequence: part.sequence,
-            origin: part.origin, messageId: part.messageId, channel: part.channel, text }));
+            origin: part.origin, ...(part.destination === undefined ? {} : { destination: part.destination }), messageId: part.messageId, channel: part.channel, text }));
         }
       } catch { this.error = 'invalid received UTF-8 message'; return; }
       this.#cursor = part.sequence; this.#partial = undefined;

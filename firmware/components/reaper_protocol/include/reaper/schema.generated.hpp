@@ -175,7 +175,7 @@ inline constexpr std::size_t kInboxReadBoot = 1;
 inline constexpr std::size_t kInboxReadRequest = 2;
 inline constexpr std::size_t kInboxReadSequence = 3;
 inline constexpr std::size_t kInboxReadPart = 4;
-inline constexpr FieldDescriptor kInboxItemFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, false} };
+inline constexpr FieldDescriptor kInboxItemFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, false}, {Kind::Id, true} };
 inline constexpr std::size_t kInboxItemLink = 0;
 inline constexpr std::size_t kInboxItemBoot = 1;
 inline constexpr std::size_t kInboxItemRequest = 2;
@@ -186,6 +186,7 @@ inline constexpr std::size_t kInboxItemChannel = 6;
 inline constexpr std::size_t kInboxItemPart = 7;
 inline constexpr std::size_t kInboxItemCount = 8;
 inline constexpr std::size_t kInboxItemData = 9;
+inline constexpr std::size_t kInboxItemDestination = 10;
 inline constexpr FieldDescriptor kInboxMissingFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false} };
 inline constexpr std::size_t kInboxMissingLink = 0;
 inline constexpr std::size_t kInboxMissingBoot = 1;
@@ -246,7 +247,7 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::InboxQuery, kInboxQueryFields, 3},
   {MessageType::InboxHead, kInboxHeadFields, 5},
   {MessageType::InboxRead, kInboxReadFields, 5},
-  {MessageType::InboxItem, kInboxItemFields, 10},
+  {MessageType::InboxItem, kInboxItemFields, 11},
   {MessageType::InboxMissing, kInboxMissingFields, 4},
   {MessageType::Discover, kDiscoverFields, 4},
   {MessageType::DiscoveryStatus, kDiscoveryStatusFields, 6},

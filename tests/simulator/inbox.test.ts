@@ -7,9 +7,15 @@ function head(reader: InboxReader, oldest: number, latest: number, now = 0) {
   const query = reader.tick(now, context); assert.equal(query?.type, 'inboxQuery');
   reader.receive(1, { type: 'inboxHead', link: 'link', boot: 'boot-A', request: query!.request, oldest, latest }, now);
 }
-function item(request: number, sequence: number, part: number, count: number, data: string, messageId = `remote_${sequence}`): Extract<Message, { type: 'inboxItem' }> {
-  return { type: 'inboxItem', link: 'link', boot: 'boot-A', request, sequence, part, count, data, messageId, origin: 'node-B', channel: 0 };
+function item(request: number, sequence: number, part: number, count: number, data: string, messageId = `remote_${sequence}`, destination = 'broadcast'): Extract<Message, { type: 'inboxItem' }> {
+  return { type: 'inboxItem', link: 'link', boot: 'boot-A', request, sequence, part, count, data, messageId, origin: 'node-B', channel: 0, destination };
 }
+test('inbox preserves destination metadata for direct delivery', () => {
+  const reader = new InboxReader(); head(reader, 1, 1);
+  const query = reader.tick(0, context)!;
+  reader.receive(1, item(query.request, 1, 0, 1, '6869', 'remote_direct', 'node-A'), 0);
+  assert.equal(reader.history[0].destination, 'node-A');
+});
 test('inbox retrieves maximum UTF-8 text across byte boundaries and publishes only complete text', () => {
   const reader = new InboxReader(); head(reader, 1, 1);
   const body = 'x'.repeat(31) + '📻' + 'z'.repeat(989); const bytes = Buffer.from(body);

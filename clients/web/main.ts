@@ -433,7 +433,7 @@ function renderMessages() {
   if (!rows.some(row => row.key === key) && destination.value.trim() && !messageState?.hidden(uiScope, key)) rows.push({ key, destination: destination.value, channel: selectedChannel, name: destination.value, preview: 'New conversation', kind: destination.value === 'broadcast' ? 'channel' : 'direct' });
   for (const [savedKey, target] of recentConversations) {
     const draft = drafts.get(savedKey);
-    if (savedKey.startsWith(scope + ':') && draft && !rows.some(row => row.key === conversationKey(target.destination, target.channel))) rows.push({ key: conversationKey(target.destination, target.channel), ...target, name: target.destination, preview: `Draft: ${draft}`, kind: 'direct' });
+    if (savedKey.startsWith(scope + ':') && draft && !rows.some(row => row.key === conversationKey(target.destination, target.channel))) rows.push({ key: conversationKey(target.destination, target.channel), ...target, name: target.destination, preview: `Draft: ${draft}`, kind: target.destination === 'broadcast' ? 'channel' : 'direct' });
   }
   for (let i = 0; i < rows.length; i++) { const draft = drafts.get(`${scope}:${rows[i].key}`); if (draft) rows[i] = { ...rows[i], preview: `Draft: ${draft}` }; }
   const currentRow = rows.find(row => row.key === key);
@@ -444,20 +444,22 @@ function renderMessages() {
   element('conversation-connect').hidden = ready;
   const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
   const listSignature = JSON.stringify(rows) + key + filter + JSON.stringify(unread);
-  const list = element('conversation-list');
-  if (list.dataset.signature !== listSignature) {
-    list.dataset.signature = listSignature; list.replaceChildren();
+  const channelList = element('channel-list'), directList = element('direct-list');
+  if (channelList.dataset.signature !== listSignature) {
+    channelList.dataset.signature = directList.dataset.signature = listSignature;
+    channelList.replaceChildren(); directList.replaceChildren();
     const visible = rows.filter(row => `${row.name} ${row.destination}`.toLowerCase().includes(filter));
     element('conversation-search-empty').hidden = visible.length !== 0;
-    for (const row of visible) {
+    const renderRow = (row: typeof rows[number], list: HTMLElement) => {
       const button = document.createElement('button'); button.className = 'conversation-row'; button.classList.toggle('is-selected', row.key === key); button.setAttribute('aria-pressed', String(row.key === key));
       const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.textContent = row.kind === 'channel' ? '#' : row.name.slice(0, 2).toUpperCase();
       const content = document.createElement('span'); content.className = 'conversation-summary';
-      const name = document.createElement('strong'); name.textContent = row.name;
+      const name = document.createElement('strong'); name.textContent = row.kind === 'direct' ? `${row.name} · ${names[row.channel] || `Channel ${row.channel}`}` : row.name;
       const preview = document.createElement('span'); preview.textContent = row.preview; content.append(name, preview);
       const badge = document.createElement('span'); badge.className = 'thread-kind'; const count = lastDevice ? unread.filter(m => inConversation(m, lastDevice!, row.destination, row.channel)).length : 0; badge.textContent = count ? String(count) : row.kind === 'channel' ? 'CH' : 'DM'; badge.classList.toggle('unread-badge', count > 0); if (count) badge.setAttribute('aria-label', `${count} unread ${count === 1 ? 'message' : 'messages'}`);
       button.append(avatar, content, badge); button.addEventListener('click', () => chooseConversation(row.destination, row.channel)); list.append(button);
-    }
+    };
+    for (const row of visible) renderRow(row, row.kind === 'channel' ? channelList : directList);
   }
   const messages = threadMessages(lastDevice, destination.value, selectedChannel, history, incoming);
   element<HTMLButtonElement>('delete-conversation').disabled = !messageState || !recovery.writable || !lastDevice || (messages.length === 0 && !drafts.get(draftKey) && !!messageState.hidden(uiScope, key)) || messages.some(m => m.entry?.state === 'receiving');

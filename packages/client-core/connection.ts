@@ -228,7 +228,7 @@ export class Connection {
     }
     for (const retry of this.commands.tick(now)) this.#sendCommand(retry);
     for (const packet of this.messaging.tick(now, this.device)) this.#send({ ...packet, link: this.#link });
-    const inbox = this.capabilities?.inboxVersion === 1 && this.capabilities?.inboxCapacity && this.capabilities.features & 64;
+    const inbox = this.capabilities?.inboxVersion !== undefined && this.capabilities.inboxVersion >= 1 && this.capabilities.inboxVersion <= 2 && this.capabilities.inboxCapacity && this.capabilities.features & 64;
     const request = this.inbox.tick(now, inbox && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined);
     if (request) this.#send({ ...request, link: this.#link });
     const discovery = this.supportsDiscovery && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined;

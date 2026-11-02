@@ -8,14 +8,14 @@ struct RadioInfo {
 };
 struct InboxItem {
   bool used = false; std::uint32_t sequence = 0, channel = 0;
-  Text<64> origin{}, message_id{};
+  Text<64> origin{}, message_id{}, destination{};
   std::array<std::uint8_t, 1024> bytes{};
   std::size_t size = 0;
 };
 class Inbox {
  public:
   static constexpr std::size_t kCapacity = 8;
-  bool append(const Text<64>& origin, const Text<64>& message_id, std::uint32_t channel,
+  bool append(const Text<64>& origin, const Text<64>& message_id, const Text<64>& destination, std::uint32_t channel,
     const std::uint8_t*, std::size_t);
   const InboxItem* find(std::uint32_t sequence) const;
   std::uint32_t oldest() const;

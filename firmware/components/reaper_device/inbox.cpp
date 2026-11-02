@@ -15,16 +15,16 @@ bool equal(const Text<64>& a, const Text<64>& b) {
   return a.length <= 64 && a.length == b.length && std::memcmp(a.bytes.data(), b.bytes.data(), a.length) == 0;
 }
 }
-bool Inbox::append(const Text<64>& origin, const Text<64>& id, std::uint32_t channel,
+bool Inbox::append(const Text<64>& origin, const Text<64>& id, const Text<64>& destination, std::uint32_t channel,
     const std::uint8_t* bytes, std::size_t size) {
-  if (!identity(origin) || !identity(id) || channel > 7 || !protocol::valid_message_text(bytes, size)) return false;
+  if (!identity(origin) || !identity(id) || !identity(destination) || channel > 7 || !protocol::valid_message_text(bytes, size)) return false;
   for (const auto& item : items_) if (item.used && equal(item.origin, origin) && equal(item.message_id, id))
-    return item.channel == channel && item.size == size && std::memcmp(item.bytes.data(), bytes, size) == 0;
+    return item.destination.length == destination.length && !std::memcmp(item.destination.bytes.data(), destination.bytes.data(), destination.length) && item.channel == channel && item.size == size && std::memcmp(item.bytes.data(), bytes, size) == 0;
   if (sequence_ == std::numeric_limits<std::uint32_t>::max()) return false;
   const auto sequence = ++sequence_;
   auto& item = items_[(sequence - 1) % items_.size()]; item = {};
   item.used = true; item.sequence = sequence; item.channel = channel; item.origin = origin; item.message_id = id;
-  item.size = size; std::memcpy(item.bytes.data(), bytes, size); return true;
+  item.destination = destination; item.size = size; std::memcpy(item.bytes.data(), bytes, size); return true;
 }
 const InboxItem* Inbox::find(std::uint32_t sequence) const {
   for (const auto& item : items_) if (item.used && item.sequence == sequence) return &item;

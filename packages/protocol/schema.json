@@ -254,7 +254,8 @@
       "channel": "u32",
       "part": "u32",
       "count": "u32",
-      "data": "hex"
+      "data": "hex",
+      "destination": "id?"
     }
   },
   "inboxMissing": {

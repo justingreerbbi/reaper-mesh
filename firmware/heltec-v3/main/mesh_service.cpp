@@ -49,6 +49,7 @@ d::Text<64> origin(std::uint64_t node) {
   else std::snprintf(id, sizeof(id), "node-%016llx", static_cast<unsigned long long>(node));
   d::Text<64> value{}; literal(value, id); return value;
 }
+d::Text<64> broadcast_destination() { d::Text<64> value{}; literal(value, "broadcast"); return value; }
 void increment(std::uint32_t& n) { if (n < std::numeric_limits<std::uint32_t>::max()) ++n; }
 }
 MeshService::MeshService(d::MessageQueue& messages, d::Inbox& inbox, d::RadioInfo& info, d::Text<64> device,
@@ -102,13 +103,13 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
   for (std::size_t i = 0; i < incoming.size(); ++i) {
     const auto& item = incoming[i];
     if (item.used && item.complete && !(reported_[i] == item.key) &&
-        inbox_.append(origin(item.key.origin), message_id(item.key), item.channel, item.bytes.data(), item.size)) reported_[i] = item.key;
+        inbox_.append(origin(item.key.origin), message_id(item.key), item.destination == m::kBroadcast ? broadcast_destination() : origin(item.destination), item.channel, item.bytes.data(), item.size)) reported_[i] = item.key;
   }
   for (const auto& message : messages_.records()) {
     if (!message.used || (message.state != d::MessageState::Queued && message.state != d::MessageState::Transmitted)) continue;
     const auto target = destination(message.destination);
     if (target == node_) {
-      if (inbox_.append(device_, message.message_id, message.channel, message.bytes.data(), message.size)) messages_.local_accept(message.message_id);
+      if (inbox_.append(device_, message.message_id, message.destination, message.channel, message.bytes.data(), message.size)) messages_.local_accept(message.message_id);
       else messages_.fail(message.message_id, "inbox-unavailable");
       continue;
     }

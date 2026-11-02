@@ -76,7 +76,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeRegions], 3); number(reply.fields[p::kWelcomeMaxLabelBytes], 64);
     literal(reply.fields[p::kWelcomeFirmware], kFirmwareVersion); number(reply.fields[p::kWelcomeRadioVersion], radio_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRadioSchema], 1); number(reply.fields[p::kWelcomeMaxChannels], 8);
-    if (inbox_) { number(reply.fields[p::kWelcomeInboxVersion], 1); number(reply.fields[p::kWelcomeInboxCapacity], Inbox::kCapacity); }
+    if (inbox_) { number(reply.fields[p::kWelcomeInboxVersion], 2); number(reply.fields[p::kWelcomeInboxCapacity], Inbox::kCapacity); }
     if (messages_) {
       Snapshot current{}; if (authority_.snapshot(current)) messages_->channels(channel_mask(current.settings.radio));
       number(reply.fields[p::kWelcomeMessageVersion], 1);
@@ -163,6 +163,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     set(reply.fields[p::kInboxItemOrigin], item->origin); set(reply.fields[p::kInboxItemMessageId], item->message_id);
     number(reply.fields[p::kInboxItemChannel], item->channel); number(reply.fields[p::kInboxItemPart], part);
     number(reply.fields[p::kInboxItemCount], (item->size + 31) / 32);
+    set(reply.fields[p::kInboxItemDestination], item->destination);
     const auto remaining = item->size - part * 32; const auto size = remaining < 32 ? remaining : 32;
     auto& data = reply.fields[p::kInboxItemData]; data.present = true; data.length = size * 2;
     constexpr char digits[] = "0123456789abcdef";
