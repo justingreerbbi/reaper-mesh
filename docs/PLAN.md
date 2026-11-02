@@ -1,5 +1,7 @@
 # Development plan
 
+Current product priorities are in [ROADMAP.md](ROADMAP.md). Phase 1 is complete by owner direction; Phase 2 is active. Its contract and acceptance criteria are in [PHASE2.md](PHASE2.md). The M0–M5 table below is historical engineering organization, not the current product phase order.
+
 Status: focused USB/local-messaging prototype implemented and hardware-tested. Independent protocol, US-first operation, synchronization/recovery focus and licensing deferral are confirmed. See STATUS.md for evidence and remaining external qualification gates.
 
 ## Progress

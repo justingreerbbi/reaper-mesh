@@ -1,5 +1,7 @@
 # Completion tracker
 
+Product status: **Phase 1 complete; Phase 2 active (requirements/planning)**. See [ROADMAP.md](ROADMAP.md) for all four phases and [PHASE2.md](PHASE2.md) for the next implementation contract. Discovery/location/new portal are not yet implemented. The qualification details below remain relevant release gates.
+
 The focused single-board USB prototype is implemented and verified to the limits below. This is not a production release or a claim of real multi-node mesh qualification. Later BLE/mobile/encryption/EU support remains outside this slice.
 
 | Area | Implemented / evidence | Remaining qualification |

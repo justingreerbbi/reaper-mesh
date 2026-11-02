@@ -104,3 +104,7 @@ The first TX attempt found ESP32-S3's non-DMA SPI limit of 64 bytes. Retain the 
 ## T-Beam V1.2
 
 Add a separate ESP32/4MB board target with bootloader at 0x1000, preserving Heltec ESP32-S3/8MB rules and NVS. Only verified AXP2101 radio-rail bits may change. Use a first-party bounded SX1276 register driver with the same Reaper radio profile and mandatory version/configuration readback; wrong radios fail closed. A canonical node-016hex identity works with the installed Heltec without changing wire semantics. Antenna is owner-confirmed; mode defaults off. ESP32 ROM lacks get_security_info, so read named security eFuses without writes before flashing.
+
+## Owner-directed phases (November 1, 2026)
+
+Phase 1 is complete. Phase 2 adds discovery/beacons, independently enabled responses, opt-in GPS/fixed-position reports and a map/nodes/messaging portal. Phase 3 is channel encryption/configuration; Phase 4 is screen/sleep/RX-TX/battery presentation. ROADMAP.md is canonical and PHASE2.md defines the proposed Phase 2 bounds and acceptance gates. Discovery response acknowledges discovery, not text delivery; no reply-to-reply ACK loop. GPS hardware alone never authorizes RF location sharing. Preserve working text compatibility while adding negotiated control capabilities. Use the supplied design references for original Reaper UI styling; prioritize code/CLI tests over repeated desktop exploration per owner token preference.

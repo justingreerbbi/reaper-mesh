@@ -1,6 +1,14 @@
 # Reaper Mesh: AI contributor handoff
 
 
+## Active product roadmap
+
+The owner marks Phase 1 complete and directs Phase 2 next. Read docs/ROADMAP.md and docs/PHASE2.md before new development; these supersede the older milestone priorities below. Phase 2: bounded discovery/beacons and opt-in responses, optional shared GPS/fixed position, then a map/nodes/messaging portal inspired by the supplied MeshMonitor/EvoCare references. Start with discovery slice 2.1, then fixed position, actual T-Beam GPS, and the portal integration. Requirements are documented; these Phase 2 features are not yet implemented or flashed.
+
+Phase 3 is channel encryption plus portal configuration. Phase 4 is screen management/sleep, RX/TX and battery indication. GPS/position work is now explicitly authorized within Phase 2; broad telemetry/cloud/MQTT is not. Automatic beaconing, responses and location sharing default off; do not start broadcasting the owner's position merely because GPS hardware exists. Preserve the Phase 1 text/ACK and recovery contracts with capability-gated additions.
+
+The owner requests token-efficient development. Prefer targeted code/CLI reads and automated tests; use desktop/browser control only for necessary visual/hardware UI checks. Avoid repeated full-file/log dumps or unrelated exploration. Do not equate functioning radio drivers with a finished discovery/privacy/synchronization contract.
+
 ## Current stage
 
 The focused single-board USB prototype is implemented. usb-prototype-6 from clean commit 56c8cf0 is installed with all three ROM hashes verified. The owner confirms the OLED works, the board is US Heltec V3 and its US/915 MHz antenna is attached. USB/NVS/RACE, browser saves/reconnect, local 1024-byte delivery/inbox, durable reload history, actual SX1262 probe/RX initialization and full-fragment TX are checked. All 197 host tests and 56 standalone CTests pass. See docs/STATUS.md and docs/COMPATIBILITY.md for precise evidence and release limits.
@@ -53,7 +61,7 @@ Both ESP32 and ESP32-S3 target builds and manifests validate. 197 host tests and
 
 ## Next work
 
-Use docs/STATUS.md as the current completion/qualification tracker. The focused single-board implementation plus the new T-Beam and actual bidirectional two-board direct delivery/ACK are qualified as recorded above. Next qualify relays with a third board, field/range/coexistence and interruptions. Additional work should target the documented release gates, not add unrelated features. Never overwrite the owner's live radio settings as a side effect of a read-only check. The historical checkpoints below record earlier firmware states and must not override this current section.
+Implement Phase 2 slice 2.1 from docs/PHASE2.md: control schema/fixtures and RACE tests, bounded firmware discovery scheduler/cache, capability-gated USB/client registry, then minimal discovery controls. Fixed-position and GPS reporting follow before the map-first portal integration. Mark each slice with implementation and actual hardware evidence. Keep relay/field/power-cut release gates visible without reopening the owner's completed Phase 1 product milestone. Historical checkpoints below do not override the active roadmap.
 
 ## USB startup recovery evidence
 
