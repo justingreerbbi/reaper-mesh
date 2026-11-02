@@ -34,3 +34,7 @@ Host tests reject wrong targets, dirty/incompatible builds, altered paths/offset
 ## Local prototype bundle
 
 `python3 tools/package-firmware.py --output build/heltec-v3/reaper-mesh-usb-prototype-6.zip` creates a validated archive of the three images, manifest, standalone updater, exact source archive, SHA256SUMS, recovery instructions and retained SDK/Semtech notices. It refuses to overwrite an existing package. Nothing is uploaded. An extracted package was validated and every file hash checked; corrupt extracted images were rejected. Project licensing and authenticated public releases remain deferred. The web console also offers Export device settings for a readable snapshot before updating.
+
+## T-Beam V1.2
+
+Use `bash tools/build-firmware.sh tbeam-v12` and explicitly select `--manifest build/tbeam-v12/reaper-manifest.json` for validation/installation. The updater requires ESP32/4MB and bootloader0x1000; Heltec requires ESP32-S3/8MB and bootloader0. Wrong targets fail closed. ESP32 security uses a read-only named-eFuse summary because that ROM lacks get_security_info. See TBEAM.md for the identified port, confirmed hardware, first install and actual two-board RF evidence. Package generation accepts the board-specific manifest and writes matching hardware instructions.

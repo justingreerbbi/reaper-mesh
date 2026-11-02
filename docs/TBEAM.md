@@ -15,3 +15,19 @@ The device ID is node-000008b61f9fe548, a canonical 64-bit radio address already
 Acceptance: host register-driver RX/TX/fault tests, updater wrong-target/ESP32 security tests, both target builds, actual T-Beam USB handshake/reconnect/config persistence, SX1276 probe, receive-only startup, and local 1024-byte inbox delivery. Real Heltec/T-Beam delivery requires a separate explicitly recorded two-board test; building a driver alone proves none of it.
 
 References reviewed (no third-party example code copied): [LILYGO T-Beam wiring/power](https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series/blob/1991b1ed70915d4f246b841f99f6027166ea7330/docs/en/t_beam/t_beam_hw.md), [manufacturer pin definitions](https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series/blob/1991b1ed70915d4f246b841f99f6027166ea7330/examples/LoRa/Receive_Interrupt/utilities.h), [AXP2101 register reference](https://github.com/lewisxhe/XPowersLib/blob/master/src/REG/AXP2101Constants.h), and [Semtech SX1276 register definitions](https://github.com/Lora-net/LoRaMac-node/blob/master/src/radio/sx1276/sx1276Regs-LoRa.h). Semtech's reference 500kHz high-band sensitivity settings are applied. Existing third-party notices stay intact; project licensing is still deferred.
+
+## Installed hardware results
+
+tbeam-usb-prototype-1 from commit 594bb10 installed with three verified image hashes, application237904 bytes. Probe (including AXP2101 readback) passed. Three TS adapter opens delivered local 1024-byte bodies/inbox with zero TX; ready671/669/670 ms, persisted revision3, free heap201748 bytes, minimum free main stack17484 bytes. Initial configuration's auxiliary reads timed out; reconnect recovered committed revision1 with no replay, followed by successful full checks. Arbitrary power/cable interruptions and soak remain qualification work.
+
+Physical RF: seven full-message fragments reached TX_DONE; an unreachable unicast retried and failed with no fabricated ACK (TX10 total). Off policy restored at revision5; repeated opens675/671/671 ms. A subsequent real two-port test sent 1024 bytes Heltec -> T-Beam and T-Beam -> Heltec. Each reached destination-acknowledged, and its complete exact text appeared once in the receiver inbox with matching numeric source identity. The test restored original radio policies. It does not qualify relay, range, interference or public release.
+
+Reproduce direct delivery with both antennas attached, both boards in the US and browser serial ports disconnected:
+
+```sh
+node tools/hardware-pair-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 /dev/cu.wchusbserial57700003341
+```
+
+It temporarily selects mesh/2 dBm as needed, validates actual destination ACK/body/source, and restores original settings. The report is build/tbeam-v12/pair-smoke.json. Third-node relay qualification is still outstanding.
+
+Final read-only verification confirmed Heltec firmware6/revision21 stayed mesh/2dBm and T-Beam firmware1/revision7 was restored off/2dBm. Both were open simultaneously for the check. T-Beam package SHA256: 3a79222f814d1aebf8c5b4551f5f45d116b844e20c15ab7b299aef5f3ea57242. No old firmware backup, NVS erase, eFuse change, or Heltec reflash was performed.

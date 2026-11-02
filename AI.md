@@ -3,13 +3,13 @@
 
 ## Current stage
 
-The focused single-board USB prototype is implemented. usb-prototype-6 from clean commit 56c8cf0 is installed with all three ROM hashes verified. The owner confirms the OLED works, the board is US Heltec V3 and its US/915 MHz antenna is attached. USB/NVS/RACE, browser saves/reconnect, local 1024-byte delivery/inbox, durable reload history, actual SX1262 probe/RX initialization and full-fragment TX are checked. All 194 host tests and 53 standalone CTests pass. See docs/STATUS.md and docs/COMPATIBILITY.md for precise evidence and release limits.
+The focused single-board USB prototype is implemented. usb-prototype-6 from clean commit 56c8cf0 is installed with all three ROM hashes verified. The owner confirms the OLED works, the board is US Heltec V3 and its US/915 MHz antenna is attached. USB/NVS/RACE, browser saves/reconnect, local 1024-byte delivery/inbox, durable reload history, actual SX1262 probe/RX initialization and full-fragment TX are checked. All 197 host tests and 56 standalone CTests pass. See docs/STATUS.md and docs/COMPATIBILITY.md for precise evidence and release limits.
 
 The RF test reached seven TX_DONE events for a 1024-byte broadcast, then three unreachable-unicast transmissions followed by explicit failure with no fabricated ACK. It restored off mode and verified three reconnects at revision 20. The owner subsequently selected mesh mode through the browser; final observed state was prototype-6/revision 21, probe OK, ready, TX 1 and local delivery. Preserve those user-selected settings; do not assume the device is still off.
 
 The updater validates clean build provenance, target/schema/layout, outer and embedded hashes, ROM security state and immutable staged images; it preserves NVS and verifies each write. A local zip includes exact source, images, updater, hashes and retained notices. Native browser reload retains outgoing/inbox history. The SDK SPI non-DMA 64-byte limit caused prototype-5 to fail closed; prototype-6 enables DMA and checks the bus capacity. No old-firmware backup is required.
 
-This is not a production-ready release. Actual remote RX/destination ACK needs a second board; relay qualification needs a third. Power-cut, interrupted-flash, coexistence and field-soak checks remain. EU/BLE/encryption/mobile/other boards and licensing stay deferred. Public signing/automatic rollback remain release hardening. Do not fabricate these external qualification results.
+This is not a production-ready release. Actual direct RF receive/destination ACK now passes with the added T-Beam (see below); relay qualification still needs a third board. Power-cut, interrupted-flash, coexistence and field-soak checks remain. EU/BLE/encryption/mobile/other boards and licensing stay deferred. Public signing/automatic rollback remain release hardening. Do not fabricate these external qualification results.
 
 ## Product intent
 
@@ -41,13 +41,19 @@ The owner confirmed an independent, documented Reaper Mesh protocol and defined 
 
 Proceed with M0 foundations within the confirmed independent-protocol and synchronization scope. Define observable acceptance criteria before coding. Run appropriate checks and report evidence and limitations. Update this file, the plan status, and decision log when scope or architecture changes. Keep protocol fixtures for previous supported releases so future agents cannot silently break compatibility.
 
-## T-Beam work in progress
+## T-Beam support and two-board qualification
 
-Owner added a connected US/915 T-Beam V1.2 and confirmed its antenna. This explicitly expands the board scope. Read docs/TBEAM.md before hardware work. New target firmware/tbeam-v12 shares the protocol/session/NVS/mesh service and has board-specific AXP2101, SPI/UART/display wiring. SX1276 register probe must pass; no chip-family assumption from USB inventory. First target build and host driver tests pass; installation and physical acceptance follow. Preserve Heltec settings and select the correct per-board manifest/port.
+Owner added a US/915 T-Beam V1.2 and confirmed its attached antenna. tbeam-usb-prototype-1 from clean commit 594bb10 is installed on ESP32-D0WDQ6-V3 rev3.1 / Winbond4MB, MAC08:b6:1f:9f:e5:48, port /dev/cu.wchusbserial57700003341 (the other 57700003341 serial name is an alias). Heltec remains /dev/cu.usbserial-0001 and was not reflashed. See docs/TBEAM.md.
+
+AXP2101 identification/radio rail readback and SX1276-family version/configuration probe passed. Three local test opens reached ready in 671/669/670 ms, each delivering/retrieving 1024 bytes with TX zero; heap201748 bytes and minimum free main stack17484 bytes. Receive-only initialization and restoration off passed. Initial first settings write interrupted auxiliary reads; an explicit reconnect recovered the committed revision1 without replay, and the subsequent full checks passed. Keep this observation visible for interruption/soak work.
+
+T-Beam RF test completed seven 1024-byte broadcast fragments with TX_DONE, then three unreachable-unicast transmissions followed by failure with no false ACK; restored off/revision5, reconnects675/671/671 ms. tools/hardware-pair-smoke.ts then operated both real TS adapters simultaneously: 1024 bytes Heltec -> T-Beam and T-Beam -> Heltec each received a destination ACK and exact inbox body, once per message identity. Original settings were restored afterward (Heltec mesh policy preserved, T-Beam off). This is actual two-node RF evidence, not relay/range/coexistence qualification.
+
+Both ESP32 and ESP32-S3 target builds and manifests validate. 197 host tests and 56 standalone CTests pass; wrong-target/ESP32 eFuse preflight tests are included. Local T-Beam package contains exact images/source/notices/updater and passed extracted-image/checksum validation. Node ID node-000008b61f9fe548 is already compatible with the installed Heltec protocol. The web console still handles one device at a time; pair testing uses separate CLI SerialAdapters. Per-device browser journaling/multi-device UI is separate work.
 
 ## Next work
 
-Use docs/STATUS.md as the current completion/qualification tracker. The focused single-board implementation and available hardware tests are complete; next qualify real two-/three-node receive/ACK/relay operation when hardware exists. Additional work should target the documented release gates, not add unrelated features. Never overwrite the owner's live radio settings as a side effect of a read-only check. The historical checkpoints below record earlier firmware states and must not override this current section.
+Use docs/STATUS.md as the current completion/qualification tracker. The focused single-board implementation plus the new T-Beam and actual bidirectional two-board direct delivery/ACK are qualified as recorded above. Next qualify relays with a third board, field/range/coexistence and interruptions. Additional work should target the documented release gates, not add unrelated features. Never overwrite the owner's live radio settings as a side effect of a read-only check. The historical checkpoints below record earlier firmware states and must not override this current section.
 
 ## USB startup recovery evidence
 
@@ -102,3 +108,5 @@ usb-prototype-5 installed with verified hashes, but the first maximum-message TX
 Prototype-6 RF results and package/browser verification are recorded in docs/STATUS.md. Local ignored evidence: build/heltec-v3/reaper-manifest.json, flash-result.json, reaper-mesh-usb-prototype-6.zip and browser-final.png. Package SHA256 0a6dbc4121b3295f08d1f8ddfd8065feeb1f55f53091a9f0bed34a68c27327a6. No remote push/public release was performed by the agent.
 
 Final browser review also corrected confirmed broadcasts degrading to unknown while waiting for a nonexistent recipient ACK. Confirmed broadcast transmission is now terminal across deadline/disconnect/receipt eviction/reload; unicast ambiguity remains unchanged. The new regression brings npm run check to 194 passing tests.
+
+Final read-only two-port state verification: Heltec usb-prototype-6/revision21 remains mesh/2dBm; T-Beam tbeam-usb-prototype-1/revision7 restored off/2dBm. Local reports are build/tbeam-v12/pair-smoke.json and hardware-state.json. T-Beam package SHA256 3a79222f814d1aebf8c5b4551f5f45d116b844e20c15ab7b299aef5f3ea57242. No Heltec flash or settings change remained from this task.

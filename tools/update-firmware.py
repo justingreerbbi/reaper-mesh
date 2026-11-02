@@ -1,4 +1,4 @@
-"""Validate a Reaper Heltec V3 build, optionally install it using the pinned ROM tool.
+"""Validate a supported Reaper board build, optionally install it using the pinned ROM tool.
 
 No erase-all, eFuse writes, encrypted targets, unsigned remote downloads or OTA.
 Hashes detect corruption; they are not publisher authentication.

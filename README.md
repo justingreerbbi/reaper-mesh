@@ -2,7 +2,7 @@
 
 A focused LoRa mesh messaging project, starting with custom Heltec WiFi LoRa 32 V3 firmware and a desktop browser client connected over USB.
 
-The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol; Meshtastic is a functional reference. The custom Heltec firmware and USB web console support persistent settings, public/named channels, 1024-byte messages, local delivery/inbox, diagnostics and recovery. The independent mesh core has deterministic multi-node tests; real multi-node RF qualification remains outstanding. See [current status](docs/STATUS.md).
+The goal is dependable messaging, small firmware, and compatibility across supported releases. Reaper Mesh uses an independent, documented protocol; Meshtastic is a functional reference. The custom Heltec firmware and USB web console support persistent settings, public/named channels, 1024-byte messages, local delivery/inbox, diagnostics and recovery. The independent mesh core has deterministic multi-node tests; direct Heltec/T-Beam RF delivery is verified, while relay and field qualification remain outstanding. See [current status](docs/STATUS.md).
 
 ## Start here
 
@@ -13,6 +13,7 @@ The goal is dependable messaging, small firmware, and compatibility across suppo
 - [Compatibility and RACE coverage](docs/COMPATIBILITY.md): version matrix, automated and physical evidence.
 - [Device storage contract](docs/PERSISTENCE.md): commit, uncertain-write, and recovery behavior.
 - [Embedded foundation](firmware/README.md): C++ codec contracts, builds, and target integration limits.
+- [T-Beam V1.2](docs/TBEAM.md): ESP32 firmware, safe per-board updater, and verified bidirectional Heltec/T-Beam RF.
 - [Hardware inventory](docs/HARDWARE.md): read-only USB findings and outstanding verification.
 
 ## Run the host tests

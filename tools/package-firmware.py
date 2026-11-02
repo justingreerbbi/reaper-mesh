@@ -32,7 +32,7 @@ def package(manifest_path, output):
                     "required SDK notices missing")
     files["README.txt"] = ("Reaper Mesh local development prototype\n\n"
         f"Firmware: {manifest['firmware']}\nSource: {manifest['source_commit']}\n"
-        "Hardware: Heltec WiFi LoRa 32 V3 / ESP32-S3 / 8MB\n\n"
+        f"Hardware: {manifest['board']} / {manifest['target']} / {manifest['flash_settings']['flash_size']}\n\n"
         "Disconnect the console. Validate: python3 update-firmware.py --manifest reaper-manifest.json\n"
         "Install with an interpreter containing esptool 4.12.0:\n"
         "python3 update-firmware.py --manifest reaper-manifest.json --python /absolute/path/to/python --flash --port PORT\n\n"

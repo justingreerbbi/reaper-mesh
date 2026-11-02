@@ -9,6 +9,7 @@ There is no stable/public release yet. Firmware identifiers describe development
 | usb-prototype-3 | Optional radio config fields | 1 | 1, 2 | Named channels/mode/power/relay; no RF |
 | usb-prototype-4 | Adds diagnostics/inbox tags 15–21 | 1 | 1, 2 | Probe/RX, local delivery/inbox; antenna gate closed |
 | usb-prototype-5 | Same wire/schema | 1 | 1, 2 | Antenna confirmed; superseded due to full-fragment SPI failure |
+| tbeam-usb-prototype-1 | Same USB v1 | 1 | 1, 2 | ESP32/4MB, AXP2101/SX1276; real direct RF with Heltec6 passed |
 | usb-prototype-6 | Same wire/schema | 1 | 1, 2 | DMA-backed full-fragment transfer; owner-confirmed US board/antenna |
 
 Current client to older firmware: missing message/radio/inbox capabilities disable those functions. Unknown optional fields are skipped by length; unsupported required behavior fails closed. Base clients editing label/region on newer firmware omit the five radio fields, preserving device-authoritative radio policy. A radio policy update is all-or-none, shares the revision CAS, and cancels stale queued work. Storage schema 1 remains readable; schema 2 is written only for nondefault radio policy. Downgrading to schema-1-only firmware with schema 2 on disk is unsupported: storage must fail closed, never erase itself.
@@ -28,3 +29,5 @@ Frozen envelopes/messages remain unchanged as additive fixtures are appended. Ge
 The endurance seed is 0x73550728. It spans over four virtual hours with 10% per-link drops, 5% corruption and 2% TX failures during faulted intervals, plus duplicate/reordered traffic. This deterministic run acknowledges 103/120 messages (all 12 clean intervals recover), checks every delivered body and never accepts an ACK without complete destination data. Faulted-message failure is explicit, not silently converted to success. These are bounded-recovery checks, not a promised RF delivery rate; there is no shared-air/coexistence model in this core test.
 
 Before a stable release, define the support window, qualify current/previous stable client and firmware releases, sign artifacts, settle licensing, and run physical power-cut, two-node delivery, three-node relay and field-soak tests. Future EU transmission, BLE and encryption require separately negotiated capabilities and qualification; no present compatibility promise covers them.
+
+T-Beam V1.2 support was explicitly added by the owner. Actual 1024-byte direct RF reception/destination ACK/exact inbox verification passes in both directions with Heltec prototype-6, using two simultaneous USB ports. This does not extend the result to three-node relays or field conditions. See TBEAM.md for exact hardware, image source, settings restoration and the initial first-write interruption observation.

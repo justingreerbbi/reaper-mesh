@@ -6,11 +6,11 @@ The focused single-board USB prototype is implemented and verified to the limits
 | --- | --- | --- |
 | USB/config | Atomic NVS authority, version/capability gates, CAS, startup retries, native browser saves/reconnect, physical lost-reply/query/duplicate/reset | Real power-cut, arbitrary cable interruption, field soak |
 | OLED | Owner confirms visible operation; bounded fail-closed updates, live radio status rows | Visual confirmation of every new row and induced I2C faults |
-| Messages | 1024-byte UTF-8 upload, bounded queue, explicit outcomes, local delivery/inbox, durable browser history, query-only recovery | Real remote recipient ACK and field soak |
-| Mesh | Independent packet/relay core; line/triangle loss/reorder/duplicate/hop/ACK races; 120-cycle seeded endurance | Two-board destination delivery and three-board relay qualification |
+| Messages | 1024-byte UTF-8 upload, bounded queue, explicit outcomes, local delivery/inbox, durable browser history, query-only recovery | Extended loss/latency and field soak; direct remote ACK passed with T-Beam |
+| Mesh | Independent packet/relay core; line/triangle loss/reorder/duplicate/hop/ACK races; 120-cycle seeded endurance | Three-board relay qualification; two-board direct delivery passed |
 | Channels/settings | Eight public/named slots, power/mode/relay, compatible base-client edits, record migration, policy cancellation; native browser RX/off commits passed | Physical channel-isolation/interference measurements |
-| SX1262 | Pinned Semtech core, shared airtime accounting, DMA SPI, actual probe/RX and seven-fragment TX_DONE; unreachable unicast retries -> failure | RF receive, range, coexistence and measured spectrum/power/airtime |
-| Inbox/diagnostics | Bounded ring/chunk reads, gaps/reconnect, local 1024-byte delivery checked, live probe/memory/stack/counters | Actual remote input and extended hardware soak |
+| SX1262 | Pinned Semtech core, shared airtime accounting, DMA SPI, actual probe/RX and seven-fragment TX_DONE; unreachable unicast retries -> failure | Range/coexistence and measured spectrum/power/airtime; direct receive passed with T-Beam |
+| Inbox/diagnostics | Bounded ring/chunk reads, gaps/reconnect, local 1024-byte delivery checked, live probe/memory/stack/counters | Extended hardware soak; actual direct remote input passed |
 | Updates | Hashed manifest, embedded image/layout/security checks, staged immutable images, ROM verification, preserved NVS, validated extracted package with source/notices | Interrupted flash/power loss, automatic rollback and authenticated public releases |
 | Compatibility/lifecycle | Frozen/additive fixtures, vendor checks, one-tab writer lock, journal/counter validation, bounded owner/history behavior, compatibility matrix | Stable-release support policy and field qualification |
 
@@ -24,4 +24,8 @@ Host verification: npm run check passes 194 Node/compiler-backed tests (includin
 
 ## Further work
 
-A second compatible US node is required for real receive/destination-ACK tests; a third is required for relay qualification. Power-cut and field/coexistence tests remain release gates. Source licensing is deferred at the owner's request. Encryption, BLE, other boards, mobile/native clients and EU transmission remain later work. Signed releases and dual-slot rollback must be designed and qualified before presenting an automatic public updater as production-ready.
+The added T-Beam V1.2 now passes actual bidirectional 1024-byte direct delivery/destination-ACK/inbox tests with the Heltec on the same computer (see TBEAM.md). A third board is required for relay qualification. Power-cut and field/coexistence tests remain release gates. Source licensing is deferred at the owner's request. Encryption, BLE, other boards, mobile/native clients and EU transmission remain later work. Signed releases and dual-slot rollback must be designed and qualified before presenting an automatic public updater as production-ready.
+
+## T-Beam extension
+
+Owner-requested T-Beam V1.2 support is installed and hardware-qualified for USB/local messaging, AXP2101/SX1276 probe, receive initialization, TX_DONE and direct two-node RF. Both target builds validate; 197 host tests and 56 CTests pass. The initial first-write auxiliary-read interruption recovered on reconnect and remains a soak/interruption observation. Current web UI is one-device-at-a-time; CLI pair tests use two simultaneous ports.
