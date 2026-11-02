@@ -15,6 +15,7 @@ you want to do.
 
 | Document | What it covers |
 | --- | --- |
+| [Project specification and vision](overview/project-specification.md) | Draft project-wide standard: intent, use cases, phases, requirements and future direction |
 | [Introduction](overview/introduction.md) | What Reaper Mesh is, who it is for, and how the pieces fit together |
 | [Roadmap](overview/roadmap.md) | The four product phases and what each one delivers |
 | [Status](overview/status.md) | What is implemented and verified today versus what remains |
