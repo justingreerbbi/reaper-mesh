@@ -216,6 +216,7 @@ let discoveryDirty = false, discoveryBase = '', nodeSignature = '';
 let radioDirty = false;
 let radioBase = '';
 let selectedNode = '';
+let conversationFilter: 'all' | 'channel' | 'direct' = 'all';
 const fieldMap = new FieldMap(element('map'));
 fieldMap.onSelect = id => { selectedNode = id ?? ''; render(); };
 
@@ -226,25 +227,37 @@ for (let slot = 1; slot < 8; slot++) {
   wrapper.append(title, input); element('channel-settings').append(wrapper);
 }
 
-const channelEditor = element<HTMLDialogElement>('channel-editor');
 let editingChannel = 0;
 function editChannel(slot: number) {
+  if (editingChannel !== slot) element<HTMLTextAreaElement>('channel-key-transfer').value = '';
   editingChannel = slot;
   const names = (current().adapter.connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
   text('channel-editor-title', names[slot] || 'Create channel');
   element<HTMLInputElement>('channel-name').value = names[slot] || '';
-  element<HTMLInputElement>('channel-name').disabled = slot === 0;
+  element<HTMLInputElement>('channel-name').disabled = slot === 0 || current().adapter.connection.sync.state !== 'ready';
+  element('channel-name-save').hidden = slot === 0;
+  element('channel-name').hidden = slot === 0;
+  document.querySelector<HTMLLabelElement>('label[for="channel-name"]')!.hidden = slot === 0;
+  text('channel-name-help', slot === 0 ? 'Public is the default channel and cannot be renamed.' : 'Up to 8 letters, numbers, underscores or hyphens.');
   text('channel-editor-status', `Channel ${slot} · use this number on every device`);
   element<HTMLSelectElement>('encryption-channel').dataset.names = '';
   renderEncryption();
   element<HTMLSelectElement>('encryption-channel').value = String(slot);
   renderEncryption();
-  if (!channelEditor.open) channelEditor.showModal();
+  const links = element('managed-channels');
+  if (!links.querySelector(`[data-slot="${slot}"]`)) {
+    const button = document.createElement('button'); button.type = 'button'; button.dataset.slot = String(slot);
+    button.textContent = `${slot} · New channel`; button.addEventListener('click', () => editChannel(slot)); links.append(button);
+  }
+  for (const button of links.querySelectorAll<HTMLButtonElement>('button')) {
+    const active = button.dataset.slot === String(slot);
+    button.classList.toggle('is-active', active); button.setAttribute('aria-current', active ? 'page' : 'false');
+  }
 }
 element('create-channel').addEventListener('click', () => {
   const names = current().adapter.connection.sync.config?.radio?.channels.split('|') ?? [];
   const slot = Array.from({ length: 7 }, (_, i) => i + 1).find(i => !names[i]);
-  if (slot !== undefined) editChannel(slot);
+  if (slot !== undefined) { editChannel(slot); element<HTMLInputElement>('channel-name').focus(); }
 });
 element('channel-name-form').addEventListener('submit', event => {
   event.preventDefault();
@@ -259,7 +272,7 @@ element('channel-name-form').addEventListener('submit', event => {
     text('channel-editor-status', 'Saving to device…'); render();
   } catch (e) { text('channel-editor-status', e instanceof Error ? e.message : 'Could not save channel.'); }
 });
-channelEditor.addEventListener('close', () => { element<HTMLTextAreaElement>('channel-key-transfer').value = ''; });
+manage.addEventListener('close', () => { element<HTMLTextAreaElement>('channel-key-transfer').value = ''; });
 
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
@@ -310,6 +323,8 @@ function setView(view: 'map' | Panel) {
 }
 function setDock(panel: Panel) { setView(panel); }
 function chooseConversation(destination: string, channel = 0) {
+  const kind = destination === 'broadcast' ? 'channel' : 'direct';
+  if (conversationFilter !== 'all' && conversationFilter !== kind) conversationFilter = kind;
   try { if (lastDevice) messageState?.reopen(messageScope(mode.value, lastDevice), conversationKey(destination, channel)); }
   catch (e) { messageStateError = String(e); }
   if (draftKey) drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value);
@@ -324,6 +339,9 @@ function chooseConversation(destination: string, channel = 0) {
   app.classList.add('has-conversation'); messageSignature = ''; renderMessages();
 }
 function setManage(panel: string) {
+  element<HTMLDetailsElement>('advanced-settings').open = ['history', 'recovery', 'details'].includes(panel);
+  manage.querySelector<HTMLElement>('.manage-body')!.scrollTop = 0;
+  if (panel === 'channels') editChannel(0);
   for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
     const active = tab.dataset.manage === panel;
     tab.classList.toggle('is-active', active);
@@ -359,7 +377,7 @@ function render() {
   const writable = ready && !connection.writeBlockReason;
   mode.disabled = busy || active;
   connect.disabled = busy || active || (mode.value === 'usb' && (!serial || !isSecureContext));
-  connect.textContent = busy ? 'Opening…' : mode.value === 'demo' ? 'Connect simulator' : 'Connect USB';
+  connect.textContent = busy ? 'Connecting…' : mode.value === 'demo' ? 'Connect simulator' : 'Connect USB';
   disconnect.disabled = !busy && !active;
   text('support', mode.value === 'demo' ? 'An in-memory device. No USB access or radio traffic.' :
     !isSecureContext ? 'USB requires HTTPS or localhost.' : !serial ? 'Use a desktop browser with Web Serial support.' :
@@ -570,12 +588,18 @@ for (const button of document.querySelectorAll<HTMLElement>('[data-open-manage]'
 element('open-manage').addEventListener('click', () => openManage('device'));
 element('fit-map').addEventListener('click', () => fieldMap.fit());
 setView('messages');
-element('new-conversation').addEventListener('click', () => { element('recipient-controls').hidden = false; element('recipient-toggle').setAttribute('aria-expanded', 'true'); app.classList.add('has-conversation'); element('message-destination').focus(); });
-element('recipient-toggle').addEventListener('click', () => { const controls = element('recipient-controls'); controls.hidden = !controls.hidden; element('recipient-toggle').setAttribute('aria-expanded', String(!controls.hidden)); });
+element('new-conversation').addEventListener('click', () => { element('recipient-controls').hidden = false; element('recipient-toggle').setAttribute('aria-expanded', 'true'); app.classList.add('has-conversation'); renderMessages(); element('message-destination').focus(); });
+element('recipient-toggle').addEventListener('click', () => { const controls = element('recipient-controls'); controls.hidden = !controls.hidden; element('recipient-toggle').setAttribute('aria-expanded', String(!controls.hidden)); renderMessages(); if (!controls.hidden) element('message-destination').focus(); });
 element('recipient-done').addEventListener('click', () => { chooseConversation(element<HTMLInputElement>('message-destination').value.trim(), Number(element<HTMLSelectElement>('message-channel').value)); element('recipient-controls').hidden = true; element('recipient-toggle').setAttribute('aria-expanded', 'false'); renderMessages(); });
 element('back-conversations').addEventListener('click', () => app.classList.remove('has-conversation'));
 element('conversation-connect').addEventListener('click', () => connect.click());
 element('conversation-search').addEventListener('input', renderMessages);
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
+  button.addEventListener('click', () => {
+    conversationFilter = button.dataset.conversationFilter as typeof conversationFilter;
+    element('conversation-results').scrollTop = 0; renderMessages();
+  });
+}
 element('locate-conversation').addEventListener('click', () => selectNode(element<HTMLInputElement>('message-destination').value, { focusMap: true }));
 element('asset-message').addEventListener('click', () => { if (selectedNode) selectNode(selectedNode, { message: true }); });
 element('message-channel').addEventListener('change', () => chooseConversation(element<HTMLInputElement>('message-destination').value, Number(element<HTMLSelectElement>('message-channel').value)));
@@ -615,7 +639,7 @@ function renderMessages() {
     if (messageState.deleted(receivedKey(mode.value, m))) connection.forgetReceived(m.device, m.origin, m.messageId);
   }
   const scroller = element('thread-scroll');
-  const attended = document.visibilityState === 'visible' && document.hasFocus() && !manage.open && !channelEditor.open && !accessDialog.open && !deleteDialog.open && app.dataset.view === 'messages' && (innerWidth > 720 || app.classList.contains('has-conversation')) && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  const attended = document.visibilityState === 'visible' && document.hasFocus() && !manage.open && !accessDialog.open && !deleteDialog.open && app.dataset.view === 'messages' && (innerWidth > 720 || app.classList.contains('has-conversation')) && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
   const sources = (['usb', 'demo'] as const).map(source => ({ source, messages: models[source].adapter.connection.inbox.history }));
   try { messageState?.observe(sources, attended && lastDevice ? { source: mode.value, device: lastDevice, destination: destination.value, channel: Number(channel.value) } : undefined); if (messageState) messageStateError = ''; }
   catch (e) { messageStateError = `Message history: ${String(e)}`; }
@@ -653,9 +677,10 @@ function renderMessages() {
     channel.dataset.names = JSON.stringify(names);
   }
   const key = conversationKey(destination.value, selectedChannel);
+  const sendBlockReason = connection.messaging.sendBlockReason;
   const remoteBlocked = destination.value !== connection.device && connection.capabilities?.radioVersion === 1 && connection.radioInfo?.reason !== 'ready';
-  text('message-support', encryptionError || (encryptedRequired && !encryption?.unlocked ? 'Encryption required · unlock the app before sending' : !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : encryptedRequired ? 'Encrypted channel · device ACK confirms ciphertext delivery only' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading')));
-  element<HTMLButtonElement>('message-send').disabled = !ready || !!encryptionError || (encryptedRequired && !encryption?.unlocked) || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > maxBytes || history.length >= 32 || remoteBlocked || !element('recipient-controls').hidden;
+  text('message-support', encryptionError || (encryptedRequired && !encryption?.unlocked ? 'Encryption required · unlock the app before sending' : !ready ? 'Connect a device to send · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : sendBlockReason ? sendBlockReason : !element('recipient-controls').hidden ? 'Choose a recipient, then select Open conversation' : remoteBlocked ? 'Radio unavailable · check Settings → Radio' : encryptedRequired ? 'Encrypted channel · device ACK confirms ciphertext delivery only' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading')));
+  element<HTMLButtonElement>('message-send').disabled = !ready || !!encryptionError || (encryptedRequired && !encryption?.unlocked) || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > maxBytes || !!sendBlockReason || remoteBlocked || !element('recipient-controls').hidden;
   element<HTMLButtonElement>('self-destination').disabled = !connection.device || uploading;
   const uiScope = messageScope(mode.value, lastDevice ?? '');
   const visibleThread = (row: { key: string; destination: string; channel: number }) => !messageState?.hidden(uiScope, row.key) || !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
@@ -673,20 +698,31 @@ function renderMessages() {
   element<HTMLButtonElement>('locate-conversation').disabled = !connection.discovery.nodes.some(n => canonicalNode(n.node) === canonicalNode(destination.value) && n.position);
   element('conversation-connect').hidden = ready;
   const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
-  const listSignature = JSON.stringify(rows) + key + filter + JSON.stringify(unread);
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
+    const selected = button.dataset.conversationFilter === conversationFilter;
+    button.classList.toggle('is-active', selected); button.setAttribute('aria-pressed', String(selected));
+    const kind = button.dataset.conversationFilter!;
+    const count = rows.filter(row => kind === 'all' || row.kind === kind).reduce((sum, row) => sum + (lastDevice ? unread.filter(m => inConversation(m, lastDevice!, row.destination, row.channel)).length : 0), 0);
+    const badge = element(`filter-unread-${kind}`); badge.textContent = String(count); badge.hidden = !count; badge.setAttribute('aria-label', `${count} unread messages`);
+  }
+  const listSignature = JSON.stringify(rows) + key + filter + conversationFilter + JSON.stringify(unread);
   const channelList = element('channel-list'), directList = element('direct-list');
   if (channelList.dataset.signature !== listSignature) {
     channelList.dataset.signature = directList.dataset.signature = listSignature;
     channelList.replaceChildren(); directList.replaceChildren();
-    const visible = rows.filter(row => `${row.name} ${row.destination}`.toLowerCase().includes(filter));
+    const visible = rows.filter(row => (conversationFilter === 'all' || row.kind === conversationFilter) && `${row.name} ${row.destination} ${names[row.channel] ?? ''}`.toLowerCase().includes(filter));
+    const hasChannels = visible.some(row => row.kind === 'channel'), hasDirect = visible.some(row => row.kind === 'direct');
+    element('channel-list-heading').hidden = !hasChannels || conversationFilter !== 'all';
+    element('direct-list-heading').hidden = !hasDirect || conversationFilter !== 'all';
+    text('conversation-search-empty', filter ? 'No matching conversations. Try another name, channel or node ID.' : conversationFilter === 'direct' ? 'No direct conversations yet. Find a device in Assets or use + to start one.' : 'No conversations to show.');
     element('conversation-search-empty').hidden = visible.length !== 0;
     const renderRow = (row: typeof rows[number], list: HTMLElement) => {
       const button = document.createElement('button'); button.className = 'conversation-row'; button.classList.toggle('is-selected', row.key === key); button.setAttribute('aria-pressed', String(row.key === key));
       const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.textContent = row.kind === 'channel' ? '#' : row.name.slice(0, 2).toUpperCase();
       const content = document.createElement('span'); content.className = 'conversation-summary';
-      const name = document.createElement('strong'); name.textContent = row.kind === 'direct' ? `${row.name} · ${names[row.channel] || `Channel ${row.channel}`}` : row.name;
-      const preview = document.createElement('span'); preview.textContent = row.preview; content.append(name, preview);
-      const badge = document.createElement('span'); badge.className = 'thread-kind'; const count = lastDevice ? unread.filter(m => inConversation(m, lastDevice!, row.destination, row.channel)).length : 0; badge.textContent = count ? String(count) : row.kind === 'channel' ? 'CH' : 'DM'; badge.classList.toggle('unread-badge', count > 0); if (count) badge.setAttribute('aria-label', `${count} unread ${count === 1 ? 'message' : 'messages'}`);
+      const name = document.createElement('strong'); name.textContent = row.name; name.title = row.name;
+      const preview = document.createElement('span'); preview.textContent = row.kind === 'direct' ? `${names[row.channel] || `Channel ${row.channel}`} · ${row.preview}` : row.preview; content.append(name, preview);
+      const badge = document.createElement('span'); badge.className = 'thread-kind'; const count = lastDevice ? unread.filter(m => inConversation(m, lastDevice!, row.destination, row.channel)).length : 0; badge.textContent = String(count); badge.hidden = count === 0; badge.classList.toggle('unread-badge', count > 0); if (count) badge.setAttribute('aria-label', `${count} unread ${count === 1 ? 'message' : 'messages'}`);
       button.append(avatar, content, badge); button.addEventListener('click', () => chooseConversation(row.destination, row.channel)); list.append(button);
     };
     for (const row of visible) renderRow(row, row.kind === 'channel' ? channelList : directList);
@@ -708,13 +744,6 @@ function renderMessages() {
     if (m.direction === 'incoming') { const sender = document.createElement('span'); sender.className = 'message-sender'; sender.textContent = connection.discovery.nodes.find(n => canonicalNode(n.node) === canonicalNode(m.origin))?.name || m.origin; bubble.append(sender); }
     const content = document.createElement('p'); content.className = 'message-text'; content.textContent = m.text;
     const status = document.createElement('span'); status.className = 'message-state'; status.textContent = m.status; status.dataset.state = m.entry?.state ?? 'received'; bubble.append(content, status);
-    if (m.entry && m.entry.state !== 'receiving') {
-      const entry = m.entry, details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Message details';
-      const identity = document.createElement('span'); identity.className = 'mono'; identity.textContent = `${entry.messageId ?? entry.id}${entry.reason ? ' · ' + entry.reason : ''}`;
-      const query = document.createElement('button'); query.textContent = 'Check delivery'; query.disabled = !ready;
-      query.addEventListener('click', () => { try { if (!current().adapter.recoverMessage(entry.id)) throw Error('Previous-boot outcome is unknown. Nothing was resent.'); } catch (e) { showError(e); } });
-      details.append(summary, identity, query); bubble.append(details);
-    }
     const remove = document.createElement('button'); remove.className = 'message-delete'; remove.textContent = 'Delete'; remove.setAttribute('aria-label', `Delete ${m.direction === 'incoming' ? 'received' : 'sent'} message`);
     remove.disabled = !messageState || !recovery.writable || m.entry?.state === 'receiving';
     remove.addEventListener('click', () => requestDelete([m.received ? receivedKey(mode.value, m.received) : sentKey(mode.value, lastDevice!, m.entry!.id)], m.entry ? [m.entry.id] : [], 'Delete this message from local history? It will also disappear from other local views of the same message.'));
@@ -769,7 +798,8 @@ function renderRadio() {
     channelNames.forEach((name, slot) => {
       if (!name) return;
       const button = document.createElement('button'); button.type = 'button';
-      button.textContent = `${name} · Channel ${slot}`;
+      button.textContent = `${slot} · ${name}`; button.dataset.slot = String(slot);
+      button.classList.toggle('is-active', slot === editingChannel); button.setAttribute('aria-current', slot === editingChannel ? 'page' : 'false');
       button.addEventListener('click', () => editChannel(slot)); list.append(button);
     });
   }
@@ -907,7 +937,7 @@ function renderDiscovery() {
   const stale = discoveryDirty && discoveryBase !== context;
   const support = !supported ? 'Connect to firmware with discovery support.' : stale ? 'Device state changed. Load the latest discovery settings.' : connection.writeBlockReason ?? 'Beacons and responses are separate, opt-in settings.';
   text('discovery-support', support);
-  text('discovery-panel-support', support);
+  text('discovery-panel-support', !supported ? 'Connect a device with discovery support to change these settings.' : stale ? 'The device changed. Discard changes to load its latest settings.' : connection.writeBlockReason ?? 'Choose how nearby devices can find this device. Announcements and replies are independently optional.');
   element<HTMLButtonElement>('discover').disabled = !writable || connection.radioInfo?.reason !== 'ready' || connection.discovery.last?.state === 'collecting';
   element<HTMLButtonElement>('discovery-query').disabled = !ready || !connection.discovery.last;
   element<HTMLButtonElement>('discovery-save').disabled = !writable || !discoveryDirty || stale || model.pending;

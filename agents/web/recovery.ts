@@ -17,7 +17,7 @@ export class BrowserRecovery {
       const text = store?.getItem(RECOVERY_KEY);
       if (text) {
         this.#text = this.#last = text;
-        if (text.length > 262144) throw new Error('recovery data exceeds its limit');
+        if (text.length > 1048576) throw new Error('recovery data exceeds its limit');
         this.connection = Connection.fromJournal(JSON.parse(text));
       }
     } catch (error) { this.#invalid = `Saved recovery data cannot be loaded: ${error instanceof Error ? error.message : String(error)}`; }
@@ -58,7 +58,7 @@ export class BrowserRecovery {
     connection.persistence(state => {
       if (!this.writable || connection !== this.connection || !this.#store) throw new Error(this.#invalid ?? 'This console does not own recovery storage.');
       const text = JSON.stringify(state);
-      if (text.length > 262144) throw new Error('recovery data exceeds its limit');
+      if (text.length > 1048576) throw new Error('recovery data exceeds its limit');
       if (text !== this.#last) { this.#store.setItem(RECOVERY_KEY, text); this.#last = this.#text = text; }
     });
   }

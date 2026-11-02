@@ -138,3 +138,11 @@ PIN protection is optional, off by default. Settings → Privacy enables or remo
 ## November 2: agent terminology
 
 Owner names node-connected software **agents**. Use `agents/` for applications and `packages/agent-core/` for transport-independent state. Update project identifiers, UI labels, documentation and tool paths consistently. Preserve historical opaque IDs in frozen wire fixtures and standard browser API identifiers; terminology does not require a protocol or storage migration.
+
+## November 2: separate sent retention from recovery admission
+
+Completed outgoing messages no longer exhaust the 32-message recovery admission budget. Keep a rolling 160-entry outgoing history and retire only the oldest completed record when a validated new send needs space. Preserve unknown/unacknowledged unicast outcomes, monotonic IDs, checkpoint-before-dispatch and query-only reload recovery. Explicitly explain the remaining 32-unresolved safety limit. Browser journal bound is 1 MiB serialized characters; old journals remain readable without identity reset. No firmware/wire change or hardware qualification is implied. Regression exercises 500 completed sends, protected uncertainty and reload/counter continuity.
+
+## November 2: task-first portal UX
+
+Design for mixed technical experience: routine setup first, technical maintenance under Advanced, concise contextual explanations, proportional control widths, and primary actions beside their section or after their form. Region precedes name; Create channel sits beside Channels. Preserve opt-in privacy, explicit destructive confirmations and transport recovery semantics. See docs/guides/web-portal.md for review scope. No hardware/protocol change.

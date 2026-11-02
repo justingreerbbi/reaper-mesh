@@ -166,7 +166,7 @@ Tags 15 radioQuery and 16 radioStatus carry correlated hardware diagnostics; sta
 
 ## Browser journal (local format 1)
 
-The USB console persists its incarnation, config/message request high-water counters and up to 32 command, outgoing and received entries per history. A synchronous checkpoint precedes mutation dispatch. Restored unfinished outcomes become unknown; sessions, retries and partial uploads are not resumed. Explicit result/status queries still require the same device and boot; a reboot retains ambiguity. Corrupt records/counter regressions fail closed. This local JSON format does not change USB wire v1. Web Locks gives one writer per origin/storage bucket, not cross-browser or device-wide ownership. Local storage is plaintext and clearing it removes recovery history.
+The USB console persists its incarnation, config/message request high-water counters and up to 32 commands, 32 received entries and 160 outgoing entries. A synchronous checkpoint precedes mutation dispatch. Restored unfinished outcomes become unknown; sessions, retries and partial uploads are not resumed. Explicit result/status queries still require the same device and boot; a reboot retains ambiguity. Corrupt records/counter regressions fail closed. This local JSON format does not change USB wire v1. Web Locks gives one writer per origin/storage bucket, not cross-browser or device-wide ownership. Local storage is plaintext and clearing it removes recovery history.
 
 ## Discovery v1 (Phase 2.1)
 
@@ -195,3 +195,5 @@ Committed position/privacy changes cancel pending controls, including controls a
 ## Agent naming and compatibility
 
 An agent is the software connected to a node. This naming convention changes no wire fields, owner identity rules, persisted request IDs, or synchronization/recovery behavior. Frozen v1 fixtures retain their historical `client-A` owner/ID values and exact bytes: these are opaque valid identities, not required terminology or a migration target.
+
+Outgoing retention is independent of unresolved-send admission: at most 32 unresolved messages are admitted, while oldest completed entries roll off only when the 160-entry history is full and a valid new send is admitted. Unknown and unacknowledged unicast outcomes are never automatically retired. IDs/counters are not recycled; retirement and the new immutable payload are checkpointed before dispatch. Existing format-1 journals remain readable; older agents reject journals exceeding their old bound rather than resetting them. Browser journal length is bounded to 1 MiB serialized characters.

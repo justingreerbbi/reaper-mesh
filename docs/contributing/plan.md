@@ -140,3 +140,11 @@ PIN protection is optional, off by default. Settings → Privacy enables or remo
 ## November 2: agent terminology
 
 Repository terminology and application/core/tool paths now use agent consistently. Acceptance: imports and build commands resolve the renamed paths; strict TypeScript, frozen TS/C++ compatibility checks, compiler-backed recovery tests and the web build pass through `npm run check`. Validation: `npm ci --ignore-scripts` and `npm run check` pass on macOS, including strict TypeScript, generated schema/vendor verification, compiler-backed host tests and the production web build. This rename introduces no synchronization behavior change or new hardware qualification claim.
+
+## November 2: separate sent retention from recovery admission
+
+Completed outgoing messages no longer exhaust the 32-message recovery admission budget. Keep a rolling 160-entry outgoing history and retire only the oldest completed record when a validated new send needs space. Preserve unknown/unacknowledged unicast outcomes, monotonic IDs, checkpoint-before-dispatch and query-only reload recovery. Explicitly explain the remaining 32-unresolved safety limit. Browser journal bound is 1 MiB serialized characters; old journals remain readable without identity reset. No firmware/wire change or hardware qualification is implied. Regression exercises 500 completed sends, protected uncertainty and reload/counter continuity.
+
+## November 2: task-first portal UX
+
+Design for mixed technical experience: routine setup first, technical maintenance under Advanced, concise contextual explanations, proportional control widths, and primary actions beside their section or after their form. Region precedes name; Create channel sits beside Channels. Preserve opt-in privacy, explicit destructive confirmations and transport recovery semantics. See docs/guides/web-portal.md for review scope. No hardware/protocol change.

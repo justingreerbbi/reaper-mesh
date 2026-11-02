@@ -12,6 +12,11 @@ type Entry = {
   chunks: readonly string[]; part: number; attempts: number; deadline: number; pollAt: number; expiresAt: number;
   state: Status['state']; messageId?: string; reason?: string;
 };
+export const MAX_MESSAGE_HISTORY = 160;
+const MAX_UNRESOLVED_MESSAGES = 32;
+function terminal(entry: Pick<Entry, 'state' | 'destination'>) {
+  return ['acknowledged', 'failed', 'rejected'].includes(entry.state) || (entry.state === 'transmitted' && entry.destination === 'broadcast');
+}
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 export function messageChunks(text: string): readonly string[] {
@@ -39,13 +44,20 @@ export class Messaging {
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(incarnation)) throw new Error('invalid message owner');
   }
   get history() { return [...this.#entries.values()].map(({ chunks: _, ...entry }) => Object.freeze({ ...entry })); }
+  get sendBlockReason(): string | undefined {
+    if (this.#counter >= 0xffffffff) return 'Message request sequence exhausted';
+    if ([...this.#entries.values()].some(entry => entry.state === 'receiving')) return 'Uploading message…';
+    if ([...this.#entries.values()].filter(entry => !terminal(entry)).length >= MAX_UNRESOLVED_MESSAGES)
+      return '32 messages still have unresolved delivery · check delivery or explicitly delete an unresolved sent message';
+    return undefined;
+  }
   exportState() {
     return { counter: this.#counter, entries: this.history.map(({ session: _, part: _part, deadline: _deadline, pollAt: _poll, expiresAt: _expires, ...item }) => item) };
   }
   restoreState(value: unknown) {
     if (this.sync.state !== 'disconnected' || this.#counter || this.#entries.size) throw new Error('restore requires a fresh disconnected message manager');
     const state = recovery.object(value), counter = recovery.u32(state.counter); const entries = new Map<string, Entry>();
-    for (const raw of recovery.list(state.entries)) {
+    for (const raw of recovery.list(state.entries, MAX_MESSAGE_HISTORY)) {
       const item = recovery.object(raw); const identity = recovery.sequence(item.id, this.incarnation);
       const channel = recovery.u32(item.channel);
       const payloadHex = item.payloadHex === undefined ? undefined : recovery.string(item.payloadHex);
@@ -77,13 +89,18 @@ export class Messaging {
     this.#time(now); const context = this.sync.mutationContext();
     const payload = payloadHex === undefined ? undefined : fromHex(payloadHex);
     const chunks = payload ? payloadChunksUnchecked(payload) : messageChunks(text);
-    if (this.#entries.size >= 32 || this.#counter >= 0xffffffff) throw new Error('message history or sequence exhausted');
-    if ([...this.#entries.values()].some(entry => entry.state === 'receiving')) throw new Error('message upload already pending');
+    if (this.sendBlockReason) throw new Error(this.sendBlockReason);
     const entry: Entry = { id: `${this.incarnation}:${this.#counter + 1}`, boot: context.boot, session: context.session,
       device, text, destination, channel, ...(payloadHex ? { payloadHex } : {}), chunks, part: 0, attempts: 1, deadline: now + 1000,
       pollAt: now + 2000, expiresAt: now + 70000, state: 'receiving' };
     const packet = this.#packet(entry);
     encodeMessage({ ...packet, link: 'validate' }); // Validate before retaining IDs/history.
+    // Keep recovery ambiguity; only completed history rolls off, after input validation.
+    while (this.#entries.size >= MAX_MESSAGE_HISTORY) {
+      const oldest = [...this.#entries.values()].find(terminal);
+      if (!oldest) throw new Error('Unresolved message recovery history is full');
+      this.#entries.delete(oldest.id);
+    }
     this.#counter++; this.#entries.set(entry.id, entry); return packet;
   }
   receive(session: number, status: Status, now: number): Upload | undefined {

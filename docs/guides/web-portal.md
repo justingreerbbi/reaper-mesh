@@ -14,7 +14,7 @@ Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server b
 Dark technical workspace with Messages and Assets navigation. On desktop, conversations have an inbox, a message thread and a compact asset tracker; at narrower sizes the tracker gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
 
 - Search channel and peer conversations by name or node ID; start a recipient from New message or an asset action.
-- Incoming/outgoing messages share a thread. Destination ACK means delivered, never read; unknown work has query-only recovery in Message details.
+- Incoming/outgoing messages share a thread. Destination ACK means delivered, never read. Messages show their delivery status without a Message details dropdown; unknown work is never automatically resent.
 - Drafts are isolated by transport/device/conversation and retained in this tab across switching/disconnect. Enter sends when allowed; Shift+Enter adds a line. Drafts are not saved across page reload.
 - Assets shows the map, heard-node list, last-heard age and fixed positions. Selecting a marker selects the asset; messaging is an explicit action. Missing/stale observations never imply online status.
 - Settings contains device, radio, position, discovery, command history, recovery and diagnostics. No firmware changes are needed for this layout.
@@ -100,3 +100,19 @@ Spacing uses 8/12/16/24/32px tokens, larger form gaps and wrapping action groups
 
 
 Privacy includes a confirmed Wipe local data action, also reachable from the lock screen without unlocking. It stops open app sessions, clears all namespaced local/session data, then replaces the live app with a static completion page. It does not erase connected device settings or inboxes. Messages still retained on the device may return after reconnect. Tests cover optional PIN transitions, preserved keys/replay state, storage failures, namespace deletion and checkpoint suppression during a wipe.
+
+### Sent history and recovery capacity
+
+Completed messages no longer use unresolved-delivery capacity. The browser retains a rolling 160 outgoing messages across devices/conversations; when full, the next valid send retires the oldest completed entry automatically. Acknowledged, failed, rejected and confirmed transmitted broadcasts are completed. Export history if you need a longer archive.
+
+Up to 32 unresolved messages (including unknown outcomes and unacknowledged unicasts) remain protected from automatic retirement. At that safety limit the composer explicitly asks you to check delivery or intentionally delete an unresolved entry; it never resends or silently loses uncertain work. Request counters continue increasing across retirement and reload. Existing journals load without resetting identities. Journal size is bounded to 1 MiB of serialized characters; unavailable/quota-limited storage still blocks writes safely.
+
+Settings use a single scrolling surface: Channels has horizontal channel links with 0 · Public selected on entry, and the selected channel’s name/privacy controls appear below. Creating a channel selects its unused slot inline. Coordinates are paired in a two-column form, and shared dropdown indicators, focus styles and help spacing apply throughout the portal.
+
+### Task-first interface review (November 2)
+
+Device setup follows region → name → save, with a content-sized region selector. Channels places Create channel beside its heading and opens the selected channel inline; Public omits the uneditable name field. Routine settings remain directly visible; Advanced contains change history, storage/recovery and diagnostics. Technical device metadata and key import use optional disclosure. Radio modes describe their effect, discovery explains announcements versus replies, and save/discard actions use consistent labels. Recipient setup explains IDs/broadcast and makes local testing secondary. Wipe/reset remain explicit and distinct from routine actions.
+
+The review applies familiar navigation, progressive disclosure, clear feedback and form grouping from [NN/g’s Web UX study guide](https://www.nngroup.com/articles/web-ux-study-guide/), plus the supplied Mailchimp, ICS, Erik Kennedy, Codilar and Proteus references. These are design principles, not a claim of formal usability testing or complete accessibility conformance. Firmware/privacy defaults and protocol contracts are unchanged.
+
+The conversation sidebar uses a single scrolling viewport instead of separate half-height channel/direct lists. All / Channels / Direct filters share the same search and show unread counts even for the other category. All groups both categories in the same scroll; filtering does not change the open thread. Selecting a conversation from an asset switches to its category when necessary. Direct rows separate the peer name from the channel/preview to avoid crowding; only unread counts use a trailing badge. Drafts, routing and delivery semantics are unchanged.

@@ -61,7 +61,7 @@ test('message validation and history limits refuse unsafe submissions before con
   const { messages, send, status, session } = setup();
   for (const body of ['', '\u0000', '\ud800', 'x'.repeat(1025)]) assert.throws(() => send(body));
   for (let i = 0; i < 32; i++) { const packet = send(); assert.equal(packet.id, `owner:${i + 1}`); messages.receive(session, status(packet.id, 'queued', 1), 0); }
-  assert.throws(() => send(), /history/); messages.forget('owner:1'); assert.equal(send().id, 'owner:33');
+  assert.throws(() => send(), /unresolved delivery/); messages.forget('owner:1'); assert.equal(send().id, 'owner:33');
   assert.throws(() => messages.forget('owner:33'), /pending/);
 });
 test('message receipt completeness and identity are checked before acceptance', () => {
@@ -113,4 +113,34 @@ test('encrypted payload is checkpointed once and RACE recovery never re-encrypts
   assert.deepEqual(restored.tick(100000), []); // Recovery can query state but cannot resend ciphertext on a new session.
   assert.equal(original.data, Buffer.from(bytes.subarray(0, 32)).toString('hex'));
   reopen(); assert.deepEqual(messages.tick(11, 'node-A'), []);
+});
+
+
+test('completed history rolls over through hundreds of sends and reload without blocking or reusing IDs', () => {
+  const { messages, sync, status, session } = setup();
+  const pending = messages.send('uncertain', 'node-B', 0, 'node-A', 0);
+  messages.receive(session, status(pending.id, 'unknown', 0), 0);
+  for (let i = 2; i <= 500; i++) {
+    const packet = messages.send('saved ' + i, i % 2 ? 'node-B' : 'broadcast', 0, 'node-A', 0);
+    assert.equal(packet.id, `owner:${i}`);
+    messages.receive(session, status(packet.id, i % 2 ? 'acknowledged' : 'transmitted', 1), 0);
+    assert.equal(messages.sendBlockReason, undefined);
+    assert.ok(messages.history.length <= 160);
+  }
+  assert.equal(messages.history.find(m => m.id === pending.id)?.state, 'unknown');
+  const restored = new Messaging(new Synchronizer(), 'owner');
+  restored.restoreState(JSON.parse(JSON.stringify(messages.exportState())));
+  assert.equal(restored.history.length, 160);
+  assert.equal(restored.sendBlockReason, undefined);
+  assert.deepEqual(restored.tick(0), []);
+  assert.ok(restored.history.some(m => m.id === pending.id));
+  // Restore using a ready synchronizer separately; reload never revives uploads.
+  sync.disconnect();
+  const next = setup();
+  const resumed = new Messaging(next.sync, 'owner');
+  next.sync.disconnect(); resumed.restoreState(messages.exportState());
+  const generation = next.sync.connect(); next.sync.hello(generation, 'boot-A', 1, 1);
+  next.sync.snapshot({ session: generation, boot: 'boot-A', request: next.sync.snapshotRequest, sequence: 0, revision: 0, config: { region: 'US', label: 'node' } });
+  assert.equal(resumed.send('next', 'broadcast', 0, 'node-A', 0).id, 'owner:501');
+  assert.deepEqual(resumed.recover(pending.id, 'node-A', 0), { type: 'messageQuery', boot: 'boot-A', id: pending.id });
 });

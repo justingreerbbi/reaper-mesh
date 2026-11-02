@@ -65,11 +65,18 @@
 </div>
 <label class="sr-only" for="conversation-search">Search conversations</label>
 <input id="conversation-search" class="search" type="search" placeholder="Search name or node ID" autocomplete="off">
-<div class="list-label">CHANNELS</div>
-<div id="channel-list" class="conversation-list channel-list"></div>
-<div class="list-label direct-list-label">DIRECT MESSAGES</div>
-<div id="direct-list" class="conversation-list direct-list"></div>
-<p id="conversation-search-empty" class="empty" hidden>No matching conversations.</p>
+<div class="conversation-filters" role="group" aria-label="Filter conversations">
+<button type="button" data-conversation-filter="all" aria-pressed="true" class="is-active">All<span id="filter-unread-all" class="filter-unread" hidden></span></button>
+<button type="button" data-conversation-filter="channel" aria-pressed="false">Channels<span id="filter-unread-channel" class="filter-unread" hidden></span></button>
+<button type="button" data-conversation-filter="direct" aria-pressed="false">Direct<span id="filter-unread-direct" class="filter-unread" hidden></span></button>
+</div>
+<div id="conversation-results" class="conversation-results" role="region" aria-label="Conversation list" tabindex="0">
+<h2 id="channel-list-heading" class="list-label">Channels</h2>
+<div id="channel-list" class="conversation-list channel-list" aria-labelledby="channel-list-heading"></div>
+<h2 id="direct-list-heading" class="list-label direct-list-label">Direct messages</h2>
+<div id="direct-list" class="conversation-list direct-list" aria-labelledby="direct-list-heading"></div>
+<p id="conversation-search-empty" class="empty" role="status" hidden>No matching conversations.</p>
+</div>
 <div class="inbox-footer">
 <span class="rail-dot">
 </span>
@@ -89,19 +96,19 @@
 <button id="recipient-toggle" aria-expanded="false" aria-controls="recipient-controls" title="Choose a recipient">New message</button>
 </header>
 <div id="recipient-controls" class="recipient-controls" hidden>
-<label for="message-destination">Recipient node ID or broadcast</label>
-<input id="message-destination" type="text" value="broadcast" autocomplete="off">
-<label for="message-channel">Channel</label>
+<label for="message-destination">Recipient</label>
+<input id="message-destination" aria-describedby="recipient-help" type="text" value="broadcast" autocomplete="off">
+<p id="recipient-help" class="small muted">Paste a node ID, or choose Channel broadcast to message everyone on a channel.</p><label for="message-channel">Channel</label>
 <select id="message-channel">
 <option value="0">Public</option>
 </select>
 <button id="broadcast-destination" type="button">Channel broadcast</button>
-<button id="self-destination" type="button">Local test</button>
-<button id="recipient-done" type="button">Done</button>
+<details class="recipient-test"><summary>Test this device</summary><button id="self-destination" type="button">Send to this device only</button></details>
+<button id="recipient-done" class="primary" type="button">Open conversation</button>
 </div>
 <div id="message-security-notice" class="conversation-notice">
 <span class="notice-dot">
-</span>MESSAGE SECURITY<span>Radio-visible routing metadata; message bodies are protected per channel policy.</span>
+</span>MESSAGE PRIVACY<span>Message encryption is set per channel. Device IDs and routing information remain visible.</span>
 </div>
 <div id="thread-scroll" class="thread-scroll">
 <div id="conversation-empty" class="thread-empty">
@@ -153,8 +160,8 @@
 </div>
 <div class="asset-toolbar">
 <h3>Heard assets</h3>
-<button id="discover">Discover</button>
-<button id="discovery-query" title="Query last discovery result">↻ Result</button>
+<button id="discover">Find nearby devices</button>
+<button id="discovery-query" title="Query last discovery result">Check search</button>
 </div>
 <p id="discovery-support" class="small muted">
 </p>
@@ -200,37 +207,11 @@
     <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
   </form>
 </dialog>
-<dialog id="channel-editor" class="manage channel-editor" aria-labelledby="channel-editor-title">
-<form method="dialog" class="manage-head"><h2 id="channel-editor-title">Channel</h2><button type="submit">Close</button></form>
-<div class="manage-body">
-<form id="channel-name-form">
-<label for="channel-name">Channel name</label><input id="channel-name" maxlength="8" pattern="[A-Za-z0-9_-]{1,8}" required autocomplete="off">
-<p class="small muted">Up to 8 letters, numbers, underscores or hyphens.</p>
-<button id="channel-name-save" type="submit" class="primary">Save channel</button>
-<p id="channel-editor-status" role="status" class="small muted"></p>
-</form>
-        <section class="encryption-tools" aria-labelledby="encryption-heading">
-          <div class="section-title"><h3 id="encryption-heading">Message privacy</h3><span class="mono">AGENT KEYS</span></div>
-          <p id="encryption-status" role="status" class="small muted">Messages are plaintext unless a channel key is enabled.</p>
-          <label for="encryption-channel">Channel</label>
-          <select id="encryption-channel"><option value="0">Public</option></select>
-          <label for="encryption-policy">Messages</label>
-          <select id="encryption-policy"><option value="plaintext">Unencrypted</option><option value="required">Encrypted</option></select>
-          <div class="actions">
-            <button id="channel-key-generate" type="button">Create new key</button>
-            <button id="channel-key-export" type="button">Export key</button>
-          </div>
-          <label for="channel-key-transfer">Key transfer bundle · secret</label>
-          <textarea id="channel-key-transfer" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste RMKEY1 bundle to import"></textarea>
-          <div class="actions"><button id="channel-key-import" type="button">Import key</button></div>
-          <p class="small warning">Share key bundles only with trusted agents using a private transfer. Anyone with a channel key can read and forge that channel’s messages. Direct routes still use the selected channel key.</p>
-        </section>
-</div></dialog>
-<dialog id="manage" class="manage">
+<dialog id="manage" class="manage" aria-labelledby="settings-title">
     <form method="dialog" class="manage-head">
       <div>
         <p class="eyebrow">Reaper Mesh</p>
-        <h2>Settings</h2>
+        <h2 id="settings-title">Settings</h2>
       </div>
       <button value="close" type="submit" class="ghost">Close</button>
     </form>
@@ -240,10 +221,12 @@
       <button type="button" class="manage-tab" data-manage="channels">Channels</button>
       <button type="button" class="manage-tab" data-manage="position">Position</button>
       <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
-      <button type="button" class="manage-tab" data-manage="history">History</button>
-      <button type="button" class="manage-tab" data-manage="recovery">Recovery</button>
       <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
-      <button type="button" class="manage-tab" data-manage="details">Details</button>
+<details id="advanced-settings" class="advanced-settings"><summary>Advanced</summary><div class="advanced-links" aria-label="Advanced settings">
+<button type="button" class="manage-tab" data-manage="history">Change history</button>
+<button type="button" class="manage-tab" data-manage="recovery">Storage &amp; recovery</button>
+<button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
+</div></details>
     </div>
     <div class="manage-body">        <section class="manage-panel is-active" data-manage-panel="device" aria-labelledby="device-heading">
           <div class="section-title">
@@ -254,47 +237,49 @@
           <p id="capability-note" class="muted small" hidden>
 </p>
           <form id="configuration">
-            <label for="label">Device label</label>
-            <input id="label" type="text" autocomplete="off" disabled placeholder="Name your node">
-            <div class="field-meta">
-<span>UTF-8 byte limit</span>
-<span id="byte-count">0 / —</span>
-</div>
-            <label for="region">Operating region</label>
+<div class="compact-field">            <label for="region">Operating region</label>
             <select id="region" disabled>
               <option value="UNSET">Not configured</option>
               <option value="US">United States</option>
               <option value="EU" disabled>European Union · later</option>
             </select>
+</div>
+            <label for="label">Device name</label>
+            <input id="label" type="text" autocomplete="off" disabled placeholder="Name your node">
+            <div class="field-meta">
+<span>Name length</span>
+<span id="byte-count">0 / —</span>
+</div>
             <p id="draft-warning" class="warning" hidden>Device state changed while you were editing. Load the latest settings before saving.</p>
             <div class="actions">
-              <button id="save" type="submit" class="primary" disabled>Save</button>
+              <button id="save" type="submit" class="primary" disabled>Save device settings</button>
               <button id="reset" type="button" disabled>Discard changes</button>
               <button id="export-settings" type="button" disabled>Export settings</button>
             </div>
           </form>
-          <dl class="detail-grid compact">
+          <details class="settings-disclosure"><summary>Device information</summary><dl class="detail-grid compact">
             <dt>ID</dt>
 <dd id="device" class="mono">—</dd>
             <dt>Firmware</dt>
 <dd id="firmware" class="mono">—</dd>
             <dt>Radio</dt>
 <dd id="radio-hardware">—</dd>
-          </dl>
+          </dl></details>
         </section>
 
 
       <section class="manage-panel" data-manage-panel="radio" hidden>
-        <p id="radio-support" class="muted">
+        <h2>Radio</h2><p class="small muted">Choose whether this device can receive or send messages.</p>
+<p id="radio-support" class="muted">
 </p>
         <form id="radio-form">
           <div class="columns">
             <div>
               <label for="radio-mode">Radio mode</label>
               <select id="radio-mode">
-                <option value="off">Off</option>
-                <option value="receive">Receive only</option>
-                <option value="mesh">Mesh messaging</option>
+                <option value="off">Off · no radio traffic</option>
+                <option value="receive">Receive only · listen without sending</option>
+                <option value="mesh">Mesh messaging · send and receive</option>
               </select>
             </div>
             <div>
@@ -307,52 +292,82 @@
 <input id="radio-relay" type="checkbox">Relay messages for other nodes</label>
           <div class="actions">
             <button id="radio-save" class="primary" type="submit" disabled>Save radio settings</button>
-            <button id="radio-reset" type="button">Load latest</button>
+            <button id="radio-reset" type="button">Discard changes</button>
           </div>
         </form>
       </section>
       <section class="manage-panel" data-manage-panel="channels" hidden>
-<h2>Channels</h2>
+<div class="section-toolbar"><h2>Channels</h2><button id="create-channel" type="button" class="primary">Create channel</button></div>
 <p id="channels-status" role="status" class="small muted"></p>
-<div id="managed-channels" class="managed-channels"></div>
-<button id="create-channel" type="button" class="primary">Create channel</button>
+<nav id="managed-channels" class="managed-channels" aria-label="Channel settings"></nav>
+<section id="channel-editor" class="channel-content" aria-labelledby="channel-editor-title">
+<h3 id="channel-editor-title">Public</h3>
+<form id="channel-name-form">
+<label for="channel-name">Channel name</label><input id="channel-name" aria-describedby="channel-name-help" maxlength="8" pattern="[A-Za-z0-9_-]{1,8}" required autocomplete="off">
+<p id="channel-name-help" class="small muted">Up to 8 letters, numbers, underscores or hyphens.</p>
+<button id="channel-name-save" type="submit" class="primary">Save channel</button>
+<p id="channel-editor-status" role="status" class="small muted"></p>
+</form>
+        <section class="encryption-tools" aria-labelledby="encryption-heading">
+          <div class="section-title"><h3 id="encryption-heading">Message privacy</h3></div>
+          <p id="encryption-status" role="status" class="small muted">Messages are plaintext unless a channel key is enabled.</p>
+          <label for="encryption-channel">Channel</label>
+          <select id="encryption-channel"><option value="0">Public</option></select>
+          <label for="encryption-policy">Messages</label>
+          <select id="encryption-policy" aria-describedby="encryption-status"><option value="plaintext">Unencrypted</option><option value="required">Encrypted</option></select>
+          <div class="actions">
+            <button id="channel-key-generate" type="button">Create new key</button>
+            <button id="channel-key-export" type="button">Export key</button>
+          </div>
+          <details class="settings-disclosure key-transfer"><summary>Import a shared channel key</summary><p class="small muted">Paste the key bundle supplied by a trusted channel member.</p><label for="channel-key-transfer">Key transfer bundle · secret</label>
+          <textarea id="channel-key-transfer" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste RMKEY1 bundle to import"></textarea>
+          <div class="actions"><button id="channel-key-import" type="button">Import key</button></div>
+          </details><p class="small warning">Share key bundles only with trusted agents using a private transfer. Anyone with a channel key can read and forge that channel’s messages. Direct routes still use the selected channel key.</p>
+        </section>
+
+</section>
 <div id="channel-settings" hidden></div>
       </section>
       <section class="manage-panel" data-manage-panel="position" hidden>
-        <p id="position-support" role="status" class="muted">
+        <h2>Position</h2>
+<p id="position-support" role="status" class="muted">
 </p>
-        <p class="small muted">Save a deliberate fixed position. Sharing defaults off. GPS acquisition follows later.</p>
+        <p class="small muted">Set a fixed location for this device. Saving a location does not share it; enable sharing below when you want other nodes to see it.</p>
         <form id="position-form">
           <label for="position-source">Position source</label>
           <select id="position-source">
             <option value="0">None</option>
             <option value="1">Saved fixed position</option>
           </select>
-          <label for="position-latitude">Latitude (−90 to 90)</label>
-          <input id="position-latitude" type="number" min="-90" max="90" step="0.0000001" required value="0">
-          <label for="position-longitude">Longitude (−180 to 180)</label>
-          <input id="position-longitude" type="number" min="-180" max="180" step="0.0000001" required value="0">
+          <div id="fixed-position-fields" class="coordinate-fields">
+            <div><label for="position-latitude">Latitude</label>
+              <input id="position-latitude" type="number" min="-90" max="90" step="0.0000001" required value="0" aria-describedby="latitude-help">
+              <p id="latitude-help" class="small muted">−90 to 90 degrees</p></div>
+            <div><label for="position-longitude">Longitude</label>
+              <input id="position-longitude" type="number" min="-180" max="180" step="0.0000001" required value="0" aria-describedby="longitude-help">
+              <p id="longitude-help" class="small muted">−180 to 180 degrees</p></div>
+          </div>
           <label class="check">
 <input id="position-share" type="checkbox">Share position over radio</label>
           <div class="actions">
-            <button id="position-save" type="submit">Save position settings</button>
-            <button id="position-reset" type="button">Load latest</button>
+            <button id="position-save" class="primary" type="submit">Save position settings</button>
+            <button id="position-reset" type="button">Discard changes</button>
           </div>
         </form>
       </section>
 
       <section class="manage-panel" data-manage-panel="discovery" hidden>
-        <p id="discovery-panel-support" class="muted small">Beacons and responses are separate opt-in settings.</p>
+        <h2>Discovery</h2><p id="discovery-panel-support" class="muted small">Choose how other nearby devices can find this device. Both options are off by default.</p>
         <form id="discovery-form">
           <label class="check">
-<input id="beacon-enabled" type="checkbox">Send periodic presence beacons</label>
+<input id="beacon-enabled" type="checkbox">Announce this device periodically</label><p class="field-help">Let nearby devices discover this node without a request.</p>
           <label class="check">
-<input id="respond-enabled" type="checkbox">Respond to discovery requests</label>
-          <label for="beacon-interval">Beacon interval (seconds)</label>
-          <input id="beacon-interval" type="number" min="60" max="3600" value="300">
+<input id="respond-enabled" type="checkbox">Reply when another device searches</label><p class="field-help">Respond only when a nearby device requests discovery.</p>
+          <label for="beacon-interval">Announcement interval (seconds)</label>
+          <input id="beacon-interval" aria-describedby="interval-help" type="number" min="60" max="3600" value="300"><p id="interval-help" class="small muted">60–3600 seconds. Applies to periodic announcements.</p>
           <div class="actions">
-            <button id="discovery-save" type="submit">Save discovery settings</button>
-            <button id="discovery-reset" type="button">Load latest</button>
+            <button id="discovery-save" class="primary" type="submit">Save discovery settings</button>
+            <button id="discovery-reset" type="button">Discard changes</button>
           </div>
         </form>
       </section>
@@ -369,13 +384,14 @@
       </section>
 
       <section class="manage-panel" data-manage-panel="recovery" hidden>
-        <p class="small muted">USB request IDs and up to 32 entries per history are saved locally in plaintext. Unfinished work becomes unknown after reload and is never automatically resent.</p>
+<h2>Storage &amp; recovery</h2>
+        <p class="small muted">This browser saves message history and pending changes before sending. If a connection is interrupted, uncertain work stays unknown and is never automatically resent. Export a backup before resetting history.</p>
         <p id="recovery-status" role="status">
 </p>
         <div class="actions">
           <button id="recovery-retry" type="button">Retry storage</button>
           <button id="recovery-export" type="button">Export history</button>
-          <button id="recovery-reset" type="button">Reset USB history</button>
+          <button id="recovery-reset" class="danger" type="button">Reset USB history</button>
         </div>
         <section class="simulation" id="simulation">
           <div>
@@ -414,7 +430,7 @@
           <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
         </section>
       </section>
-      <section class="manage-panel" data-manage-panel="details" hidden>
+      <section class="manage-panel" data-manage-panel="details" hidden><h2>Diagnostics</h2><p class="small muted">Technical information for troubleshooting this connection.</p>
         <dl class="detail-grid">
           <dt>Configuration schema</dt>
 <dd id="schema">—</dd>
@@ -427,8 +443,8 @@
           <dt>Radio packets</dt>
 <dd id="radio-packets">—</dd>
         </dl>
-        <details open>
-          <summary>Diagnostics</summary>
+        <details>
+          <summary>Memory and task diagnostics</summary>
           <p id="resource-status" class="small muted">Connect to read diagnostics.</p>
         </details>
       </section>
