@@ -1,3 +1,4 @@
+import { MessageState, receivedKey, sentKey, messageScope, inConversation } from './message-state.ts';
 import { conversations, threadMessages, conversationKey, canonicalNode, ConversationDrafts } from './conversations.ts';
 import { coordinate, degrees } from '../../packages/protocol/position-config.ts';
 import './style.css';
@@ -28,6 +29,34 @@ let recovery: BrowserRecovery;
 try { recovery = await BrowserRecovery.open(localStorage, navigator.locks); }
 catch (error) { recovery = BrowserRecovery.unavailable(`Recovery storage unavailable: ${String(error)}`); }
 const models = { demo: new ConfigModel(), usb: new ConfigModel(new SerialAdapter(recovery.connection)) };
+let messageState: MessageState | undefined, messageStateError = '';
+try { messageState = new MessageState(localStorage, () => recovery.writable); }
+catch (e) { messageStateError = `Message management unavailable: ${String(e)}`; }
+const deleteDialog = element<HTMLDialogElement>('delete-history');
+let deletePlan: { source: string; device: string; connection: SerialAdapter['connection']; keys: string[]; outgoing: string[]; conversation?: { scope: string; key: string }; clearDraft?: string } | undefined;
+function requestDelete(keys: string[], outgoing: string[], description: string, conversation?: { scope: string; key: string }) {
+  const connection = current().adapter.connection;
+  if (!messageState || !recovery.writable || !lastDevice) return;
+  if (outgoing.some(id => connection.messaging.history.find(m => m.id === id)?.state === 'receiving')) { showError('Wait for the current upload before deleting.'); return; }
+  deletePlan = { source: mode.value, device: lastDevice, connection, keys, outgoing, conversation, ...(conversation ? { clearDraft: draftKey } : {}) };
+  text('delete-description', description); deleteDialog.showModal();
+}
+deleteDialog.addEventListener('close', () => {
+  const plan = deletePlan; deletePlan = undefined;
+  if (deleteDialog.returnValue !== 'delete' || !plan) return;
+  try {
+    if (mode.value !== plan.source || lastDevice !== plan.device || current().adapter.connection !== plan.connection) throw Error('The device changed. Select the conversation again before deleting.');
+    if (plan.outgoing.some(id => plan.connection.messaging.history.find(m => m.id === id)?.state === 'receiving')) throw Error('Wait for the current upload before deleting.');
+    messageState!.remove(plan.keys, plan.conversation);
+    for (const message of plan.connection.inbox.history) if (plan.keys.includes(receivedKey(plan.source, message))) plan.connection.forgetReceived(message.device, message.origin, message.messageId);
+    for (const id of plan.outgoing) if (plan.connection.messaging.history.some(m => m.id === id)) plan.connection.forgetMessage(id);
+    if (plan.conversation) {
+      if (plan.clearDraft) { drafts.save(plan.clearDraft, ''); recentConversations.delete(plan.clearDraft); }
+      element<HTMLTextAreaElement>('message-body').value = ''; app.classList.remove('has-conversation');
+    }
+    messageSignature = ''; error = ''; render();
+  } catch (e) { showError(e); }
+});
 const serial = (navigator as Navigator & { serial?: { requestPort(): Promise<SerialPortLike> } }).serial;
 let busy = false;
 let attempt = 0;
@@ -72,6 +101,8 @@ function setView(view: 'map' | Panel) {
 }
 function setDock(panel: Panel) { setView(panel); }
 function chooseConversation(destination: string, channel = 0) {
+  try { if (lastDevice) messageState?.reopen(messageScope(mode.value, lastDevice), conversationKey(destination, channel)); }
+  catch (e) { messageStateError = String(e); }
   if (draftKey) drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value);
   element<HTMLInputElement>('message-destination').value = destination;
   const select = element<HTMLSelectElement>('message-channel');
@@ -360,7 +391,28 @@ function renderMessages() {
   const body = element<HTMLTextAreaElement>('message-body'), destination = element<HTMLInputElement>('message-destination');
   const channel = element<HTMLSelectElement>('message-channel');
   const bytes = new TextEncoder().encode(body.value).length, ready = connection.sync.state === 'ready';
-  const history = connection.messaging.history, incoming = connection.inbox.history;
+  // Complete previously persisted local removals after a reload; never replay uploads.
+  if (messageState && recovery.writable) for (const m of connection.messaging.history) {
+    if (m.state !== 'receiving' && messageState.deleted(sentKey(mode.value, m.device, m.id))) connection.forgetMessage(m.id);
+  }
+  if (messageState && recovery.writable) for (const m of connection.inbox.history) {
+    if (messageState.deleted(receivedKey(mode.value, m))) connection.forgetReceived(m.device, m.origin, m.messageId);
+  }
+  const scroller = element('thread-scroll');
+  const attended = document.visibilityState === 'visible' && document.hasFocus() && !manage.open && !deleteDialog.open && app.dataset.view === 'messages' && (innerWidth > 720 || app.classList.contains('has-conversation')) && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  const sources = (['usb', 'demo'] as const).map(source => ({ source, messages: models[source].adapter.connection.inbox.history }));
+  try { messageState?.observe(sources, attended && lastDevice ? { source: mode.value, device: lastDevice, destination: destination.value, channel: Number(channel.value) } : undefined); if (messageState) messageStateError = ''; }
+  catch (e) { messageStateError = `Message history: ${String(e)}`; }
+  const history = connection.messaging.history.filter(m => !messageState?.deleted(sentKey(mode.value, m.device, m.id)));
+  const incoming = connection.inbox.history.filter(m => !messageState?.deleted(receivedKey(mode.value, m)));
+  const unread = messageState?.unread(mode.value, connection.inbox.history) ?? [];
+  const totalUnread = sources.reduce((n, source) => n + (messageState?.unread(source.source, source.messages).length ?? 0), 0);
+  document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh · Field communications`;
+  text('nav-unread', totalUnread); element('nav-unread').hidden = totalUnread === 0;
+  element<HTMLButtonElement>('mark-all-read').disabled = !unread.length || !recovery.writable || !messageState;
+  const threadUnread = lastDevice ? unread.filter(m => inConversation(m, lastDevice!, destination.value, Number(channel.value))).length : 0;
+  text('jump-new-messages', `${threadUnread} new ${threadUnread === 1 ? 'message' : 'messages'} ↓`); element('jump-new-messages').hidden = !threadUnread;
+  text('message-management-status', messageStateError); element('message-management-status').hidden = !messageStateError;
   const uploading = history.some(entry => entry.state === 'receiving');
   body.disabled = uploading; destination.disabled = channel.disabled = uploading;
   text('message-bytes', `${bytes} / 1024 bytes`);
@@ -375,8 +427,10 @@ function renderMessages() {
   text('message-support', !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading'));
   element<HTMLButtonElement>('message-send').disabled = !ready || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > 1024 || history.length >= 32 || remoteBlocked || !element('recipient-controls').hidden;
   element<HTMLButtonElement>('self-destination').disabled = !connection.device || uploading;
-  const rows = conversations(lastDevice, names, connection.discovery.nodes, history, incoming);
-  if (!rows.some(row => row.key === key) && destination.value.trim()) rows.push({ key, destination: destination.value, channel: selectedChannel, name: destination.value, preview: 'New conversation', kind: destination.value === 'broadcast' ? 'channel' : 'direct' });
+  const uiScope = messageScope(mode.value, lastDevice ?? '');
+  const visibleThread = (row: { key: string; destination: string; channel: number }) => !messageState?.hidden(uiScope, row.key) || !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
+  const rows = conversations(lastDevice, names, connection.discovery.nodes, history, incoming).filter(visibleThread);
+  if (!rows.some(row => row.key === key) && destination.value.trim() && !messageState?.hidden(uiScope, key)) rows.push({ key, destination: destination.value, channel: selectedChannel, name: destination.value, preview: 'New conversation', kind: destination.value === 'broadcast' ? 'channel' : 'direct' });
   for (const [savedKey, target] of recentConversations) {
     const draft = drafts.get(savedKey);
     if (savedKey.startsWith(scope + ':') && draft && !rows.some(row => row.key === conversationKey(target.destination, target.channel))) rows.push({ key: conversationKey(target.destination, target.channel), ...target, name: target.destination, preview: `Draft: ${draft}`, kind: 'direct' });
@@ -389,7 +443,7 @@ function renderMessages() {
   element<HTMLButtonElement>('locate-conversation').disabled = !connection.discovery.nodes.some(n => canonicalNode(n.node) === canonicalNode(destination.value) && n.position);
   element('conversation-connect').hidden = ready;
   const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
-  const listSignature = JSON.stringify(rows) + key + filter;
+  const listSignature = JSON.stringify(rows) + key + filter + JSON.stringify(unread);
   const list = element('conversation-list');
   if (list.dataset.signature !== listSignature) {
     list.dataset.signature = listSignature; list.replaceChildren();
@@ -401,11 +455,12 @@ function renderMessages() {
       const content = document.createElement('span'); content.className = 'conversation-summary';
       const name = document.createElement('strong'); name.textContent = row.name;
       const preview = document.createElement('span'); preview.textContent = row.preview; content.append(name, preview);
-      const badge = document.createElement('span'); badge.className = 'thread-kind'; badge.textContent = row.kind === 'channel' ? 'CH' : 'DM';
+      const badge = document.createElement('span'); badge.className = 'thread-kind'; const count = lastDevice ? unread.filter(m => inConversation(m, lastDevice!, row.destination, row.channel)).length : 0; badge.textContent = count ? String(count) : row.kind === 'channel' ? 'CH' : 'DM'; badge.classList.toggle('unread-badge', count > 0); if (count) badge.setAttribute('aria-label', `${count} unread ${count === 1 ? 'message' : 'messages'}`);
       button.append(avatar, content, badge); button.addEventListener('click', () => chooseConversation(row.destination, row.channel)); list.append(button);
     }
   }
   const messages = threadMessages(lastDevice, destination.value, selectedChannel, history, incoming);
+  element<HTMLButtonElement>('delete-conversation').disabled = !messageState || !recovery.writable || !lastDevice || (messages.length === 0 && !drafts.get(draftKey) && !!messageState.hidden(uiScope, key)) || messages.some(m => m.entry?.state === 'receiving');
   const orderScope = scope + ':';
   for (const m of messages) if (!observedOrder.has(orderScope + m.key)) observedOrder.set(orderScope + m.key, ++nextOrder);
   while (observedOrder.size > 256) observedOrder.delete(observedOrder.keys().next().value!);
@@ -413,7 +468,7 @@ function renderMessages() {
   const signature = scope + key + ready + JSON.stringify(messages);
   element('conversation-empty').hidden = messages.length > 0;
   if (signature === messageSignature) return; messageSignature = signature;
-  const scroller = element('thread-scroll'), stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  const stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
   const thread = element('message-history'); thread.replaceChildren();
   for (const m of messages) {
     const row = document.createElement('li'); row.className = `message-row ${m.direction}`;
@@ -426,13 +481,26 @@ function renderMessages() {
       const identity = document.createElement('span'); identity.className = 'mono'; identity.textContent = `${entry.messageId ?? entry.id}${entry.reason ? ' · ' + entry.reason : ''}`;
       const query = document.createElement('button'); query.textContent = 'Check delivery'; query.disabled = !ready;
       query.addEventListener('click', () => { try { if (!current().adapter.recoverMessage(entry.id)) throw Error('Previous-boot outcome is unknown. Nothing was resent.'); } catch (e) { showError(e); } });
-      const clear = document.createElement('button'); clear.textContent = 'Remove from history'; clear.addEventListener('click', () => { if (['unknown', 'queued', 'transmitted'].includes(entry.state) && !confirm('Remove recovery history? Device work is not cancelled.')) return; connection.forgetMessage(entry.id); render(); });
-      details.append(summary, identity, query, clear); bubble.append(details);
+      details.append(summary, identity, query); bubble.append(details);
     }
-    row.append(bubble); thread.append(row);
+    const remove = document.createElement('button'); remove.className = 'message-delete'; remove.textContent = 'Delete'; remove.setAttribute('aria-label', `Delete ${m.direction === 'incoming' ? 'received' : 'sent'} message`);
+    remove.disabled = !messageState || !recovery.writable || m.entry?.state === 'receiving';
+    remove.addEventListener('click', () => requestDelete([m.received ? receivedKey(mode.value, m.received) : sentKey(mode.value, lastDevice!, m.entry!.id)], m.entry ? [m.entry.id] : [], 'Delete this message from local history? It will also disappear from other local views of the same message.'));
+    bubble.append(remove); row.append(bubble); thread.append(row);
   }
   if (stick) requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
 }
+element('delete-conversation').addEventListener('click', () => {
+  if (!lastDevice) return;
+  const connection = current().adapter.connection, destination = element<HTMLInputElement>('message-destination').value, channel = Number(element<HTMLSelectElement>('message-channel').value);
+  const messages = threadMessages(lastDevice, destination, channel, connection.messaging.history, connection.inbox.history);
+  const keys = messages.map(m => m.received ? receivedKey(mode.value, m.received) : sentKey(mode.value, lastDevice!, m.entry!.id));
+  requestDelete(keys, messages.flatMap(m => m.entry ? [m.entry.id] : []), `Delete this conversation and its ${messages.length} retained messages from this browser? A new message will make the conversation appear again.`, { scope: messageScope(mode.value, lastDevice), key: conversationKey(destination, channel) });
+});
+element('mark-all-read').addEventListener('click', () => { try { messageState?.markRead(mode.value, current().adapter.connection.inbox.history); render(); } catch (e) { showError(e); } });
+element('jump-new-messages').addEventListener('click', () => { const node = element('thread-scroll'); node.scrollTop = node.scrollHeight; render(); });
+document.addEventListener('visibilitychange', render);
+window.addEventListener('focus', render);
 element('message-body').addEventListener('input', () => { drafts.save(draftKey, element<HTMLTextAreaElement>('message-body').value); renderMessages(); });
 element('message-body').addEventListener('keydown', event => { const e = event as KeyboardEvent; if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!element<HTMLButtonElement>('message-send').disabled) element<HTMLFormElement>('message-form').requestSubmit(); } });
 element('message-form').addEventListener('submit', event => {

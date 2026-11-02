@@ -120,3 +120,7 @@ Implement saved coordinates before GPS. Use offset fixed-point integers shared b
 ## November 2: portal direction supersedes map-first/light styling
 
 Owner defers T-Beam GPS and prioritizes a polished messaging/asset workspace. Use a Signal-like conversation list/thread, dark technical surfaces and restrained corners. Asset map/list is a dedicated view plus a wide-screen companion panel; settings are separate from daily messaging. Preserve shared transport, journaling, unknown-result and query-only recovery behavior. Do not invent read receipts, timestamps, positions or online state.
+
+## November 2: local message deletion and unread state
+
+Use browser-only, identity-scoped deletion/read metadata instead of a new device command or RF receipt. Keep message/conversation deletion explicit and confirmation-bound; capture a fixed set of identities so concurrent arrivals survive. Remove local journal bodies and retain bounded identity tombstones to prevent reconnect resurrection. Sent-history removal retains request counters and cannot cancel transmissions. Unread badges/title represent local UX only, not device ACK/read status. Reuse the existing writer lock and fail closed on unavailable/corrupt/full metadata; do not silently discard tombstones.

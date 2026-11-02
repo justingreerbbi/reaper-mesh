@@ -1261,3 +1261,17 @@ letter-spacing:1px
 }
 
 }
+.unread-badge { display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:3px; background:var(--accent); color:#10241c; font:600 10px var(--mono); }
+.nav-item .unread-badge { min-width:14px; height:14px; padding:0 3px; font-size:8px; margin-left:2px; }
+.message-delete { display:block; margin:9px 0 0 auto; padding:2px 6px; min-height:25px; font-size:10px; background:transparent; color:var(--muted); border-color:transparent; }
+.message-delete:hover:enabled { color:#ffb5a7; border-color:#8a5248; background:#38241f; }
+.delete-dialog { width:min(460px,calc(100vw - 28px)); padding:24px; border:1px solid #51606b; border-radius:4px; background:var(--panel); color:var(--text); }
+.delete-dialog::backdrop { background:#000b; }
+.delete-dialog h2 { margin-bottom:16px; }
+.delete-dialog p { margin:12px 0; font-size:12px; line-height:1.7; }
+.delete-dialog .actions { justify-content:flex-end; margin:20px 0 0; }
+button.danger { color:#ffd3cb; border-color:#98584d; background:#542e26; }
+.new-messages { color:var(--accent); background:#162b25; border-color:#3d6a55; font-size:11px; min-height:28px; margin-bottom:6px; }
+.thread-status { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; }
+.management-status { margin:0; padding:8px 20px; font-size:11px; color:#e6bd82; background:#2a261d; }
+@media(max-width:720px) { .conversation-head #delete-conversation { font-size:9px; padding:4px 6px; } .pane-heading { gap:6px; } .pane-heading>div { flex:1; } }

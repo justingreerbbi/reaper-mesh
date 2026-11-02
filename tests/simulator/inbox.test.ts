@@ -60,3 +60,13 @@ test('inbox history is bounded and same-boot counter rollback cannot overwrite i
   assert.equal(reader.history.length, 32); assert.equal(reader.history[0].sequence, 9);
   head(reader, 1, 1, 82000); assert.match(reader.error!, /backwards/); assert.equal(reader.history.length, 32);
 });
+
+test('local received-message removal scopes device/origin/identity and leaves no wire work', () => {
+  const reader = new InboxReader();
+  const message = { device:'device-A', boot:'boot-A', sequence:1, origin:'node-B', messageId:'received-1', channel:0, text:'remove me' };
+  reader.restoreHistory([message,{...message,device:'device-B'}]);
+  assert.equal(reader.forget('device-A','wrong-origin','received-1'),false);
+  assert.equal(reader.forget('device-A','node-B','received-1'),true);
+  assert.equal(reader.history.length,1); assert.equal(reader.history[0].device,'device-B');
+  assert.equal(reader.tick(0),undefined);
+});

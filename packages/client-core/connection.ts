@@ -70,6 +70,7 @@ export class Connection {
   }
   persistence(save: (state: ReturnType<Connection['exportJournal']>) => void) { this.#persist = save; this.#checkpoint(); }
   retryRecoveryStorage() { this.#checkpoint(); return !this.recoveryError; }
+  forgetReceived(device: string, origin: string, messageId: string) { if (this.inbox.forget(device, origin, messageId)) this.#checkpoint(); }
   forgetMessage(id: string) { this.messaging.forget(id); this.#checkpoint(); }
   #checkpoint(strict = false) {
     if (!this.#persist || this.#checkpointing) return;

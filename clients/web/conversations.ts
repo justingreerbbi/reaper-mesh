@@ -7,9 +7,9 @@ export function conversationKey(destination: string, channel: number) { return `
 export function threadMessages(device: string | undefined, destination: string, channel: number, outgoing: readonly Outgoing[], incoming: readonly Incoming[]) {
   if (!device) return [];
   const received = incoming.filter(m => m.device === device && m.channel === channel && (destination === 'broadcast' || canonicalNode(m.origin) === canonicalNode(destination)))
-    .map(m => ({ key: `in:${m.origin}:${m.messageId}`, direction: 'incoming' as const, text: m.text, origin: m.origin, status: 'Received on this channel', entry: undefined }));
+    .map(m => ({ key: `in:${m.origin}:${m.messageId}`, direction: 'incoming' as const, text: m.text, origin: m.origin, status: 'Received on this channel', entry: undefined, received: m }));
   const sent = outgoing.filter(m => m.device === device && m.channel === channel && canonicalNode(m.destination) === canonicalNode(destination))
-    .map(m => ({ key: `out:${m.id}`, direction: 'outgoing' as const, text: m.text, origin: 'You', status: deliveryLabel(m), entry: m }));
+    .map(m => ({ key: `out:${m.id}`, direction: 'outgoing' as const, text: m.text, origin: 'You', status: deliveryLabel(m), entry: m, received: undefined }));
   return [...received, ...sent];
 }
 export function deliveryLabel(m: Outgoing) {

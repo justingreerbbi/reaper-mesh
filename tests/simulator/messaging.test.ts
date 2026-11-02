@@ -92,3 +92,11 @@ test('confirmed broadcast transmission survives receipt eviction, disconnect, ex
   assert.equal(restored.history[0].state, 'transmitted');
   assert.deepEqual(restored.tick(100000), []);
 });
+test('local outgoing deletion frees history without sending or resetting the request counter', () => {
+  const { messages, send, status, session } = setup(); const packet=send();
+  assert.throws(()=>messages.forget(packet.id),/pending upload/);
+  messages.receive(session,status(packet.id,'queued',1),1);
+  messages.forget(packet.id); assert.equal(messages.history.length,0);
+  assert.deepEqual(messages.tick(2,'node-A'),[]);
+  assert.equal(send('next',3).id,'owner:2');
+});

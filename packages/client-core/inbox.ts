@@ -10,6 +10,12 @@ export type ReceivedMessage = Readonly<{ device: string; boot: string; sequence:
 export class InboxReader {
   #history: ReceivedMessage[] = [];
   get history(): readonly ReceivedMessage[] { return [...this.#history]; }
+  /** Local history only; keep stream cursors and partial reads unchanged. */
+  forget(device: string, origin: string, messageId: string) {
+    const previous = this.#history.length;
+    this.#history = this.#history.filter(m => m.device !== device || m.origin !== origin || m.messageId !== messageId);
+    return this.#history.length !== previous;
+  }
   gap = false; error: string | undefined;
   #context: Context | undefined;
   #cursor = 0; #latest = 0; #request = 0; #next = 0; #now = 0;
