@@ -1,11 +1,12 @@
 import * as recovery from './recovery-data.ts';
 import { messageChunks } from './messaging.ts';
 import type { Message } from '../protocol/messages.ts';
+import { isEncryptedPayload } from '../protocol/encrypted-message.ts';
 type Query = Omit<Extract<Message, { type: 'inboxQuery' }>, 'link'>;
 type Read = Omit<Extract<Message, { type: 'inboxRead' }>, 'link'>;
 type Reply = Extract<Message, { type: 'inboxHead' | 'inboxItem' | 'inboxMissing' }>;
 type Context = Readonly<{ device: string; boot: string; session: number }>;
-export type ReceivedMessage = Readonly<{ device: string; boot: string; sequence: number; origin: string; destination?: string; messageId: string; channel: number; text: string }>;
+export type ReceivedMessage = Readonly<{ device: string; boot: string; sequence: number; origin: string; destination?: string; messageId: string; channel: number; text: string; payloadHex?: string }>;
 /** Separate inbox sequence; never shares configuration event counters or executes mutations. */
 export class InboxReader {
   #history: ReceivedMessage[] = [];
@@ -25,9 +26,14 @@ export class InboxReader {
     if (this.#history.length || this.#context) throw new Error('restore requires a fresh inbox reader');
     const history: ReceivedMessage[] = [];
     for (const raw of recovery.list(value)) {
-      const item = recovery.object(raw); const text = recovery.string(item.text); messageChunks(text);
+      const item = recovery.object(raw); const channel = recovery.u32(item.channel);
+      const payloadHex = item.payloadHex === undefined ? undefined : recovery.string(item.payloadHex);
+      let text = '';
+      if (payloadHex) {
+        if (!/^(?:[0-9a-f]{2})+$/u.test(payloadHex) || !isEncryptedPayload(Uint8Array.from(payloadHex.match(/../g)!, byte => Number.parseInt(byte, 16)), channel)) throw new Error('invalid saved encrypted inbox payload');
+      } else { text = recovery.string(item.text); messageChunks(text); }
       const entry: ReceivedMessage = Object.freeze({ device: recovery.id(item.device), boot: recovery.id(item.boot),
-        origin: recovery.id(item.origin), ...(item.destination === undefined ? {} : { destination: recovery.id(item.destination) }), messageId: recovery.id(item.messageId), sequence: recovery.u32(item.sequence), channel: recovery.u32(item.channel), text });
+        origin: recovery.id(item.origin), ...(item.destination === undefined ? {} : { destination: recovery.id(item.destination) }), messageId: recovery.id(item.messageId), sequence: recovery.u32(item.sequence), channel, text, ...(payloadHex ? { payloadHex } : {}) });
       if (!entry.sequence || entry.channel > 7 || history.some(previous => previous.device === entry.device && previous.origin === entry.origin && previous.messageId === entry.messageId)) throw new Error('invalid recovery inbox history');
       history.push(entry);
     }
@@ -78,14 +84,18 @@ export class InboxReader {
     if (part.part === part.count) {
       try {
         const bytes = Uint8Array.from(part.data.match(/../g) ?? [], hex => parseInt(hex, 16));
-        const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-        if (!bytes.length || /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) throw new Error();
+        const isEncrypted = isEncryptedPayload(bytes, part.channel);
+        const text = isEncrypted ? undefined : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+        if (!bytes.length || (text !== undefined && /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text))) throw new Error();
+        if (!isEncrypted && text !== undefined) messageChunks(text);
         const previous = this.#history.find(item => item.device === this.#context!.device && item.origin === part.origin && item.messageId === part.messageId);
-        if (previous && (previous.channel !== part.channel || previous.destination !== part.destination || previous.text !== text)) { this.error = 'conflicting inbox identity'; return; }
+        const payloadHex = isEncrypted ? Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('') : undefined;
+        if (previous && (previous.channel !== part.channel || previous.destination !== part.destination || previous.text !== (text ?? '') || previous.payloadHex !== payloadHex)) { this.error = 'conflicting inbox identity'; return; }
         if (!previous) {
           if (this.#history.length === 32) this.#history.shift();
           this.#history.push(Object.freeze({ device: this.#context.device, boot: this.#context.boot, sequence: part.sequence,
-            origin: part.origin, ...(part.destination === undefined ? {} : { destination: part.destination }), messageId: part.messageId, channel: part.channel, text }));
+            origin: part.origin, ...(part.destination === undefined ? {} : { destination: part.destination }), messageId: part.messageId, channel: part.channel,
+            text: text ?? '', ...(payloadHex ? { payloadHex } : {}) }));
         }
       } catch { this.error = 'invalid received UTF-8 message'; return; }
       this.#cursor = part.sequence; this.#partial = undefined;

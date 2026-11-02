@@ -110,6 +110,12 @@ export class Connection {
     const packet = this.messaging.send(text, destination, channel, this.device!, now);
     this.#checkpoint(true); this.#send({ ...packet, link: this.#link }); return packet.id;
   }
+  sendMessagePayload(payload: Uint8Array, destination: string, channel: number, now: number) {
+    this.#time(now); if (this.#expired(now)) throw new Error('connection timed out');
+    if (this.messageBlockReason) throw new Error(this.messageBlockReason);
+    const packet = this.messaging.sendPayload(payload, destination, channel, this.device!, now);
+    this.#checkpoint(true); this.#send({ ...packet, link: this.#link }); return packet.id;
+  }
   recoverMessage(id: string, now: number) {
     if (!this.capabilities || !(this.capabilities.features & 8) || this.capabilities.messageVersion !== 1) throw new Error('device does not support message queries');
     this.#time(now); if (this.#expired(now)) throw new Error('connection timed out');

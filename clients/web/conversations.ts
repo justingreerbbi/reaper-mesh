@@ -1,15 +1,15 @@
 /** UI projections only. No transport state, message replay, or fabricated timestamps. */
-export type Outgoing = Readonly<{ id: string; device: string; destination: string; channel: number; text: string; state: string; reason?: string; messageId?: string }>;
-export type Incoming = Readonly<{ device: string; origin: string; destination?: string; channel: number; text: string; messageId: string }>;
+export type Outgoing = Readonly<{ id: string; device: string; destination: string; channel: number; text: string; payloadHex?: string; encryptionState?: string; state: string; reason?: string; messageId?: string }>;
+export type Incoming = Readonly<{ device: string; origin: string; destination?: string; channel: number; text: string; payloadHex?: string; encryptionState?: string; messageId: string }>;
 export type Conversation = Readonly<{ key: string; destination: string; channel: number; name: string; preview: string; kind: 'channel' | 'direct' }>;
 export function canonicalNode(id: string) { return /^heltec-[0-9a-f]{12}$/.test(id) ? 'node-0000' + id.slice(7) : id; }
 export function conversationKey(destination: string, channel: number) { return `${channel}:${canonicalNode(destination)}`; }
 export function threadMessages(device: string | undefined, destination: string, channel: number, outgoing: readonly Outgoing[], incoming: readonly Incoming[]) {
   if (!device) return [];
   const received = incoming.filter(m => m.device === device && m.channel === channel && (destination === 'broadcast' ? !m.destination || m.destination === 'broadcast' : canonicalNode(m.origin) === canonicalNode(destination) && !!m.destination && m.destination !== 'broadcast'))
-    .map(m => ({ key: `in:${m.origin}:${m.messageId}`, direction: 'incoming' as const, text: m.text, origin: m.origin, status: 'Received on this channel', entry: undefined, received: m }));
+    .map(m => ({ key: `in:${m.origin}:${m.messageId}`, direction: 'incoming' as const, text: m.text, origin: m.origin, status: m.encryptionState === 'decrypted' ? 'Encrypted · received by device' : m.encryptionState ?? 'Received on this channel', entry: undefined, received: m }));
   const sent = outgoing.filter(m => m.device === device && m.channel === channel && canonicalNode(m.destination) === canonicalNode(destination))
-    .map(m => ({ key: `out:${m.id}`, direction: 'outgoing' as const, text: m.text, origin: 'You', status: deliveryLabel(m), entry: m, received: undefined }));
+    .map(m => ({ key: `out:${m.id}`, direction: 'outgoing' as const, text: m.text, origin: 'You', status: `${m.encryptionState ? `${m.encryptionState} · ` : ''}${deliveryLabel(m)}`, entry: m, received: undefined }));
   return [...received, ...sent];
 }
 export function deliveryLabel(m: Outgoing) {

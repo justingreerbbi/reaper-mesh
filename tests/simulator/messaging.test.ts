@@ -100,3 +100,17 @@ test('local outgoing deletion frees history without sending or resetting the req
   assert.deepEqual(messages.tick(2,'node-A'),[]);
   assert.equal(send('next',3).id,'owner:2');
 });
+
+test('encrypted payload is checkpointed once and RACE recovery never re-encrypts or replays it', () => {
+  const { messages, sync, reopen } = setup();
+  const bytes = new Uint8Array(74); bytes.set([0x52,0x4d,0x45,0x01,1,0,1]); new DataView(bytes.buffer).setUint32(14,1,true);
+  const original = messages.sendPayload(bytes, 'broadcast', 0, 'node-A', 0);
+  const saved = JSON.parse(JSON.stringify(messages.exportState()));
+  assert.equal(messages.history[0].text, ''); assert.equal(messages.history[0].payloadHex, Buffer.from(bytes).toString('hex'));
+  const restored = new Messaging(new Synchronizer(), 'owner'); restored.restoreState(saved);
+  assert.equal(restored.history[0].payloadHex, Buffer.from(bytes).toString('hex'));
+  assert.equal(restored.history[0].state, 'unknown');
+  assert.deepEqual(restored.tick(100000), []); // Recovery can query state but cannot resend ciphertext on a new session.
+  assert.equal(original.data, Buffer.from(bytes.subarray(0, 32)).toString('hex'));
+  reopen(); assert.deepEqual(messages.tick(11, 'node-A'), []);
+});

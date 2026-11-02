@@ -11,6 +11,18 @@ PositionReport position_report(const Packet& p) {
   const auto* extra = p.bytes.data() + 2 + p.bytes[1] + (p.kind == PacketKind::Presence ? 20 : 0);
   return {extra[0], static_cast<std::uint32_t>(read(extra + 1, 4)), static_cast<std::uint32_t>(read(extra + 5, 4)), static_cast<std::uint32_t>(read(extra + 9, 4))};
 }
+bool encrypted_payload(const std::uint8_t* bytes, std::size_t size, std::uint32_t channel) {
+  if (!bytes || size < 74 || size > kMaxMessageBytes || bytes[0] != 'R' || bytes[1] != 'M' || bytes[2] != 'E' || bytes[3] != 1 ||
+      bytes[4] != 1 || bytes[5] != channel || channel > 7) return false;
+  bool key_id = false; for (std::size_t i = 6; i < 14; ++i) key_id = key_id || bytes[i];
+  return key_id && read(bytes + 14, 4) != 0;
+}
+bool valid_message_payload(const std::uint8_t* bytes, std::size_t size, std::uint32_t channel) {
+  if (!bytes || !size || size > kMaxMessageBytes) return false;
+  if (size >= 4 && bytes[0] == 'R' && bytes[1] == 'M' && bytes[2] == 'E' && bytes[3] == 1)
+    return encrypted_payload(bytes, size, channel);
+  return protocol::valid_message_text(bytes, size);
+}
 bool valid_packet(const Packet& p) {
   bool nonce = false; for (auto byte : p.key.boot) nonce = nonce || byte != 0;
   if (!p.key.origin || p.key.origin == kBroadcast || !p.destination || !p.key.sequence || !nonce || p.hops > 7 || p.channel > 7) return false;

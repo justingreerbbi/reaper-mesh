@@ -98,9 +98,9 @@
 <button id="self-destination" type="button">Local test</button>
 <button id="recipient-done" type="button">Done</button>
 </div>
-<div class="conversation-notice">
+<div id="message-security-notice" class="conversation-notice">
 <span class="notice-dot">
-</span>PLAINTEXT NETWORK<span>Channel encryption is planned. Messages and positions are not private.</span>
+</span>MESSAGE SECURITY<span>Radio-visible routing metadata; message bodies are protected per channel policy.</span>
 </div>
 <div id="thread-scroll" class="thread-scroll">
 <div id="conversation-empty" class="thread-empty">
@@ -260,7 +260,7 @@
           <p class="small muted">US 915 lab preset. Transmission also requires the board antenna check.</p>
           <label class="check">
 <input id="radio-relay" type="checkbox">Relay messages for other nodes</label>
-          <p class="small muted">Channel 0 is Public. Named channels share radio settings and are plaintext.</p>
+          <p class="small muted">Channel 0 is Public. Encryption is client-side; devices route ciphertext without keys.</p>
           <div id="channel-settings" class="channel-grid">
 </div>
           <div class="actions">
@@ -268,6 +268,30 @@
             <button id="radio-reset" type="button">Load latest</button>
           </div>
         </form>
+        <section class="encryption-tools" aria-labelledby="encryption-heading">
+          <div class="section-title"><h3 id="encryption-heading">Channel encryption</h3><span class="mono">CLIENT KEYS</span></div>
+          <p id="encryption-status" role="status" class="small muted">Messages are plaintext unless a channel key is enabled.</p>
+          <label for="vault-passphrase">Local key-vault passphrase</label>
+          <input id="vault-passphrase" type="password" autocomplete="current-password" minlength="12" placeholder="12 characters minimum">
+          <label for="vault-confirm" id="vault-confirm-label" hidden>Confirm new passphrase</label>
+          <input id="vault-confirm" type="password" autocomplete="new-password" minlength="12" hidden>
+          <div class="actions">
+            <button id="vault-unlock" type="button">Create / unlock vault</button>
+            <button id="vault-lock" type="button" hidden>Lock vault</button>
+          </div>
+          <label for="encryption-channel">Radio channel slot</label>
+          <select id="encryption-channel"><option value="0">Public</option></select>
+          <label for="encryption-policy">Outgoing policy</label>
+          <select id="encryption-policy"><option value="plaintext">Plaintext</option><option value="required">Require encryption</option></select>
+          <div class="actions">
+            <button id="channel-key-generate" type="button">Generate / rotate key</button>
+            <button id="channel-key-export" type="button">Export key</button>
+          </div>
+          <label for="channel-key-transfer">Key transfer bundle · secret</label>
+          <textarea id="channel-key-transfer" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste RMKEY1 bundle to import"></textarea>
+          <div class="actions"><button id="channel-key-import" type="button">Import for selected channel</button></div>
+          <p class="small warning">Share key bundles only with trusted agents using a private transfer. Anyone with a channel key can read and forge that channel’s messages. Direct routes still use the selected channel key.</p>
+        </section>
       </section>
 
       <section class="manage-panel" data-manage-panel="position" hidden>

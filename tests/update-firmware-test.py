@@ -60,6 +60,14 @@ class UpdateTests(unittest.TestCase):
         self.path.write_text(json.dumps(self.manifest))
         return updater.validate(self.path)
 
+    def test_dirty_source_requires_explicit_local_development_override(self):
+        self.manifest["source_dirty"] = True
+        self.path.write_text(json.dumps(self.manifest))
+        with self.assertRaisesRegex(ValueError, "allow-dirty"):
+            updater.validate(self.path)
+        _, images = updater.validate(self.path, allow_dirty=True)
+        self.assertEqual(images[0x10000], esp_image())
+
     def test_valid_stages_exact_bytes(self):
         _, images = self.validate()
         self.assertEqual(images[0x10000], esp_image())

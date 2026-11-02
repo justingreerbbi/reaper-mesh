@@ -47,6 +47,16 @@ int main(int argc, char** argv) {
       else if (scenario == "asymmetric") CHECK(a.outgoing()[0].state == m::SendState::Failed);
       else CHECK(a.outgoing()[0].state == m::SendState::Acknowledged);
     }
+  } else if (scenario == "encrypted") {
+    std::array<std::uint8_t, 74> envelope{}; envelope[0] = 'R'; envelope[1] = 'M'; envelope[2] = 'E'; envelope[3] = 1;
+    envelope[4] = 1; envelope[5] = 1; envelope[6] = 0x42; envelope[14] = 1;
+    m::Mesh sender(1, false, 2), receiver(2, false, 2); auto identity = key();
+    CHECK(sender.enqueue(identity, 2, 1, envelope.data(), envelope.size(), 0));
+    m::Packet packet{}; CHECK(sender.next_tx(0, packet)); CHECK(packet.bytes[0] == 'R' && packet.bytes[2] == 'E');
+    auto bytes = wire(packet); CHECK(receiver.receive(bytes.data(), bytes.size(), 1)); sender.complete_tx(true, 2);
+    const auto& received = receiver.incoming()[0]; CHECK(received.complete && received.size == envelope.size());
+    CHECK(std::memcmp(received.bytes.data(), envelope.data(), envelope.size()) == 0);
+    CHECK(receiver.next_tx(200, packet) && packet.kind == m::PacketKind::Ack);
   } else if (scenario == "races") {
     m::Mesh a(1); CHECK(a.enqueue(key(), 3, 0, body.data(), 2, 0)); m::Packet p{}; CHECK(a.next_tx(0, p));
     auto ack = p; ack.kind = m::PacketKind::Ack; ack.total = ack.count = ack.index = ack.size = 0;

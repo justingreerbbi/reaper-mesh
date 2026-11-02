@@ -59,7 +59,7 @@ def partitions(data):
     require(data[end + 32:] == b"\xff" * (len(data) - end - 32), "extra partition entries/data")
 
 
-def validate(path):
+def validate(path, allow_dirty=False):
     path = Path(path).resolve()
     require(path.stat().st_size <= 65536, "manifest too large")
     manifest = json.loads(path.read_text())
@@ -68,8 +68,9 @@ def validate(path):
     require(manifest.get("board") == ("LILYGO T-Beam V1.2" if tbeam else "Heltec WiFi LoRa 32 V3") and manifest.get("target") == target, "wrong board/target")
     files = dict(FILES)
     if tbeam: files[0x1000] = (files.pop(0)[0], 0x7000)
-    require(re.fullmatch(r"[0-9a-f]{40}", manifest.get("source_commit", "")) is not None and manifest.get("source_dirty") is False,
-            "build must identify a clean committed source")
+    require(re.fullmatch(r"[0-9a-f]{40}", manifest.get("source_commit", "")) is not None and
+            (manifest.get("source_dirty") is False or (allow_dirty and manifest.get("source_dirty") is True)),
+            "build must identify a clean committed source (or use --allow-dirty for local development hardware)")
     require(re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", manifest.get("firmware", "")) is not None, "invalid firmware ID")
     require(manifest.get("sdk", {}).get("commit") == SDK and manifest["sdk"].get("target") == target, "unreviewed SDK")
     require(manifest.get("flash_settings") == {"flash_mode": "dio", "flash_size": "4MB" if tbeam else "8MB", "flash_freq": "40m"}, "unsupported flash settings")
@@ -134,11 +135,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=Path("build/heltec-v3/reaper-manifest.json"))
     parser.add_argument("--flash", action="store_true", help="install validated images; default only validates files")
+    parser.add_argument("--allow-dirty", action="store_true", help="allow a hash-verified dirty-tree build for local development only")
     parser.add_argument("--port", help="explicit USB serial port, e.g. /dev/cu.usbserial-0001")
     parser.add_argument("--python", type=Path, help="Python interpreter with esptool 4.12.0; defaults to the repository SDK environment")
     options = parser.parse_args()
-    manifest, artifacts = validate(options.manifest)
+    manifest, artifacts = validate(options.manifest, allow_dirty=options.allow_dirty)
     print(f"Validated {manifest['firmware']} / source {manifest['source_commit']}: three images, fixed storage-preserving layout.")
+    if manifest["source_dirty"]:
+        print("WARNING: dirty-tree development build; image hashes and ROM target/security checks still apply, but this is not a reproducible release build.")
     if not options.flash:
         print("No device opened. Add --flash --port PORT to install these images.")
         return

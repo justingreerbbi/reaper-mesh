@@ -2,11 +2,13 @@ import { Synchronizer } from './sync.ts';
 import type { Message } from '../protocol/messages.ts';
 import * as recovery from './recovery-data.ts';
 import { encodeMessage, validateField } from '../protocol/messages.ts';
+import { isEncryptedPayload, isMessagePayload } from '../protocol/encrypted-message.ts';
 type Status = Extract<Message, { type: 'messageStatus' }>;
 export type Upload = Omit<Extract<Message, { type: 'submit' }>, 'link'>;
 export type MessageQuery = Omit<Extract<Message, { type: 'messageQuery' }>, 'link'>;
 type Entry = {
   id: string; boot: string; device: string; session: number; text: string; destination: string; channel: number;
+  payloadHex?: string;
   chunks: readonly string[]; part: number; attempts: number; deadline: number; pollAt: number; expiresAt: number;
   state: Status['state']; messageId?: string; reason?: string;
 };
@@ -15,9 +17,16 @@ const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 export function messageChunks(text: string): readonly string[] {
   const bytes = encoder.encode(text);
   if (!bytes.length || bytes.length > 1024 || decoder.decode(bytes) !== text || /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) throw new Error('message must contain 1–1024 UTF-8 bytes of text');
+  return payloadChunksUnchecked(bytes);
+}
+function payloadChunksUnchecked(bytes: Uint8Array): readonly string[] {
   const chunks: string[] = [];
   for (let i = 0; i < bytes.length; i += 32) chunks.push(Array.from(bytes.subarray(i, i + 32), byte => byte.toString(16).padStart(2, '0')).join(''));
   return chunks;
+}
+function fromHex(value: string) {
+  if (value.length % 2 || !/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('invalid saved encrypted payload');
+  return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
 }
 /** Bounded message upload, same-link retries, and read-only recovery. Never replays on reconnect. */
 export class Messaging {
@@ -38,26 +47,40 @@ export class Messaging {
     const state = recovery.object(value), counter = recovery.u32(state.counter); const entries = new Map<string, Entry>();
     for (const raw of recovery.list(state.entries)) {
       const item = recovery.object(raw); const identity = recovery.sequence(item.id, this.incarnation);
-      const text = recovery.string(item.text), chunks = messageChunks(text); const boot = recovery.id(item.boot);
-      const destination = recovery.id(item.destination), device = recovery.id(item.device), channel = recovery.u32(item.channel);
+      const channel = recovery.u32(item.channel);
+      const payloadHex = item.payloadHex === undefined ? undefined : recovery.string(item.payloadHex);
+      const payload = payloadHex === undefined ? undefined : fromHex(payloadHex);
+      const text = payload ? '' : recovery.string(item.text);
+      const chunks = payload ? (isEncryptedPayload(payload, channel) ? payloadChunksUnchecked(payload) : (() => { throw new Error('invalid saved encrypted payload'); })()) : messageChunks(text);
+      const boot = recovery.id(item.boot);
+      const destination = recovery.id(item.destination), device = recovery.id(item.device);
       const status = recovery.string(item.state); validateField('messageState', status);
       if (channel > 7 || identity.sequence > counter || entries.has(identity.id)) throw new Error('invalid recovery message sequence/channel');
       const messageId = item.messageId !== undefined ? recovery.id(item.messageId) : undefined;
       const reason = item.reason !== undefined ? recovery.id(item.reason) : undefined;
       if (status === 'acknowledged' && !messageId) throw new Error('acknowledged recovery message lacks identity');
-      entries.set(identity.id, { id: identity.id, boot, device, destination, channel, text, chunks,
+      entries.set(identity.id, { id: identity.id, boot, device, destination, channel, text, ...(payloadHex ? { payloadHex } : {}), chunks,
         session: this.sync.session, part: 0, attempts: 1, deadline: 0, pollAt: 0, expiresAt: 70000,
         state: status === 'receiving' || status === 'queued' || (status === 'transmitted' && destination !== 'broadcast') ? 'unknown' : status as Entry['state'], messageId, reason });
     }
     this.#counter = counter; this.#entries = entries;
   }
   send(text: string, destination: string, channel: number, device: string, now: number): Upload {
+    return this.#send(text, undefined, destination, channel, device, now);
+  }
+  sendPayload(payload: Uint8Array, destination: string, channel: number, device: string, now: number): Upload {
+    if (!isEncryptedPayload(payload, channel)) throw new Error('encrypted message envelope is invalid or too large');
+    const hex = Array.from(payload, value => value.toString(16).padStart(2, '0')).join('');
+    return this.#send('', hex, destination, channel, device, now);
+  }
+  #send(text: string, payloadHex: string | undefined, destination: string, channel: number, device: string, now: number): Upload {
     this.#time(now); const context = this.sync.mutationContext();
-    const chunks = messageChunks(text);
+    const payload = payloadHex === undefined ? undefined : fromHex(payloadHex);
+    const chunks = payload ? payloadChunksUnchecked(payload) : messageChunks(text);
     if (this.#entries.size >= 32 || this.#counter >= 0xffffffff) throw new Error('message history or sequence exhausted');
     if ([...this.#entries.values()].some(entry => entry.state === 'receiving')) throw new Error('message upload already pending');
     const entry: Entry = { id: `${this.incarnation}:${this.#counter + 1}`, boot: context.boot, session: context.session,
-      device, text, destination, channel, chunks, part: 0, attempts: 1, deadline: now + 1000,
+      device, text, destination, channel, ...(payloadHex ? { payloadHex } : {}), chunks, part: 0, attempts: 1, deadline: now + 1000,
       pollAt: now + 2000, expiresAt: now + 70000, state: 'receiving' };
     const packet = this.#packet(entry);
     encodeMessage({ ...packet, link: 'validate' }); // Validate before retaining IDs/history.

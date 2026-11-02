@@ -29,6 +29,15 @@ int main(int argc, char** argv) {
     p.kind = m::PacketKind::Ack; p.destination = 42; p.count = p.index = p.size = p.total = 0;
     CHECK(m::encode_packet(p, bytes.data(), bytes.size(), size) && size == 54);
     CHECK(m::decode_packet(bytes.data(), size, decoded) && decoded.kind == m::PacketKind::Ack);
+  } else if (scenario == "encrypted") {
+    std::array<std::uint8_t, 74> envelope{}; envelope[0] = 'R'; envelope[1] = 'M'; envelope[2] = 'E'; envelope[3] = 1;
+    envelope[4] = 1; envelope[5] = 1; envelope[6] = 0x42; envelope[14] = 1;
+    CHECK(m::encrypted_payload(envelope.data(), envelope.size(), 1));
+    CHECK(m::valid_message_payload(envelope.data(), envelope.size(), 1));
+    CHECK(!m::valid_message_payload(envelope.data(), envelope.size(), 0));
+    CHECK(!m::encrypted_payload(envelope.data(), envelope.size() - 1, 1));
+    envelope[3] = 2; CHECK(!m::valid_message_payload(envelope.data(), envelope.size(), 1));
+    CHECK(m::valid_message_payload(reinterpret_cast<const std::uint8_t*>("plain"), 5, 1));
   } else if (scenario == "malformed") {
     for (std::size_t bit = 0; bit < size * 8; ++bit) {
       auto changed = bytes; changed[bit / 8] ^= 1u << (bit % 8); m::Packet out{}; out.key.sequence = 99;

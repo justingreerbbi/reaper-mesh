@@ -31,3 +31,7 @@ node tools/hardware-pair-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/
 It temporarily selects mesh/2 dBm as needed, validates actual destination ACK/body/source, and restores original settings. The report is build/tbeam-v12/pair-smoke.json. Third-node relay qualification is still outstanding.
 
 Final read-only verification confirmed Heltec firmware6/revision21 stayed mesh/2dBm and T-Beam firmware1/revision7 was restored off/2dBm. Both were open simultaneously for the check. T-Beam package SHA256: 3a79222f814d1aebf8c5b4551f5f45d116b844e20c15ab7b299aef5f3ea57242. No old firmware backup, NVS erase, eFuse change, or Heltec reflash was performed.
+
+## Client-encryption transport check
+
+November 2, 2026: installed Heltec `usb-prototype-8` and T-Beam `tbeam-usb-prototype-3` from the current dirty development tree using the explicit `--allow-dirty` updater option. Both boards were checked against ROM target, flash size, security state and image hashes; NVS was outside all write ranges. The two-board encryption smoke then passed direct encrypted delivery in both directions: receiver inbox held the exact opaque envelope, the device reported ACK, the shared client key decrypted it, and an unrelated key returned key-needed. Original radio policies were restored. See `build/tbeam-v12/encryption-smoke.json`; this does not qualify relay or reconnect/reboot failure scenarios.

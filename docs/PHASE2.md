@@ -72,4 +72,8 @@ Before upgrading the T-Beam, the new Heltec8 and older T-Beam2 exchanged exact10
 
 An extended test attempt hit a T-Beam node-snapshot read timeout before its reboot step. Fresh sessions recovered; original policies/sharing-off were explicitly verified. The harness previously aborted restoration on an unrelated node-read error; restoration now waits on configuration independently. A repeated two-board coordinate/privacy run subsequently passed. The read is bounded and query-only; no discovery/message mutation was replayed. A deterministic reconnect-after-node-read-exhaustion regression is included. Retain the transient hardware observation for serial/soak work; no zero-fault endurance claim.
 
+## Deferred portal plugin planning
+
+November 2 owner direction: revisit a simple plugin architecture for optional portal functionality soon. Candidate examples are Weather Radar, Reaper ADS-B and a Reaper APRS bridge. This is a planning item under the Phase 2 portal; do not implement the extension framework or integrations yet.
+
 Host checks pass220 tests and the web build; standalone CTest passes67. Existing fixture bytes are unchanged; three position fixtures are appended. New browser controls are compiled/shared-core tested but have not been manually desktop-tested. Local evidence: build/tbeam-v12/position-smoke.json, position-persistence.json, position-mixed-pair-smoke.json and pair-smoke.json; logs/private/tmp/reaper-position-*. GPS and map integration remain unimplemented and Phase2.2 as a whole is still active.

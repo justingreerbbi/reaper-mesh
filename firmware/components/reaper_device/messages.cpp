@@ -1,4 +1,5 @@
 #include "reaper/messages.hpp"
+#include "reaper/radio_packet.hpp"
 #include <cstring>
 #include <cstdio>
 #include <limits>
@@ -104,7 +105,7 @@ MessageReceipt MessageQueue::submit(const Text<64>& owner, const Text<75>& id, s
   if (part + 1 == count) r.size = part * 32 + size;
   const auto complete = count == 32 ? 0xffffffffu : (1u << count) - 1;
   if (r.received == complete) {
-    if (!protocol::valid_message_text(r.bytes.data(), r.size)) { r.state = MessageState::Rejected; literal(r.reason, "invalid-text"); }
+    if (!mesh::valid_message_payload(r.bytes.data(), r.size, r.channel)) { r.state = MessageState::Rejected; literal(r.reason, "invalid-payload"); }
     else { r.state = MessageState::Queued; r.deadline = now + 60000; }
   }
   return receipt(r);

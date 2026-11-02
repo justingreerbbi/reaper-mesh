@@ -1,4 +1,5 @@
 #include "reaper/inbox.hpp"
+#include "reaper/radio_packet.hpp"
 #include <cstring>
 #include <limits>
 namespace reaper::device {
@@ -17,7 +18,7 @@ bool equal(const Text<64>& a, const Text<64>& b) {
 }
 bool Inbox::append(const Text<64>& origin, const Text<64>& id, const Text<64>& destination, std::uint32_t channel,
     const std::uint8_t* bytes, std::size_t size) {
-  if (!identity(origin) || !identity(id) || !identity(destination) || channel > 7 || !protocol::valid_message_text(bytes, size)) return false;
+  if (!identity(origin) || !identity(id) || !identity(destination) || channel > 7 || !mesh::valid_message_payload(bytes, size, channel)) return false;
   for (const auto& item : items_) if (item.used && equal(item.origin, origin) && equal(item.message_id, id))
     return item.destination.length == destination.length && !std::memcmp(item.destination.bytes.data(), destination.bytes.data(), destination.length) && item.channel == channel && item.size == size && std::memcmp(item.bytes.data(), bytes, size) == 0;
   if (sequence_ == std::numeric_limits<std::uint32_t>::max()) return false;

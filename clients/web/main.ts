@@ -7,6 +7,8 @@ import { ConfigModel } from './model.ts';
 import { FieldMap, type MapPoint } from './map.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 import { BrowserRecovery } from './recovery.ts';
+import { EncryptionVault } from './encryption.ts';
+import { ENCRYPTED_HEADER_BYTES, ENCRYPTED_TAG_BYTES } from '../../packages/protocol/encrypted-message.ts';
 import { SerialAdapter } from '../../packages/client-core/serial.ts';
 import type { SerialPortLike } from '../../packages/client-core/serial.ts';
 
@@ -32,6 +34,9 @@ const models = { demo: new ConfigModel(), usb: new ConfigModel(new SerialAdapter
 let messageState: MessageState | undefined, messageStateError = '';
 try { messageState = new MessageState(localStorage, () => recovery.writable); }
 catch (e) { messageStateError = `Message management unavailable: ${String(e)}`; }
+let encryption: EncryptionVault | undefined, encryptionError = '';
+try { encryption = new EncryptionVault(localStorage, () => recovery.writable); }
+catch (e) { encryptionError = `Encryption state unavailable: ${String(e)}`; }
 const deleteDialog = element<HTMLDialogElement>('delete-history');
 let deletePlan: { source: string; device: string; connection: SerialAdapter['connection']; keys: string[]; outgoing: string[]; conversation?: { scope: string; key: string }; clearDraft?: string } | undefined;
 function requestDelete(keys: string[], outgoing: string[], description: string, conversation?: { scope: string; key: string }) {
@@ -87,6 +92,38 @@ for (let slot = 1; slot < 8; slot++) {
 
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
+function hexBytes(value: string) {
+  if (!/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('Saved encrypted message is malformed.');
+  return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
+}
+function encryptionLabel(state: string | undefined) {
+  return ({ decrypted: 'Encrypted', 'key-needed': 'Key needed', invalid: 'Authentication failed', replay: 'Duplicate suppressed',
+    'plaintext-rejected': 'Plaintext rejected', locked: 'Vault locked', unsupported: 'Unsupported envelope' } as Record<string, string>)[state ?? ''] ?? 'Encrypted';
+}
+function renderEncryption() {
+  const channel = element<HTMLSelectElement>('encryption-channel');
+  const names = (current().adapter.connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
+  if (channel.dataset.names !== JSON.stringify(names)) {
+    const selected = channel.value; channel.replaceChildren(); names.forEach((name, slot) => { if (name) channel.add(new Option(`${name} · ${slot}`, String(slot))); });
+    if ([...channel.options].some(option => option.value === selected)) channel.value = selected;
+    channel.dataset.names = JSON.stringify(names);
+  }
+  const slot = Number(channel.value), policy = element<HTMLSelectElement>('encryption-policy');
+  if (document.activeElement !== policy) policy.value = encryption?.isRequired(slot) ? 'required' : 'plaintext';
+  const exists = !!encryption?.exists, unlocked = !!encryption?.unlocked;
+  text('encryption-status', encryptionError || (!encryption ? 'Encryption state unavailable; sending is blocked.' : unlocked ? `Vault unlocked · slot ${slot} ${encryption.isRequired(slot) ? 'requires encryption' : 'uses plaintext'}. Keys remain in this browser.` : exists ? 'Vault locked · unlock to use channel keys. Required channels block sending.' : 'No key vault yet · create one to manage channel keys.'));
+  element<HTMLInputElement>('vault-confirm').hidden = exists;
+  element<HTMLLabelElement>('vault-confirm-label').hidden = exists;
+  element<HTMLButtonElement>('vault-unlock').textContent = exists ? 'Unlock vault' : 'Create vault';
+  element<HTMLButtonElement>('vault-unlock').disabled = !recovery.writable || unlocked || !encryption;
+  element<HTMLButtonElement>('vault-lock').hidden = !unlocked;
+  element<HTMLButtonElement>('vault-lock').disabled = !unlocked;
+  element<HTMLButtonElement>('channel-key-generate').disabled = !unlocked || !recovery.writable;
+  element<HTMLButtonElement>('channel-key-export').disabled = !unlocked || !encryption?.hasKey(slot);
+  element<HTMLButtonElement>('channel-key-import').disabled = !unlocked || !recovery.writable;
+  policy.options[1].disabled = !unlocked || !encryption?.hasKey(slot);
+  policy.disabled = !encryption || !recovery.writable;
+}
 
 type Panel = 'device' | 'nodes' | 'messages';
 function setPanelOpen(_open: boolean) { fieldMap.invalidate(); }
@@ -206,6 +243,7 @@ function render() {
   renderPosition();
   renderDiscovery();
   renderRadio();
+  renderEncryption();
   renderMessages();
   renderInbox();
   renderMap();
@@ -372,7 +410,7 @@ element('broadcast-destination').addEventListener('click', () => {
 });
 
 const timer = setInterval(render, 100);
-window.addEventListener('pagehide', () => { clearInterval(timer); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); recovery.release(); });
+window.addEventListener('pagehide', () => { clearInterval(timer); encryption?.lock(); void models.demo.adapter.disconnect(); void models.usb.adapter.disconnect(); recovery.release(); });
 window.addEventListener('resize', () => fieldMap.invalidate());
 render();
 fieldMap.invalidate();
@@ -403,8 +441,20 @@ function renderMessages() {
   const sources = (['usb', 'demo'] as const).map(source => ({ source, messages: models[source].adapter.connection.inbox.history }));
   try { messageState?.observe(sources, attended && lastDevice ? { source: mode.value, device: lastDevice, destination: destination.value, channel: Number(channel.value) } : undefined); if (messageState) messageStateError = ''; }
   catch (e) { messageStateError = `Message history: ${String(e)}`; }
-  const history = connection.messaging.history.filter(m => !messageState?.deleted(sentKey(mode.value, m.device, m.id)));
-  const incoming = connection.inbox.history.filter(m => !messageState?.deleted(receivedKey(mode.value, m)));
+  const history = connection.messaging.history.filter(m => !messageState?.deleted(sentKey(mode.value, m.device, m.id))).map(m => {
+    if (!m.payloadHex) return m;
+    const result = encryption?.decrypt(hexBytes(m.payloadHex), m.channel, connection.device ?? m.device, m.destination);
+    return { ...m, text: result?.text ?? 'Encrypted message · key vault unavailable', encryptionState: encryptionLabel(result?.state) };
+  });
+  const incoming = connection.inbox.history.filter(m => !messageState?.deleted(receivedKey(mode.value, m))).map(m => {
+    if (m.payloadHex) {
+      const identity = `${mode.value}:${m.device}:${canonicalNode(m.origin)}:${m.messageId}`;
+      const result = encryption?.decrypt(hexBytes(m.payloadHex), m.channel, m.origin, m.destination ?? 'broadcast', identity);
+      return { ...m, text: result?.text ?? 'Encrypted message · key vault unavailable', encryptionState: encryptionLabel(result?.state) };
+    }
+    if (encryption?.isRequired(m.channel)) return { ...m, text: 'Plaintext rejected · channel requires encryption', encryptionState: 'Plaintext rejected' };
+    return m;
+  });
   const unread = messageState?.unread(mode.value, connection.inbox.history) ?? [];
   const totalUnread = sources.reduce((n, source) => n + (messageState?.unread(source.source, source.messages).length ?? 0), 0);
   document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh · Field communications`;
@@ -415,17 +465,19 @@ function renderMessages() {
   text('message-management-status', messageStateError); element('message-management-status').hidden = !messageStateError;
   const uploading = history.some(entry => entry.state === 'receiving');
   body.disabled = uploading; destination.disabled = channel.disabled = uploading;
-  text('message-bytes', `${bytes} / 1024 bytes`);
+  const selectedChannel = Number(channel.value), encryptedRequired = encryption?.isRequired(selectedChannel) ?? false;
+  const maxBytes = encryptedRequired ? 1024 - ENCRYPTED_HEADER_BYTES - ENCRYPTED_TAG_BYTES : 1024;
+  text('message-bytes', `${bytes} / ${maxBytes} bytes`);
   const names = (connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
   if (channel.dataset.names !== JSON.stringify(names)) {
     const selected = channel.value; channel.replaceChildren(); names.forEach((name, slot) => { if (name) channel.add(new Option(name, String(slot))); });
     if ([...channel.options].some(o => o.value === selected)) channel.value = selected;
     channel.dataset.names = JSON.stringify(names);
   }
-  const selectedChannel = Number(channel.value), key = conversationKey(destination.value, selectedChannel);
+  const key = conversationKey(destination.value, selectedChannel);
   const remoteBlocked = destination.value !== connection.device && connection.capabilities?.radioVersion === 1 && connection.radioInfo?.reason !== 'ready';
-  text('message-support', !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading'));
-  element<HTMLButtonElement>('message-send').disabled = !ready || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > 1024 || history.length >= 32 || remoteBlocked || !element('recipient-controls').hidden;
+  text('message-support', encryptionError || (encryptedRequired && !encryption?.unlocked ? 'Encryption required · unlock the key vault before sending' : !ready ? 'Offline · your draft stays here' : connection.messageBlockReason ?? (uploading ? 'Uploading message…' : remoteBlocked ? 'Radio unavailable · check device settings' : encryptedRequired ? 'Encrypted channel · device ACK confirms ciphertext delivery only' : destination.value === 'broadcast' ? 'Broadcast · no recipient ACK' : 'Destination ACK confirms delivery, not reading')));
+  element<HTMLButtonElement>('message-send').disabled = !ready || !!encryptionError || (encryptedRequired && !encryption?.unlocked) || !!connection.messageBlockReason || uploading || !destination.value.trim() || !bytes || bytes > maxBytes || history.length >= 32 || remoteBlocked || !element('recipient-controls').hidden;
   element<HTMLButtonElement>('self-destination').disabled = !connection.device || uploading;
   const uiScope = messageScope(mode.value, lastDevice ?? '');
   const visibleThread = (row: { key: string; destination: string; channel: number }) => !messageState?.hidden(uiScope, row.key) || !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
@@ -508,7 +560,11 @@ element('message-body').addEventListener('keydown', event => { const e = event a
 element('message-form').addEventListener('submit', event => {
   event.preventDefault();
   try {
-    current().adapter.sendMessage(element<HTMLTextAreaElement>('message-body').value, element<HTMLInputElement>('message-destination').value, Number(element<HTMLSelectElement>('message-channel').value));
+    const body = element<HTMLTextAreaElement>('message-body').value;
+    const destination = element<HTMLInputElement>('message-destination').value, channel = Number(element<HTMLSelectElement>('message-channel').value);
+    if (encryptionError) throw new Error(encryptionError);
+    if (encryption?.isRequired(channel)) current().adapter.sendMessagePayload(encryption.encrypt(body, channel, current().adapter.connection.device!, destination), destination, channel);
+    else current().adapter.sendMessage(body, destination, channel);
     element<HTMLTextAreaElement>('message-body').value = ''; drafts.save(draftKey, ''); error = ''; render();
   } catch (e) { showError(e); }
 });
@@ -536,6 +592,42 @@ function renderRadio() {
 }
 element('radio-form').addEventListener('input', () => { radioDirty = true; render(); });
 element('radio-reset').addEventListener('click', () => { radioDirty = false; render(); });
+element('encryption-channel').addEventListener('change', render);
+element('encryption-policy').addEventListener('change', () => {
+  try { if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.'); encryption.setRequired(Number(element<HTMLSelectElement>('encryption-channel').value), element<HTMLSelectElement>('encryption-policy').value === 'required'); render(); }
+  catch (e) { showError(e); }
+});
+element('vault-unlock').addEventListener('click', () => {
+  try {
+    if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
+    encryption.unlock(element<HTMLInputElement>('vault-passphrase').value, element<HTMLInputElement>('vault-confirm').value);
+    element<HTMLInputElement>('vault-passphrase').value = ''; element<HTMLInputElement>('vault-confirm').value = ''; error = ''; render();
+  } catch (e) { showError(e); }
+});
+element('vault-lock').addEventListener('click', () => { encryption?.lock(); element<HTMLTextAreaElement>('channel-key-transfer').value = ''; render(); });
+element('channel-key-generate').addEventListener('click', () => {
+  try {
+    if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
+    const channel = Number(element<HTMLSelectElement>('encryption-channel').value);
+    if (encryption.hasKey(channel) && !confirm('Rotate this channel key? Existing agents need the exported new key epoch before they can decrypt new messages.')) return;
+    const created = encryption.generate(channel); element<HTMLSelectElement>('encryption-policy').value = 'required';
+    text('encryption-status', `Key epoch ${created.epoch} generated. Export and securely share the key bundle with other agents.`); render();
+  } catch (e) { showError(e); }
+});
+element('channel-key-export').addEventListener('click', () => {
+  try {
+    if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
+    element<HTMLTextAreaElement>('channel-key-transfer').value = encryption.exportBundle(Number(element<HTMLSelectElement>('encryption-channel').value));
+    text('encryption-status', 'Key bundle shown. It contains the secret; share only through a private transfer.');
+  } catch (e) { showError(e); }
+});
+element('channel-key-import').addEventListener('click', () => {
+  try {
+    if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
+    encryption.importBundle(element<HTMLTextAreaElement>('channel-key-transfer').value.trim(), Number(element<HTMLSelectElement>('encryption-channel').value));
+    element<HTMLSelectElement>('encryption-policy').value = 'required'; error = ''; render();
+  } catch (e) { showError(e); }
+});
 element('radio-form').addEventListener('submit', event => {
   event.preventDefault();
   try {

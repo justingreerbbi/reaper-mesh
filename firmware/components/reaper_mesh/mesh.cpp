@@ -19,7 +19,7 @@ bool Mesh::enqueue(const MessageKey& key, std::uint64_t destination, std::uint32
     const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   tick(now);
   if (!node_ || node_ == kBroadcast || key.origin != node_ || destination == node_ || channel > 7 ||
-      !(channels_ & (1u << channel)) || !protocol::valid_message_text(bytes, size)) return false;
+      !(channels_ & (1u << channel)) || !valid_message_payload(bytes, size, channel)) return false;
   Packet p{}; p.key = key; p.destination = destination; p.channel = channel; p.total = size;
   p.count = (size + kFragmentBytes - 1) / kFragmentBytes; p.size = size < kFragmentBytes ? size : kFragmentBytes;
   if (!valid_packet(p)) return false;
@@ -101,7 +101,7 @@ bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t no
     } else {
       std::memcpy(target, p.bytes.data(), p.size); r.received |= 1u << p.index;
       if (r.received == (1u << r.count) - 1) {
-        if (!protocol::valid_message_text(r.bytes.data(), r.size)) { r.poisoned = true; return false; }
+        if (!valid_message_payload(r.bytes.data(), r.size, r.channel)) { r.poisoned = true; return false; }
         r.complete = true; r.deadline = now + 120000; ack(r, now);
       }
     }

@@ -19,6 +19,7 @@ execFileSync(process.env.CXX || 'c++', [
 ], { stdio: 'pipe', timeout: 30000 });
 for (const [scenario, description] of Object.entries({
   roundtrip: 'round trips maximum message fragments and destination ACK packets',
+  encrypted: 'recognizes opaque encrypted envelopes without keys and keeps plaintext validation',
   malformed: 'rejects corruption, invalid metadata and all truncations without publishing partial output',
 })) {
   test(`Radio packet ${description}`, () => {

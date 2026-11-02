@@ -76,3 +76,17 @@ test('local received-message removal scopes device/origin/identity and leaves no
   assert.equal(reader.history.length,1); assert.equal(reader.history[0].device,'device-B');
   assert.equal(reader.tick(0),undefined);
 });
+
+test('encrypted inbox bytes stay opaque through assembly and recovery snapshots', () => {
+  const payload = new Uint8Array(74); payload.set([0x52,0x4d,0x45,0x01,1,0,1]); new DataView(payload.buffer).setUint32(14,1,true);
+  const reader = new InboxReader(); head(reader, 1, 1);
+  for (let part = 0; part < Math.ceil(payload.length / 32); ++part) {
+    const query = reader.tick(part * 10, context)!; assert.equal(query?.type, 'inboxRead');
+    const fragment = payload.subarray(part * 32, Math.min(payload.length, (part + 1) * 32));
+    reader.receive(1, item(query.request, 1, part, 3, Buffer.from(fragment).toString('hex')), part * 10);
+  }
+  assert.equal(reader.history.length, 1); assert.equal(reader.history[0].text, '');
+  assert.equal(reader.history[0].payloadHex, Buffer.from(payload).toString('hex'));
+  const restored = new InboxReader(); restored.restoreHistory(JSON.parse(JSON.stringify(reader.history)));
+  assert.equal(restored.history[0].payloadHex, reader.history[0].payloadHex);
+});
