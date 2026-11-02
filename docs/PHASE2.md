@@ -1,6 +1,6 @@
 # Phase 2: discovery, position and field portal
 
-Status: implementation contract draft, not implemented firmware behavior. Start with slice 2.1 in ROADMAP.md. Wire values/schema changes must be reviewed alongside tests before being frozen.
+Status: slice 2.1 discovery is implemented and physically checked on Heltec7/T-Beam2. Location and field-portal sections remain the contract for subsequent slices. See PROTOCOL.md for the implemented discovery wire layout.
 
 ## Discovery behavior
 
@@ -47,3 +47,11 @@ Expose a separate node-table sequence/snapshot stream with bounded pages/cursors
 6. Node snapshot/event overlap, gaps, old boot/sequence data and page retries cannot corrupt the registry. Device caches and host history remain bounded.
 7. Map/list selection agrees; nodes with no position remain messageable; tile failure and USB disconnect preserve drafts and honest outcomes. Unlocated nodes are never plotted at a fabricated coordinate.
 8. Both firmware targets build, host checks pass, and real two-board discovery/fixed-position/message tests run. Actual GPS acquisition is separately observed; simulated positions are labeled. Do not claim relay/range/security qualification from these checks.
+
+## Slice 2.1 evidence
+
+Discovery core, persistent settings, capability-gated USB, fixed node snapshots, query-only recovery and minimal console controls are implemented. Host checks pass 210 tests; CMake/CTest passes64. Actual two-board tests confirm disabled responses produce zero replies; enabling responses yields one per request in both directions; both configured names appear in node snapshots. A real 60-second periodic T-Beam beacon reached the Heltec without a manual request and with zero reply TX. Existing 1024-byte messages/ACK/inbox still pass both directions. No GPS/position fields were transmitted. Per-device browser journaling, 256-node host history and the map-first redesign remain later Phase2 work; this console uses the device's bounded32-node snapshot.
+
+Installed images: Heltec usb-prototype-7 and T-Beam tbeam-usb-prototype-2 from clean commit a44319b, with all ROM artifact hashes verified and NVS preserved. Application sizes274256/244416 bytes. Observed free heap260592/187924 bytes and minimum free main stack16892/17116 bytes respectively. The coherent node snapshot trades a bounded RAM increase for paging that cannot starve under incoming reports. Final persisted state: Heltec revision28 mesh, T-Beam revision17 off; beacon/response flags false and interval300 on both. The T-Beam serial driver needed a USB reconnect before installation; failed preflight attempts wrote nothing.
+
+Reproduce with tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; append --beacon-only for the timed periodic test. Both restore original settings. Local ignored reports: build/tbeam-v12/discovery-smoke.json, beacon-smoke.json and discovery-final-state.json. Native browser interaction with the new controls has not been manually checked; shared client/core and actual USB protocol behavior are tested.

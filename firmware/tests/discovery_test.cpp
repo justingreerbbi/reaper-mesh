@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
   const std::string scenario = argv[1]; d::Discovery a(1, boot(1)), b(2, boot(2));
   auto sa = settings("Alpha"), sb = settings("Bravo", true); a.policy(&sa, true, 0); b.policy(&sb, true, 0);
   if (scenario == "flow" || scenario == "expiry") {
+    sa.discovery.respond = true; a.policy(&sa, true, 0);
     auto result = a.request(text<64>("owner"), text<75>("owner:1"), true, 0); CHECK(std::string(result.state) == "collecting");
     m::Packet query{}, reply{}; CHECK(a.next_tx(0, query)); a.complete_tx(true, 0);
     CHECK(b.receive(query, 1)); CHECK(!b.next_tx(200, reply)); CHECK(b.receive(query, 2) == false);
@@ -36,11 +37,14 @@ int main(int argc, char** argv) {
     auto q = control(50, 1, 1); CHECK(a.receive(q, 50)); CHECK(!a.receive(q, 51));
     q.key.sequence = 2; CHECK(a.receive(q, 52)); q.key.sequence = 1; CHECK(!a.receive(q, 53));
     q.key.boot = boot(2); CHECK(a.receive(q, 54)); q.key.boot = boot(1); q.key.sequence = 100; CHECK(!a.receive(q, 55));
+    m::Packet no_reply{}; CHECK(b.receive(control(60, 3, 1), 0)); CHECK(!b.next_tx(1, no_reply));
     unsigned replies = 0;
-    for (unsigned i = 1; i <= 12; ++i) { auto request = control(3, 3, i, m::PacketKind::Discover); const auto now = std::uint64_t(i) * 4000;
+    for (unsigned i = 1; i <= 10; ++i) { auto request = control(3, 3, i, m::PacketKind::Discover); const auto now = std::uint64_t(i) * 6000;
       b.receive(request, now); m::Packet reply{}; if (b.next_tx(now + 5000, reply)) { ++replies; b.complete_tx(true, now + 5000); }
     }
     CHECK(replies == 6);
+    b.receive(control(3, 3, 11, m::PacketKind::Discover), 65000); CHECK(!b.next_tx(65001, no_reply));
+    b.receive(control(3, 3, 12, m::PacketKind::Discover), 66000); CHECK(b.next_tx(71000, no_reply));
   } else if (scenario == "policy") {
     auto q = control(3, 3, 1, m::PacketKind::Discover); CHECK(b.receive(q, 0)); sb.discovery.respond = false; b.policy(&sb, true, 1);
     m::Packet out{}; CHECK(!b.next_tx(6000, out)); q.key.sequence++; CHECK(b.receive(q, 6001)); CHECK(!b.next_tx(12000, out));

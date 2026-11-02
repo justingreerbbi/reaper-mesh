@@ -80,14 +80,15 @@ export class Connection {
     } finally { this.#checkpointing = false; }
   }
 
+  get supportsDiscovery() { return this.capabilities?.discoveryVersion === 1 && this.capabilities.nodeCapacity === 32 && !!(this.capabilities.features & 128); }
   discover(now: number) {
     this.#time(now); this.sync.mutationContext();
-    if (this.#expired(now) || this.writeBlockReason || this.capabilities?.discoveryVersion !== 1 || !(this.capabilities.features & 128)) throw new Error(this.writeBlockReason ?? 'Discovery unavailable');
+    if (this.#expired(now) || this.writeBlockReason || !this.supportsDiscovery) throw new Error(this.writeBlockReason ?? 'Discovery unavailable');
     const packet = this.discovery.start({ device: this.device!, boot: this.sync.boot!, session: this.sync.session }, now);
     this.#checkpoint(true); this.#send({ ...packet, link: this.#link }); return packet.id;
   }
   recoverDiscovery(now: number) {
-    if (this.capabilities?.discoveryVersion !== 1 || !(this.capabilities.features & 128)) throw new Error('Discovery queries unavailable');
+    if (!this.supportsDiscovery) throw new Error('Discovery queries unavailable');
     this.#time(now); this.sync.mutationContext();
     if (this.#expired(now)) return false;
     const packet = this.discovery.recover({ device: this.device!, boot: this.sync.boot!, session: this.sync.session }, now);
@@ -125,7 +126,7 @@ export class Connection {
     this.sync.mutationContext();
     const blocked = this.writeBlockReason;
     if (blocked) throw new Error(blocked);
-    if (config.discovery && (this.capabilities?.discoveryVersion !== 1 || !(this.capabilities.features & 128) || !validDiscovery(config.discovery))) throw new Error('unsupported or invalid discovery settings');
+    if (config.discovery && (!this.supportsDiscovery || !validDiscovery(config.discovery))) throw new Error('unsupported or invalid discovery settings');
     if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region))) throw new Error(this.radioBlockReason || 'invalid radio/channel settings');
     const regionMask = { UNSET: 1, US: 2, EU: 4 }[config.region];
     if (!regionMask || !(this.capabilities!.regions & regionMask)) throw new Error('device does not support this region');
@@ -226,7 +227,7 @@ export class Connection {
     const inbox = this.capabilities?.inboxVersion === 1 && this.capabilities?.inboxCapacity && this.capabilities.features & 64;
     const request = this.inbox.tick(now, inbox && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined);
     if (request) this.#send({ ...request, link: this.#link });
-    const discovery = this.capabilities?.discoveryVersion === 1 && (this.capabilities.features & 128) && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined;
+    const discovery = this.supportsDiscovery && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined;
     for (const packet of this.discovery.tick(now, discovery)) this.#send({ ...packet, link: this.#link });
     this.#checkpoint();
     if (this.sync.state !== 'ready') return;

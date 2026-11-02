@@ -1,6 +1,6 @@
 # Completion tracker
 
-Product status: **Phase 1 complete; Phase 2 active (requirements/planning)**. See [ROADMAP.md](ROADMAP.md) for all four phases and [PHASE2.md](PHASE2.md) for the next implementation contract. Discovery/location/new portal are not yet implemented. The qualification details below remain relevant release gates.
+Product status: **Phase 1 complete; Phase 2 active (2.1 discovery complete; 2.2 position next)**. See [ROADMAP.md](ROADMAP.md) for all four phases and [PHASE2.md](PHASE2.md) for the next implementation contract. Discovery is implemented and physically checked; location and the redesigned portal remain ahead. The qualification details below remain relevant release gates.
 
 The focused single-board USB prototype is implemented and verified to the limits below. This is not a production release or a claim of real multi-node mesh qualification. Later BLE/mobile/encryption/EU support remains outside this slice.
 
@@ -31,3 +31,7 @@ The added T-Beam V1.2 now passes actual bidirectional 1024-byte direct delivery/
 ## T-Beam extension
 
 Owner-requested T-Beam V1.2 support is installed and hardware-qualified for USB/local messaging, AXP2101/SX1276 probe, receive initialization, TX_DONE and direct two-node RF. Both target builds validate; 197 host tests and 56 CTests pass. The initial first-write auxiliary-read interruption recovered on reconnect and remains a soak/interruption observation. Current web UI is one-device-at-a-time; CLI pair tests use two simultaneous ports.
+
+## Discovery slice
+
+Heltec7/T-Beam2 from a44319b are installed. Actual disabled-response silence, bidirectional discovery/name responses and a timed periodic beacon pass; ordinary 1024-byte RF/ACK messaging still passes. No locations transmitted. Automatic beacon/response flags restoredoff. See PHASE2.md for resource measurements, exact boundaries, serial-driver observation and remaining Phase2 work.

@@ -33,6 +33,19 @@ try {
     await save(i, { ...originals[i], radio: { ...originals[i].radio!, mode: 'mesh', power: 2 }, discovery: { beacon: false, respond: false, interval: 300 } });
     assert.equal(b.connection.radioInfo?.reason, 'ready');
   }
+  if (process.argv.includes('--beacon-only')) {
+    await waitFor(() => boards.every(b => !!b.connection.radioInfo));
+    const receiver = boards[0].connection, sender = boards[1].connection;
+    const peerID = 'node-' + sender.device!.replace(/^(?:heltec-|node-)/, '').padStart(16, '0');
+    const before = receiver.discovery.nodes.find(node => node.node === peerID);
+    const receiverTx = receiver.radioInfo!.transmitted, senderTx = sender.radioInfo!.transmitted;
+    await save(1, { ...sender.sync.config!, discovery: { beacon: true, respond: false, interval: 60 } });
+    await waitFor(() => receiver.discovery.nodes.some(node => node.node === peerID && node.name === sender.sync.config!.label && (!before || node.peerBoot !== before.peerBoot || node.peerSequence > before.peerSequence)), 72000);
+    await waitFor(() => (sender.radioInfo?.transmitted ?? 0) >= senderTx + 1);
+    assert.equal(receiver.radioInfo?.transmitted, receiverTx, 'beacon must not elicit a discovery reply or message ACK');
+    console.log('Physical periodic beacon: received configured T-Beam name without a discovery request or response storm');
+    await writeFile('build/tbeam-v12/beacon-smoke.json', JSON.stringify({ time: new Date().toISOString(), beaconNameVerified: true, responseTx: 0, interval: 60, locationTransmitted: false }, null, 2) + '\n');
+  } else {
   const first = performance.now(); await discover(0, 0, true);
   for (const [i, b] of boards.entries()) await save(i, { ...b.connection.sync.config!, discovery: { beacon: false, respond: true, interval: 300 } });
   await discover(1, 1, false);
@@ -43,6 +56,7 @@ try {
     await waitFor(() => b.connection.discovery.nodes.some(node => node.node === `node-${numeric}` && node.name === other.connection.sync.config!.label));
   }
   await writeFile('build/tbeam-v12/discovery-smoke.json', JSON.stringify({ time: new Date().toISOString(), attempts, nodeNamesVerified: true, locationTransmitted: false }, null, 2) + '\n');
+  }
 } finally {
   for (let i = originals.length - 1; i >= 0; --i) {
     try { if (boards[i].connection.sync.state === 'ready') await save(i, originals[i]); else throw new Error('disconnected'); }

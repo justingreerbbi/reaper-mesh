@@ -38,3 +38,5 @@ Host tests reject wrong targets, dirty/incompatible builds, altered paths/offset
 ## T-Beam V1.2
 
 Use `bash tools/build-firmware.sh tbeam-v12` and explicitly select `--manifest build/tbeam-v12/reaper-manifest.json` for validation/installation. The updater requires ESP32/4MB and bootloader0x1000; Heltec requires ESP32-S3/8MB and bootloader0. Wrong targets fail closed. ESP32 security uses a read-only named-eFuse summary because that ROM lacks get_security_info. See TBEAM.md for the identified port, confirmed hardware, first install and actual two-board RF evidence. Package generation accepts the board-specific manifest and writes matching hardware instructions.
+
+Discovery builds Heltec7/T-Beam2 read records1/2/3. Nondefault discovery settings use record3; old firmware that only reads1/2 must fail closed on it. A future downgrade needs explicit configuration compatibility handling, never automatic NVS erasure. Returning discovery to its default off/off/300 policy writes the applicable older record format while preserving the other configuration. See PHASE2.md for installed-image and hardware-test evidence.

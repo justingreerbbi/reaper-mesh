@@ -113,8 +113,8 @@ for (let run = 0; run < 3; run++) {
         await waitFor(() => client.radioInfo?.state === 'receiving'); assert.equal(client.radioInfo?.transmitted, 0);
         const restore = adapter.configure(original);
         await waitFor(() => client.commands.status(restore).outcome === 'committed' && client.sync.state === 'ready');
-        await waitFor(() => client.radioInfo?.state === 'off');
-        console.log('Physical receive-only initialization and restored off mode passed without TX');
+        await waitFor(() => client.radioInfo?.state === (original.radio!.mode === 'off' ? 'off' : 'receiving') && client.radioInfo.revision === client.sync.revision);
+        console.log('Physical receive-only initialization and restored original mode passed without TX');
       }
       console.log('Physical 1024-byte local delivery and inbox retrieval passed without RF');
     }

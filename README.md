@@ -6,7 +6,7 @@ The goal is dependable messaging, small firmware, and compatibility across suppo
 
 ## Start here
 
-- [Product roadmap](docs/ROADMAP.md): Phase 1 complete; Phase 2 discovery, position and field portal next.
+- [Product roadmap](docs/ROADMAP.md): Phase 1 complete; Phase 2 discovery implemented, position and field portal next.
 - [Phase 2 contract](docs/PHASE2.md): behavior, privacy, compatibility and RACE acceptance criteria.
 
 - [AI.md](AI.md): project context and instructions for AI contributors.

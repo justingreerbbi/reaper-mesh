@@ -315,8 +315,8 @@ element('export-settings').addEventListener('click', () => {
 
 function renderDiscovery() {
   const model = current(), connection = model.adapter.connection, { sync } = connection;
-  const supported = connection.capabilities?.discoveryVersion === 1 && !!(connection.capabilities.features & 128);
-  const ready = supported && sync.state === 'ready', writable = ready && !connection.writeBlockReason;
+  const supported = connection.supportsDiscovery;
+  const ready = supported && sync.state === 'ready', writable = ready && !connection.writeBlockReason && !!sync.config?.discovery;
   const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
   const settings = sync.config?.discovery;
   if (!discoveryDirty && settings) {
@@ -333,7 +333,7 @@ function renderDiscovery() {
   for (const id of ['beacon-enabled', 'respond-enabled', 'beacon-interval']) element<HTMLInputElement>(id).disabled = !writable || model.pending;
   const result = connection.discovery.last;
   text('discovery-result', connection.discovery.error ?? (result ? `${result.state} · ${result.replies} replies · ${result.id}` : 'No discovery requested.'));
-  const nodes = connection.discovery.nodes; const signature = mode.value + ':' + JSON.stringify(nodes) + ':' + Math.floor(performance.now() / 1000);
+  const nodes = connection.discovery.nodes; element('nodes-empty').hidden = nodes.length > 0; const signature = mode.value + ':' + JSON.stringify(nodes) + ':' + Math.floor(performance.now() / 1000);
   if (signature === nodeSignature) return; nodeSignature = signature;
   const list = element('nodes'); list.replaceChildren();
   for (const node of nodes) {

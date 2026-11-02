@@ -89,7 +89,7 @@ export class Discovery {
       this.#total = message.total; this.#generation = message.generation; this.#cursor = 0; this.#partial = [];
     } else if (message.state === 'item' && message.generation === this.#generation && message.total === this.#total &&
         message.node !== undefined && message.peerBoot !== undefined && message.peerSequence !== undefined && message.name !== undefined && message.ageMs !== undefined) {
-      if (!/^node-[0-9a-f]{16}$/.test(message.node) || !message.peerSequence || this.#partial.some(node => node.node === message.node)) return;
+      if (!/^node-[0-9a-f]{16}$/.test(message.node) || ['node-0000000000000000', 'node-ffffffffffffffff'].includes(message.node) || !/^[0-9a-f]{32}$/.test(message.peerBoot) || /^0+$/.test(message.peerBoot) || !message.peerSequence || this.#partial.some(node => node.node === message.node)) return;
       this.#partial.push(Object.freeze({ node: message.node, peerBoot: message.peerBoot, peerSequence: message.peerSequence, name: message.name, ageMs: message.ageMs, receivedAt: now })); this.#cursor++;
     } else return;
     this.#pending = undefined; this.#next = now;

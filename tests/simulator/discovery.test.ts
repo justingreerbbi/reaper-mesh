@@ -26,9 +26,10 @@ test('node snapshots commit atomically, restart on generation change, and reject
   const first = client.tick(0, context)[0]; assert.equal(first.type, 'nodeQuery'); if (first.type !== 'nodeQuery') throw new Error();
   client.receive(1, { type: 'nodeReply', link: 'l', boot: 'boot-A', request: first.request, generation: 1, cursor: 0, total: 1, state: 'head' }, 0);
   const row = client.tick(1, context)[0]; if (row.type !== 'nodeQuery') throw new Error();
-  const item = { type: 'nodeReply' as const, link: 'l', boot: 'boot-A', request: row.request, generation: 1, cursor: 0, total: 1, state: 'item', node: 'node-0000000000000002', peerBoot: 'peer-A', peerSequence: 1, name: 'Bravo', ageMs: 123 };
+  const item = { type: 'nodeReply' as const, link: 'l', boot: 'boot-A', request: row.request, generation: 1, cursor: 0, total: 1, state: 'item', node: 'node-0000000000000002', peerBoot: '02000000000000000000000000000000', peerSequence: 1, name: 'Bravo', ageMs: 123 };
   client.receive(2, item, 2); assert.equal(client.nodes.length, 0);
   client.receive(1, { ...item, request: first.request }, 2); assert.equal(client.nodes.length, 0);
+  client.receive(1, { ...item, peerBoot: 'bad' }, 2); assert.equal(client.nodes.length, 0);
   client.receive(1, item, 2); assert.equal(client.nodes[0].name, 'Bravo');
   const head = client.tick(2002, context)[0]; if (head.type !== 'nodeQuery') throw new Error();
   client.receive(1, { type: 'nodeReply', link: 'l', boot: 'boot-A', request: head.request, generation: 2, cursor: 0, total: 2, state: 'head' }, 2002);
