@@ -108,3 +108,7 @@ Add a separate ESP32/4MB board target with bootloader at 0x1000, preserving Helt
 ## Owner-directed phases (November 1, 2026)
 
 Phase 1 is complete. Phase 2 adds discovery/beacons, independently enabled responses, opt-in GPS/fixed-position reports and a map/nodes/messaging portal. Phase 3 is channel encryption/configuration; Phase 4 is screen/sleep/RX-TX/battery presentation. ROADMAP.md is canonical and PHASE2.md defines the proposed Phase 2 bounds and acceptance gates. Discovery response acknowledges discovery, not text delivery; no reply-to-reply ACK loop. GPS hardware alone never authorizes RF location sharing. Preserve working text compatibility while adding negotiated control capabilities. Use the supplied design references for original Reaper UI styling; prioritize code/CLI tests over repeated desktop exploration per owner token preference.
+
+## Discovery v1 vertical slice
+
+Use a separate direct-listener control namespace (radio3/4/5, USB22–25) while preserving text/ACK wire bytes. Presence replies acknowledge discovery only. Persist independent beacon/response/interval settings atomically in record3; default policy retains older record bytes. Freeze a bounded USB node snapshot per head query so ongoing RF updates cannot prevent paging from completing. Use owner high-water suppression for manual requests, one active collection, jitter and a rolling-six/minute reply limit. No GPS/location or map UI is implied by this slice.

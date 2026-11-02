@@ -32,7 +32,9 @@
       "radioSchema": "u32?",
       "maxChannels": "u32?",
       "inboxVersion": "u32?",
-      "inboxCapacity": "u32?"
+      "inboxCapacity": "u32?",
+      "discoveryVersion": "u32?",
+      "nodeCapacity": "u32?"
     }
   },
   "sync": {
@@ -57,7 +59,10 @@
       "txPower": "u32?",
       "relay": "u32?",
       "channels": "channels?",
-      "preset": "id?"
+      "preset": "id?",
+      "beacon": "u32?",
+      "respond": "u32?",
+      "beaconInterval": "u32?"
     }
   },
   "event": {
@@ -73,7 +78,10 @@
       "txPower": "u32?",
       "relay": "u32?",
       "channels": "channels?",
-      "preset": "id?"
+      "preset": "id?",
+      "beacon": "u32?",
+      "respond": "u32?",
+      "beaconInterval": "u32?"
     }
   },
   "ping": {
@@ -104,7 +112,10 @@
       "txPower": "u32?",
       "relay": "u32?",
       "channels": "channels?",
-      "preset": "id?"
+      "preset": "id?",
+      "beacon": "u32?",
+      "respond": "u32?",
+      "beaconInterval": "u32?"
     }
   },
   "result": {
@@ -240,6 +251,53 @@
       "boot": "id",
       "request": "u32",
       "sequence": "u32"
+    }
+  },
+  "discover": {
+    "tag": 22,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId",
+      "action": "u32"
+    }
+  },
+  "discoveryStatus": {
+    "tag": 23,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "id": "commandId",
+      "state": "id",
+      "replies": "u32",
+      "sequence": "u32"
+    }
+  },
+  "nodeQuery": {
+    "tag": 24,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "generation": "u32",
+      "cursor": "u32"
+    }
+  },
+  "nodeReply": {
+    "tag": 25,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "generation": "u32",
+      "cursor": "u32",
+      "total": "u32",
+      "state": "id",
+      "node": "id?",
+      "peerBoot": "id?",
+      "peerSequence": "u32?",
+      "name": "label?",
+      "ageMs": "u32?"
     }
   }
 }

@@ -53,7 +53,7 @@ void increment(std::uint32_t& n) { if (n < std::numeric_limits<std::uint32_t>::m
 }
 MeshService::MeshService(d::MessageQueue& messages, d::Inbox& inbox, d::RadioInfo& info, d::Text<64> device,
     std::array<std::uint8_t, 16> boot, std::uint64_t node, bool verified)
-  : messages_(messages), inbox_(inbox), info_(info), device_(device), boot_(boot), node_(node), antenna_verified_(verified), radio_(bus_), mesh_(node) {
+  : messages_(messages), inbox_(inbox), info_(info), device_(device), boot_(boot), node_(node), antenna_verified_(verified), radio_(bus_), mesh_(node), discovery_(node, boot) {
   literal(info_.state, "off"); literal(info_.reason, "radio-off");
 }
 void MeshService::begin() {
@@ -65,16 +65,19 @@ void MeshService::begin() {
   }
 }
 void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
+  discovery_.policy(snapshot ? &snapshot->settings : nullptr, snapshot && radio_.healthy() && antenna_verified_, now);
   if (!snapshot) {
-    radio_.stop(); mesh_.quiesce(); if (pending_ || tx_) { mesh_.complete_tx(false, now); }
+    radio_.stop(); mesh_.quiesce(); if (pending_ || tx_) { if (control_) discovery_.complete_tx(false, now); else mesh_.complete_tx(false, now); }
     pending_ = tx_ = false;
     literal(info_.state, "blocked"); literal(info_.reason, "storage-unavailable"); return;
   }
   info_.revision = snapshot->revision;
+  const bool discovery_changed = configured_ && (settings_.label.bytes != snapshot->settings.label.bytes || settings_.discovery.beacon != snapshot->settings.discovery.beacon || settings_.discovery.respond != snapshot->settings.discovery.respond || settings_.discovery.interval != snapshot->settings.discovery.interval);
+  if (discovery_changed && control_ && (pending_ || tx_)) { radio_.stop(); discovery_.complete_tx(false, now); pending_ = tx_ = false; configured_ = false; }
   const bool policy_changed = configured_ && changed(settings_, snapshot->settings);
   if (!configured_ || policy_changed) {
     if (policy_changed) messages_.quiesce();
-    if (pending_ || tx_) { mesh_.complete_tx(false, now); }
+    if (pending_ || tx_) { if (control_) discovery_.complete_tx(false, now); else mesh_.complete_tx(false, now); }
     pending_ = tx_ = false;
     radio_.stop(); mesh_.quiesce(); settings_ = snapshot->settings; configured_ = true;
     mesh_.policy(settings_.radio.relay && settings_.radio.mode == d::RadioMode::Mesh && antenna_verified_, channels(settings_.radio));
@@ -89,10 +92,12 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     literal(info_.state, radio_.transmitting() ? "transmitting" : "receiving");
     literal(info_.reason, settings_.radio.mode == d::RadioMode::Receive ? "receive-only" : !antenna_verified_ ? "antenna-unconfirmed" : "ready");
   }
+  discovery_.policy(&snapshot->settings, radio_.healthy() && antenna_verified_, now);
+  settings_.discovery = snapshot->settings.discovery; settings_.label = snapshot->settings.label;
   mesh_.tick(now);
   auto event = radio_.poll(now);
-  if (event.tx_done) { mesh_.complete_tx(event.tx_success, now); tx_ = false; if (event.tx_success) increment(info_.transmitted); }
-  if (event.received) { increment(info_.received); mesh_.receive(event.bytes.data(), event.size, now); }
+  if (event.tx_done) { if (control_) discovery_.complete_tx(event.tx_success, now); else mesh_.complete_tx(event.tx_success, now); tx_ = false; if (event.tx_success) increment(info_.transmitted); }
+  if (event.received) { increment(info_.received); m::Packet packet{}; if (m::decode_packet(event.bytes.data(), event.size, packet) && packet.kind != m::PacketKind::Data && packet.kind != m::PacketKind::Ack) discovery_.receive(packet, now); else mesh_.receive(event.bytes.data(), event.size, now); }
   const auto& incoming = mesh_.incoming();
   for (std::size_t i = 0; i < incoming.size(); ++i) {
     const auto& item = incoming[i];
@@ -124,15 +129,15 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     }
   }
   if (radio_.healthy() && settings_.radio.mode == d::RadioMode::Mesh && antenna_verified_ && !tx_) {
-    if (!pending_ && mesh_.next_tx(now, packet_)) { pending_ = true; pending_at_ = now; }
+    if (!pending_) { control_ = false; if (mesh_.next_tx(now, packet_)) { pending_ = true; pending_at_ = now; } else if (discovery_.next_tx(now, packet_)) { control_ = true; pending_ = true; pending_at_ = now; } }
     if (pending_) {
       std::array<std::uint8_t, m::kMaxPacketBytes> bytes{}; std::size_t size = 0;
-      if (!m::encode_packet(packet_, bytes.data(), bytes.size(), size) || now - pending_at_ >= 10000) {
-        mesh_.complete_tx(false, now); pending_ = false;
+      if (!m::encode_packet(packet_, bytes.data(), bytes.size(), size) || (control_ ? now >= discovery_.flight_deadline() : now - pending_at_ >= 10000)) {
+        if (control_) discovery_.complete_tx(false, now); else mesh_.complete_tx(false, now); pending_ = false;
       } else {
         const auto result = radio_.transmit(bytes.data(), size, now);
         if (result == r::Start::Started) { tx_ = true; pending_ = false; }
-        else if (result == r::Start::Rejected || result == r::Start::Fault) { mesh_.complete_tx(false, now); pending_ = false; }
+        else if (result == r::Start::Rejected || result == r::Start::Fault) { if (control_) discovery_.complete_tx(false, now); else mesh_.complete_tx(false, now); pending_ = false; }
       }
     }
   }

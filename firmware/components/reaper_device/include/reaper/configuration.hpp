@@ -23,14 +23,15 @@ struct RadioSettings {
   Text<71> channels{};
   RadioSettings() { const std::uint8_t names[] = "Public|||||||"; channels.assign(names, sizeof(names) - 1); }
 };
-struct Settings { RadioSettings radio{}; Region region = Region::Unset; Text<64> label{}; };
+struct DiscoverySettings { bool beacon = false, respond = false; std::uint32_t interval = 300; };
+struct Settings { DiscoverySettings discovery{}; RadioSettings radio{}; Region region = Region::Unset; Text<64> label{}; };
 struct Snapshot { Settings settings{}; std::uint32_t revision = 0; };
-struct Command { Text<75> id{}; Text<64> boot{}; std::uint32_t expected_revision = 0; Settings settings{}; bool has_radio = false; };
+struct Command { Text<75> id{}; Text<64> boot{}; std::uint32_t expected_revision = 0; Settings settings{}; bool has_radio = false, has_discovery = false; };
 enum class Outcome { Committed, Conflict, Rejected, Unknown };
 struct Result { Outcome outcome = Outcome::Unknown; std::uint32_t revision = 0; };
 enum class ReadStatus { Missing, Loaded, Failed };
 enum class CommitStatus { Committed, NotCommitted, Indeterminate };
-inline constexpr std::size_t kMaxRecord = 151;
+inline constexpr std::size_t kMaxRecord = 156;
 
 // Implementations must retain the prior complete record or the next complete record.
 // Committed means durably accepted; NotCommitted guarantees no change. Any ambiguous

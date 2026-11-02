@@ -7,7 +7,7 @@
 namespace d = reaper::device; namespace m = reaper::mesh;
 #define CHECK(v) do { if (!(v)) { std::cerr << "line " << __LINE__ << ": " << #v << '\n'; return 1; } } while(false)
 static bool failure = false, transmitted = false; static std::uint16_t irq = 0;
-static std::vector<std::uint8_t> received;
+static std::vector<std::uint8_t> received, sent;
 bool RadioBus::begin() { device_ = this; failed_ = failure; transaction_ = {}; tx_.fill(0); rx_.fill(0); (void)transaction_; return device_ && !failed_; }
 bool RadioBus::ready(std::uint32_t) { return !failure; }
 bool RadioBus::reset() { return !failure; }
@@ -18,6 +18,7 @@ bool RadioBus::transfer(const std::uint8_t* tx, std::uint8_t* rx, std::size_t si
   if (tx[0] == 0xc0) rx[1] = 0x24;
   if (tx[0] == 0x12) { rx[2] = irq >> 8; rx[3] = irq; }
   if (tx[0] == 0x02) irq = 0;
+  if (tx[0] == 0x0e && size > 2) sent.assign(tx + 2, tx + size);
   if (tx[0] == 0x83) transmitted = true;
   if (tx[0] == 0x13) { rx[2] = received.size(); rx[3] = 0; }
   if (tx[0] == 0x1e && size >= 3 + received.size()) std::memcpy(rx + 3, received.data(), received.size());
@@ -30,10 +31,23 @@ int main(int argc, char** argv) {
   const std::string scenario = argv[1]; const auto device = text<64>("heltec-000000000001");
   const auto boot = text<64>("2a00000000000000000000000000000000"); std::array<std::uint8_t, 16> nonce{}; nonce[0] = 42;
   d::MessageQueue messages(boot); d::Inbox inbox; d::RadioInfo info{};
-  MeshService service(messages, inbox, info, device, nonce, 1, scenario == "tx" || scenario == "policy");
+  MeshService service(messages, inbox, info, device, nonce, 1, scenario == "tx" || scenario == "policy" || scenario == "discovery");
   service.begin(); CHECK(info.probe); d::Snapshot config{}; config.settings.region = d::Region::Us;
   if (scenario != "local") config.settings.radio.mode = d::RadioMode::Mesh;
   service.tick(&config, 0);
+  if (scenario == "discovery") {
+    config.settings.discovery.respond = true; service.tick(&config, 1);
+    const auto result = service.discovery().request(text<64>("client"), text<75>("client:1"), true, 2);
+    CHECK(result.sequence); service.tick(&config, 2); CHECK(transmitted);
+    m::Packet request{}; CHECK(m::decode_packet(sent.data(), sent.size(), request) && request.kind == m::PacketKind::Discover);
+    irq = 1; service.tick(&config, 3);
+    m::Packet response{}; response.kind = m::PacketKind::Presence; response.key.origin = 2; response.key.boot[0] = 2; response.key.sequence = 1;
+    response.destination = 1; response.count = response.hops = 1; response.size = response.total = 26; response.bytes[0] = 1; response.bytes[1] = 4;
+    std::memcpy(response.bytes.data() + 2, "Peer", 4); std::memcpy(response.bytes.data() + 6, nonce.data(), 16); response.bytes[22] = result.sequence;
+    inject(response); service.tick(&config, 4);
+    CHECK(service.discovery().count() == 1 && service.discovery().query(text<75>("client:1"), 4).replies == 1);
+    CHECK(inbox.latest() == 0 && info.transmitted == 1); std::cout << "ok discovery\n"; return 0;
+  }
   const auto destination = scenario == "local" ? device : text<64>("heltec-000000000002");
   const std::uint8_t body[] = {'h','i'};
   auto result = messages.submit(text<64>("client"), text<75>("client:1"), 0, destination, 0, 1, body, sizeof(body), 1);

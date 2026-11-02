@@ -39,6 +39,7 @@ function compare(streams: Uint8Array[], chunk = 1) {
   assert.deepEqual(result, streams.map(expected));
 }
 const sampleValues: Record<string, unknown> = {
+  discoveryVersion: 1, nodeCapacity: 32, beacon: 0, respond: 0, beaconInterval: 300, action: 1, replies: 0, generation: 1, cursor: 0, total: 1, node: 'node-0000000000000001', peerBoot: 'boot-B', peerSequence: 1, name: 'Peer', ageMs: 12,
   link: 'link-A', device: 'node-A', boot: 'boot-A', owner: 'client-A', minVersion: 1, maxVersion: 1,
   configSchema: 1, features: 7, maxPayload: 2048, receiptCapacity: 32, ownerCapacity: 8,
   ownerAdmitted: 1, regions: 3, maxLabelBytes: 64, firmware: 'sim-0', radioVersion: 0,

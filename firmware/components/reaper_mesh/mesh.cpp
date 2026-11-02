@@ -72,6 +72,7 @@ void Mesh::ack(Inbound& r, std::uint64_t now) {
 bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   tick(now); Packet p{};
   if (!node_ || node_ == kBroadcast || !decode_packet(bytes, size, p) || !(channels_ & (1u << p.channel))) return false;
+  if (p.kind != PacketKind::Data && p.kind != PacketKind::Ack) return false;
   if (p.kind == PacketKind::Ack && p.key.origin == node_) {
     for (auto& r : out_) if (r.used && r.key == p.key && r.destination == p.destination && r.channel == p.channel && !terminal(r)) {
       // Exact timeout takes precedence. ACK arriving just before final TX completion

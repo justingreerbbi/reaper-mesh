@@ -6,7 +6,7 @@
 namespace reaper::mesh {
 inline constexpr std::size_t kFragmentBytes = 160, kMaxMessageBytes = 1024, kMaxPacketBytes = 214;
 inline constexpr std::uint64_t kBroadcast = std::numeric_limits<std::uint64_t>::max();
-enum class PacketKind : std::uint8_t { Data = 1, Ack = 2 };
+enum class PacketKind : std::uint8_t { Data = 1, Ack = 2, Beacon = 3, Discover = 4, Presence = 5 };
 struct MessageKey {
   std::uint64_t origin = 0;
   std::array<std::uint8_t, 16> boot{};

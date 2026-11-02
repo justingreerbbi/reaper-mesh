@@ -24,9 +24,9 @@ manifest = {
     "board": "LILYGO T-Beam V1.2" if tbeam else "Heltec WiFi LoRa 32 V3", "target": "esp32" if tbeam else "esp32s3", "sdk": sdk,
     "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
     "source_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip()),
-    "firmware": "tbeam-usb-prototype-1" if tbeam else re.findall(r'kFirmwareVersion\[\] = "([^"]+)"', (root / "firmware/components/reaper_device/include/reaper/version.hpp").read_text())[-1],
-    "radio_config_schema": 1, "read_record_schemas": [1, 2],
-    "usb_protocol": 1, "config_schema": 1, "record_schema": 2, "radio_protocol": 1,
+    "firmware": "tbeam-usb-prototype-2" if tbeam else re.findall(r'kFirmwareVersion\[\] = "([^"]+)"', (root / "firmware/components/reaper_device/include/reaper/version.hpp").read_text())[-1],
+    "radio_config_schema": 1, "read_record_schemas": [1, 2, 3],
+    "usb_protocol": 1, "config_schema": 1, "record_schema": 3, "radio_protocol": 1,
     "uart": {"baud": 115200, "tx_gpio": 1 if tbeam else 43, "rx_gpio": 3 if tbeam else 44},
     "radio": {"protocol": 1, "receive_supported": True, "boot_spi_probe": True, "reset_gpio": 23 if tbeam else 12,
               "default_mode": "off", "runtime_mode": "device-configuration", "antenna_verified": True if tbeam else

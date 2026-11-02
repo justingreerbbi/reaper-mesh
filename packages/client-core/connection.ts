@@ -1,3 +1,5 @@
+import { Discovery } from './discovery.ts';
+import { discoveryFields, validDiscovery } from '../protocol/discovery-config.ts';
 import * as recovery from './recovery-data.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
@@ -13,6 +15,7 @@ export class Connection {
   readonly sync = new Synchronizer();
   readonly commands: Commands;
   readonly messaging: Messaging;
+  readonly discovery: Discovery;
   readonly inbox = new InboxReader();
   radioInfo: Extract<Message, { type: 'radioStatus' }> | undefined;
   radioError: string | undefined;
@@ -40,18 +43,20 @@ export class Connection {
 
   constructor(incarnation: string = crypto.randomUUID()) {
     this.commands = new Commands(this.sync, incarnation);
+    this.discovery = new Discovery(incarnation);
     this.messaging = new Messaging(this.sync, incarnation);
   }
 
   exportJournal() {
     return { version: 1, incarnation: this.commands.incarnation, commands: this.commands.exportState(),
       commandDevices: this.commands.history.map(entry => ({ id: entry.command.id, device: this.#commandDevices.get(entry.command.id) })),
-      messages: this.messaging.exportState(), received: this.inbox.history };
+      discovery: this.discovery.exportState(), messages: this.messaging.exportState(), received: this.inbox.history };
   }
   static fromJournal(value: unknown) {
     const state = recovery.object(value);
     if (state.version !== 1) throw new Error('unsupported recovery journal');
     const connection = new Connection(recovery.id(state.incarnation));
+    if (state.discovery !== undefined) connection.discovery.restoreState(state.discovery);
     connection.commands.restoreState(state.commands); connection.messaging.restoreState(state.messages); connection.inbox.restoreHistory(state.received);
     const mapping = new Map<string, string>();
     for (const raw of recovery.list(state.commandDevices)) {
@@ -73,6 +78,20 @@ export class Connection {
       this.recoveryError = `Recovery storage unavailable: ${error instanceof Error ? error.message : String(error)}`;
       if (strict) { this.close(this.recoveryError); throw new Error(this.recoveryError); }
     } finally { this.#checkpointing = false; }
+  }
+
+  discover(now: number) {
+    this.#time(now); this.sync.mutationContext();
+    if (this.#expired(now) || this.writeBlockReason || this.capabilities?.discoveryVersion !== 1 || !(this.capabilities.features & 128)) throw new Error(this.writeBlockReason ?? 'Discovery unavailable');
+    const packet = this.discovery.start({ device: this.device!, boot: this.sync.boot!, session: this.sync.session }, now);
+    this.#checkpoint(true); this.#send({ ...packet, link: this.#link }); return packet.id;
+  }
+  recoverDiscovery(now: number) {
+    if (this.capabilities?.discoveryVersion !== 1 || !(this.capabilities.features & 128)) throw new Error('Discovery queries unavailable');
+    this.#time(now); this.sync.mutationContext();
+    if (this.#expired(now)) return false;
+    const packet = this.discovery.recover({ device: this.device!, boot: this.sync.boot!, session: this.sync.session }, now);
+    if (packet) this.#send({ ...packet, link: this.#link }); return !!packet;
   }
 
   get messageBlockReason() {
@@ -106,6 +125,7 @@ export class Connection {
     this.sync.mutationContext();
     const blocked = this.writeBlockReason;
     if (blocked) throw new Error(blocked);
+    if (config.discovery && (this.capabilities?.discoveryVersion !== 1 || !(this.capabilities.features & 128) || !validDiscovery(config.discovery))) throw new Error('unsupported or invalid discovery settings');
     if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region))) throw new Error(this.radioBlockReason || 'invalid radio/channel settings');
     const regionMask = { UNSET: 1, US: 2, EU: 4 }[config.region];
     if (!regionMask || !(this.capabilities!.regions & regionMask)) throw new Error('device does not support this region');
@@ -114,7 +134,7 @@ export class Connection {
     }
     // Validate before retaining the command, including runtime callers without TS checks.
     encodeMessage({ type: 'configure', link: this.#link, boot: this.sync.boot!, id: 'validation:1',
-      expectedRevision: this.sync.revision, region: config.region, label: config.label, ...radioFields(config.radio) } as Message);
+      expectedRevision: this.sync.revision, region: config.region, label: config.label, ...discoveryFields(config.discovery), ...radioFields(config.radio) } as Message);
     const command = this.commands.submit(config, now);
     this.#commandDevices.set(command.id, this.device!);
     this.#checkpoint(true); this.#sendCommand(command);
@@ -165,6 +185,7 @@ export class Connection {
     this.sync.disconnect();
     this.commands.tick(this.#now);
     this.inbox.tick(this.#now); this.radioInfo = undefined; this.radioError = undefined;
+    this.discovery.tick(this.#now);
     this.messaging.tick(this.#now); // Disconnect immediately makes pending outcomes uncertain.
     this.#decoder.reset();
     this.#outgoing = [];
@@ -205,6 +226,8 @@ export class Connection {
     const inbox = this.capabilities?.inboxVersion === 1 && this.capabilities?.inboxCapacity && this.capabilities.features & 64;
     const request = this.inbox.tick(now, inbox && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined);
     if (request) this.#send({ ...request, link: this.#link });
+    const discovery = this.capabilities?.discoveryVersion === 1 && (this.capabilities.features & 128) && this.sync.state === 'ready' ? { device: this.device!, boot: this.sync.boot!, session: this.sync.session } : undefined;
+    for (const packet of this.discovery.tick(now, discovery)) this.#send({ ...packet, link: this.#link });
     this.#checkpoint();
     if (this.sync.state !== 'ready') return;
     if (this.capabilities && (this.capabilities.features & 32) && this.#radioTimeouts < 3) {
@@ -225,6 +248,7 @@ export class Connection {
   drain() { const frames = this.#outgoing; this.#outgoing = []; return frames; }
 
   #dispatch(message: Message) {
+    if (message.type === 'discoveryStatus' || message.type === 'nodeReply') { this.discovery.receive(this.sync.session, message, this.#now); return; }
     if (message.type === 'radioStatus') {
       if (this.#radioPending !== 0 && message.boot === this.sync.boot && message.request === this.#radioPending && message.revision === this.sync.revision) {
         this.radioInfo = message; this.#radioPending = this.#radioTimeouts = 0; this.radioError = undefined; this.#nextRadio = this.#now + 2000;
@@ -255,6 +279,7 @@ export class Connection {
       if (message.boot !== this.sync.boot) return;
       const value = { ...message, session: this.sync.session,
         config: { region: message.region, label: message.label,
+          ...(message.beacon !== undefined && message.respond !== undefined && message.beaconInterval !== undefined && message.beacon <= 1 && message.respond <= 1 && message.beaconInterval >= 60 && message.beaconInterval <= 3600 ? { discovery: { beacon: !!message.beacon, respond: !!message.respond, interval: message.beaconInterval } } : {}),
           ...(message.radioMode !== undefined && message.txPower !== undefined && message.relay !== undefined && message.channels !== undefined && message.preset === 'US915_LAB1' && message.relay <= 1 && message.txPower <= 10 ?
             { radio: { mode: message.radioMode, power: message.txPower, relay: message.relay === 1, channels: message.channels, preset: 'US915_LAB1' as const } } : {}) } };
       const wasReady = this.sync.state === 'ready';
@@ -297,7 +322,7 @@ export class Connection {
   #sendCommand(command: ConfigCommand) {
     this.#send({ type: 'configure', link: this.#link, boot: command.boot, id: command.id,
       expectedRevision: command.expectedRevision, region: command.config.region,
-      label: command.config.label, ...radioFields(command.config.radio) } as Message);
+      label: command.config.label, ...discoveryFields(command.config.discovery), ...radioFields(command.config.radio) } as Message);
   }
 
   #send(message: Message) {

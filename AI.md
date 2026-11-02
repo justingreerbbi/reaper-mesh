@@ -3,7 +3,7 @@
 
 ## Active product roadmap
 
-The owner marks Phase 1 complete and directs Phase 2 next. Read docs/ROADMAP.md and docs/PHASE2.md before new development; these supersede the older milestone priorities below. Phase 2: bounded discovery/beacons and opt-in responses, optional shared GPS/fixed position, then a map/nodes/messaging portal inspired by the supplied MeshMonitor/EvoCare references. Start with discovery slice 2.1, then fixed position, actual T-Beam GPS, and the portal integration. Requirements are documented; these Phase 2 features are not yet implemented or flashed.
+The owner marks Phase 1 complete and directs Phase 2 next. Read docs/ROADMAP.md and docs/PHASE2.md before new development; these supersede the older milestone priorities below. Phase 2: bounded discovery/beacons and opt-in responses, optional shared GPS/fixed position, then a map/nodes/messaging portal inspired by the supplied MeshMonitor/EvoCare references. Start with discovery slice 2.1, then fixed position, actual T-Beam GPS, and the portal integration. Discovery v1 core, atomic policy persistence, USB/node snapshots, client recovery and minimal discovery UI are implemented and host-tested; hardware deployment/qualification is the next gate. GPS/fixed position and map-first redesign are not implemented yet.
 
 Phase 3 is channel encryption plus portal configuration. Phase 4 is screen management/sleep, RX/TX and battery indication. GPS/position work is now explicitly authorized within Phase 2; broad telemetry/cloud/MQTT is not. Automatic beaconing, responses and location sharing default off; do not start broadcasting the owner's position merely because GPS hardware exists. Preserve the Phase 1 text/ACK and recovery contracts with capability-gated additions.
 
@@ -118,3 +118,7 @@ Prototype-6 RF results and package/browser verification are recorded in docs/STA
 Final browser review also corrected confirmed broadcasts degrading to unknown while waiting for a nonexistent recipient ACK. Confirmed broadcast transmission is now terminal across deadline/disconnect/receipt eviction/reload; unicast ambiguity remains unchanged. The new regression brings npm run check to 194 passing tests.
 
 Final read-only two-port state verification: Heltec usb-prototype-6/revision21 remains mesh/2dBm; T-Beam tbeam-usb-prototype-1/revision7 restored off/2dBm. Local reports are build/tbeam-v12/pair-smoke.json and hardware-state.json. T-Beam package SHA256 3a79222f814d1aebf8c5b4551f5f45d116b844e20c15ab7b299aef5f3ea57242. No Heltec flash or settings change remained from this task.
+
+## Discovery v1 implementation checkpoint
+
+Phase2.1 uses additive radio kinds3/4/5 and USB22–25, featurebit7, discoveryVersion1. Defaults remain beaconoff/respond off; no location is acquired/transmitted. Config record3 extends2, preserves1/2 reads, and older clients preserve new settings when omitted. Fixed USB node snapshots avoid starvation under live observations; separate control sequences/owner marks/receipt retention prevent replay. Host checks pass; build/flash/hardware acceptance follows. See PROTOCOL.md for frozen layout/bounds. Firmware versions are Heltec usb-prototype-7 and T-Beam tbeam-usb-prototype-2.

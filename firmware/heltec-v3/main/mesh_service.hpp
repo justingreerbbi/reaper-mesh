@@ -9,6 +9,7 @@ class MeshService {
  public:
   MeshService(reaper::device::MessageQueue&, reaper::device::Inbox&, reaper::device::RadioInfo&,
     reaper::device::Text<64> device, std::array<std::uint8_t, 16> boot, std::uint64_t node, bool antenna_verified = false);
+  reaper::device::Discovery& discovery() { return discovery_; }
   void begin();
   void tick(const reaper::device::Snapshot*, std::uint64_t now);
  private:
@@ -26,6 +27,8 @@ class MeshService {
   reaper::radio::Radio radio_;
 #endif
   reaper::mesh::Mesh mesh_;
+  reaper::device::Discovery discovery_;
+  bool control_ = false;
   reaper::device::Settings settings_{};
   bool configured_ = false, pending_ = false, tx_ = false;
   reaper::mesh::Packet packet_{};

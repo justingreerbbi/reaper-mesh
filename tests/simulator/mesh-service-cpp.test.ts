@@ -20,9 +20,10 @@ execFileSync(process.env.CXX || 'c++', [
   'firmware/components/reaper_protocol/protocol.cpp', 'firmware/components/reaper_mesh/radio_packet.cpp',
   'firmware/components/reaper_mesh/regional.cpp', 'firmware/components/reaper_radio/radio.cpp',
   'firmware/components/reaper_radio/hal.cpp', 'firmware/heltec-v3/main/mesh_service.cpp', 'firmware/components/reaper_mesh/mesh.cpp',
-  'firmware/components/reaper_device/messages.cpp', 'firmware/components/reaper_device/inbox.cpp', 'firmware/tests/mesh_service_test.cpp', vendor, '-o', binary,
+  'firmware/components/reaper_device/discovery.cpp', 'firmware/components/reaper_device/messages.cpp', 'firmware/components/reaper_device/inbox.cpp', 'firmware/tests/mesh_service_test.cpp', vendor, '-o', binary,
 ], { stdio: 'pipe', timeout: 30000 });
 for (const [scenario, description] of Object.entries({
+  discovery: 'routes real driver control frames through the independent discovery cache without chat delivery',
   local: 'delivers to the local inbox without claiming RF transmission',
   gate: 'refuses remote transmit admission while the antenna is unconfirmed',
   tx: 'publishes TX_DONE then accepts only the matching destination ACK',

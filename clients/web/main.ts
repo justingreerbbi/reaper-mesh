@@ -29,6 +29,7 @@ let error = '';
 let historySignature = '';
 let messageSignature = '';
 let inboxSignature = '';
+let discoveryDirty = false, discoveryBase = '', nodeSignature = '';
 let radioDirty = false;
 let radioBase = '';
 for (let slot = 1; slot < 8; slot++) {
@@ -88,6 +89,7 @@ function render() {
   element('error').hidden = !message;
   text('recovery-status', recovery.connection.recoveryError ?? 'USB history is saved in this browser before commands are sent.');
   element<HTMLButtonElement>('recovery-reset').disabled = busy || models.usb.adapter.active;
+  renderDiscovery();
   renderRadio();
   renderMessages();
   renderInbox();
@@ -310,3 +312,48 @@ element('export-settings').addEventListener('click', () => {
   const link = document.createElement('a'); link.href = url; link.download = 'reaper-mesh-settings.json'; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
+
+function renderDiscovery() {
+  const model = current(), connection = model.adapter.connection, { sync } = connection;
+  const supported = connection.capabilities?.discoveryVersion === 1 && !!(connection.capabilities.features & 128);
+  const ready = supported && sync.state === 'ready', writable = ready && !connection.writeBlockReason;
+  const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
+  const settings = sync.config?.discovery;
+  if (!discoveryDirty && settings) {
+    element<HTMLInputElement>('beacon-enabled').checked = settings.beacon;
+    element<HTMLInputElement>('respond-enabled').checked = settings.respond;
+    element<HTMLInputElement>('beacon-interval').value = String(settings.interval); discoveryBase = context;
+  }
+  const stale = discoveryDirty && discoveryBase !== context;
+  text('discovery-support', !supported ? 'Connect to firmware with discovery support.' : stale ? 'Device state changed. Load the latest discovery settings.' : connection.writeBlockReason ?? 'Beacons and responses are separate, opt-in settings.');
+  element<HTMLButtonElement>('discover').disabled = !writable || connection.radioInfo?.reason !== 'ready' || connection.discovery.last?.state === 'collecting';
+  element<HTMLButtonElement>('discovery-query').disabled = !ready || !connection.discovery.last;
+  element<HTMLButtonElement>('discovery-save').disabled = !writable || !discoveryDirty || stale || model.pending;
+  element<HTMLButtonElement>('discovery-reset').disabled = !ready;
+  for (const id of ['beacon-enabled', 'respond-enabled', 'beacon-interval']) element<HTMLInputElement>(id).disabled = !writable || model.pending;
+  const result = connection.discovery.last;
+  text('discovery-result', connection.discovery.error ?? (result ? `${result.state} · ${result.replies} replies · ${result.id}` : 'No discovery requested.'));
+  const nodes = connection.discovery.nodes; const signature = mode.value + ':' + JSON.stringify(nodes) + ':' + Math.floor(performance.now() / 1000);
+  if (signature === nodeSignature) return; nodeSignature = signature;
+  const list = element('nodes'); list.replaceChildren();
+  for (const node of nodes) {
+    const row = document.createElement('li'), content = document.createElement('div'), name = document.createElement('strong'), detail = document.createElement('span');
+    name.textContent = node.name || node.node; detail.className = 'mono';
+    detail.textContent = `${node.node} · last heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago`;
+    const message = document.createElement('button'); message.textContent = 'Message'; message.disabled = sync.state !== 'ready';
+    message.addEventListener('click', () => { element<HTMLInputElement>('message-destination').value = node.node; renderMessages(); element('message-body').focus(); });
+    content.append(name, detail); row.append(content, message); list.append(row);
+  }
+}
+element('discovery-form').addEventListener('input', () => { discoveryDirty = true; render(); });
+element('discovery-reset').addEventListener('click', () => { discoveryDirty = false; render(); });
+element('discovery-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    const config = current().adapter.connection.sync.config!;
+    current().adapter.configure({ ...config, discovery: { beacon: element<HTMLInputElement>('beacon-enabled').checked, respond: element<HTMLInputElement>('respond-enabled').checked, interval: Number(element<HTMLInputElement>('beacon-interval').value) } });
+    discoveryDirty = false; error = ''; render();
+  } catch (error) { showError(error); }
+});
+element('discover').addEventListener('click', () => { try { current().adapter.discover(); error = ''; render(); } catch (error) { showError(error); } });
+element('discovery-query').addEventListener('click', () => { try { if (!current().adapter.recoverDiscovery()) throw new Error('Previous-boot discovery outcome is unavailable; nothing was resent.'); render(); } catch (error) { showError(error); } });

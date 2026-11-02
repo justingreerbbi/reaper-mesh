@@ -88,7 +88,7 @@ for (let run = 0; run < 3; run++) {
         }
       };
       if (run === 0 && messageTest === '--tbeam-test' && client.sync.config?.region === 'UNSET') {
-        assert.equal(client.capabilities?.firmware, 'tbeam-usb-prototype-1');
+        assert.match(client.capabilities?.firmware ?? '', /^tbeam-usb-prototype-/);
         const first = adapter.configure({ region: 'US', label: 'Reaper T-Beam V1.2',
           radio: { ...client.sync.config.radio!, mode: 'off', power: 2 } });
         await waitFor(() => client.commands.status(first).outcome === 'committed' && client.sync.state === 'ready');

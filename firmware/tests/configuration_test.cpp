@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
     snapshot.settings.region = d::Region::Us; snapshot.settings.label = text<64>(std::string(64, 'x'));
     snapshot.settings.radio.channels = text<71>("Public|Channel1|Channel2|Channel3|Channel4|Channel5|Channel6|Channel7");
     std::array<std::uint8_t, d::kMaxRecord> encoded{}; std::size_t size = 0;
-    CHECK(d::encode_record(snapshot, encoded.data(), encoded.size(), size) && size == d::kMaxRecord);
+    CHECK(d::encode_record(snapshot, encoded.data(), encoded.size(), size) && size == 151);
     for (std::size_t n = 0; n < size; ++n) { d::Snapshot out{}; CHECK(!d::decode_record(encoded.data(), n, out)); }
   } else if (scenario == "validation") {
     CHECK(!authority.admit(text<64>("bad:owner")));
@@ -194,6 +194,14 @@ int main(int argc, char** argv) {
     decoded.fields[p::kConfigureId].length = 76;
     CHECK(!d::decode_command(decoded, parsed));
     CHECK(authority.apply(parsed).outcome == d::Outcome::Committed && store.writes == 1);
+  } else if (scenario == "discovery") {
+    auto change = command(); change.has_discovery = true; change.settings.discovery = {true, true, 60};
+    CHECK(authority.apply(change).outcome == d::Outcome::Committed && store.data[2] == 3);
+    d::Configuration reloaded(store, text<64>("boot-A")); CHECK(reloaded.snapshot(snapshot) && snapshot.settings.discovery.beacon && snapshot.settings.discovery.respond);
+    CHECK(authority.apply(command(2, 1, "legacy")).outcome == d::Outcome::Committed);
+    CHECK(authority.snapshot(snapshot) && snapshot.settings.discovery.interval == 60 && snapshot.settings.discovery.respond);
+    auto bad = command(3, 2); bad.has_discovery = true; bad.settings.discovery.interval = 59;
+    CHECK(authority.apply(bad).outcome == d::Outcome::Rejected);
   } else return 3;
   std::cout << "ok " << scenario << '\n';
 }

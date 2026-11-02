@@ -1,6 +1,7 @@
+import type { DiscoveryConfig } from '../protocol/discovery-config.ts';
 import type { RadioConfig } from '../protocol/radio-config.ts';
 /** Transport-independent synchronization core. Wire decoding must validate input first. */
-export type Config = Readonly<{ region: string; label: string; radio?: RadioConfig }>;
+export type Config = Readonly<{ region: string; label: string; radio?: RadioConfig; discovery?: DiscoveryConfig }>;
 export type Event = Readonly<{
   session: number; boot: string; sequence: number; revision: number; config: Config;
 }>;
@@ -119,5 +120,5 @@ export class Synchronizer {
 }
 
 export function copyConfig(config: Config): Config {
-  return Object.freeze({ ...config, ...(config.radio ? { radio: Object.freeze({ ...config.radio }) } : {}) });
+  return Object.freeze({ ...config, ...(config.discovery ? { discovery: Object.freeze({ ...config.discovery }) } : {}), ...(config.radio ? { radio: Object.freeze({ ...config.radio }) } : {}) });
 }

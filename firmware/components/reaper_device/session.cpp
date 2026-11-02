@@ -1,6 +1,8 @@
 #include "reaper/session.hpp"
 #include "reaper/version.hpp"
 #include <cstring>
+#include <cstdio>
+#include <algorithm>
 
 namespace reaper::device {
 namespace p = protocol;
@@ -38,8 +40,8 @@ const char* outcome(Outcome value) {
   }
 }
 } // namespace
-Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages, RadioInfo* radio, Inbox* inbox)
-    : authority_(authority), messages_(messages), radio_(radio), inbox_(inbox), device_(device), boot_(boot) {}
+Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages, RadioInfo* radio, Inbox* inbox, Discovery* discovery)
+    : authority_(authority), messages_(messages), radio_(radio), inbox_(inbox), discovery_(discovery), device_(device), boot_(boot) {}
 void Session::reset() { active_ = compatible_ = admitted_ = synchronized_ = fault_ = false; link_ = {}; owner_ = {}; }
 void Session::error(p::Message& reply) const {
   reply = {}; reply.type = p::MessageType::Error;
@@ -66,7 +68,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     reply.type = p::MessageType::Welcome;
     set(reply.fields[p::kWelcomeLink], link_); set(reply.fields[p::kWelcomeDevice], device_); set(reply.fields[p::kWelcomeBoot], boot_);
     number(reply.fields[p::kWelcomeMinVersion], 1); number(reply.fields[p::kWelcomeMaxVersion], 1);
-    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0));
+    number(reply.fields[p::kWelcomeConfigSchema], 1); number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) | (discovery_ ? 128 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -81,12 +83,44 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       number(reply.fields[p::kWelcomeMaxMessageBytes], 1024);
       number(reply.fields[p::kWelcomeMessageCapacity], MessageQueue::kCapacity);
     }
+    if (discovery_) { number(reply.fields[p::kWelcomeDiscoveryVersion], 1); number(reply.fields[p::kWelcomeNodeCapacity], 32); }
     return true;
   }
   if (!active_ || !compatible_ || !same(request.fields[0], link_)) return false;
   if (request.type == p::MessageType::Ping) {
     reply.type = p::MessageType::Pong; set(reply.fields[p::kPongLink], link_); set(reply.fields[p::kPongBoot], boot_);
     number(reply.fields[p::kPongRequest], request.fields[p::kPingRequest].number); return true;
+  }
+  if (request.type == p::MessageType::Discover || request.type == p::MessageType::NodeQuery) {
+    if (!discovery_ || !synchronized_ || !same(request.fields[1], boot_) || !authority_.healthy()) return false;
+    if (request.type == p::MessageType::Discover) {
+      const auto& field = request.fields[p::kDiscoverId]; Text<75> id{}; id.assign(field.text.data(), field.length);
+      const auto action = request.fields[p::kDiscoverAction].number;
+      const bool owns = owner_.length && id.length > owner_.length && id.bytes[owner_.length] == ':' && !std::memcmp(owner_.bytes.data(), id.bytes.data(), owner_.length);
+      const auto result = action > 1 || !owns || (action && !admitted_) ? DiscoveryResult{"rejected"} : discovery_->request(owner_, id, action == 1, now_);
+      reply.type = p::MessageType::DiscoveryStatus;
+      set(reply.fields[p::kDiscoveryStatusLink], link_); set(reply.fields[p::kDiscoveryStatusBoot], boot_); set(reply.fields[p::kDiscoveryStatusId], id);
+      literal(reply.fields[p::kDiscoveryStatusState], result.state); number(reply.fields[p::kDiscoveryStatusReplies], result.replies); number(reply.fields[p::kDiscoveryStatusSequence], result.sequence);
+    } else {
+      const auto generation = request.fields[p::kNodeQueryGeneration].number; const auto cursor = request.fields[p::kNodeQueryCursor].number;
+      if (!generation && !cursor) {
+        node_generation_ = discovery_->generation(); node_count_ = discovery_->count();
+        for (std::size_t i = 0; i < node_count_; ++i) { const auto* item = discovery_->peer(i); node_snapshot_[i] = {item->key, item->name, item->seen}; }
+      }
+      const bool current = generation == node_generation_; const auto* peer = current && cursor < node_count_ ? &node_snapshot_[cursor] : nullptr;
+      reply.type = p::MessageType::NodeReply;
+      set(reply.fields[p::kNodeReplyLink], link_); set(reply.fields[p::kNodeReplyBoot], boot_);
+      number(reply.fields[p::kNodeReplyRequest], request.fields[p::kNodeQueryRequest].number); number(reply.fields[p::kNodeReplyGeneration], node_generation_);
+      number(reply.fields[p::kNodeReplyCursor], cursor); number(reply.fields[p::kNodeReplyTotal], node_count_);
+      literal(reply.fields[p::kNodeReplyState], !generation && !cursor ? "head" : !current ? "changed" : peer ? "item" : "missing");
+      if (peer && generation) {
+        char node[32]{}, nonce[33]{}; std::snprintf(node, sizeof(node), "node-%016llx", static_cast<unsigned long long>(peer->key.origin));
+        for (std::size_t i = 0; i < 16; ++i) std::snprintf(nonce + i * 2, 3, "%02x", peer->key.boot[i]);
+        literal(reply.fields[p::kNodeReplyNode], node); literal(reply.fields[p::kNodeReplyPeerBoot], nonce); number(reply.fields[p::kNodeReplyPeerSequence], peer->key.sequence);
+        set(reply.fields[p::kNodeReplyName], peer->name); number(reply.fields[p::kNodeReplyAgeMs], std::min<std::uint64_t>(now_ >= peer->seen ? now_ - peer->seen : 0, 0xffffffff));
+      }
+    }
+    return true;
   }
   if (request.type == p::MessageType::RadioQuery || request.type == p::MessageType::InboxQuery || request.type == p::MessageType::InboxRead) {
     if (!synchronized_ || !same(request.fields[1], boot_)) return false;
@@ -169,6 +203,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     literal(reply.fields[p::kSnapshotRadioMode], radio.mode == RadioMode::Off ? "off" : radio.mode == RadioMode::Receive ? "receive" : "mesh");
     number(reply.fields[p::kSnapshotTxPower], radio.power); number(reply.fields[p::kSnapshotRelay], radio.relay ? 1 : 0);
     set(reply.fields[p::kSnapshotChannels], radio.channels); literal(reply.fields[p::kSnapshotPreset], "US915_LAB1");
+    if (discovery_) { number(reply.fields[p::kSnapshotBeacon], snapshot.settings.discovery.beacon); number(reply.fields[p::kSnapshotRespond], snapshot.settings.discovery.respond); number(reply.fields[p::kSnapshotBeaconInterval], snapshot.settings.discovery.interval); }
     synchronized_ = true; return true;
   }
   Text<75> id{}; const auto& id_field = request.fields[2]; id.assign(id_field.text.data(), id_field.length);

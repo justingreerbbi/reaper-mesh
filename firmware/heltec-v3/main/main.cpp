@@ -96,12 +96,12 @@ extern "C" void app_main() {
   static d::MessageQueue messages(boot);
   static d::Inbox inbox;
   static d::RadioInfo radio_info;
-  static d::Session session(authority, device, boot, &messages, &radio_info, &inbox);
   static StatusDisplay display;
   display.begin();
   std::uint64_t node = 0; for (auto byte : mac) node = (node << 8) | byte;
   static MeshService mesh(messages, inbox, radio_info, device, random, node,
     reaper::board::kUsBandOwnerConfirmed && reaper::board::kAntennaVerified);
+  static d::Session session(authority, device, boot, &messages, &radio_info, &inbox, &mesh.discovery());
   mesh.begin();
   std::int64_t next_display = 0;
   std::array<std::uint8_t, 256> input{};

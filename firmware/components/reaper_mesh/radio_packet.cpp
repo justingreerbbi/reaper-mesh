@@ -10,6 +10,15 @@ bool valid_packet(const Packet& p) {
   bool nonce = false; for (auto byte : p.key.boot) nonce = nonce || byte != 0;
   if (!p.key.origin || p.key.origin == kBroadcast || !p.destination || !p.key.sequence || !nonce || p.hops > 7 || p.channel > 7) return false;
   if (p.kind == PacketKind::Ack) return p.destination != kBroadcast && !p.count && !p.index && !p.total && !p.size;
+  if (p.kind == PacketKind::Beacon || p.kind == PacketKind::Discover || p.kind == PacketKind::Presence) {
+    const bool reply = p.kind == PacketKind::Presence;
+    if (p.channel || p.hops != 1 || p.count != 1 || p.index || p.total != p.size || p.size < 2 || p.bytes[0] != 1 || p.bytes[1] > 64 ||
+        p.size != 2u + p.bytes[1] + (reply ? 20u : 0u) || (reply ? p.destination == kBroadcast : p.destination != kBroadcast)) return false;
+    if (p.bytes[1] && !protocol::valid_message_text(p.bytes.data() + 2, p.bytes[1])) return false;
+    for (std::size_t i = 2; i < 2u + p.bytes[1]; ++i) if (p.bytes[i] < 32 || p.bytes[i] == 127) return false;
+    if (reply) { bool nonce = false; for (unsigned i = 0; i < 16; ++i) nonce = nonce || p.bytes[2 + p.bytes[1] + i]; if (!nonce || !read(p.bytes.data() + 18 + p.bytes[1], 4)) return false; }
+    return true;
+  }
   if (p.kind != PacketKind::Data || !p.total || p.total > kMaxMessageBytes ||
       p.count != (p.total + kFragmentBytes - 1) / kFragmentBytes || p.index >= p.count) return false;
   const auto expected = p.index + 1 < p.count ? kFragmentBytes : p.total - p.index * kFragmentBytes;
@@ -31,7 +40,9 @@ bool decode_packet(const std::uint8_t* bytes, std::size_t size, Packet& out) {
   p.key.origin = read(bytes + 8, 8); p.destination = read(bytes + 16, 8); std::memcpy(p.key.boot.data(), bytes + 24, 16);
   p.key.sequence = static_cast<std::uint32_t>(read(bytes + 40, 4)); p.count = bytes[44]; p.index = bytes[45]; p.hops = bytes[46];
   p.total = static_cast<std::uint16_t>(read(bytes + 47, 2)); p.size = bytes[49];
+  if (p.size > p.bytes.size()) return false;
+  std::memcpy(p.bytes.data(), bytes + 50, p.size);
   if (!valid_packet(p)) return false;
-  std::memcpy(p.bytes.data(), bytes + 50, p.size); out = p; return true;
+  out = p; return true;
 }
 } // namespace reaper::mesh

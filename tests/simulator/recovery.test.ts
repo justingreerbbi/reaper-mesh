@@ -57,3 +57,14 @@ test('corrupt, oversized, cross-owner and counter-regressing recovery records fa
     (state: any) => { state.commands.entries[0].command.config.label = '\u0000'; },
   ]) { const changed = clone(base); mutate(changed); assert.throws(() => Connection.fromJournal(changed)); }
 });
+
+test('discovery checkpoints before dispatch and reload offers only same-device/boot queries', () => {
+  const { connection } = ready();
+  const capabilities = connection.capabilities!;
+  connection.capabilities = Object.freeze({ ...capabilities, features: capabilities.features | 128, discoveryVersion: 1, nodeCapacity: 32 });
+  let journal: unknown; connection.persistence(state => { assert.deepEqual(connection.drain(), []); journal = clone(state); });
+  assert.equal(connection.discover(0), 'owner:1'); assert.equal(connection.drain().length, 1);
+  const restored = Connection.fromJournal(journal); assert.equal(restored.discovery.last?.state, 'unknown');
+  ready(restored, 'boot-A', 'link-B'); restored.capabilities = connection.capabilities; assert.equal(restored.recoverDiscovery(0), true);
+  const restoredNewBoot = Connection.fromJournal(journal); ready(restoredNewBoot, 'boot-B', 'link-C'); restoredNewBoot.capabilities = connection.capabilities; assert.equal(restoredNewBoot.recoverDiscovery(0), false); assert.deepEqual(restoredNewBoot.drain(), []);
+});
