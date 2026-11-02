@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. The development board runs usb-prototype-1; physical USB smoke tests pass. See [first flash and recovery](../docs/FIRST_FLASH.md).
+This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. The development board runs usb-prototype-6; physical USB smoke tests pass. See [first flash and recovery](../docs/FIRST_FLASH.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Build and test
@@ -35,13 +35,13 @@ The CLI bridge allocates host input/output storage; it is excluded from codec al
 
 `packages/protocol/fixtures/messages-v1.json` freezes examples for all ten types, including capability metadata and boundary counters. Generation does not rewrite these fixtures. Change them only through an explicit reviewed protocol-version decision, not to make failing tests green. Cross-language tests cover optional/unknown/reordered fields, truncation, bit corruption, invalid Unicode/IDs, overflow, framing recovery, and seeded malformed traffic. They do not establish released firmware compatibility because none exists yet.
 
-## Next firmware work
+## Qualification still required
 
-Review TLV/retention design; confirm board revision, flash size, serial interface, and US radio variant before board-specific firmware development. Pin ESP-IDF, add a USB/UART-only application with radio transmission disabled, and integrate the tested serialized configuration authority with a real atomic NVS backend. The portable authority/storage-failure behavior is implemented; actual flash persistence remains unverified. Test crash ordering, boot identity, snapshot boundaries, persistence failures, and recovery before preparing the first image/backup/flash procedure. Radio drivers and regional settings are a later gate.
+The board adapter, atomic NVS authority, independent mesh core and SX1262 integration are implemented. USB configuration/recovery and local delivery are physically checked; full-size RF TX is checked separately from destination reception. Actual two-node delivery, three-node relays, RF coexistence, interrupted flash/power loss and extended field soak remain qualification gates. No simulation substitutes for these measurements.
 
 ## Target build
 
-Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and FIRST_FLASH.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, holds LoRa reset GPIO12 low, initializes the status OLED, and does not transmit. It uses a single factory application partition; OTA rollback is not implemented.
+Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and FIRST_FLASH.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, initializes the status OLED and probes SX1262 over bounded DMA-backed SPI. Radio is off by default; explicit mesh mode requires the confirmed US band/antenna facts. It uses a single factory application partition; OTA rollback is not implemented.
 
 ## OLED status implementation
 

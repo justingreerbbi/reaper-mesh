@@ -48,7 +48,7 @@ test('lost acceptance recovers by query while old boot remains unknown', () => {
   assert.throws(() => other.messages.recover(old.id, 'node-B', 11), /another device/);
 });
 test('late partial receipts cannot regress transmission or restart an abandoned upload', () => {
-  const { messages, send, status, session, reopen } = setup(); const packet = send();
+  const { messages, status, session, reopen } = setup(); const packet = messages.send('hello', 'node-B', 0, 'node-A', 0);
   messages.receive(session, status(packet.id, 'queued', 1), 0);
   messages.receive(session, status(packet.id, 'transmitted', 1), 0);
   messages.receive(session, status(packet.id, 'queued', 1), 0);
@@ -79,4 +79,16 @@ test('configuration resync pauses message queries without discarding accepted qu
   assert.equal(messages.history[0].state, 'queued');
   sync.snapshot({ session, boot: 'boot-A', request: sync.snapshotRequest, sequence: 1, revision: 1, config: { region: 'US', label: 'changed' } });
   assert.deepEqual(messages.tick(2001, 'node-A'), [{ type: 'messageQuery', boot: 'boot-A', id: packet.id }]);
+});
+
+test('confirmed broadcast transmission survives receipt eviction, disconnect, expiry and reload without waiting for an ACK', () => {
+  const { messages, send, status, session, sync } = setup(); const packet = send();
+  messages.receive(session, status(packet.id, 'transmitted', 1), 1);
+  messages.receive(session, { ...status(packet.id, 'unknown', 0), messageId: undefined }, 2);
+  assert.equal(messages.history[0].state, 'transmitted');
+  sync.disconnect(); assert.deepEqual(messages.tick(100000), []);
+  assert.equal(messages.history[0].state, 'transmitted');
+  const restored = new Messaging(new Synchronizer(), 'owner'); restored.restoreState(JSON.parse(JSON.stringify(messages.exportState())));
+  assert.equal(restored.history[0].state, 'transmitted');
+  assert.deepEqual(restored.tick(100000), []);
 });

@@ -1,6 +1,6 @@
 # Reaper Mesh protocol: synchronization draft
 
-Status: independent Reaper Mesh protocol, confirmed by the owner. This is a draft semantic contract and USB protocol, not a frozen release protocol. No Meshtastic interoperability is intended. Host framing, typed negotiation/synchronization payloads, generated TypeScript declarations, and a byte-driven connection manager are implemented. A Web Serial adapter is implemented and tested with simulated ports, without browser hardware validation. Configuration commands/results and recovery queries are integrated and tested through simulated serial streams. Generated C++17 descriptors and a fixed-buffer codec now pass host cross-language tests. A portable C++ configuration authority/storage interface now passes fault tests. The ESP-IDF UART/NVS application is implemented and target-built; physical validation and radio packets remain pending.
+Status: independent Reaper Mesh protocol, confirmed by the owner. USB framing, capability negotiation, authoritative configuration, bounded message submission, live diagnostics and inbox retrieval are implemented in TypeScript/C++ and exercised on the Heltec. Native browser connect/save/reconnect and local-history reload are checked. The independent radio protocol and three-node fault simulator are implemented; single-board TX completion does not qualify recipient delivery or relays. This remains a development protocol, with frozen compatibility fixtures and separate protocol/config/radio versions.
 
 ## USB envelope draft v1
 

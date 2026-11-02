@@ -111,3 +111,7 @@ Physical usb-prototype-3 testing now passes named-channel queue acceptance and r
 ## Integrated board hardware check
 
 For usb-prototype-4, `node tools/hardware-client-smoke.ts PYTHON PORT usb-prototype-4 --local-test` checks the actual SX1262 probe, main-stack headroom, 1024-byte local delivery/inbox retrieval, receive-only initialization and restoration of off mode across repeated opens. Local acknowledgment is not RF evidence. Antenna verification in board_profile.hpp remains false, so no remote transmissions are admitted. The manifest now records probe/RX support and the separate antenna gate rather than claiming the transceiver stays permanently in reset.
+
+## Current prototype-6 result
+
+The current manifest-validating updater installed prototype-6 from 56c8cf0 with all image hashes verified and NVS preserved. Full-message RF TX now passes after fixing the non-DMA SPI limit: seven broadcast fragments completed TX_DONE; unreachable unicast reached TX 10 total and failed without ACK. Test off policy was restored; three opens reached ready in 648/644/647 ms at revision 20. Subsequent owner browser use selected mesh/revision 21. Current state and qualification limits are in STATUS.md; do not interpret earlier historical RF-disabled statements as current board policy.

@@ -96,3 +96,7 @@ Persist the client incarnation and monotonic config/message counters before wire
 ## Guided ROM updater and antenna confirmation
 
 Validate build identity, compatibility, fixed partitions, outer/embedded image hashes and ROM security state before the first write. Stage immutable verified bytes to avoid a parallel-build race. Preserve NVS; stop on unexpected layouts or secured devices. Keep ROM verification separate from application qualification. Single-factory reinstall remains the prototype recovery route; signed releases/automatic rollback need separate work before public release. Owner confirms attached US/915 MHz antenna, so the US development board may proceed to explicit bounded RF tests.
+
+## Full-fragment physical RF qualification
+
+The first TX attempt found ESP32-S3's non-DMA SPI limit of 64 bytes. Retain the failed evidence; use DMA with aligned persistent buffers and verify actual host transaction capacity at startup. Prototype-6 then completed seven full-message fragment TX_DONE events and correctly failed an unreachable unicast after retries. Test restoration left off mode/revision 20; later owner browser changes selected mesh/revision 21 and were preserved. Neither TX_DONE nor local inbox delivery proves a remote receiver/relay works. The focused single-board prototype is ready for the separate physical multi-node qualification stage.

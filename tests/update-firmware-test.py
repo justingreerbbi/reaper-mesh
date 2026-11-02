@@ -6,6 +6,10 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
+import contextlib
+import io
+import zipfile
 
 spec = importlib.util.spec_from_file_location("updater", Path(__file__).resolve().parents[1] / "tools/update-firmware.py")
 updater = importlib.util.module_from_spec(spec)
@@ -110,6 +114,28 @@ class UpdateTests(unittest.TestCase):
                      (flash, security.replace("00000000", "00000001")), (flash, security.replace("v4.12.0", "v5.0.0"))]:
             with self.subTest(flash=f, security=s):
                 with self.assertRaises(ValueError): updater.preflight(f, s)
+
+    def test_package_round_trip_retains_exact_images_and_required_notices(self):
+        spec = importlib.util.spec_from_file_location("packager", Path(__file__).resolve().parents[1] / "tools/package-firmware.py")
+        packager = importlib.util.module_from_spec(spec); spec.loader.exec_module(packager)
+        self.validate()
+        for name in [".tools/esp-idf/LICENSE", ".tools/esp-idf/components/newlib/COPYING.NEWLIB",
+                     "firmware/components/reaper_radio/vendor/LICENSE.txt", "tools/update-firmware.py"]:
+            path = self.root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text("retained fixture notice/source")
+        output = self.root / "package.zip"
+        with patch.object(packager, "root", self.root), patch.object(packager.subprocess, "check_output", side_effect=[updater.SDK + "\n", b"source archive"]), contextlib.redirect_stdout(io.StringIO()):
+            packager.package(self.path, output)
+        with zipfile.ZipFile(output) as archive:
+            for line in archive.read("SHA256SUMS").decode().splitlines():
+                digest, name = line.split("  ", 1)
+                self.assertEqual(hashlib.sha256(archive.read(name)).hexdigest(), digest)
+            self.assertEqual(archive.read("reaper_mesh_usb.bin"), esp_image())
+            self.assertEqual(archive.read("source.tar"), b"source archive")
+            self.assertIn("notices/esp-idf/components/newlib/COPYING.NEWLIB", archive.namelist())
+            extracted = self.root / "extracted"; archive.extractall(extracted)
+        updater.validate(extracted / "reaper-manifest.json")
+        (extracted / "reaper_mesh_usb.bin").write_bytes(b"corrupt")
+        with self.assertRaises(ValueError): updater.validate(extracted / "reaper-manifest.json")
 
 
 if __name__ == "__main__":

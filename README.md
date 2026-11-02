@@ -10,6 +10,7 @@ The goal is dependable messaging, small firmware, and compatibility across suppo
 - [Development plan](docs/PLAN.md): proposed architecture, milestones, and acceptance criteria.
 - [Decisions](docs/DECISIONS.md): assumptions and unresolved product choices.
 - [Protocol draft](docs/PROTOCOL.md): synchronization semantics and implementation limits.
+- [Compatibility and RACE coverage](docs/COMPATIBILITY.md): version matrix, automated and physical evidence.
 - [Device storage contract](docs/PERSISTENCE.md): commit, uncertain-write, and recovery behavior.
 - [Embedded foundation](firmware/README.md): C++ codec contracts, builds, and target integration limits.
 - [Hardware inventory](docs/HARDWARE.md): read-only USB findings and outstanding verification.

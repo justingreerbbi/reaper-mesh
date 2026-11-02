@@ -13,3 +13,7 @@ Mandatory checks: chunk reorder/duplication/conflict, invalid UTF-8, maximum siz
 ## Hardware message acceptance evidence
 
 usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS client/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
+
+## Confirmed broadcast completion
+
+A complete transmitted receipt for a broadcast is terminal for the sender: there is no destination ACK to wait for. The client preserves that fact across the observation deadline, disconnect, receipt eviction and journal reload. It does not promote unknown or merely queued broadcasts to transmitted. Unicast transmitted remains unconfirmed until destination ACK/failure, and unfinished work still restores as unknown. A regression covers the broadcast distinction; the UI labels it Broadcast transmitted · no recipient acknowledgment.

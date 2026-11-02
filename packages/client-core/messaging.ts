@@ -47,7 +47,7 @@ export class Messaging {
       if (status === 'acknowledged' && !messageId) throw new Error('acknowledged recovery message lacks identity');
       entries.set(identity.id, { id: identity.id, boot, device, destination, channel, text, chunks,
         session: this.sync.session, part: 0, attempts: 1, deadline: 0, pollAt: 0, expiresAt: 70000,
-        state: ['receiving', 'queued', 'transmitted'].includes(status) ? 'unknown' : status as Entry['state'], messageId, reason });
+        state: status === 'receiving' || status === 'queued' || (status === 'transmitted' && destination !== 'broadcast') ? 'unknown' : status as Entry['state'], messageId, reason });
     }
     this.#counter = counter; this.#entries = entries;
   }
@@ -66,7 +66,7 @@ export class Messaging {
   receive(session: number, status: Status, now: number): Upload | undefined {
     this.#time(now); const entry = this.#entries.get(status.id);
     if (!entry || session !== this.sync.session || entry.session !== session || status.boot !== entry.boot ||
-        status.boot !== this.sync.boot || ['acknowledged', 'failed', 'rejected'].includes(entry.state)) return;
+        status.boot !== this.sync.boot || (['acknowledged', 'failed', 'rejected'].includes(entry.state) || (entry.state === 'transmitted' && entry.destination === 'broadcast'))) return;
     if (status.messageId && entry.messageId && status.messageId !== entry.messageId) return;
     if (status.state === 'receiving') {
       if (entry.state !== 'receiving') { if (entry.state === 'unknown') entry.reason = 'partial-upload-not-resumed'; return; } // Never resume a partial upload on a new link.
@@ -86,7 +86,7 @@ export class Messaging {
   tick(now: number, device?: string): (Upload | MessageQuery)[] {
     this.#time(now); const output: (Upload | MessageQuery)[] = [];
     for (const entry of this.#entries.values()) {
-      if (!['receiving', 'queued', 'transmitted'].includes(entry.state)) continue;
+      if (!['receiving', 'queued', 'transmitted'].includes(entry.state) || (entry.state === 'transmitted' && entry.destination === 'broadcast')) continue;
       if (now >= entry.expiresAt) { entry.state = 'unknown'; continue; }
       if (entry.session !== this.sync.session || entry.boot !== this.sync.boot || ['disconnected', 'incompatible'].includes(this.sync.state) || device !== entry.device) {
         entry.state = 'unknown'; continue;

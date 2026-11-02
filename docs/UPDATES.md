@@ -22,7 +22,7 @@ The default interpreter is the pinned SDK environment. `--python /absolute/path/
 After installation, reconnect the console. Confirm the expected firmware, synchronized persisted label/region/radio settings, fresh boot identity, probe status, and stable USB health. Old uncertain outcomes stay unknown after a reboot and are never resent. For the physical TS adapter regression:
 
 ```sh
-node tools/hardware-client-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 usb-prototype-4
+node tools/hardware-client-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 usb-prototype-6
 ```
 
 If automatic ROM entry fails, hold PRG/BOOT, tap RESET, release PRG, and rerun the same updater with known-good artifacts. If an update stops after writing begins, assume the application may be incomplete until reinstalled and verified. Do not clear NVS to fix a connection failure. The detailed historical first-flash record is in FIRST_FLASH.md.
@@ -30,3 +30,7 @@ If automatic ROM entry fails, hold PRG/BOOT, tap RESET, release PRG, and rerun t
 ## Validation
 
 Host tests reject wrong targets, dirty/incompatible builds, altered paths/offsets, artifact size/hash mismatches, rehashed-but-invalid ESP images, changed partition layouts, symlink escapes, and secured/unexpected ROM targets. On November 1, 2026 the updater reinstalled usb-prototype-4 from commit 6692d12 on the development board: all three image hashes verified, followed by three TS client/adapter reconnects in 649/648/643 ms with revision 14 preserved. Actual power loss during flashing remains unqualified.
+
+## Local prototype bundle
+
+`python3 tools/package-firmware.py --output build/heltec-v3/reaper-mesh-usb-prototype-6.zip` creates a validated archive of the three images, manifest, standalone updater, exact source archive, SHA256SUMS, recovery instructions and retained SDK/Semtech notices. It refuses to overwrite an existing package. Nothing is uploaded. An extracted package was validated and every file hash checked; corrupt extracted images were rejected. Project licensing and authenticated public releases remain deferred. The web console also offers Export device settings for a readable snapshot before updating.

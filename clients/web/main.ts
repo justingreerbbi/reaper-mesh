@@ -72,6 +72,7 @@ function render() {
   text('byte-count', `${bytes} / ${capabilities ? max : '—'} bytes`);
   save.disabled = !writable || !model.dirty || model.stale || model.pending || bytes > max || model.history.length >= 32;
   reset.disabled = !ready || model.pending;
+  element<HTMLButtonElement>('export-settings').disabled = !ready;
   element('draft-warning').hidden = !ready || !model.dirty || !model.stale;
   text('device', connection.device ?? '—');
   text('firmware', capabilities?.firmware ?? '—');
@@ -209,7 +210,7 @@ function renderMessages() {
     const body = document.createElement('strong'); body.className = 'message-text'; body.textContent = entry.text;
     const status = document.createElement('p');
     const labels = { receiving: 'Uploading to device', queued: 'Queued on device · not transmitted', transmitted: 'Transmitted · recipient delivery unconfirmed', acknowledged: 'Accepted by destination · not read status', failed: 'Failed', rejected: 'Rejected by device', unknown: 'Unknown · never automatically resent' };
-    status.textContent = entry.reason === 'local-delivery' ? 'Delivered locally · no radio transmission' : `${labels[entry.state]}${entry.reason ? ' · ' + entry.reason : ''}`;
+    status.textContent = entry.state === 'transmitted' && entry.destination === 'broadcast' ? 'Broadcast transmitted · no recipient acknowledgment' : entry.reason === 'local-delivery' ? 'Delivered locally · no radio transmission' : `${labels[entry.state]}${entry.reason ? ' · ' + entry.reason : ''}`;
     const id = document.createElement('span'); id.className = 'mono'; id.textContent = `${entry.destination} / ${entry.messageId ?? entry.id}`;
     content.append(body, status, id); const actions = document.createElement('div'); actions.className = 'actions';
     if (entry.state !== 'receiving') {
@@ -298,4 +299,14 @@ element('recovery-reset').addEventListener('click', () => {
     recovery.reset(); models.usb = new ConfigModel(new SerialAdapter(recovery.connection));
     historySignature = messageSignature = inboxSignature = ''; error = ''; render();
   } catch (error) { showError(error); }
+});
+
+element('export-settings').addEventListener('click', () => {
+  const { connection } = current().adapter;
+  if (connection.sync.state !== 'ready') return;
+  const snapshot = { format: 'reaper-mesh-settings-1', device: connection.device, boot: connection.sync.boot,
+    revision: connection.sync.revision, config: connection.sync.config };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'reaper-mesh-settings.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 });

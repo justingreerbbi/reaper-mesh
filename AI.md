@@ -1,13 +1,15 @@
 # Reaper Mesh: AI contributor handoff
 
 
-First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. The startup issue is resolved; native Brave Web Serial connect/save/reconnect also passes as documented below. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
-
 ## Current stage
 
-The owner confirmed the OLED works and requested sustained development through the agreed project scope without routine confirmation prompts. USB-only Heltec firmware, NVS settings, native Brave connect/save/reconnect, startup recovery, and physical lost-reply/duplicate/reset recovery checks pass. No old firmware backup is required. RF remains disabled; antenna confirmation is pending before RF bring-up. BLE, EU transmission, encryption, and licensing are deferred.
+The focused single-board USB prototype is implemented. usb-prototype-6 from clean commit 56c8cf0 is installed with all three ROM hashes verified. The owner confirms the OLED works, the board is US Heltec V3 and its US/915 MHz antenna is attached. USB/NVS/RACE, browser saves/reconnect, local 1024-byte delivery/inbox, durable reload history, actual SX1262 probe/RX initialization and full-fragment TX are checked. All 194 host tests and 53 standalone CTests pass. See docs/STATUS.md and docs/COMPATIBILITY.md for precise evidence and release limits.
 
-Message acceptance v1 is implemented with bounded 1,024-byte UTF-8 uploads, eight device records, owner high-water duplicate suppression, distinct queue/transmit/recipient-ACK states, and query-only reconnect recovery. USB tags 12–14 and optional welcome metadata extend v1 without changing old fixtures. The real TS client/C++ session wire transcript passes maximum-size/lost-acceptance recovery. The browser composer is implemented; hardware queue/expiry and native Brave composition checks now pass. All 183 host tests pass; the independent CMake suite includes mesh/packet tests. See docs/MESSAGING.md. Physical multi-node RF, power-cut qualification and long-duration tests remain outstanding.
+The RF test reached seven TX_DONE events for a 1024-byte broadcast, then three unreachable-unicast transmissions followed by explicit failure with no fabricated ACK. It restored off mode and verified three reconnects at revision 20. The owner subsequently selected mesh mode through the browser; final observed state was prototype-6/revision 21, probe OK, ready, TX 1 and local delivery. Preserve those user-selected settings; do not assume the device is still off.
+
+The updater validates clean build provenance, target/schema/layout, outer and embedded hashes, ROM security state and immutable staged images; it preserves NVS and verifies each write. A local zip includes exact source, images, updater, hashes and retained notices. Native browser reload retains outgoing/inbox history. The SDK SPI non-DMA 64-byte limit caused prototype-5 to fail closed; prototype-6 enables DMA and checks the bus capacity. No old-firmware backup is required.
+
+This is not a production-ready release. Actual remote RX/destination ACK needs a second board; relay qualification needs a third. Power-cut, interrupted-flash, coexistence and field-soak checks remain. EU/BLE/encryption/mobile/other boards and licensing stay deferred. Public signing/automatic rollback remain release hardening. Do not fabricate these external qualification results.
 
 ## Product intent
 
@@ -41,7 +43,7 @@ Proceed with M0 foundations within the confirmed independent-protocol and synchr
 
 ## Next work
 
-usb-prototype-2 and browser message acceptance are qualified as recorded below. The bounded C++ packet/mesh core now passes deterministic topology/fault tests. Persisted channel/radio settings are implemented and host-tested; usb-prototype-3 is installed and physically tested. Regional airtime policy and the pinned Semtech-backed driver pass host tests. Board SPI/mesh service, diagnostics and inbox are implemented and target-built. usb-prototype-4 probe, receive-only initialization and local 1024-byte delivery passed on hardware. Browser recovery journaling and native reload retention now pass. Next finish manifest-validating updater and release/lifecycle qualification. Actual TX qualification now proceeds with the confirmed US/915 antenna, while off remains the persisted/default mode. Finish practical USB update validation/recovery UX and resource/session lifecycle limits. Maintain the active project goal; do not declare completion while required work remains. One board cannot qualify real RF delivery/relays.
+Use docs/STATUS.md as the current completion/qualification tracker. The focused single-board implementation and available hardware tests are complete; next qualify real two-/three-node receive/ACK/relay operation when hardware exists. Additional work should target the documented release gates, not add unrelated features. Never overwrite the owner's live radio settings as a side effect of a read-only check. The historical checkpoints below record earlier firmware states and must not override this current section.
 
 ## USB startup recovery evidence
 
@@ -90,3 +92,9 @@ Owner confirmed the supplied US/915 MHz antenna is attached. usb-prototype-5 ena
 ## First RF attempt and SPI correction
 
 usb-prototype-5 installed with verified hashes, but the first maximum-message TX attempt failed closed with radio-driver-fault. Off policy was restored. Pinned IDF source confirms non-DMA SPI is limited to 64 bytes even when max_transfer_sz requests more. usb-prototype-6 enables SPI DMA, aligns persistent transfer buffers and checks the actual host maximum at startup before claiming a probe. Re-run physical RF qualification after deployment; no TX success is claimed for prototype-5.
+
+## Final single-board checkpoint
+
+Prototype-6 RF results and package/browser verification are recorded in docs/STATUS.md. Local ignored evidence: build/heltec-v3/reaper-manifest.json, flash-result.json, reaper-mesh-usb-prototype-6.zip and browser-final.png. Package SHA256 0a6dbc4121b3295f08d1f8ddfd8065feeb1f55f53091a9f0bed34a68c27327a6. No remote push/public release was performed by the agent.
+
+Final browser review also corrected confirmed broadcasts degrading to unknown while waiting for a nonexistent recipient ACK. Confirmed broadcast transmission is now terminal across deadline/disconnect/receipt eviction/reload; unicast ambiguity remains unchanged. The new regression brings npm run check to 194 passing tests.

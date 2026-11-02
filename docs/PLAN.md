@@ -1,13 +1,10 @@
 # Development plan
 
-Status: M0 started. Independent protocol, US-first operation, synchronization/recovery focus, and licensing deferral are confirmed. Remaining architectural choices are provisional.
-
-
-First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. The initial startup issue is resolved in the client as documented below; browser Web Serial hardware qualification remains pending. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
+Status: focused USB/local-messaging prototype implemented and hardware-tested. Independent protocol, US-first operation, synchronization/recovery focus and licensing deferral are confirmed. See STATUS.md for evidence and remaining external qualification gates.
 
 ## Progress
 
-USB configuration, persistence, startup recovery, OLED status (owner visually confirmed), native Brave USB save/reconnect, and physical lost-result/query/duplicate/reset tests pass. Message acceptance v1 and web composition now pass host/native wire tests; usb-prototype-2 deployment follows. M1's tested USB slice is established, while power-loss and extended interruption qualification remain. M2 message acceptance is underway; no RF transmission/delivery or mesh reliability is claimed. The remaining scope is explicit in docs/MESSAGING.md and the milestone table below.
+USB authority/NVS, RACE recovery, OLED, public/named channels and radio settings, 1024-byte messages, local inbox, bounded independent mesh, browser reload journal, live diagnostics and manifest-validating ROM updater are implemented. Native Brave settings/reconnect/local messaging/reload checks pass. The US board and attached 915 MHz antenna are owner-confirmed. Full-fragment radio TX qualification is separate from real two-/three-node delivery. Power-cut, interference and field tests remain release gates; later BLE/encryption/mobile/EU scope is unchanged.
 
 ## Product boundary
 
@@ -71,7 +68,7 @@ Release artifacts need a board-specific manifest with firmware version, USB/radi
 
 | Milestone | Deliverable | Acceptance gate |
 | --- | --- | --- |
-| M0: foundations | Confirm hardware/region, choose license and dependencies, freeze first schemas, budgets and compatibility policy, reproducible toolchains and CI | Reviewed protocol fixtures and race-test harness run on host; resource budget documented; no RF or flashing required |
+| M0: foundations | Confirm hardware/region, defer license per owner, choose dependencies, freeze first schemas, budgets and compatibility policy, reproducible toolchains and CI | Reviewed protocol fixtures and race-test harness run on host; resource budget documented; no RF or flashing required |
 | M1: USB vertical slice | Firmware handshake/status/config storage; web connect/status/config UI | One board connects, safely reconnects, persists config, rejects incompatible peers and stale revisions; mandatory USB race cases pass |
 | M2: message model | Client send/history/status with simulated peers and bounded firmware queues | Duplicate/retry/loss cases converge or report unknown; ACK semantics and overflow behavior visible and tested |
 | M3: radio and mesh | Regional preset, public channel, fragmentation, unicast ACK, forwarding | Simulator topology suite passes; real two-node and three-node gates separately recorded; RF claims blocked until hardware available |
@@ -120,4 +117,4 @@ The actual C++ Mesh/codec passes bounded line/triangle topology tests. Regional 
 
 ## Current completion tracking
 
-Use STATUS.md for implemented/evidenced versus remaining work. The integrated board SPI, diagnostics, inbox and local-delivery path are implemented and target-built; hardware qualification follows. Durable browser command/message history and guided updater validation remain required before declaring the focused prototype complete. Physical multi-node gates remain explicit.
+Use STATUS.md for implemented/evidenced versus remaining work. Integrated board SPI, diagnostics, inbox, local delivery, durable browser recovery and guided updater validation are implemented and exercised on hardware where applicable. Public release requires the separate hardening gates above. Physical multi-node gates remain explicit.
