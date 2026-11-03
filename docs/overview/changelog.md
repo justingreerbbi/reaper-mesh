@@ -10,6 +10,40 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 3: portal cleanup
+
+At the owner's request:
+
+- Connect and Disconnect are one header button. It reads **Cancel** while the port chooser is
+  open.
+- Dropdowns and disclosures use one themed chevron instead of the browser's own arrows.
+- The change-history page and the Advanced group are gone. Storage and Diagnostics are now
+  ordinary Settings tabs. Because the history page held the only Clear button, the portal now
+  releases settled settings changes by itself. It reports a rejection or conflict as a
+  message. It queries an unknown outcome once per connection and releases it when the device's
+  receipt is gone.
+- The New message button, its form and the inbox's + button are gone; channels and heard
+  devices open from the conversation list or the map. As a result, direct messages always use
+  channel 0 (Public) and its key, and an unheard node ID cannot be messaged.
+- The conversation header has a three-dot options menu in place of Locate device and Delete
+  chat. Its **Clear chat history** removes the chat's messages from this browser but keeps the
+  channel or direct message in the list, unlike Delete chat, which also hid it.
+- The message box keeps focus after Enter sends a message. It is read-only rather than disabled
+  while the device takes the message.
+- Removed taglines and filler text: the sidebar "Local by design" block, "Local mesh · no cloud
+  account", the overview subtitle and footnote, the page footer and the decorative section
+  labels. The page title is now just "Reaper Mesh".
+
+Verification: `npm run check` passed. Simulator QA covered the toggle, 35 consecutive label
+saves (past the old 32-entry limit) without blocking, an unknown outcome resolved on reconnect,
+an unknown outcome released after a simulated reboot, the settings tabs, both chevrons, the
+phone layout, opening a channel from the list without the New message form, and the options
+menu opening and closing on Escape or an outside click. Clearing a chat with messages was not
+exercised (the simulator has no messaging); it uses the same confirmed local removal as deleting
+a single message, without hiding the conversation. Message sending was not exercised (the simulator has no messaging); a browser
+check confirmed a read-only box keeps focus while a disabled one loses it. No firmware,
+protocol or storage changes.
+
 ## November 3: portal workspace redesign
 
 At the owner's request, the portal now opens on a read-only network overview with connection,

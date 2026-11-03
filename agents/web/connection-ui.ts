@@ -16,20 +16,19 @@ import {
 import { element, text } from './dom.ts';
 import { messagesModeChanged } from './messages-ui.ts';
 import { fieldMap, setPanelOpen, setSelectedNode } from './map-ui.ts';
-import { invalidateHistory } from './settings-ui.ts';
 
 const label = element<HTMLInputElement>('label');
 const region = element<HTMLSelectElement>('region');
 const fault = element<HTMLSelectElement>('fault');
 const readOnly = element<HTMLInputElement>('read-only');
-export const connect = element<HTMLButtonElement>('connect');
-const disconnect = element<HTMLButtonElement>('disconnect');
+const connect = element<HTMLButtonElement>('connect');
 const save = element<HTMLButtonElement>('save');
 const reset = element<HTMLButtonElement>('reset');
 const serial = (navigator as Navigator & { serial?: { requestPort(): Promise<SerialPortLike> } })
   .serial;
 let busy = false;
 let attempt = 0;
+let connected = false;
 
 export function renderConnection(model: ConfigModel, active: boolean, cleanupError?: string) {
   const { connection } = model.adapter;
@@ -37,13 +36,17 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   const ready = sync.state === 'ready';
   const writable = ready && !connection.writeBlockReason;
   mode.disabled = busy || active;
-  connect.disabled = busy || active || (mode.value === 'usb' && (!serial || !isSecureContext));
+  // One toggle: connect when idle, cancel while opening, disconnect when connected.
+  connected = busy || active;
+  connect.disabled = !connected && mode.value === 'usb' && (!serial || !isSecureContext);
   connect.textContent = busy
-    ? 'Connecting…'
-    : mode.value === 'demo'
-      ? 'Connect simulator'
-      : 'Connect USB';
-  disconnect.disabled = !busy && !active;
+    ? 'Cancel'
+    : active
+      ? 'Disconnect'
+      : mode.value === 'demo'
+        ? 'Connect simulator'
+        : 'Connect USB';
+  connect.classList.toggle('primary', !connected);
   text(
     'support',
     mode.value === 'demo'
@@ -100,13 +103,7 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   const bytes = new TextEncoder().encode(model.draft.label).length;
   const max = capabilities?.maxLabelBytes ?? 64;
   text('byte-count', `${bytes} / ${capabilities ? max : '—'} bytes`);
-  save.disabled =
-    !writable ||
-    !model.dirty ||
-    model.stale ||
-    model.pending ||
-    bytes > max ||
-    model.history.length >= 32;
+  save.disabled = !writable || !model.dirty || model.stale || model.pending || bytes > max;
   reset.disabled = !ready || model.pending;
   element<HTMLButtonElement>('export-settings').disabled = !ready;
   element('draft-warning').hidden = !ready || !model.dirty || !model.stale;
@@ -167,48 +164,55 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   readOnly.disabled = active || busy;
 }
 
-export function initConnection() {
-  connect.addEventListener('click', async () => {
-    const token = ++attempt;
-    const model = current();
-    busy = true;
-    clearError();
-    render();
-    try {
-      const port = mode.value === 'demo' ? demo.createPort() : await serial!.requestPort();
-      if (token !== attempt) return;
-      demo.readOnly = readOnly.checked;
-      await model.adapter.connect(port, crypto.randomUUID());
-    } catch (e) {
-      if (token === attempt) showError(e);
-    } finally {
-      if (token === attempt) {
-        busy = false;
-        if (model.adapter.connection.sync.state === 'ready') {
-          setPanelOpen(true);
-        }
-        render();
-        fieldMap.invalidate();
+/** Opens a connection, unless one is already open or opening. */
+export async function connectDevice() {
+  if (!connected) await open();
+}
+
+async function open() {
+  const token = ++attempt;
+  const model = current();
+  busy = true;
+  clearError();
+  render();
+  try {
+    const port = mode.value === 'demo' ? demo.createPort() : await serial!.requestPort();
+    if (token !== attempt) return;
+    demo.readOnly = readOnly.checked;
+    await model.adapter.connect(port, crypto.randomUUID());
+  } catch (e) {
+    if (token === attempt) showError(e);
+  } finally {
+    if (token === attempt) {
+      busy = false;
+      if (model.adapter.connection.sync.state === 'ready') {
+        setPanelOpen(true);
       }
+      render();
+      fieldMap.invalidate();
     }
-  });
-  disconnect.addEventListener('click', async () => {
-    ++attempt;
-    busy = false;
-    clearError();
-    const model = current();
-    try {
-      await model.adapter.disconnect();
-    } catch (e) {
-      showError(e);
-    }
-    setSelectedNode('');
-    render();
-  });
+  }
+}
+
+async function close() {
+  ++attempt;
+  busy = false;
+  clearError();
+  const model = current();
+  try {
+    await model.adapter.disconnect();
+  } catch (e) {
+    showError(e);
+  }
+  setSelectedNode('');
+  render();
+}
+
+export function initConnection() {
+  connect.addEventListener('click', () => (connected ? close() : open()));
   mode.addEventListener('change', () => {
     messagesModeChanged();
     clearError();
-    invalidateHistory();
     setSelectedNode('');
     render();
   });

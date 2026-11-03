@@ -7,7 +7,7 @@ body {
 .app {
   height: 100dvh;
   display: grid;
-  grid-template-rows: 80px minmax(0, 1fr) 30px;
+  grid-template-rows: 80px minmax(0, 1fr);
 }
 .bar {
   display: flex;
@@ -147,41 +147,6 @@ body {
 }
 .nav-settings {
   margin-top: auto;
-}
-.rail-version {
-  border-top: 1px solid var(--line);
-  margin-top: 18px;
-  padding: 22px 14px 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.rail-version strong,
-.rail-version span {
-  display: block;
-}
-.rail-version strong {
-  color: var(--text);
-  font-weight: 500;
-  margin-bottom: 6px;
-}
-.rail-version .mono {
-  font-size: 9px;
-  margin-top: 18px;
-}
-.system-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 28px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 9px;
-  letter-spacing: 1px;
-  background: var(--panel);
-}
-.footer-dot {
-  padding-inline: 8px;
 }
 .error {
   position: fixed;
@@ -406,11 +371,6 @@ body {
   color: var(--muted);
   font-weight: 400;
 }
-.overview-footnote {
-  margin-top: 24px;
-  color: var(--muted);
-  font-size: 12px;
-}
 
 /* Conversations: one roomy inbox and a focused thread, with matching surfaces. */
 .app[data-view='messages'] .stage {
@@ -560,15 +520,6 @@ body {
   font-weight: 650;
   margin-left: 4px;
 }
-.inbox-footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 20px 24px;
-  border-top: 1px solid var(--line);
-  font-size: 11px;
-  color: var(--muted);
-}
 .conversation-pane {
   display: flex;
   flex-direction: column;
@@ -597,10 +548,39 @@ body {
   margin-top: 6px;
   font-size: 12px;
 }
-#delete-conversation {
-  background: transparent;
+/* Conversation options: a three-dot button with a small popup menu under it. */
+.conversation-menu {
+  position: relative;
+}
+.options-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 200px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.options-menu[hidden] {
+  display: none;
+}
+.options-menu button {
+  justify-content: flex-start;
+  min-height: 38px;
   border-color: transparent;
-  color: var(--muted);
+  background: transparent;
+  font-weight: 500;
+}
+.options-menu .danger-item {
+  color: var(--danger);
+}
+.options-menu .danger-item:hover:enabled {
+  background: var(--danger-bg);
 }
 .conversation-notice {
   display: flex;
@@ -701,8 +681,7 @@ body {
 .message-state[data-state='rejected'] {
   color: var(--danger);
 }
-.message-state[data-state='unknown'],
-.outcome[data-outcome='unknown'] {
+.message-state[data-state='unknown'] {
   color: var(--warning);
 }
 .message-delete {
@@ -774,50 +753,6 @@ body {
 }
 #message-send {
   min-width: 96px;
-}
-.recipient-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px 20px;
-  padding: 24px 32px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  max-height: 50dvh;
-  overflow-y: auto;
-}
-.recipient-controls label {
-  margin: 0;
-}
-.recipient-controls input {
-  grid-column: 1;
-}
-.recipient-controls label:nth-of-type(2) {
-  grid-column: 2;
-  grid-row: 1;
-}
-.recipient-controls select {
-  grid-column: 2;
-  grid-row: 2;
-}
-#recipient-help {
-  grid-column: 1;
-  grid-row: 3;
-}
-#recipient-done {
-  grid-column: 2;
-  grid-row: 3;
-  align-self: start;
-  justify-self: end;
-}
-#broadcast-destination {
-  justify-self: start;
-}
-.recipient-test {
-  grid-column: 2;
-  font-size: 12px;
-}
-.recipient-test summary {
-  padding-block: 8px;
 }
 
 /* Map canvas and tools share the same card, field and action vocabulary. */
@@ -1142,9 +1077,6 @@ dialog::backdrop {
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
-.manage-head .eyebrow {
-  margin-bottom: 8px;
-}
 .manage-body {
   padding: 28px;
   min-height: 0;
@@ -1297,23 +1229,6 @@ form.manage-body > label:first-child {
   border-color: var(--selected-line);
   color: var(--text);
 }
-.advanced-settings {
-  border-top: 1px solid var(--line);
-  margin-top: 20px;
-  padding-top: 8px;
-}
-.advanced-settings summary {
-  padding: 14px 16px;
-  color: var(--muted);
-}
-.advanced-settings:has(.is-active) summary {
-  color: var(--accent);
-}
-.advanced-links {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 #manage > .manage-body {
   padding: 36px 44px;
   background: var(--bg);
@@ -1428,28 +1343,6 @@ form.manage-body > label:first-child {
 }
 .simulation h3 {
   margin-block: 8px 12px;
-}
-.history {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.history li {
-  padding: 22px;
-  margin-bottom: 16px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  border-radius: var(--radius);
-}
-.history strong,
-.history .mono,
-.history .outcome {
-  display: block;
-  margin-bottom: 6px;
-}
-.outcome {
-  font-size: 13px;
-  color: var(--accent);
 }
 .plugin-import {
   font-size: 12px;
@@ -1645,8 +1538,7 @@ form.manage-body > label:first-child {
     padding: 12px 4px;
     font-size: 10px;
   }
-  .nav-label,
-  .rail-version {
+  .nav-label {
     display: none;
   }
   .overview-metrics {
@@ -1666,7 +1558,7 @@ form.manage-body > label:first-child {
 }
 @media (max-width: 720px) {
   .app {
-    grid-template-rows: auto minmax(0, 1fr) 26px;
+    grid-template-rows: auto minmax(0, 1fr);
   }
   .bar {
     flex-wrap: wrap;
@@ -1702,8 +1594,7 @@ form.manage-body > label:first-child {
     padding-inline: 12px;
     font-size: 12px;
   }
-  #connect:disabled,
-  #disconnect:disabled {
+  #connect:disabled {
     display: none;
   }
   .stage,
@@ -1735,8 +1626,7 @@ form.manage-body > label:first-child {
   .nav-settings {
     margin: 0;
   }
-  .nav-label,
-  .rail-version {
+  .nav-label {
     display: none;
   }
   .overview-pane,
@@ -1806,8 +1696,7 @@ form.manage-body > label:first-child {
     padding: 16px;
     gap: 10px;
   }
-  .conversation-head .avatar,
-  #locate-conversation {
+  .conversation-head .avatar {
     display: none;
   }
   .conversation-title {
@@ -1816,7 +1705,7 @@ form.manage-body > label:first-child {
   .conversation-title > span {
     font-size: 11px;
   }
-  .conversation-head #delete-conversation {
+  .conversation-head .conversation-menu {
     margin-left: auto;
   }
   .conversation-notice {
@@ -1852,19 +1741,6 @@ form.manage-body > label:first-child {
   .compose-bottom {
     padding-top: 8px;
   }
-  .recipient-controls {
-    padding: 20px;
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .recipient-controls > *,
-  .recipient-controls label:nth-of-type(2),
-  .recipient-controls select,
-  #recipient-help,
-  #recipient-done,
-  .recipient-test {
-    grid-column: 1;
-    grid-row: auto;
-  }
   .tracker-pane {
     display: flex;
     flex-direction: column;
@@ -1894,13 +1770,6 @@ form.manage-body > label:first-child {
     bottom: 30px;
     left: 12px;
     right: 12px;
-  }
-  .system-footer {
-    padding-inline: 16px;
-    font-size: 8px;
-  }
-  .system-footer > span:last-child {
-    display: none;
   }
   dialog,
   .map-dialog,
@@ -1934,18 +1803,6 @@ form.manage-body > label:first-child {
     flex-shrink: 0;
     padding: 10px 14px;
     min-height: 42px;
-  }
-  .advanced-settings {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    flex-shrink: 0;
-  }
-  .advanced-settings summary {
-    padding: 10px 14px;
-  }
-  .advanced-links {
-    flex-direction: row;
   }
   #manage > .manage-body,
   .manage-body {

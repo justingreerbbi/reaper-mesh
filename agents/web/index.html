@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101217" />
-    <title>Reaper Mesh · Field communications</title>
+    <title>Reaper Mesh</title>
     <link rel="stylesheet" href="/theme.css" />
   </head>
   <body>
@@ -30,8 +30,7 @@
             <option value="usb">USB device</option>
             <option value="demo">Simulator</option>
           </select>
-          <button id="connect" class="primary" type="button">Connect device</button>
-          <button id="disconnect" type="button" disabled>Disconnect</button>
+          <button id="connect" class="primary" type="button">Connect USB</button>
         </div>
       </header>
       <p id="support" class="sr-only"></p>
@@ -75,20 +74,11 @@
             ></span>
             <span>Settings</span>
           </button>
-          <div class="rail-version">
-            <strong>Local by design</strong
-            ><span>One device. Your browser.<br />No cloud account.</span
-            ><span class="mono">REAPER MESH · PRE-RELEASE</span>
-          </div>
         </nav>
         <section class="overview-pane" aria-labelledby="overview-title">
           <div class="overview-content">
             <header class="overview-heading">
-              <div>
-                <span class="eyebrow">FIELD COMMUNICATIONS</span>
-                <h1 id="overview-title">Network overview</h1>
-                <p>Your device, conversations, and last-heard network at a glance.</p>
-              </div>
+              <h1 id="overview-title">Network overview</h1>
               <button data-view-target="messages" type="button">
                 Open messages <span aria-hidden="true">↗</span>
               </button>
@@ -189,18 +179,11 @@
                 </button>
               </article>
             </div>
-            <p class="overview-footnote">
-              Local history stays in this browser. Delivery status reflects device reports; it is
-              not a read receipt.
-            </p>
           </div>
         </section>
         <aside class="inbox-pane" aria-label="Conversations">
           <div class="pane-heading">
-            <div>
-              <span class="eyebrow">COMMUNICATIONS</span>
-              <h1>Messages</h1>
-            </div>
+            <h1>Messages</h1>
             <button
               id="mark-all-read"
               class="icon-button"
@@ -209,16 +192,6 @@
             >
               <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m4 12 5 5L20 6" />
-              </svg>
-            </button>
-            <button
-              id="new-conversation"
-              class="icon-button"
-              aria-label="Start conversation"
-              title="Start conversation"
-            >
-              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 4v16M4 12h16" />
               </svg>
             </button>
           </div>
@@ -269,10 +242,6 @@
               No matching conversations.
             </p>
           </div>
-          <div class="inbox-footer">
-            <span class="rail-dot"> </span>
-            <span>Local mesh · no cloud account</span>
-          </div>
         </aside>
         <section class="conversation-pane" aria-label="Selected conversation">
           <header class="conversation-head">
@@ -292,44 +261,34 @@
                 >Channel · messages received by this device</span
               >
             </div>
-            <button id="locate-conversation" title="Show this asset on the map">
-              Locate device
-            </button>
-            <button id="delete-conversation" title="Remove conversation from this browser">
-              Delete chat
-            </button>
-            <button
-              id="recipient-toggle"
-              aria-expanded="false"
-              aria-controls="recipient-controls"
-              title="Choose a recipient"
-            >
-              New message
-            </button>
+            <div class="conversation-menu">
+              <button
+                id="conversation-options"
+                class="icon-button"
+                aria-label="Conversation options"
+                title="Conversation options"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="conversation-options-menu"
+              >
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>
+              <div id="conversation-options-menu" class="options-menu" role="menu" hidden>
+                <button id="clear-conversation" class="danger-item" role="menuitem">
+                  Clear chat history
+                </button>
+              </div>
+            </div>
           </header>
-          <div id="recipient-controls" class="recipient-controls" hidden>
-            <label for="message-destination">Recipient</label>
-            <input
-              id="message-destination"
-              aria-describedby="recipient-help"
-              type="text"
-              value="broadcast"
-              autocomplete="off"
-            />
-            <p id="recipient-help" class="small muted">
-              Paste a node ID, or choose Channel broadcast to message everyone on a channel.
-            </p>
-            <label for="message-channel">Channel</label>
-            <select id="message-channel">
-              <option value="0">Public</option>
-            </select>
-            <button id="broadcast-destination" type="button">Channel broadcast</button>
-            <details class="recipient-test">
-              <summary>Test this device</summary>
-              <button id="self-destination" type="button">Send to this device only</button>
-            </details>
-            <button id="recipient-done" class="primary" type="button">Open conversation</button>
-          </div>
+          <!-- The open conversation's recipient and channel; conversations are chosen from the list or map. -->
+          <input id="message-destination" type="hidden" value="broadcast" />
+          <select id="message-channel" hidden aria-hidden="true" tabindex="-1">
+            <option value="0">Public</option>
+          </select>
           <div id="message-security-notice" class="conversation-notice">
             <span class="notice-dot"> </span>MESSAGE PRIVACY<span
               >Message encryption is set per channel. Device IDs and routing information remain
@@ -381,10 +340,7 @@
         </section>
         <aside class="tracker-pane" aria-label="Map workspace">
           <div class="pane-heading tracker-heading">
-            <div>
-              <span class="eyebrow">MAP WORKSPACE</span>
-              <h2>Map <span id="node-count" class="count">0</span></h2>
-            </div>
+            <h2>Map <span id="node-count" class="count">0</span></h2>
             <button id="fit-map" title="Fit reported positions">Fit map</button>
           </div>
           <div class="map-pane">
@@ -420,13 +376,6 @@
           <div class="tracker-footer mono">LAST-KNOWN POSITIONS · FIXED SOURCE</div>
         </aside>
       </main>
-      <footer class="system-footer">
-        <span>REAPER MESH / FIELD PORTAL</span>
-        <span
-          >USB TRANSPORT <span class="footer-dot">·</span> LOCAL HISTORY
-          <span class="footer-dot">·</span> NO READ RECEIPTS</span
-        >
-      </footer>
     </div>
     <dialog id="wipe-local-dialog" class="access-dialog" aria-labelledby="wipe-title">
       <h2 id="wipe-title">Wipe this browser’s data?</h2>
@@ -489,10 +438,7 @@
     </dialog>
     <dialog id="manage" class="manage" aria-labelledby="settings-title">
       <form method="dialog" class="manage-head">
-        <div>
-          <p class="eyebrow">Reaper Mesh</p>
-          <h2 id="settings-title">Settings</h2>
-        </div>
+        <h2 id="settings-title">Settings</h2>
         <button value="close" type="submit" class="ghost">Close</button>
       </form>
       <div class="manage-tabs" aria-label="Settings sections">
@@ -503,16 +449,8 @@
         <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
         <button type="button" class="manage-tab" data-manage="screen">Screen</button>
         <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
-        <details id="advanced-settings" class="advanced-settings">
-          <summary>Advanced</summary>
-          <div class="advanced-links" aria-label="Advanced settings">
-            <button type="button" class="manage-tab" data-manage="history">Change history</button>
-            <button type="button" class="manage-tab" data-manage="recovery">
-              Storage &amp; recovery
-            </button>
-            <button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
-          </div>
-        </details>
+        <button type="button" class="manage-tab" data-manage="recovery">Storage</button>
+        <button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
       </div>
       <div class="manage-body">
         <section
@@ -794,21 +732,8 @@
           </form>
         </section>
 
-        <section class="manage-panel" data-manage-panel="history" hidden>
-          <div class="section-title">
-            <h3>Command history</h3>
-            <span id="history-count" class="mono">0 / 32</span>
-          </div>
-          <p class="muted small">
-            Unknown means a change may have applied. Query after reconnect; nothing is automatically
-            resent.
-          </p>
-          <div id="history-empty" class="empty">No configuration commands yet.</div>
-          <ul id="history" class="history"></ul>
-        </section>
-
         <section class="manage-panel" data-manage-panel="recovery" hidden>
-          <h2>Storage &amp; recovery</h2>
+          <h2>Storage</h2>
           <p class="small muted">
             This browser saves message history and pending changes before sending. If a connection
             is interrupted, uncertain work stays unknown and is never automatically resent. Export a

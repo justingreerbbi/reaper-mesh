@@ -1,4 +1,4 @@
-// Settings dialog: navigation, radio, position, discovery, screen, recovery and command history.
+// Settings dialog: navigation, radio, position, discovery, screen and recovery.
 import { degrees, coordinate } from '../../packages/protocol/position-config.ts';
 import {
   DEFAULT_CHANNELS,
@@ -23,7 +23,7 @@ import { editChannel, editingChannelSlot } from './channels-ui.ts';
 import { invalidateThread } from './messages-ui.ts';
 import { selectNode, selectedNodeId } from './map-ui.ts';
 
-let historySignature = '';
+const queried = new Set<string>();
 let positionDirty = false,
   positionBase = '';
 let discoveryDirty = false,
@@ -34,17 +34,7 @@ let screenDirty = false,
 let radioDirty = false;
 let radioBase = '';
 
-/** Forces the command history list to re-render on the next pass. */
-export function invalidateHistory() {
-  historySignature = '';
-}
-
 export function setManage(panel: string) {
-  element<HTMLDetailsElement>('advanced-settings').open = [
-    'history',
-    'recovery',
-    'details',
-  ].includes(panel);
   manage.querySelector<HTMLElement>('.manage-body')!.scrollTop = 0;
   if (panel === 'channels') editChannel(0);
   for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
@@ -67,91 +57,42 @@ export function openManage(panel = 'device') {
   tab?.focus();
 }
 
-export function renderCommandHistory(model: ConfigModel, ready: boolean) {
-  const { sync } = model.adapter.connection;
-  const signature =
-    mode.value +
-    ':' +
-    sync.state +
-    ':' +
-    model.history
-      .map(entry => entry.id + model.adapter.connection.commands.status(entry.id).outcome)
-      .join('|');
-  if (signature !== historySignature) {
-    historySignature = signature;
-    renderHistory(model, ready);
+/**
+ * Releases settled configuration commands so the agent's bounded history never fills up.
+ * A command with an unknown outcome is queried once per connection (never resent). It is
+ * released once its result arrives, or once the device has rebooted and its receipt is gone;
+ * the device snapshot already shows what actually applied.
+ */
+export function settleCommands(model: ConfigModel, ready: boolean) {
+  const { connection } = model.adapter;
+  for (const entry of model.history) {
+    const { outcome, result } = connection.commands.status(entry.id);
+    if (outcome === 'pending') continue;
+    if (outcome !== 'unknown' || result) {
+      model.forget(entry.id);
+      if (outcome !== 'committed') setError(settledMessage[outcome]);
+      continue;
+    }
+    const attempt = `${entry.id}:${connection.sync.session}`;
+    if (!ready || queried.has(attempt)) continue;
+    queried.add(attempt);
+    try {
+      if (!model.adapter.recover(entry.id)) {
+        model.forget(entry.id);
+        setError(settledMessage.unknown);
+      }
+    } catch {
+      // Another device, or firmware without result queries: keep it for the original device.
+    }
   }
 }
 
-function renderHistory(model: ConfigModel, ready: boolean) {
-  const list = element('history');
-  list.replaceChildren();
-  text('history-count', `${model.history.length} / 32`);
-  element('history-empty').hidden = !!model.history.length;
-  for (const entry of [...model.history].reverse()) {
-    const { outcome } = model.adapter.connection.commands.status(entry.id);
-    const row = document.createElement('li');
-    const content = document.createElement('div');
-    const title = document.createElement('strong');
-    title.textContent = entry.label || '(empty label)';
-    const id = document.createElement('span');
-    id.className = 'mono';
-    id.textContent = entry.id;
-    const status = document.createElement('span');
-    status.className = 'outcome';
-    status.dataset.outcome = outcome;
-    status.textContent = {
-      pending: 'Awaiting device result',
-      committed: 'Committed on device',
-      conflict: 'Conflict · latest state loaded',
-      rejected: 'Rejected by device',
-      unknown: 'Unknown · may have applied',
-    }[outcome];
-    content.append(title, id, status);
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    if (outcome === 'unknown') {
-      const query = document.createElement('button');
-      query.textContent = 'Query result';
-      query.disabled = !ready;
-      query.addEventListener('click', () => {
-        try {
-          clearError();
-          if (!model.adapter.recover(entry.id))
-            setError(
-              'The device rebooted. Its old receipt is unavailable; the outcome stays unknown.',
-            );
-        } catch (e) {
-          showError(e);
-        }
-        render();
-      });
-      actions.append(query);
-    }
-    const forget = document.createElement('button');
-    forget.textContent = outcome === 'unknown' ? 'Forget uncertain command' : 'Clear';
-    forget.disabled = outcome === 'pending';
-    forget.addEventListener('click', () => {
-      if (
-        outcome === 'unknown' &&
-        !confirm(
-          'Forget this uncertain command? This removes result recovery from this page. It does not undo or cancel the device change.',
-        )
-      )
-        return;
-      try {
-        model.forget(entry.id);
-        clearError();
-        render();
-      } catch (e) {
-        showError(e);
-      }
-    });
-    actions.append(forget);
-    row.append(content, actions);
-    list.append(row);
-  }
-}
+const settledMessage = {
+  conflict: 'The device settings changed before your save arrived. The latest settings are shown.',
+  rejected: 'The device rejected the settings change. Nothing was changed.',
+  unknown:
+    'A settings change may not have applied before the device restarted. The settings shown are what the device reports.',
+};
 
 export function renderRadio() {
   const model = current();
@@ -478,7 +419,6 @@ export function initSettings() {
     try {
       recovery.reset();
       models.usb = new ConfigModel(new SerialAdapter(recovery.connection));
-      historySignature = '';
       invalidateThread();
       clearError();
       render();
