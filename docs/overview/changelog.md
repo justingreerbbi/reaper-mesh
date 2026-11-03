@@ -15,12 +15,12 @@ rather than repeating it.
 | Board | Latest image | Source commit | Notes |
 | --- | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 | `usb-prototype-8` | `4209679` | Fixed position; US/915 antenna confirmed |
-| LILYGO T-Beam V1.2 | `tbeam-usb-prototype-3` | `4209679` | Fixed position; AXP2101 + SX1276 |
+| LILYGO T-Beam V1.2 | `tbeam-reaper-mesh-v0.1.0` | `074f299` | Device screen pages and buttons; first image with the new naming |
 
 On November 2 both boards were reinstalled from an uncommitted development tree (updater
-`--allow-dirty`) for the encryption check. They still report the version strings above, but
-the installed bytes no longer correspond exactly to commit `4209679`. The next firmware
-change adopts the `{device}-reaper-mesh-v{semver}` naming rule.
+`--allow-dirty`) for the encryption check, so the Heltec's installed bytes no longer correspond
+exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean commit
+`074f299`.
 
 ## Heltec V3 firmware progression
 
@@ -43,6 +43,7 @@ change adopts the `{device}-reaper-mesh-v{semver}` naming rule.
 | `tbeam-usb-prototype-1` | Nov 1 | First T-Beam image (commit `594bb10`, 237,904-byte app) | AXP2101/SX1276 probe, local delivery, two-board direct RF with destination ACK |
 | `tbeam-usb-prototype-2` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon sent |
 | `tbeam-usb-prototype-3` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
+| `tbeam-reaper-mesh-v0.1.0` | Nov 3 | Device screen pages and buttons; new naming (commit `074f299`) | Owner confirmed screen and buttons; USB sync and settings preserved |
 
 ## First flash — November 1
 
@@ -297,3 +298,20 @@ history does not remove them. Settings → Plugins installs declarative, browser
 definitions that add map item types and settings; no plugin code runs. No firmware or transport
 change. Host, native-USB and isolated-browser checks only; no RF or remote-acceptance testing.
 See [Shared map items](../reference/map-sharing.md) and [Plugins](../guides/plugins.md).
+
+## Device screen and buttons — November 3
+
+`tbeam-reaper-mesh-v0.1.0` from clean commit `074f299` (255,408-byte app, SHA-256
+`20147f967851f2e488d75097a7b1e4fffa99d14d5f946245b27b491f59da1e04`). The updater validated
+and installed it with ROM-verified hashes and NVS preserved. Three USB opens reached ready in
+655/671/648 ms at configuration revision 35, unchanged from before the update, and the welcome
+message reported the new firmware name. The owner confirmed on the device: startup icon and
+title, main page (name, radio state, counts, version), nodes and debug pages, single, double and
+long presses on the middle button, the PWR page shortcut and the 30-second screen timeout.
+
+The screen code is shared, so `heltec-reaper-mesh-v0.1.0` also builds without warnings, but it
+has not been installed or checked on the Heltec. Host checks: 267 tests and 72 CTests pass,
+including new gesture, screen-state, unread-count and page-rendering tests. Firmware IDs now use
+a `version` field kind that allows `.`; wire bytes and frozen fixtures are unchanged. See
+[device screen and buttons](../reference/device-display.md).
+

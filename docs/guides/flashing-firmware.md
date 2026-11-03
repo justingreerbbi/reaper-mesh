@@ -1,6 +1,6 @@
 # USB firmware updates
 
-Owner naming rule for the next firmware update: use `{device}-reaper-mesh-v{semver}`, with a device-specific ID such as `heltec-reaper-mesh-v8.0.2` or `tbeam-reaper-mesh-v8.0.2`. Keep that ID consistent in the on-device firmware identity, generated manifest, package name and documentation. The currently installed prototype IDs remain unchanged until the next firmware update.
+Firmware images are named `{device}-reaper-mesh-v{semver}` (decision D8), starting at `tbeam-reaper-mesh-v0.1.0` and `heltec-reaper-mesh-v0.1.0`. Keep that ID consistent in the on-device firmware identity, generated manifest, package name and documentation.
 
 The prototype uses the ESP32-S3 ROM loader and a single factory application. A failed/interrupted update can require BOOT/RESET and reinstall; automatic rollback and authenticated release signing are later public-release gates. Checksums detect corruption, not a malicious publisher. Use builds from your reviewed source tree. Do not flash this prototype on encrypted or secure-boot devices.
 

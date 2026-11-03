@@ -35,3 +35,12 @@ Final read-only verification confirmed Heltec firmware6/revision21 stayed mesh/2
 ## Agent-encryption transport check
 
 November 2, 2026: installed Heltec `usb-prototype-8` and T-Beam `tbeam-usb-prototype-3` from the current dirty development tree using the explicit `--allow-dirty` updater option. Both boards were checked against ROM target, flash size, security state and image hashes; NVS was outside all write ranges. The two-board encryption smoke then passed direct encrypted delivery in both directions: receiver inbox held the exact opaque envelope, the device reported ACK, the shared agent key decrypted it, and an unrelated key returned key-needed. Original radio policies were restored. See `build/tbeam-v12/encryption-smoke.json`; this does not qualify relay or reconnect/reboot failure scenarios.
+
+## Buttons and screen
+
+The middle button (GPIO38) is the main button: single press toggles the screen, double press
+goes to the next page, long press returns to the main page. A short PWR press also goes to the
+next page; holding PWR about 6 s still powers the board off. RST resets the processor. Since
+`tbeam-reaper-mesh-v0.1.0` the firmware enables the AXP2101 power-key short-press interrupt for
+this, in addition to the radio rail. See [device screen and buttons](../reference/device-display.md).
+

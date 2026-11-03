@@ -48,6 +48,9 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 
 ## Current focus (November 3, 2026)
 
+- While waiting for a third board, the owner directs device firmware work: Phase 4 screen and
+  buttons (step 1 done on the T-Beam). See the roadmap's Phase 4 delivery order and
+  [device screen and buttons](docs/reference/device-display.md).
 - Field qualification comes first: new portal features are paused until three-node relay and
   an outdoor range test pass on hardware (owner direction, November 3). Portal work is limited
   to bug fixes and native QA. See the
