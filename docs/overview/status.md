@@ -76,7 +76,7 @@ suite, both firmware target builds and shell script lint; see
 - Executable portal plugins and integrations such as Weather Radar, ADS-B and APRS (needs a
   plugin isolation decision first).
 - EU transmission, BLE, mobile and native agents, other boards.
-- Signed releases, automatic rollback, a published support policy and a license.
+- Signed releases, automatic rollback and a published support policy.
 
 ## Hardware observations to keep in mind
 

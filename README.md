@@ -78,7 +78,13 @@ docs/                  All documentation (see docs/README.md)
 The USB/local-messaging slice and two-board direct RF delivery work on hardware. Relay,
 power-cut, and field-soak qualification remain release gates. The Git repository tracks
 `origin/main`; remote CI is configured but should be verified separately from local checks.
-Licensing is deliberately deferred by the owner — no third-party code should be copied without
-checking its license. See [Third-party notices](docs/contributing/third-party-notices.md).
 
 Contributors should read [`AGENTS.md`](AGENTS.md) and [`AI.md`](AI.md) before making changes.
+
+## License
+
+Reaper Mesh is licensed under the [Apache License 2.0](LICENSE); see [`NOTICE`](NOTICE) for
+attribution. Contributions are accepted under the same license (Apache-2.0, section 5).
+Bundled third-party code keeps its own license; see
+[Third-party notices](docs/contributing/third-party-notices.md). Do not copy third-party code
+without checking that its license is compatible.

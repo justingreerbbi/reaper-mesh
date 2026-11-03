@@ -84,4 +84,4 @@ Reaper Mesh is not a production or certified product. It does not provide teleme
 accounts, MQTT, Wi-Fi networking, or remote administration. The current encryption is a
 simple shared group-key design — it is **not** pairwise-private, forward-secure, or
 independently audited. Regional transmission is confined to the US until EU hardware and
-settings are separately verified. Licensing is deliberately deferred by the project owner.
+settings are separately verified. Reaper Mesh is open source under the Apache License 2.0.

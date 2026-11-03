@@ -154,7 +154,7 @@ class UpdateTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("packager", Path(__file__).resolve().parents[1] / "tools/package-firmware.py")
         packager = importlib.util.module_from_spec(spec); spec.loader.exec_module(packager)
         self.validate()
-        for name in [".tools/esp-idf/LICENSE", ".tools/esp-idf/components/newlib/COPYING.NEWLIB",
+        for name in ["LICENSE", "NOTICE", ".tools/esp-idf/LICENSE", ".tools/esp-idf/components/newlib/COPYING.NEWLIB",
                      "firmware/components/reaper_radio/vendor/LICENSE.txt", "tools/update-firmware.py"]:
             path = self.root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text("retained fixture notice/source")
         output = self.root / "package.zip"
@@ -167,6 +167,8 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual(archive.read("reaper_mesh_usb.bin"), esp_image())
             self.assertEqual(archive.read("source.tar"), b"source archive")
             self.assertIn("notices/esp-idf/components/newlib/COPYING.NEWLIB", archive.namelist())
+            self.assertEqual(archive.read("LICENSE"), b"retained fixture notice/source")
+            self.assertEqual(archive.read("NOTICE"), b"retained fixture notice/source")
             extracted = self.root / "extracted"; archive.extractall(extracted)
         updater.validate(extracted / "reaper-manifest.json")
         (extracted / "reaper_mesh_usb.bin").write_bytes(b"corrupt")

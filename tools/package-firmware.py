@@ -23,6 +23,8 @@ def package(manifest_path, output):
     files["reaper-manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     files["update-firmware.py"] = (root / "tools/update-firmware.py").read_bytes()
     files["source.tar"] = source
+    files["LICENSE"] = (root / "LICENSE").read_bytes()
+    files["NOTICE"] = (root / "NOTICE").read_bytes()
     files["notices/Semtech-Clear-BSD.txt"] = (root / "firmware/components/reaper_radio/vendor/LICENSE.txt").read_bytes()
     # Preserve SDK legal notices conservatively, including bundled dependencies.
     for path in sorted(sdk.rglob("*")):
@@ -39,7 +41,8 @@ def package(manifest_path, output):
         "ROM reinstall preserves NVS. If interrupted, hold BOOT, tap RESET, release BOOT and reinstall.\n"
         "Reconnect and verify firmware/settings. No automatic rollback or authenticated release signature.\n"
         "SHA256 detects corruption, not publisher authenticity. Use reviewed local builds.\n"
-        "Project licensing is deferred. This archive is not a public release or an RF certification.\n"
+        "Reaper Mesh is licensed under Apache-2.0 (LICENSE, NOTICE).\n"
+        "This archive is not a public release or an RF certification.\n"
         "Source is included in source.tar. SDK provenance and driver notices are retained.\n"
         "Two-/three-device RF delivery, power-cut and field qualification remain separate gates.\n").encode()
     files["SHA256SUMS"] = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in sorted(files.items())).encode()

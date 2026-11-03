@@ -46,7 +46,7 @@ Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry,
 
 Phase 3 uses the implemented agent-side group-key profile described in [Channel encryption](../guides/encryption.md). Acceptance includes tamper/replay rejection, wrong keys, rotation, unsupported peers, explicit no-downgrade behavior, RACE recovery, both target builds and two-board checks. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
 
-EU transmit support, BLE/mobile/native agents, additional boards, licensing, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
+EU transmit support, BLE/mobile/native agents, additional boards, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
 
 ## Phase 3 delivery order
 
