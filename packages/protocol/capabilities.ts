@@ -10,6 +10,7 @@ export type Capabilities = Readonly<{
   regions: number;
   maxLabelBytes: number;
   locationVersion?: number;
+  screenVersion?: number;
   discoveryVersion?: number;
   nodeCapacity?: number;
   firmware: string;
@@ -63,6 +64,7 @@ export function capabilities(message: Welcome): Capabilities | undefined {
     firmware,
     radioVersion,
     ...(message.locationVersion !== undefined ? { locationVersion: message.locationVersion } : {}),
+    ...(message.screenVersion !== undefined ? { screenVersion: message.screenVersion } : {}),
     ...(message.discoveryVersion !== undefined
       ? { discoveryVersion: message.discoveryVersion, nodeCapacity: message.nodeCapacity }
       : {}),
