@@ -11,7 +11,7 @@ Order of work:
 3. Outdoor range test.
 4. Power-loss, interrupted-flash and soak tests.
 5. **Core v1 protocol review.** Using the test results, define the core to freeze: the application payload type for data the firmware carries without understanding (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
-6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1.
+6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43).
 
 | Phase | Outcome | Included features | Status |
 | --- | --- | --- | --- |

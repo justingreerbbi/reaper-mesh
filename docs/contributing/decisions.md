@@ -236,7 +236,7 @@ reset deletes this browser's local data only.
 ### D35. Map sharing over text messages
 Nov 2 · **Adopted** (see D39). Map points and rectangles are shared as validated `RMAP1` JSON in
 ordinary text messages, with no firmware or schema change. Recipients approve items from the
-message card. See [shared map items](../reference/map-sharing.md).
+message card, or opt in to per-channel auto-add (D43). See [shared map items](../reference/map-sharing.md).
 
 ### D36. Declarative plugins only
 Nov 2 · **Adopted**. Plugin manifest v1 is browser-local JSON that adds map item types
@@ -258,6 +258,26 @@ hosts, node positions or map layers), and the user approves them on install. Plu
 receive channel keys, and get decrypted message content only through an explicit, separately
 approved permission. A short design document covering the message API, permissions and update
 review must be approved before any code-plugin implementation.
+
+### D43. Per-channel auto-add for shared map items
+Nov 3 · **Confirmed**; implementation planned after field qualification (D37). Each channel gets
+an agent-local **Auto-add shared map items** setting, off by default. When on, valid items,
+updates and removals received on that channel apply to the map without a prompt, so every agent
+following the channel keeps the sender's latest version; message cards still show what changed.
+Rules:
+
+- Only the original sender of an item can update or remove it; others copy it and share their
+  own version.
+- Available only on channels where the agent requires encryption and holds the key, because
+  senders on unencrypted channels, including Public, are not authenticated. Turning off
+  required encryption turns auto-add off. Group keys still cannot prove which member sent an
+  item, and the setting says so.
+- Locally removed items are not re-added by later updates; those appear as message cards.
+- Storage limits apply; when full, new items fall back to message cards.
+- Delivery is best effort, with no history synchronization between agents.
+
+Sharing also changes: the user must pick the channel explicitly, with no preselected channel.
+See the [specification, section 5.4.1](../overview/project-specification.md#541-shared-map-items-and-plugins).
 
 ## Priorities
 

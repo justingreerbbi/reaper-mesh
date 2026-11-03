@@ -1,5 +1,8 @@
 # Shared map items v1
 
+> [!NOTE]
+> **Planned change (D43, after field qualification):** a per-channel, off-by-default **Auto-add shared map items** setting, available only on encrypted channels, will let items, updates and removals from the original sender apply without a prompt. Sharing will also require an explicit channel choice, with no preselected channel. Until it is implemented, this page describes current behavior. See [decision D43](../contributing/decisions.md#d43-per-channel-auto-add-for-shared-map-items) and [specification section 5.4.1](../overview/project-specification.md#541-shared-map-items-and-plugins).
+
 The Map workspace supports local points and axis-aligned rectangles, optional JSON-defined types, and explicit channel/direct sharing. Sharing is an agent application protocol over existing UTF-8 messaging. No USB schema, radio packet, firmware source, generated descriptor or frozen fixture changes are required.
 
 ## Application envelope
