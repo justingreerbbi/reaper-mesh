@@ -12,8 +12,8 @@
     "check:generated": "node tools/generate-protocol.ts --check && node tools/check-vendor.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test && npm run build:web",
-    "format": "prettier --write . && node tools/format-cpp.ts",
-    "format:check": "prettier --check . && node tools/format-cpp.ts --check",
+    "format": "prettier --write . && node tools/format-cpp.ts && node tools/format-python.ts",
+    "format:check": "prettier --check . && node tools/format-cpp.ts --check && node tools/format-python.ts --check",
     "dev:web": "vite agents/web --host 127.0.0.1 --port 5173 --strictPort",
     "build:web": "vite build agents/web --outDir ../../dist/web --emptyOutDir",
     "test": "npm run check:generated && node --test tests/simulator/*.test.ts"
