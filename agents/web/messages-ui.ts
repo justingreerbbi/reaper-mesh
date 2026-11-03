@@ -330,7 +330,9 @@ export function renderMessages() {
                   : remoteBlocked
                     ? 'Radio unavailable · check Settings → Radio'
                     : encryptedRequired
-                      ? 'Encrypted channel · device ACK confirms ciphertext delivery only'
+                      ? destination.value === 'broadcast'
+                        ? 'Encrypted channel · device ACK confirms ciphertext delivery only'
+                        : "Encrypted with the channel key · anyone with this channel's key can read this direct message"
                       : destination.value === 'broadcast'
                         ? 'Broadcast · no recipient ACK'
                         : 'Destination ACK confirms delivery, not reading'))),
