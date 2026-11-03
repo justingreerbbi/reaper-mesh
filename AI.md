@@ -89,6 +89,9 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 The owner prefers token-efficient work: targeted reads, CLI checks and automated tests. Use
 desktop or browser control only for necessary visual or hardware checks.
 
+Write commits, branch names and pull requests in the format in
+[Commits and pull requests](docs/contributing/commits-and-prs.md) (`type(scope): summary`).
+
 Define observable acceptance criteria before coding. Install tools with
 `npm ci --ignore-scripts` and run `npm run check` (needs a C++17 compiler). Report what ran,
 what passed and what was not verified.

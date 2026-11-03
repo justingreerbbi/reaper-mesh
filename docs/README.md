@@ -53,6 +53,7 @@ you want to do.
 | Document | What it covers |
 | --- | --- |
 | [Development & CI](contributing/development.md) | Toolchain, host checks, and continuous integration |
+| [Commits and pull requests](contributing/commits-and-prs.md) | Conventional Commit format, scopes, branch names and pull request checklist |
 | [Development plan](contributing/plan.md) | Repository layout, architecture and engineering standards |
 | [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
 | [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
