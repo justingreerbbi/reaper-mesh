@@ -103,12 +103,7 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   const bytes = new TextEncoder().encode(model.draft.label).length;
   const max = capabilities?.maxLabelBytes ?? 64;
   text('byte-count', `${bytes} / ${capabilities ? max : '—'} bytes`);
-  save.disabled =
-    !writable ||
-    !model.dirty ||
-    model.stale ||
-    model.pending ||
-    bytes > max;
+  save.disabled = !writable || !model.dirty || model.stale || model.pending || bytes > max;
   reset.disabled = !ready || model.pending;
   element<HTMLButtonElement>('export-settings').disabled = !ready;
   element('draft-warning').hidden = !ready || !model.dirty || !model.stale;
