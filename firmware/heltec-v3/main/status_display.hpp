@@ -6,7 +6,9 @@
 class StatusDisplay {
  public:
   void begin();
-  void update(const char* usb, bool healthy, std::uint32_t revision, const char* radio = "RADIO OFF");
+  void update(const char* usb, bool healthy, std::uint32_t revision,
+              const char* radio = "RADIO OFF");
+
  private:
   i2c_master_bus_handle_t bus_ = nullptr;
   i2c_master_dev_handle_t device_ = nullptr;

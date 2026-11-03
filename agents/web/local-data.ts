@@ -11,6 +11,7 @@ export function clearLocalAppData(store: LocalStore, keepSignal = false): void {
   for (const key of keys) store.removeItem(key);
   for (let index = 0; index < store.length; index++) {
     const key = store.key(index);
-    if (key?.startsWith('reaper-mesh.') && (!keepSignal || key !== WIPE_SIGNAL)) throw new Error('Some local data could not be removed.');
+    if (key?.startsWith('reaper-mesh.') && (!keepSignal || key !== WIPE_SIGNAL))
+      throw new Error('Some local data could not be removed.');
   }
 }

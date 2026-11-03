@@ -17,9 +17,10 @@ class AirtimeBudget {
  public:
   bool reserve(std::uint64_t now_ms, std::uint32_t airtime_us);
   std::uint32_t available(std::uint64_t now_ms);
+
  private:
   std::uint64_t time_ = 0;
   std::uint32_t tokens_ = 1000000;
   bool update(std::uint64_t now_ms);
 };
-} // namespace reaper::mesh
+}  // namespace reaper::mesh

@@ -10,6 +10,7 @@ class RadioBus : public reaper::radio::Bus {
   bool reset() override;
   void off() override;
   std::uint8_t last_command() const { return last_command_; }
+
  private:
   spi_device_handle_t device_ = nullptr;
   bool failed_ = false;

@@ -30,9 +30,13 @@ export class ConfigDevice {
   }
 
   apply(command: ConfigCommand): Result {
-    const result = (outcome: Result['outcome']): Result => Object.freeze({
-      id: command.id, boot: this.boot, outcome, revision: this.revision,
-    });
+    const result = (outcome: Result['outcome']): Result =>
+      Object.freeze({
+        id: command.id,
+        boot: this.boot,
+        outcome,
+        revision: this.revision,
+      });
     if (command.boot !== this.boot) return result('rejected');
     const match = /^([A-Za-z0-9_-]{1,64}):([1-9][0-9]{0,9})$/.exec(command.id);
     if (!match || Number(match[2]) > 0xffffffff) return result('rejected');
@@ -41,15 +45,20 @@ export class ConfigDevice {
     const prior = this.#receipts.get(command.id);
     if (prior) {
       const old = prior.command;
-      if (old.boot !== command.boot || old.expectedRevision !== command.expectedRevision ||
-          old.config.region !== command.config.region || old.config.label !== command.config.label) {
+      if (
+        old.boot !== command.boot ||
+        old.expectedRevision !== command.expectedRevision ||
+        old.config.region !== command.config.region ||
+        old.config.label !== command.config.label
+      ) {
         return result('rejected');
       }
       return prior.result;
     }
     const highest = this.#highest.get(owner);
     if (highest !== undefined && counter <= highest) return result('unknown');
-    if (highest === undefined && this.#highest.size >= this.ownerCapacity) return result('rejected');
+    if (highest === undefined && this.#highest.size >= this.ownerCapacity)
+      return result('rejected');
     // Never evict these marks within a boot: delayed old IDs must not become new work.
     this.#highest.set(owner, counter);
     let outcome: Result['outcome'] = 'conflict';
@@ -60,7 +69,8 @@ export class ConfigDevice {
       outcome = 'committed';
     }
     const receipt = result(outcome);
-    if (this.#receipts.size >= this.capacity) this.#receipts.delete(this.#receipts.keys().next().value!);
+    if (this.#receipts.size >= this.capacity)
+      this.#receipts.delete(this.#receipts.keys().next().value!);
     this.#receipts.set(command.id, {
       command: Object.freeze({ ...command, config: Object.freeze({ ...command.config }) }),
       result: receipt,

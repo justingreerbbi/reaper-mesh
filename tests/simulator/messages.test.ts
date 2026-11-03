@@ -4,17 +4,73 @@ import { encodeMessage, decodeMessage, type Message } from '../../packages/proto
 
 const messages: Message[] = [
   { type: 'hello', link: 'link_1', minVersion: 1, maxVersion: 1 },
-  { type: 'welcome', link: 'link_1', device: 'device-A', boot: 'boot-A', minVersion: 1, maxVersion: 1 },
+  {
+    type: 'welcome',
+    link: 'link_1',
+    device: 'device-A',
+    boot: 'boot-A',
+    minVersion: 1,
+    maxVersion: 1,
+  },
   { type: 'sync', link: 'link_1', boot: 'boot-A', request: 1 },
-  { type: 'snapshot', link: 'link_1', boot: 'boot-A', request: 1, sequence: 0, revision: 0, region: 'US', label: 'Café 📻' },
-  { type: 'event', link: 'link_1', boot: 'boot-A', sequence: 1, revision: 1, region: 'UNSET', label: '' },
+  {
+    type: 'snapshot',
+    link: 'link_1',
+    boot: 'boot-A',
+    request: 1,
+    sequence: 0,
+    revision: 0,
+    region: 'US',
+    label: 'Café 📻',
+  },
+  {
+    type: 'event',
+    link: 'link_1',
+    boot: 'boot-A',
+    sequence: 1,
+    revision: 1,
+    region: 'UNSET',
+    label: '',
+  },
   { type: 'ping', link: 'link_1', request: 0xffffffff },
   { type: 'pong', link: 'link_1', boot: 'boot-A', request: 1 },
-  { type: 'configure', link: 'link_1', boot: 'boot-A', id: 'agent-A:1', expectedRevision: 0, region: 'US', label: 'updated' },
-  { type: 'result', link: 'link_1', boot: 'boot-A', id: 'agent-A:1', outcome: 'committed', revision: 1 },
+  {
+    type: 'configure',
+    link: 'link_1',
+    boot: 'boot-A',
+    id: 'agent-A:1',
+    expectedRevision: 0,
+    region: 'US',
+    label: 'updated',
+  },
+  {
+    type: 'result',
+    link: 'link_1',
+    boot: 'boot-A',
+    id: 'agent-A:1',
+    outcome: 'committed',
+    revision: 1,
+  },
   { type: 'query', link: 'link_1', boot: 'boot-A', id: 'agent-A:1' },
-  { type: 'submit', link: 'link_1', boot: 'boot-A', id: 'agent-A:1', channel: 0, destination: 'broadcast', part: 0, count: 1, data: '6869' },
-  { type: 'messageStatus', link: 'link_1', boot: 'boot-A', id: 'agent-A:1', state: 'queued', received: 1 },
+  {
+    type: 'submit',
+    link: 'link_1',
+    boot: 'boot-A',
+    id: 'agent-A:1',
+    channel: 0,
+    destination: 'broadcast',
+    part: 0,
+    count: 1,
+    data: '6869',
+  },
+  {
+    type: 'messageStatus',
+    link: 'link_1',
+    boot: 'boot-A',
+    id: 'agent-A:1',
+    state: 'queued',
+    received: 1,
+  },
   { type: 'messageQuery', link: 'link_1', boot: 'boot-A', id: 'agent-A:1' },
   { type: 'error', link: 'link_1', boot: 'boot-A', code: 'storage-unavailable' },
 ];
@@ -36,13 +92,20 @@ test('fixed hello vector preserves tag order and integer endianness', () => {
 
 test('invalid identity, integer, Unicode, label and region are rejected', () => {
   for (const changed of [
-    { ...messages[0], link: '' }, { ...messages[0], link: 'a'.repeat(65) },
-    { ...messages[0], link: '../bad' }, { ...messages[0], minVersion: -1 },
-    { ...messages[0], minVersion: 1.5 }, { ...messages[0], maxVersion: 2 ** 32 },
-    { ...messages[0], minVersion: NaN }, { ...messages[0], minVersion: 3, maxVersion: 1 },
-    { ...messages[3], label: '\ud800' }, { ...messages[3], label: 'bad\nlabel' },
-    { ...messages[3], label: '📻'.repeat(17) }, { ...messages[3], region: 'anywhere' },
-  ]) assert.throws(() => encodeMessage(changed as Message));
+    { ...messages[0], link: '' },
+    { ...messages[0], link: 'a'.repeat(65) },
+    { ...messages[0], link: '../bad' },
+    { ...messages[0], minVersion: -1 },
+    { ...messages[0], minVersion: 1.5 },
+    { ...messages[0], maxVersion: 2 ** 32 },
+    { ...messages[0], minVersion: NaN },
+    { ...messages[0], minVersion: 3, maxVersion: 1 },
+    { ...messages[3], label: '\ud800' },
+    { ...messages[3], label: 'bad\nlabel' },
+    { ...messages[3], label: '📻'.repeat(17) },
+    { ...messages[3], region: 'anywhere' },
+  ])
+    assert.throws(() => encodeMessage(changed as Message));
 });
 
 test('unknown optional tags are skipped; duplicate and zero tags are rejected', () => {
@@ -86,14 +149,21 @@ test('command IDs and result outcomes are bounded and canonical', () => {
   for (const id of ['agent:0', 'agent:01', 'agent:4294967296', 'agent:-1', ':1', 'agent:1:2']) {
     assert.throws(() => encodeMessage({ ...messages[9], id } as Message));
   }
-  assert.throws(() => encodeMessage({ ...messages[8], outcome: 'delivered' } as unknown as Message));
-  assert.deepEqual(decodeMessage(encodeMessage({ ...messages[9], id: 'agent:4294967295' } as Message)),
-    { ...messages[9], id: 'agent:4294967295' });
+  assert.throws(() =>
+    encodeMessage({ ...messages[8], outcome: 'delivered' } as unknown as Message),
+  );
+  assert.deepEqual(
+    decodeMessage(encodeMessage({ ...messages[9], id: 'agent:4294967295' } as Message)),
+    { ...messages[9], id: 'agent:4294967295' },
+  );
 });
 
 test('message chunks reject noncanonical hex and unknown delivery states', () => {
   const submit = messages.find(message => message.type === 'submit')!;
-  for (const data of ['', '0', 'FF', 'gg', '00'.repeat(33)]) assert.throws(() => encodeMessage({ ...submit, data } as Message));
+  for (const data of ['', '0', 'FF', 'gg', '00'.repeat(33)])
+    assert.throws(() => encodeMessage({ ...submit, data } as Message));
   const status = messages.find(message => message.type === 'messageStatus')!;
-  assert.throws(() => encodeMessage({ ...status, state: 'delivered-to-everyone' } as unknown as Message));
+  assert.throws(() =>
+    encodeMessage({ ...status, state: 'delivered-to-everyone' } as unknown as Message),
+  );
 });

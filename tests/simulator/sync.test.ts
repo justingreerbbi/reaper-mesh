@@ -7,11 +7,17 @@ function fixture(capacity = 64) {
   const session = agent.connect();
   agent.hello(session, 'boot-A', 1, 1);
   const frame = (sequence = 0, label = 'initial') => ({
-    session, boot: 'boot-A', sequence, revision: sequence, config: { region: 'US', label },
+    session,
+    boot: 'boot-A',
+    sequence,
+    revision: sequence,
+    config: { region: 'US', label },
   });
-  const snapshot = (sequence = 0, label = 'initial') => agent.snapshot({
-    ...frame(sequence, label), request: agent.snapshotRequest,
-  });
+  const snapshot = (sequence = 0, label = 'initial') =>
+    agent.snapshot({
+      ...frame(sequence, label),
+      request: agent.snapshotRequest,
+    });
   return { agent, session, frame, snapshot };
 }
 

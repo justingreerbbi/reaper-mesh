@@ -6,12 +6,20 @@ import { decodeMessage, encodeMessage, type Message } from '../../packages/proto
 import { deviceCapabilities } from './capabilities.ts';
 
 const wire = (message: Message) => encodeFrame(encodeMessage(message));
-const welcome = (link = 'link-A', boot = 'boot-A'): Extract<Message, { type: 'welcome' }> =>
-  ({ type: 'welcome', link, boot, device: 'device-A', minVersion: 1, maxVersion: 1, ...deviceCapabilities });
+const welcome = (link = 'link-A', boot = 'boot-A'): Extract<Message, { type: 'welcome' }> => ({
+  type: 'welcome',
+  link,
+  boot,
+  device: 'device-A',
+  minVersion: 1,
+  maxVersion: 1,
+  ...deviceCapabilities,
+});
 function outgoing(connection: Connection): Message[] {
   const result: Message[] = [];
   const decoder = new FrameDecoder();
-  for (const frame of connection.drain()) decoder.feed(frame, payload => result.push(decodeMessage(payload)));
+  for (const frame of connection.drain())
+    decoder.feed(frame, payload => result.push(decodeMessage(payload)));
   return result;
 }
 function setup() {
@@ -24,10 +32,19 @@ function setup() {
     return outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   };
   const snapshot = (request: number, sequence = 0): Message => ({
-    type: 'snapshot', link: 'link-A', boot: 'boot-A', request, sequence, revision: sequence,
-    region: 'US', label: `revision-${sequence}`,
+    type: 'snapshot',
+    link: 'link-A',
+    boot: 'boot-A',
+    request,
+    sequence,
+    revision: sequence,
+    region: 'US',
+    label: `revision-${sequence}`,
   });
-  const ready = () => { const request = negotiate(); deliver(snapshot(request.request)); };
+  const ready = () => {
+    const request = negotiate();
+    deliver(snapshot(request.request));
+  };
   return { connection, session, deliver, negotiate, snapshot, ready };
 }
 
@@ -58,8 +75,24 @@ test('old local callbacks and old wire link identities cannot negotiate a new co
 test('event gap issues a fresh sync request and stale snapshots cannot roll state back', () => {
   const { connection, deliver, snapshot, ready } = setup();
   ready();
-  deliver({ type: 'event', link: 'link-A', boot: 'boot-A', sequence: 1, revision: 1, region: 'US', label: 'one' });
-  deliver({ type: 'event', link: 'link-A', boot: 'boot-A', sequence: 3, revision: 3, region: 'US', label: 'three' });
+  deliver({
+    type: 'event',
+    link: 'link-A',
+    boot: 'boot-A',
+    sequence: 1,
+    revision: 1,
+    region: 'US',
+    label: 'one',
+  });
+  deliver({
+    type: 'event',
+    link: 'link-A',
+    boot: 'boot-A',
+    sequence: 3,
+    revision: 3,
+    region: 'US',
+    label: 'three',
+  });
   const request = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   deliver(snapshot(request.request, 0));
   assert.equal(connection.sync.state, 'synchronizing');
@@ -115,7 +148,18 @@ test('continuous events do not conceal a missing health response', () => {
   ready();
   connection.tick(2000);
   outgoing(connection);
-  deliver({ type: 'event', link: 'link-A', boot: 'boot-A', sequence: 1, revision: 1, region: 'US', label: 'one' }, 6999);
+  deliver(
+    {
+      type: 'event',
+      link: 'link-A',
+      boot: 'boot-A',
+      sequence: 1,
+      revision: 1,
+      region: 'US',
+      label: 'one',
+    },
+    6999,
+  );
   connection.tick(7000);
   assert.equal(connection.sync.state, 'disconnected');
 });
@@ -137,11 +181,27 @@ test('incompatible peer is visible without issuing configuration requests', () =
 test('undrained outgoing work is bounded and overflow closes cleanly', () => {
   const { connection, ready, deliver, snapshot } = setup();
   ready();
-  deliver({ type: 'event', link: 'link-A', boot: 'boot-A', sequence: 2, revision: 2, region: 'US', label: 'gap' });
+  deliver({
+    type: 'event',
+    link: 'link-A',
+    boot: 'boot-A',
+    sequence: 2,
+    revision: 2,
+    region: 'US',
+    label: 'gap',
+  });
   // Wrong revision snapshots trigger repeated resync once a higher revision is established.
   const request = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   deliver(snapshot(request.request, 2));
-  deliver({ type: 'event', link: 'link-A', boot: 'boot-A', sequence: 4, revision: 4, region: 'US', label: 'gap' });
+  deliver({
+    type: 'event',
+    link: 'link-A',
+    boot: 'boot-A',
+    sequence: 4,
+    revision: 4,
+    region: 'US',
+    label: 'gap',
+  });
   for (let i = 0; i < 9; i++) deliver(snapshot(connection.sync.snapshotRequest, 0));
   assert.equal(connection.sync.state, 'disconnected');
   assert.match(connection.error!, /queue full/);
@@ -161,10 +221,24 @@ test('duplicate and wrong-boot results cannot repeatedly trigger resynchronizati
   ready();
   const id = connection.configure({ region: 'US', label: 'updated' }, 0);
   outgoing(connection);
-  deliver({ type: 'result', link: 'link-A', boot: 'old-boot', id, outcome: 'committed', revision: 1 });
+  deliver({
+    type: 'result',
+    link: 'link-A',
+    boot: 'old-boot',
+    id,
+    outcome: 'committed',
+    revision: 1,
+  });
   assert.equal(connection.commands.status(id).outcome, 'pending');
   assert.deepEqual(outgoing(connection), []);
-  const result: Message = { type: 'result', link: 'link-A', boot: 'boot-A', id, outcome: 'committed', revision: 1 };
+  const result: Message = {
+    type: 'result',
+    link: 'link-A',
+    boot: 'boot-A',
+    id,
+    outcome: 'committed',
+    revision: 1,
+  };
   deliver(result);
   const sync = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   deliver(snapshot(sync.request, 1));
@@ -185,26 +259,29 @@ test('explicit storage failure ends the logical connection instead of serving st
   assert.match(connection.error!, /storage unavailable/);
 });
 
-
 test('lost startup hello retries with the same identity and converges after board boot', () => {
   const { connection, deliver, snapshot } = setup();
-  connection.tick(499); assert.deepEqual(outgoing(connection), []);
+  connection.tick(499);
+  assert.deepEqual(outgoing(connection), []);
   connection.tick(500);
   const retry = outgoing(connection);
-  assert.equal(retry.length, 1); assert.equal(retry[0].type, 'hello');
+  assert.equal(retry.length, 1);
+  assert.equal(retry[0].type, 'hello');
   connection.tick(2000); // No catch-up burst after a suspended scheduler.
   assert.deepEqual(outgoing(connection), retry);
   deliver(welcome(), 2000);
   const request = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   deliver(snapshot(request.request), 2000);
-  connection.tick(2500); assert.deepEqual(outgoing(connection), []);
+  connection.tick(2500);
+  assert.deepEqual(outgoing(connection), []);
   assert.equal(connection.sync.state, 'ready');
 });
 
 test('startup retries remain bounded under stalled writes and the original deadline', () => {
   const { connection } = setup();
   connection.tick(500);
-  connection.tick(1000); connection.tick(4500);
+  connection.tick(1000);
+  connection.tick(4500);
   assert.equal(outgoing(connection).length, 1);
   connection.tick(5000);
   assert.equal(connection.sync.state, 'disconnected');
@@ -216,18 +293,44 @@ test('welcome racing a queued discovery retry retires it before sync', () => {
   const { connection, deliver } = setup();
   connection.tick(500);
   deliver(welcome(), 500);
-  assert.deepEqual(outgoing(connection).map(message => message.type), ['sync']);
+  assert.deepEqual(
+    outgoing(connection).map(message => message.type),
+    ['sync'],
+  );
 });
 
 test('config receipt resync preserves accepted messages and resumes query-only polling', () => {
   const { connection, deliver, snapshot } = setup();
-  deliver({ ...welcome(), features: 31, messageVersion: 1, maxMessageBytes: 1024, messageCapacity: 8 });
+  deliver({
+    ...welcome(),
+    features: 31,
+    messageVersion: 1,
+    maxMessageBytes: 1024,
+    messageCapacity: 8,
+  });
   const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   deliver(snapshot(initial.request));
-  const message = connection.sendMessage('hello', 'broadcast', 0, 0); outgoing(connection);
-  deliver({ type: 'messageStatus', link: 'link-A', boot: 'boot-A', id: message, state: 'queued', received: 1, messageId: 'boot-A_1' });
-  const config = connection.configure({ region: 'US', label: 'changed' }, 0); outgoing(connection);
-  deliver({ type: 'result', link: 'link-A', boot: 'boot-A', id: config, outcome: 'committed', revision: 1 });
+  const message = connection.sendMessage('hello', 'broadcast', 0, 0);
+  outgoing(connection);
+  deliver({
+    type: 'messageStatus',
+    link: 'link-A',
+    boot: 'boot-A',
+    id: message,
+    state: 'queued',
+    received: 1,
+    messageId: 'boot-A_1',
+  });
+  const config = connection.configure({ region: 'US', label: 'changed' }, 0);
+  outgoing(connection);
+  deliver({
+    type: 'result',
+    link: 'link-A',
+    boot: 'boot-A',
+    id: config,
+    outcome: 'committed',
+    revision: 1,
+  });
   assert.equal(connection.messaging.history[0].state, 'queued');
   const resync = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
   deliver(snapshot(resync.request, 1));
@@ -239,31 +342,62 @@ test('config receipt resync preserves accepted messages and resumes query-only p
 
 test('radio diagnostics require an outstanding probe and matching authoritative revision', () => {
   const { connection, deliver, snapshot } = setup();
-  deliver({ ...welcome(), features: 39 }); const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
-  deliver(snapshot(initial.request)); connection.tick(0);
+  deliver({ ...welcome(), features: 39 });
+  const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(initial.request));
+  connection.tick(0);
   const request = outgoing(connection)[0] as Extract<Message, { type: 'radioQuery' }>;
-  const info: Extract<Message, { type: 'radioStatus' }> = { type: 'radioStatus', link: 'link-A', boot: 'boot-A', request: request.request,
-    state: 'off', reason: 'radio-off', probe: 1, transmitted: 0, received: 0, revision: 0, heapFree: 200000, stackFree: 10000 };
-  deliver({ ...info, request: 0 }); assert.equal(connection.radioInfo, undefined);
-  deliver({ ...info, revision: 1 }); assert.equal(connection.radioInfo, undefined);
+  const info: Extract<Message, { type: 'radioStatus' }> = {
+    type: 'radioStatus',
+    link: 'link-A',
+    boot: 'boot-A',
+    request: request.request,
+    state: 'off',
+    reason: 'radio-off',
+    probe: 1,
+    transmitted: 0,
+    received: 0,
+    revision: 0,
+    heapFree: 200000,
+    stackFree: 10000,
+  };
+  deliver({ ...info, request: 0 });
+  assert.equal(connection.radioInfo, undefined);
+  deliver({ ...info, revision: 1 });
+  assert.equal(connection.radioInfo, undefined);
   const currentInfo = () => connection.radioInfo;
-  deliver(info); assert.equal(currentInfo()?.probe, 1);
-  deliver({ ...info, state: 'fault' }); assert.equal(currentInfo()?.state, 'off');
-  const id = connection.configure({ region: 'US', label: 'changed' }, 0); outgoing(connection);
-  deliver({ type: 'result', link: 'link-A', boot: 'boot-A', id, outcome: 'committed', revision: 1 });
+  deliver(info);
+  assert.equal(currentInfo()?.probe, 1);
+  deliver({ ...info, state: 'fault' });
+  assert.equal(currentInfo()?.state, 'off');
+  const id = connection.configure({ region: 'US', label: 'changed' }, 0);
+  outgoing(connection);
+  deliver({
+    type: 'result',
+    link: 'link-A',
+    boot: 'boot-A',
+    id,
+    outcome: 'committed',
+    revision: 1,
+  });
   assert.equal(connection.radioInfo, undefined);
 });
 
 test('radio diagnostic retries stop after three unanswered probes without hiding USB health', () => {
   const { connection, deliver, snapshot } = setup();
-  deliver({ ...welcome(), features: 39 }); const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
-  deliver(snapshot(initial.request)); let probes = 0;
+  deliver({ ...welcome(), features: 39 });
+  const initial = outgoing(connection)[0] as Extract<Message, { type: 'sync' }>;
+  deliver(snapshot(initial.request));
+  let probes = 0;
   for (const now of [0, 2000, 3000, 5000, 6000, 8000, 9000]) {
     connection.tick(now);
     for (const packet of outgoing(connection)) {
       if (packet.type === 'radioQuery') probes++;
-      if (packet.type === 'ping') deliver({ type: 'pong', link: 'link-A', boot: 'boot-A', request: packet.request }, now);
+      if (packet.type === 'ping')
+        deliver({ type: 'pong', link: 'link-A', boot: 'boot-A', request: packet.request }, now);
     }
   }
-  assert.equal(probes, 3); assert.equal(connection.sync.state, 'ready'); assert.match(connection.radioError!, /timed out/);
+  assert.equal(probes, 3);
+  assert.equal(connection.sync.state, 'ready');
+  assert.match(connection.radioError!, /timed out/);
 });

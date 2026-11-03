@@ -1,458 +1,763 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090e12">
-<title>Reaper Mesh · Field communications</title>
-</head>
-<body>
-<div class="app" data-view="messages" data-panel="messages">
-<header class="bar">
-<a class="brand" href="/" aria-label="Reaper Mesh home">
-<span class="mark">R/M</span>
-<span>REAPER<span class="brand-sub">MESH NETWORK</span>
-</span>
-</a>
-<span class="bar-divider">
-</span>
-<span class="workspace-label">FIELD COMMUNICATIONS</span>
-<div class="bar-status">
-<span id="rail-status" class="rail-dot" data-state="disconnected">
-</span>
-<span id="status" role="status">Disconnected</span>
-<span id="source-caption" class="mono">No device</span>
-</div>
-<div class="bar-connect">
-<button id="lock-app" type="button" hidden>Lock app</button>
-<label class="sr-only" for="mode">Connection source</label>
-<select id="mode">
-<option value="usb">USB device</option>
-<option value="demo">Simulator</option>
-</select>
-<button id="connect" class="primary" type="button">Connect device</button>
-<button id="disconnect" type="button" disabled>Disconnect</button>
-</div>
-</header>
-<p id="support" class="sr-only">
-</p>
-<div id="error" class="error" role="alert" hidden>
-</div>
-<main class="stage">
-<nav class="nav-rail" aria-label="Workspace">
-<button class="nav-item is-active" data-view-target="messages" title="Messages">
-<span aria-hidden="true">▤</span>
-<span>Messages <span id="nav-unread" class="unread-badge" hidden></span></span>
-</button>
-<button class="nav-item" data-view-target="map" title="Map workspace">
-<span aria-hidden="true">⌖</span>
-<span>Map</span>
-</button>
-<button id="open-manage" class="nav-item nav-settings" title="Device settings">
-<span aria-hidden="true">⚙</span>
-<span>Settings</span>
-</button>
-<span class="rail-version mono">RM / 01</span>
-</nav>
-<aside class="inbox-pane" aria-label="Conversations">
-<div class="pane-heading">
-<div>
-<span class="eyebrow">COMMUNICATIONS</span>
-<h1>Messages</h1>
-</div>
-<button id="mark-all-read" class="icon-button" aria-label="Mark all messages read" title="Mark all messages read">✓</button>
-<button id="new-conversation" class="icon-button" aria-label="Start conversation" title="Start conversation">＋</button>
-</div>
-<label class="sr-only" for="conversation-search">Search conversations</label>
-<input id="conversation-search" class="search" type="search" placeholder="Search name or node ID" autocomplete="off">
-<div class="conversation-filters" role="group" aria-label="Filter conversations">
-<button type="button" data-conversation-filter="all" aria-pressed="true" class="is-active">All<span id="filter-unread-all" class="filter-unread" hidden></span></button>
-<button type="button" data-conversation-filter="channel" aria-pressed="false">Channels<span id="filter-unread-channel" class="filter-unread" hidden></span></button>
-<button type="button" data-conversation-filter="direct" aria-pressed="false">Direct<span id="filter-unread-direct" class="filter-unread" hidden></span></button>
-</div>
-<div id="conversation-results" class="conversation-results" role="region" aria-label="Conversation list" tabindex="0">
-<h2 id="channel-list-heading" class="list-label">Channels</h2>
-<div id="channel-list" class="conversation-list channel-list" aria-labelledby="channel-list-heading"></div>
-<h2 id="direct-list-heading" class="list-label direct-list-label">Direct messages</h2>
-<div id="direct-list" class="conversation-list direct-list" aria-labelledby="direct-list-heading"></div>
-<p id="conversation-search-empty" class="empty" role="status" hidden>No matching conversations.</p>
-</div>
-<div class="inbox-footer">
-<span class="rail-dot">
-</span>
-<span>Local mesh · no cloud account</span>
-</div>
-</aside>
-<section class="conversation-pane" aria-label="Selected conversation">
-<header class="conversation-head">
-<button id="back-conversations" class="mobile-only icon-button" aria-label="Back to conversations">‹</button>
-<span id="conversation-avatar" class="avatar">#</span>
-<div class="conversation-title">
-<h2 id="conversation-title">Public</h2>
-<span id="conversation-subtitle" class="muted small">Channel · messages received by this device</span>
-</div>
-<button id="locate-conversation" title="Show this asset on the map">Locate device</button>
-<button id="delete-conversation" title="Remove conversation from this browser">Delete chat</button>
-<button id="recipient-toggle" aria-expanded="false" aria-controls="recipient-controls" title="Choose a recipient">New message</button>
-</header>
-<div id="recipient-controls" class="recipient-controls" hidden>
-<label for="message-destination">Recipient</label>
-<input id="message-destination" aria-describedby="recipient-help" type="text" value="broadcast" autocomplete="off">
-<p id="recipient-help" class="small muted">Paste a node ID, or choose Channel broadcast to message everyone on a channel.</p><label for="message-channel">Channel</label>
-<select id="message-channel">
-<option value="0">Public</option>
-</select>
-<button id="broadcast-destination" type="button">Channel broadcast</button>
-<details class="recipient-test"><summary>Test this device</summary><button id="self-destination" type="button">Send to this device only</button></details>
-<button id="recipient-done" class="primary" type="button">Open conversation</button>
-</div>
-<div id="message-security-notice" class="conversation-notice">
-<span class="notice-dot">
-</span>MESSAGE PRIVACY<span>Message encryption is set per channel. Device IDs and routing information remain visible.</span>
-</div>
-<div id="thread-scroll" class="thread-scroll">
-<div id="conversation-empty" class="thread-empty">
-<span class="empty-symbol">⌁</span>
-<h3>Start a conversation</h3>
-<p>Connect a device to send messages. Find nearby devices to start a direct conversation.</p>
-<button id="conversation-connect" class="primary">Connect device</button>
-</div>
-<ul id="message-history" class="message-thread" aria-label="Conversation messages" aria-live="polite">
-</ul>
-</div>
-<p id="message-management-status" class="management-status" role="status" hidden></p>
-<div class="thread-status"><button id="jump-new-messages" class="new-messages" hidden></button>
-<span id="inbox-status">
-</span>
-</div>
-<form id="message-form" class="compose">
-<label class="sr-only" for="message-body">Message</label>
-<textarea id="message-body" rows="2" placeholder="Write a message… Shift + Enter for a new line" maxlength="2048">
-</textarea>
-<div class="compose-bottom">
-<span id="message-support" class="small muted">
-</span>
-<span id="message-bytes" class="mono">0 / 1024 bytes</span>
-<button id="message-send" class="primary" type="submit" disabled>Send ↗</button>
-</div>
-</form>
-</section>
-<aside class="tracker-pane" aria-label="Map workspace">
-<div class="pane-heading tracker-heading">
-<div>
-<span class="eyebrow">MAP WORKSPACE</span>
-<h2>Map <span id="node-count" class="count">0</span>
-</h2>
-</div>
-<button id="fit-map" title="Fit reported positions">Fit map</button>
-</div>
-<div class="map-pane">
-<div id="map" aria-label="Map canvas">
-</div>
-<div class="map-hud">
-<span id="map-caption" class="hud-chip">No reported positions</span>
-</div>
-<div id="map-empty" class="map-empty">
-<strong>No device positions reported</strong>
-<span>Add your own point or area, or discover device positions.</span>
-</div>
-<div id="tile-status" class="tile-status" role="status" hidden>Basemap unavailable · reported positions still work</div>
-</div>
-<div class="asset-toolbar">
-<h3>Nearby devices</h3>
-<button id="discover">Find nearby devices</button>
-<button id="discovery-query" title="Query last discovery result">Check search</button>
-</div>
-<p id="discovery-support" class="small muted">
-</p>
-<p id="discovery-result" class="small muted" role="status">
-</p>
-<div id="selected-asset" class="selected-asset" hidden>
-<span class="eyebrow">SELECTED DEVICE</span>
-<strong id="asset-name">
-</strong>
-<span id="asset-detail" class="mono">
-</span>
-<button id="asset-message">Message device</button>
-</div>
-<p id="nodes-empty" class="empty">No devices found yet. Connect a device and select Discover.</p>
-<ul id="nodes" class="node-list" aria-label="Nearby devices">
-</ul>
-<div class="tracker-footer mono">LAST-KNOWN POSITIONS · FIXED SOURCE</div>
-</aside>
-</main>
-<footer class="system-footer">
-<span>REAPER MESH / FIELD PORTAL</span>
-<span>USB TRANSPORT <span class="footer-dot">·</span> LOCAL HISTORY <span class="footer-dot">·</span> NO READ RECEIPTS</span>
-</footer>
-</div>  <dialog id="wipe-local-dialog" class="access-dialog" aria-labelledby="wipe-title">
-  <h2 id="wipe-title">Wipe this browser’s data?</h2>
-  <p>This permanently removes local keys, PIN, messages and settings. All open Reaper Mesh tabs will disconnect. Device memory is unchanged; messages still on a device can return after reconnecting.</p>
-  <form id="wipe-local-form"><label for="wipe-confirmation">Type WIPE to confirm</label><input id="wipe-confirmation" autocomplete="off" required pattern="WIPE">
-    <p id="wipe-result" role="alert"></p>
-    <button type="submit" id="wipe-confirm" class="danger" disabled>Wipe local data</button><button type="button" id="wipe-cancel">Cancel</button>
-  </form>
-</dialog>
-<dialog id="app-unlock" class="access-dialog" aria-labelledby="access-title" aria-describedby="access-description">
-  <div class="access-mark" aria-hidden="true">R/M</div>
-  <h2 id="access-title">Unlock Reaper Mesh</h2>
-  <p id="access-description">Enter your app PIN.</p>
-  <form id="app-unlock-form">
-    <div id="legacy-access" hidden><label for="legacy-password">Existing key password</label><input id="legacy-password" type="password" autocomplete="current-password"></div>
-    <label for="app-pin">PIN</label><input id="app-pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="current-password" required autofocus>
-    <div id="pin-confirmation" hidden><label for="app-pin-confirm">Confirm PIN</label><input id="app-pin-confirm" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password"></div>
-    <p id="access-error" role="alert"></p>
-    <button id="app-unlock-submit" type="submit" class="primary">Unlock app</button>
-    <button id="locked-disconnect" type="button">Disconnect device</button>
-    <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
-  </form>
-</dialog>
-<dialog id="manage" class="manage" aria-labelledby="settings-title">
-    <form method="dialog" class="manage-head">
-      <div>
-        <p class="eyebrow">Reaper Mesh</p>
-        <h2 id="settings-title">Settings</h2>
-      </div>
-      <button value="close" type="submit" class="ghost">Close</button>
-    </form>
-    <div class="manage-tabs" aria-label="Settings sections">
-<button type="button" class="manage-tab is-active" data-manage="device">Device</button>
-      <button type="button" class="manage-tab" data-manage="radio">Radio</button>
-      <button type="button" class="manage-tab" data-manage="channels">Channels</button>
-      <button type="button" class="manage-tab" data-manage="position">Position</button>
-      <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
-      <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
-<details id="advanced-settings" class="advanced-settings"><summary>Advanced</summary><div class="advanced-links" aria-label="Advanced settings">
-<button type="button" class="manage-tab" data-manage="history">Change history</button>
-<button type="button" class="manage-tab" data-manage="recovery">Storage &amp; recovery</button>
-<button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
-</div></details>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#090e12" />
+    <title>Reaper Mesh · Field communications</title>
+  </head>
+  <body>
+    <div class="app" data-view="messages" data-panel="messages">
+      <header class="bar">
+        <a class="brand" href="/" aria-label="Reaper Mesh home">
+          <span class="mark">R/M</span>
+          <span>REAPER<span class="brand-sub">MESH NETWORK</span> </span>
+        </a>
+        <span class="bar-divider"> </span>
+        <span class="workspace-label">FIELD COMMUNICATIONS</span>
+        <div class="bar-status">
+          <span id="rail-status" class="rail-dot" data-state="disconnected"> </span>
+          <span id="status" role="status">Disconnected</span>
+          <span id="source-caption" class="mono">No device</span>
+        </div>
+        <div class="bar-connect">
+          <button id="lock-app" type="button" hidden>Lock app</button>
+          <label class="sr-only" for="mode">Connection source</label>
+          <select id="mode">
+            <option value="usb">USB device</option>
+            <option value="demo">Simulator</option>
+          </select>
+          <button id="connect" class="primary" type="button">Connect device</button>
+          <button id="disconnect" type="button" disabled>Disconnect</button>
+        </div>
+      </header>
+      <p id="support" class="sr-only"></p>
+      <div id="error" class="error" role="alert" hidden></div>
+      <main class="stage">
+        <nav class="nav-rail" aria-label="Workspace">
+          <button class="nav-item is-active" data-view-target="messages" title="Messages">
+            <span aria-hidden="true">▤</span>
+            <span>Messages <span id="nav-unread" class="unread-badge" hidden></span></span>
+          </button>
+          <button class="nav-item" data-view-target="map" title="Map workspace">
+            <span aria-hidden="true">⌖</span>
+            <span>Map</span>
+          </button>
+          <button id="open-manage" class="nav-item nav-settings" title="Device settings">
+            <span aria-hidden="true">⚙</span>
+            <span>Settings</span>
+          </button>
+          <span class="rail-version mono">RM / 01</span>
+        </nav>
+        <aside class="inbox-pane" aria-label="Conversations">
+          <div class="pane-heading">
+            <div>
+              <span class="eyebrow">COMMUNICATIONS</span>
+              <h1>Messages</h1>
+            </div>
+            <button
+              id="mark-all-read"
+              class="icon-button"
+              aria-label="Mark all messages read"
+              title="Mark all messages read"
+            >
+              ✓
+            </button>
+            <button
+              id="new-conversation"
+              class="icon-button"
+              aria-label="Start conversation"
+              title="Start conversation"
+            >
+              ＋
+            </button>
+          </div>
+          <label class="sr-only" for="conversation-search">Search conversations</label>
+          <input
+            id="conversation-search"
+            class="search"
+            type="search"
+            placeholder="Search name or node ID"
+            autocomplete="off"
+          />
+          <div class="conversation-filters" role="group" aria-label="Filter conversations">
+            <button
+              type="button"
+              data-conversation-filter="all"
+              aria-pressed="true"
+              class="is-active"
+            >
+              All<span id="filter-unread-all" class="filter-unread" hidden></span>
+            </button>
+            <button type="button" data-conversation-filter="channel" aria-pressed="false">
+              Channels<span id="filter-unread-channel" class="filter-unread" hidden></span>
+            </button>
+            <button type="button" data-conversation-filter="direct" aria-pressed="false">
+              Direct<span id="filter-unread-direct" class="filter-unread" hidden></span>
+            </button>
+          </div>
+          <div
+            id="conversation-results"
+            class="conversation-results"
+            role="region"
+            aria-label="Conversation list"
+            tabindex="0"
+          >
+            <h2 id="channel-list-heading" class="list-label">Channels</h2>
+            <div
+              id="channel-list"
+              class="conversation-list channel-list"
+              aria-labelledby="channel-list-heading"
+            ></div>
+            <h2 id="direct-list-heading" class="list-label direct-list-label">Direct messages</h2>
+            <div
+              id="direct-list"
+              class="conversation-list direct-list"
+              aria-labelledby="direct-list-heading"
+            ></div>
+            <p id="conversation-search-empty" class="empty" role="status" hidden>
+              No matching conversations.
+            </p>
+          </div>
+          <div class="inbox-footer">
+            <span class="rail-dot"> </span>
+            <span>Local mesh · no cloud account</span>
+          </div>
+        </aside>
+        <section class="conversation-pane" aria-label="Selected conversation">
+          <header class="conversation-head">
+            <button
+              id="back-conversations"
+              class="mobile-only icon-button"
+              aria-label="Back to conversations"
+            >
+              ‹
+            </button>
+            <span id="conversation-avatar" class="avatar">#</span>
+            <div class="conversation-title">
+              <h2 id="conversation-title">Public</h2>
+              <span id="conversation-subtitle" class="muted small"
+                >Channel · messages received by this device</span
+              >
+            </div>
+            <button id="locate-conversation" title="Show this asset on the map">
+              Locate device
+            </button>
+            <button id="delete-conversation" title="Remove conversation from this browser">
+              Delete chat
+            </button>
+            <button
+              id="recipient-toggle"
+              aria-expanded="false"
+              aria-controls="recipient-controls"
+              title="Choose a recipient"
+            >
+              New message
+            </button>
+          </header>
+          <div id="recipient-controls" class="recipient-controls" hidden>
+            <label for="message-destination">Recipient</label>
+            <input
+              id="message-destination"
+              aria-describedby="recipient-help"
+              type="text"
+              value="broadcast"
+              autocomplete="off"
+            />
+            <p id="recipient-help" class="small muted">
+              Paste a node ID, or choose Channel broadcast to message everyone on a channel.
+            </p>
+            <label for="message-channel">Channel</label>
+            <select id="message-channel">
+              <option value="0">Public</option>
+            </select>
+            <button id="broadcast-destination" type="button">Channel broadcast</button>
+            <details class="recipient-test">
+              <summary>Test this device</summary>
+              <button id="self-destination" type="button">Send to this device only</button>
+            </details>
+            <button id="recipient-done" class="primary" type="button">Open conversation</button>
+          </div>
+          <div id="message-security-notice" class="conversation-notice">
+            <span class="notice-dot"> </span>MESSAGE PRIVACY<span
+              >Message encryption is set per channel. Device IDs and routing information remain
+              visible.</span
+            >
+          </div>
+          <div id="thread-scroll" class="thread-scroll">
+            <div id="conversation-empty" class="thread-empty">
+              <span class="empty-symbol">⌁</span>
+              <h3>Start a conversation</h3>
+              <p>
+                Connect a device to send messages. Find nearby devices to start a direct
+                conversation.
+              </p>
+              <button id="conversation-connect" class="primary">Connect device</button>
+            </div>
+            <ul
+              id="message-history"
+              class="message-thread"
+              aria-label="Conversation messages"
+              aria-live="polite"
+            ></ul>
+          </div>
+          <p id="message-management-status" class="management-status" role="status" hidden></p>
+          <div class="thread-status">
+            <button id="jump-new-messages" class="new-messages" hidden></button>
+            <span id="inbox-status"> </span>
+          </div>
+          <form id="message-form" class="compose">
+            <label class="sr-only" for="message-body">Message</label>
+            <textarea
+              id="message-body"
+              rows="2"
+              placeholder="Write a message… Shift + Enter for a new line"
+              maxlength="2048"
+            ></textarea>
+            <div class="compose-bottom">
+              <span id="message-support" class="small muted"> </span>
+              <span id="message-bytes" class="mono">0 / 1024 bytes</span>
+              <button id="message-send" class="primary" type="submit" disabled>Send ↗</button>
+            </div>
+          </form>
+        </section>
+        <aside class="tracker-pane" aria-label="Map workspace">
+          <div class="pane-heading tracker-heading">
+            <div>
+              <span class="eyebrow">MAP WORKSPACE</span>
+              <h2>Map <span id="node-count" class="count">0</span></h2>
+            </div>
+            <button id="fit-map" title="Fit reported positions">Fit map</button>
+          </div>
+          <div class="map-pane">
+            <div id="map" aria-label="Map canvas"></div>
+            <div class="map-hud">
+              <span id="map-caption" class="hud-chip">No reported positions</span>
+            </div>
+            <div id="map-empty" class="map-empty">
+              <strong>No device positions reported</strong>
+              <span>Add your own point or area, or discover device positions.</span>
+            </div>
+            <div id="tile-status" class="tile-status" role="status" hidden>
+              Basemap unavailable · reported positions still work
+            </div>
+          </div>
+          <div class="asset-toolbar">
+            <h3>Nearby devices</h3>
+            <button id="discover">Find nearby devices</button>
+            <button id="discovery-query" title="Query last discovery result">Check search</button>
+          </div>
+          <p id="discovery-support" class="small muted"></p>
+          <p id="discovery-result" class="small muted" role="status"></p>
+          <div id="selected-asset" class="selected-asset" hidden>
+            <span class="eyebrow">SELECTED DEVICE</span>
+            <strong id="asset-name"> </strong>
+            <span id="asset-detail" class="mono"> </span>
+            <button id="asset-message">Message device</button>
+          </div>
+          <p id="nodes-empty" class="empty">
+            No devices found yet. Connect a device and select Discover.
+          </p>
+          <ul id="nodes" class="node-list" aria-label="Nearby devices"></ul>
+          <div class="tracker-footer mono">LAST-KNOWN POSITIONS · FIXED SOURCE</div>
+        </aside>
+      </main>
+      <footer class="system-footer">
+        <span>REAPER MESH / FIELD PORTAL</span>
+        <span
+          >USB TRANSPORT <span class="footer-dot">·</span> LOCAL HISTORY
+          <span class="footer-dot">·</span> NO READ RECEIPTS</span
+        >
+      </footer>
     </div>
-    <div class="manage-body">        <section class="manage-panel is-active" data-manage-panel="device" aria-labelledby="device-heading">
+    <dialog id="wipe-local-dialog" class="access-dialog" aria-labelledby="wipe-title">
+      <h2 id="wipe-title">Wipe this browser’s data?</h2>
+      <p>
+        This permanently removes local keys, PIN, messages and settings. All open Reaper Mesh tabs
+        will disconnect. Device memory is unchanged; messages still on a device can return after
+        reconnecting.
+      </p>
+      <form id="wipe-local-form">
+        <label for="wipe-confirmation">Type WIPE to confirm</label
+        ><input id="wipe-confirmation" autocomplete="off" required pattern="WIPE" />
+        <p id="wipe-result" role="alert"></p>
+        <button type="submit" id="wipe-confirm" class="danger" disabled>Wipe local data</button
+        ><button type="button" id="wipe-cancel">Cancel</button>
+      </form>
+    </dialog>
+    <dialog
+      id="app-unlock"
+      class="access-dialog"
+      aria-labelledby="access-title"
+      aria-describedby="access-description"
+    >
+      <div class="access-mark" aria-hidden="true">R/M</div>
+      <h2 id="access-title">Unlock Reaper Mesh</h2>
+      <p id="access-description">Enter your app PIN.</p>
+      <form id="app-unlock-form">
+        <div id="legacy-access" hidden>
+          <label for="legacy-password">Existing key password</label
+          ><input id="legacy-password" type="password" autocomplete="current-password" />
+        </div>
+        <label for="app-pin">PIN</label
+        ><input
+          id="app-pin"
+          type="password"
+          inputmode="numeric"
+          pattern="[0-9]{4,6}"
+          minlength="4"
+          maxlength="6"
+          autocomplete="current-password"
+          required
+          autofocus
+        />
+        <div id="pin-confirmation" hidden>
+          <label for="app-pin-confirm">Confirm PIN</label
+          ><input
+            id="app-pin-confirm"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]{4,6}"
+            minlength="4"
+            maxlength="6"
+            autocomplete="new-password"
+          />
+        </div>
+        <p id="access-error" role="alert"></p>
+        <button id="app-unlock-submit" type="submit" class="primary">Unlock app</button>
+        <button id="locked-disconnect" type="button">Disconnect device</button>
+        <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
+      </form>
+    </dialog>
+    <dialog id="manage" class="manage" aria-labelledby="settings-title">
+      <form method="dialog" class="manage-head">
+        <div>
+          <p class="eyebrow">Reaper Mesh</p>
+          <h2 id="settings-title">Settings</h2>
+        </div>
+        <button value="close" type="submit" class="ghost">Close</button>
+      </form>
+      <div class="manage-tabs" aria-label="Settings sections">
+        <button type="button" class="manage-tab is-active" data-manage="device">Device</button>
+        <button type="button" class="manage-tab" data-manage="radio">Radio</button>
+        <button type="button" class="manage-tab" data-manage="channels">Channels</button>
+        <button type="button" class="manage-tab" data-manage="position">Position</button>
+        <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
+        <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
+        <details id="advanced-settings" class="advanced-settings">
+          <summary>Advanced</summary>
+          <div class="advanced-links" aria-label="Advanced settings">
+            <button type="button" class="manage-tab" data-manage="history">Change history</button>
+            <button type="button" class="manage-tab" data-manage="recovery">
+              Storage &amp; recovery
+            </button>
+            <button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
+          </div>
+        </details>
+      </div>
+      <div class="manage-body">
+        <section
+          class="manage-panel is-active"
+          data-manage-panel="device"
+          aria-labelledby="device-heading"
+        >
           <div class="section-title">
             <h2 id="device-heading">Device</h2>
             <span id="revision" class="mono">REV —</span>
           </div>
           <p id="write-reason" class="muted small" role="status">Connect to edit settings.</p>
-          <p id="capability-note" class="muted small" hidden>
-</p>
+          <p id="capability-note" class="muted small" hidden></p>
           <form id="configuration">
-<div class="compact-field">            <label for="region">Operating region</label>
-            <select id="region" disabled>
-              <option value="UNSET">Not configured</option>
-              <option value="US">United States</option>
-              <option value="EU" disabled>European Union · later</option>
-            </select>
-</div>
+            <div class="compact-field">
+              <label for="region">Operating region</label>
+              <select id="region" disabled>
+                <option value="UNSET">Not configured</option>
+                <option value="US">United States</option>
+                <option value="EU" disabled>European Union · later</option>
+              </select>
+            </div>
             <label for="label">Device name</label>
-            <input id="label" type="text" autocomplete="off" disabled placeholder="Name your node">
+            <input
+              id="label"
+              type="text"
+              autocomplete="off"
+              disabled
+              placeholder="Name your node"
+            />
             <div class="field-meta">
-<span>Name length</span>
-<span id="byte-count">0 / —</span>
-</div>
-            <p id="draft-warning" class="warning" hidden>Device state changed while you were editing. Load the latest settings before saving.</p>
+              <span>Name length</span>
+              <span id="byte-count">0 / —</span>
+            </div>
+            <p id="draft-warning" class="warning" hidden>
+              Device state changed while you were editing. Load the latest settings before saving.
+            </p>
             <div class="actions">
               <button id="save" type="submit" class="primary" disabled>Save device settings</button>
               <button id="reset" type="button" disabled>Discard changes</button>
               <button id="export-settings" type="button" disabled>Export settings</button>
             </div>
           </form>
-          <details class="settings-disclosure"><summary>Device information</summary><dl class="detail-grid compact">
-            <dt>ID</dt>
-<dd id="device" class="mono">—</dd>
-            <dt>Firmware</dt>
-<dd id="firmware" class="mono">—</dd>
-            <dt>Radio</dt>
-<dd id="radio-hardware">—</dd>
-          </dl></details>
+          <details class="settings-disclosure">
+            <summary>Device information</summary>
+            <dl class="detail-grid compact">
+              <dt>ID</dt>
+              <dd id="device" class="mono">—</dd>
+              <dt>Firmware</dt>
+              <dd id="firmware" class="mono">—</dd>
+              <dt>Radio</dt>
+              <dd id="radio-hardware">—</dd>
+            </dl>
+          </details>
         </section>
 
-
-      <section class="manage-panel" data-manage-panel="radio" hidden>
-        <h2>Radio</h2><p class="small muted">Choose whether this device can receive or send messages.</p>
-<p id="radio-support" class="muted">
-</p>
-        <form id="radio-form">
-          <div class="columns">
-            <div>
-              <label for="radio-mode">Radio mode</label>
-              <select id="radio-mode">
-                <option value="off">Off · no radio traffic</option>
-                <option value="receive">Receive only · listen without sending</option>
-                <option value="mesh">Mesh messaging · send and receive</option>
-              </select>
+        <section class="manage-panel" data-manage-panel="radio" hidden>
+          <h2>Radio</h2>
+          <p class="small muted">Choose whether this device can receive or send messages.</p>
+          <p id="radio-support" class="muted"></p>
+          <form id="radio-form">
+            <div class="columns">
+              <div>
+                <label for="radio-mode">Radio mode</label>
+                <select id="radio-mode">
+                  <option value="off">Off · no radio traffic</option>
+                  <option value="receive">Receive only · listen without sending</option>
+                  <option value="mesh">Mesh messaging · send and receive</option>
+                </select>
+              </div>
+              <div>
+                <label for="radio-power">Transmit power (dBm)</label>
+                <input id="radio-power" type="number" min="0" max="10" step="1" value="0" />
+              </div>
             </div>
-            <div>
-              <label for="radio-power">Transmit power (dBm)</label>
-              <input id="radio-power" type="number" min="0" max="10" step="1" value="0">
-            </div>
-          </div>
-          <p class="small muted">US 915 lab preset. Transmission also requires the board antenna check.</p>
-          <label class="check">
-<input id="radio-relay" type="checkbox">Relay messages for other nodes</label>
-          <div class="actions">
-            <button id="radio-save" class="primary" type="submit" disabled>Save radio settings</button>
-            <button id="radio-reset" type="button">Discard changes</button>
-          </div>
-        </form>
-      </section>
-      <section class="manage-panel" data-manage-panel="channels" hidden>
-<div class="section-toolbar"><h2>Channels</h2><button id="create-channel" type="button" class="primary">Create channel</button></div>
-<p id="channels-status" role="status" class="small muted"></p>
-<nav id="managed-channels" class="managed-channels" aria-label="Channel settings"></nav>
-<section id="channel-editor" class="channel-content" aria-labelledby="channel-editor-title">
-<h3 id="channel-editor-title">Public</h3>
-<form id="channel-name-form">
-<label for="channel-name">Channel name</label><input id="channel-name" aria-describedby="channel-name-help" maxlength="8" pattern="[A-Za-z0-9_-]{1,8}" required autocomplete="off">
-<p id="channel-name-help" class="small muted">Up to 8 letters, numbers, underscores or hyphens.</p>
-<button id="channel-name-save" type="submit" class="primary">Save channel</button>
-<p id="channel-editor-status" role="status" class="small muted"></p>
-</form>
-        <section class="encryption-tools" aria-labelledby="encryption-heading">
-          <div class="section-title"><h3 id="encryption-heading">Message privacy</h3></div>
-          <p id="encryption-status" role="status" class="small muted">Messages are plaintext unless a channel key is enabled.</p>
-          <label for="encryption-channel">Channel</label>
-          <select id="encryption-channel"><option value="0">Public</option></select>
-          <label for="encryption-policy">Messages</label>
-          <select id="encryption-policy" aria-describedby="encryption-status"><option value="plaintext">Unencrypted</option><option value="required">Encrypted</option></select>
-          <div class="actions">
-            <button id="channel-key-generate" type="button">Create new key</button>
-            <button id="channel-key-export" type="button">Export key</button>
-          </div>
-          <details class="settings-disclosure key-transfer"><summary>Import a shared channel key</summary><p class="small muted">Paste the key bundle supplied by a trusted channel member.</p><label for="channel-key-transfer">Key transfer bundle · secret</label>
-          <textarea id="channel-key-transfer" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste RMKEY1 bundle to import"></textarea>
-          <div class="actions"><button id="channel-key-import" type="button">Import key</button></div>
-          </details><p class="small warning">Share key bundles only with trusted agents using a private transfer. Anyone with a channel key can read and forge that channel’s messages. Direct routes still use the selected channel key.</p>
-        </section>
-
-</section>
-<div id="channel-settings" hidden></div>
-      </section>
-      <section class="manage-panel" data-manage-panel="position" hidden>
-        <h2>Position</h2>
-<p id="position-support" role="status" class="muted">
-</p>
-        <p class="small muted">Set a fixed location for this device. Saving a location does not share it; enable sharing below when you want other nodes to see it.</p>
-        <form id="position-form">
-          <label for="position-source">Position source</label>
-          <select id="position-source">
-            <option value="0">None</option>
-            <option value="1">Saved fixed position</option>
-          </select>
-          <div id="fixed-position-fields" class="coordinate-fields">
-            <div><label for="position-latitude">Latitude</label>
-              <input id="position-latitude" type="number" min="-90" max="90" step="0.0000001" required value="0" aria-describedby="latitude-help">
-              <p id="latitude-help" class="small muted">−90 to 90 degrees</p></div>
-            <div><label for="position-longitude">Longitude</label>
-              <input id="position-longitude" type="number" min="-180" max="180" step="0.0000001" required value="0" aria-describedby="longitude-help">
-              <p id="longitude-help" class="small muted">−180 to 180 degrees</p></div>
-          </div>
-          <label class="check">
-<input id="position-share" type="checkbox">Share position over radio</label>
-          <div class="actions">
-            <button id="position-save" class="primary" type="submit">Save position settings</button>
-            <button id="position-reset" type="button">Discard changes</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="manage-panel" data-manage-panel="discovery" hidden>
-        <h2>Discovery</h2><p id="discovery-panel-support" class="muted small">Choose how other nearby devices can find this device. Both options are off by default.</p>
-        <form id="discovery-form">
-          <label class="check">
-<input id="beacon-enabled" type="checkbox">Announce this device periodically</label><p class="field-help">Let nearby devices discover this node without a request.</p>
-          <label class="check">
-<input id="respond-enabled" type="checkbox">Reply when another device searches</label><p class="field-help">Respond only when a nearby device requests discovery.</p>
-          <label for="beacon-interval">Announcement interval (seconds)</label>
-          <input id="beacon-interval" aria-describedby="interval-help" type="number" min="60" max="3600" value="300"><p id="interval-help" class="small muted">60–3600 seconds. Applies to periodic announcements.</p>
-          <div class="actions">
-            <button id="discovery-save" class="primary" type="submit">Save discovery settings</button>
-            <button id="discovery-reset" type="button">Discard changes</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="manage-panel" data-manage-panel="history" hidden>
-        <div class="section-title">
-          <h3>Command history</h3>
-          <span id="history-count" class="mono">0 / 32</span>
-        </div>
-        <p class="muted small">Unknown means a change may have applied. Query after reconnect; nothing is automatically resent.</p>
-        <div id="history-empty" class="empty">No configuration commands yet.</div>
-        <ul id="history" class="history">
-</ul>
-      </section>
-
-      <section class="manage-panel" data-manage-panel="recovery" hidden>
-<h2>Storage &amp; recovery</h2>
-        <p class="small muted">This browser saves message history and pending changes before sending. If a connection is interrupted, uncertain work stays unknown and is never automatically resent. Export a backup before resetting history.</p>
-        <p id="recovery-status" role="status">
-</p>
-        <div class="actions">
-          <button id="recovery-retry" type="button">Retry storage</button>
-          <button id="recovery-export" type="button">Export history</button>
-          <button id="recovery-reset" class="danger" type="button">Reset USB history</button>
-        </div>
-        <section class="simulation" id="simulation">
-          <div>
-            <p class="eyebrow">Simulation</p>
-            <h3>Interrupted connection</h3>
-            <p class="small muted">Arm one fault, change the label, then save.</p>
-          </div>
-          <div>
-            <label for="fault">Next save</label>
-            <select id="fault">
-              <option value="none">Normal connection</option>
-              <option value="lose-result">Lose result and change event</option>
-              <option value="disconnect">Disconnect after commit</option>
-            </select>
+            <p class="small muted">
+              US 915 lab preset. Transmission also requires the board antenna check.
+            </p>
             <label class="check">
-<input id="read-only" type="checkbox">Read-only on next connect</label>
-            <button id="reboot" type="button">Reboot simulated device</button>
-          </div>
-        </section>
-      </section>
-
-      <section class="manage-panel" data-manage-panel="privacy" hidden aria-labelledby="privacy-heading">
-        <h2 id="privacy-heading">Privacy</h2>
-        <section class="privacy-card">
-          <h3>PIN protection</h3><p id="pin-setting-status" class="small muted" role="status"></p>
-          <p class="small muted">Optional. A PIN protects saved channel keys and locks the app when connected.</p>
-          <form id="pin-settings-form">
-            <div id="pin-current-field" hidden><label for="pin-current">Current PIN</label><input id="pin-current" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="current-password"></div>
-            <div id="pin-new-fields" class="columns"><div><label for="pin-new">New PIN (4–6 numbers)</label><input id="pin-new" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password"></div><div><label for="pin-new-confirm">Confirm PIN</label><input id="pin-new-confirm" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password"></div></div>
-            <div class="actions"><button id="pin-enable" class="primary" type="submit">Enable PIN</button><button id="pin-remove" type="button" hidden>Remove PIN protection</button></div>
-            <p id="pin-settings-result" class="small" role="status"></p>
+              <input id="radio-relay" type="checkbox" />Relay messages for other nodes</label
+            >
+            <div class="actions">
+              <button id="radio-save" class="primary" type="submit" disabled>
+                Save radio settings
+              </button>
+              <button id="radio-reset" type="button">Discard changes</button>
+            </div>
           </form>
         </section>
-        <section class="privacy-card danger-zone"><h3>Wipe local data</h3>
-          <p class="small muted">Delete this browser’s keys, PIN, settings and message history. Devices and other browsers keep their data.</p>
-          <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
+        <section class="manage-panel" data-manage-panel="channels" hidden>
+          <div class="section-toolbar">
+            <h2>Channels</h2>
+            <button id="create-channel" type="button" class="primary">Create channel</button>
+          </div>
+          <p id="channels-status" role="status" class="small muted"></p>
+          <nav id="managed-channels" class="managed-channels" aria-label="Channel settings"></nav>
+          <section
+            id="channel-editor"
+            class="channel-content"
+            aria-labelledby="channel-editor-title"
+          >
+            <h3 id="channel-editor-title">Public</h3>
+            <form id="channel-name-form">
+              <label for="channel-name">Channel name</label
+              ><input
+                id="channel-name"
+                aria-describedby="channel-name-help"
+                maxlength="8"
+                pattern="[A-Za-z0-9_-]{1,8}"
+                required
+                autocomplete="off"
+              />
+              <p id="channel-name-help" class="small muted">
+                Up to 8 letters, numbers, underscores or hyphens.
+              </p>
+              <button id="channel-name-save" type="submit" class="primary">Save channel</button>
+              <p id="channel-editor-status" role="status" class="small muted"></p>
+            </form>
+            <section class="encryption-tools" aria-labelledby="encryption-heading">
+              <div class="section-title"><h3 id="encryption-heading">Message privacy</h3></div>
+              <p id="encryption-status" role="status" class="small muted">
+                Messages are plaintext unless a channel key is enabled.
+              </p>
+              <label for="encryption-channel">Channel</label>
+              <select id="encryption-channel">
+                <option value="0">Public</option>
+              </select>
+              <label for="encryption-policy">Messages</label>
+              <select id="encryption-policy" aria-describedby="encryption-status">
+                <option value="plaintext">Unencrypted</option>
+                <option value="required">Encrypted</option>
+              </select>
+              <div class="actions">
+                <button id="channel-key-generate" type="button">Create new key</button>
+                <button id="channel-key-export" type="button">Export key</button>
+              </div>
+              <details class="settings-disclosure key-transfer">
+                <summary>Import a shared channel key</summary>
+                <p class="small muted">
+                  Paste the key bundle supplied by a trusted channel member.
+                </p>
+                <label for="channel-key-transfer">Key transfer bundle · secret</label>
+                <textarea
+                  id="channel-key-transfer"
+                  rows="3"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="Paste RMKEY1 bundle to import"
+                ></textarea>
+                <div class="actions">
+                  <button id="channel-key-import" type="button">Import key</button>
+                </div>
+              </details>
+              <p class="small warning">
+                Share key bundles only with trusted agents using a private transfer. Anyone with a
+                channel key can read and forge that channel’s messages. Direct routes still use the
+                selected channel key.
+              </p>
+            </section>
+          </section>
+          <div id="channel-settings" hidden></div>
         </section>
-      </section>
-      <section class="manage-panel" data-manage-panel="details" hidden><h2>Diagnostics</h2><p class="small muted">Technical information for troubleshooting this connection.</p>
-        <dl class="detail-grid">
-          <dt>Configuration schema</dt>
-<dd id="schema">—</dd>
-          <dt>Request history</dt>
-<dd id="capacity">—</dd>
-          <dt>Owner admission</dt>
-<dd id="admission">—</dd>
-          <dt>Radio protocol</dt>
-<dd id="radio">—</dd>
-          <dt>Radio packets</dt>
-<dd id="radio-packets">—</dd>
-        </dl>
-        <details>
-          <summary>Memory and task diagnostics</summary>
-          <p id="resource-status" class="small muted">Connect to read diagnostics.</p>
-        </details>
-      </section>
-    </div>
-  </dialog>
+        <section class="manage-panel" data-manage-panel="position" hidden>
+          <h2>Position</h2>
+          <p id="position-support" role="status" class="muted"></p>
+          <p class="small muted">
+            Set a fixed location for this device. Saving a location does not share it; enable
+            sharing below when you want other nodes to see it.
+          </p>
+          <form id="position-form">
+            <label for="position-source">Position source</label>
+            <select id="position-source">
+              <option value="0">None</option>
+              <option value="1">Saved fixed position</option>
+            </select>
+            <div id="fixed-position-fields" class="coordinate-fields">
+              <div>
+                <label for="position-latitude">Latitude</label>
+                <input
+                  id="position-latitude"
+                  type="number"
+                  min="-90"
+                  max="90"
+                  step="0.0000001"
+                  required
+                  value="0"
+                  aria-describedby="latitude-help"
+                />
+                <p id="latitude-help" class="small muted">−90 to 90 degrees</p>
+              </div>
+              <div>
+                <label for="position-longitude">Longitude</label>
+                <input
+                  id="position-longitude"
+                  type="number"
+                  min="-180"
+                  max="180"
+                  step="0.0000001"
+                  required
+                  value="0"
+                  aria-describedby="longitude-help"
+                />
+                <p id="longitude-help" class="small muted">−180 to 180 degrees</p>
+              </div>
+            </div>
+            <label class="check">
+              <input id="position-share" type="checkbox" />Share position over radio</label
+            >
+            <div class="actions">
+              <button id="position-save" class="primary" type="submit">
+                Save position settings
+              </button>
+              <button id="position-reset" type="button">Discard changes</button>
+            </div>
+          </form>
+        </section>
 
-<dialog id="delete-history" class="delete-dialog" aria-labelledby="delete-title"><form method="dialog"><h2 id="delete-title">Delete from this browser?</h2><p id="delete-description"></p><p class="small muted">This does not delete messages on devices or other users’ apps, cancel transmissions, or change ACKs. Removed sent messages lose delivery-query recovery.</p><div class="actions"><button value="cancel" type="submit" autofocus>Cancel</button><button id="confirm-delete" class="danger" value="delete" type="submit">Delete</button></div></form></dialog>
-<script type="module" src="/main.ts">
-</script>
-</body>
+        <section class="manage-panel" data-manage-panel="discovery" hidden>
+          <h2>Discovery</h2>
+          <p id="discovery-panel-support" class="muted small">
+            Choose how other nearby devices can find this device. Both options are off by default.
+          </p>
+          <form id="discovery-form">
+            <label class="check">
+              <input id="beacon-enabled" type="checkbox" />Announce this device periodically</label
+            >
+            <p class="field-help">Let nearby devices discover this node without a request.</p>
+            <label class="check">
+              <input id="respond-enabled" type="checkbox" />Reply when another device
+              searches</label
+            >
+            <p class="field-help">Respond only when a nearby device requests discovery.</p>
+            <label for="beacon-interval">Announcement interval (seconds)</label>
+            <input
+              id="beacon-interval"
+              aria-describedby="interval-help"
+              type="number"
+              min="60"
+              max="3600"
+              value="300"
+            />
+            <p id="interval-help" class="small muted">
+              60–3600 seconds. Applies to periodic announcements.
+            </p>
+            <div class="actions">
+              <button id="discovery-save" class="primary" type="submit">
+                Save discovery settings
+              </button>
+              <button id="discovery-reset" type="button">Discard changes</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="manage-panel" data-manage-panel="history" hidden>
+          <div class="section-title">
+            <h3>Command history</h3>
+            <span id="history-count" class="mono">0 / 32</span>
+          </div>
+          <p class="muted small">
+            Unknown means a change may have applied. Query after reconnect; nothing is automatically
+            resent.
+          </p>
+          <div id="history-empty" class="empty">No configuration commands yet.</div>
+          <ul id="history" class="history"></ul>
+        </section>
+
+        <section class="manage-panel" data-manage-panel="recovery" hidden>
+          <h2>Storage &amp; recovery</h2>
+          <p class="small muted">
+            This browser saves message history and pending changes before sending. If a connection
+            is interrupted, uncertain work stays unknown and is never automatically resent. Export a
+            backup before resetting history.
+          </p>
+          <p id="recovery-status" role="status"></p>
+          <div class="actions">
+            <button id="recovery-retry" type="button">Retry storage</button>
+            <button id="recovery-export" type="button">Export history</button>
+            <button id="recovery-reset" class="danger" type="button">Reset USB history</button>
+          </div>
+          <section class="simulation" id="simulation">
+            <div>
+              <p class="eyebrow">Simulation</p>
+              <h3>Interrupted connection</h3>
+              <p class="small muted">Arm one fault, change the label, then save.</p>
+            </div>
+            <div>
+              <label for="fault">Next save</label>
+              <select id="fault">
+                <option value="none">Normal connection</option>
+                <option value="lose-result">Lose result and change event</option>
+                <option value="disconnect">Disconnect after commit</option>
+              </select>
+              <label class="check">
+                <input id="read-only" type="checkbox" />Read-only on next connect</label
+              >
+              <button id="reboot" type="button">Reboot simulated device</button>
+            </div>
+          </section>
+        </section>
+
+        <section
+          class="manage-panel"
+          data-manage-panel="privacy"
+          hidden
+          aria-labelledby="privacy-heading"
+        >
+          <h2 id="privacy-heading">Privacy</h2>
+          <section class="privacy-card">
+            <h3>PIN protection</h3>
+            <p id="pin-setting-status" class="small muted" role="status"></p>
+            <p class="small muted">
+              Optional. A PIN protects saved channel keys and locks the app when connected.
+            </p>
+            <form id="pin-settings-form">
+              <div id="pin-current-field" hidden>
+                <label for="pin-current">Current PIN</label
+                ><input
+                  id="pin-current"
+                  type="password"
+                  inputmode="numeric"
+                  pattern="[0-9]{4,6}"
+                  maxlength="6"
+                  autocomplete="current-password"
+                />
+              </div>
+              <div id="pin-new-fields" class="columns">
+                <div>
+                  <label for="pin-new">New PIN (4–6 numbers)</label
+                  ><input
+                    id="pin-new"
+                    type="password"
+                    inputmode="numeric"
+                    pattern="[0-9]{4,6}"
+                    minlength="4"
+                    maxlength="6"
+                    autocomplete="new-password"
+                  />
+                </div>
+                <div>
+                  <label for="pin-new-confirm">Confirm PIN</label
+                  ><input
+                    id="pin-new-confirm"
+                    type="password"
+                    inputmode="numeric"
+                    pattern="[0-9]{4,6}"
+                    minlength="4"
+                    maxlength="6"
+                    autocomplete="new-password"
+                  />
+                </div>
+              </div>
+              <div class="actions">
+                <button id="pin-enable" class="primary" type="submit">Enable PIN</button
+                ><button id="pin-remove" type="button" hidden>Remove PIN protection</button>
+              </div>
+              <p id="pin-settings-result" class="small" role="status"></p>
+            </form>
+          </section>
+          <section class="privacy-card danger-zone">
+            <h3>Wipe local data</h3>
+            <p class="small muted">
+              Delete this browser’s keys, PIN, settings and message history. Devices and other
+              browsers keep their data.
+            </p>
+            <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
+          </section>
+        </section>
+        <section class="manage-panel" data-manage-panel="details" hidden>
+          <h2>Diagnostics</h2>
+          <p class="small muted">Technical information for troubleshooting this connection.</p>
+          <dl class="detail-grid">
+            <dt>Configuration schema</dt>
+            <dd id="schema">—</dd>
+            <dt>Request history</dt>
+            <dd id="capacity">—</dd>
+            <dt>Owner admission</dt>
+            <dd id="admission">—</dd>
+            <dt>Radio protocol</dt>
+            <dd id="radio">—</dd>
+            <dt>Radio packets</dt>
+            <dd id="radio-packets">—</dd>
+          </dl>
+          <details>
+            <summary>Memory and task diagnostics</summary>
+            <p id="resource-status" class="small muted">Connect to read diagnostics.</p>
+          </details>
+        </section>
+      </div>
+    </dialog>
+
+    <dialog id="delete-history" class="delete-dialog" aria-labelledby="delete-title">
+      <form method="dialog">
+        <h2 id="delete-title">Delete from this browser?</h2>
+        <p id="delete-description"></p>
+        <p class="small muted">
+          This does not delete messages on devices or other users’ apps, cancel transmissions, or
+          change ACKs. Removed sent messages lose delivery-query recovery.
+        </p>
+        <div class="actions">
+          <button value="cancel" type="submit" autofocus>Cancel</button
+          ><button id="confirm-delete" class="danger" value="delete" type="submit">Delete</button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="/main.ts"></script>
+  </body>
 </html>

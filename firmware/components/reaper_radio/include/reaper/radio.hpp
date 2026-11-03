@@ -31,8 +31,10 @@ class Radio {
   std::uint8_t command_status() const { return command_status_; }
   std::uint16_t device_errors() const { return errors_; }
   bool receiving() const { return receive_; }
+
  private:
-  Bus& bus_; mesh::AirtimeBudget budget_{};
+  Bus& bus_;
+  mesh::AirtimeBudget budget_{};
   bool healthy_ = false, receive_ = false, allow_tx_ = false, transmitting_ = false;
   std::uint8_t chip_mode_ = 0, command_status_ = 0;
   std::uint16_t errors_ = 0;
@@ -40,4 +42,4 @@ class Radio {
   bool check(int status);
   bool listen();
 };
-} // namespace reaper::radio
+}  // namespace reaper::radio

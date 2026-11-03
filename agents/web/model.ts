@@ -9,19 +9,38 @@ export class ConfigModel {
   #baseDevice: string | undefined;
   #baseBoot: string | undefined;
   dirty = false;
-  get history() { return this.adapter.connection.commands.history.map(entry => ({ id: entry.command.id, label: entry.command.config.radio ? 'Radio/channel settings' : entry.command.config.label })); }
+  get history() {
+    return this.adapter.connection.commands.history.map(entry => ({
+      id: entry.command.id,
+      label: entry.command.config.radio ? 'Radio/channel settings' : entry.command.config.label,
+    }));
+  }
 
-  constructor(adapter = new SerialAdapter()) { this.adapter = adapter; }
+  constructor(adapter = new SerialAdapter()) {
+    this.adapter = adapter;
+  }
   get stale() {
     const sync = this.adapter.connection.sync;
-    return this.baseRevision >= 0 && (sync.revision !== this.baseRevision ||
-      sync.boot !== this.#baseBoot || this.adapter.connection.device !== this.#baseDevice);
+    return (
+      this.baseRevision >= 0 &&
+      (sync.revision !== this.baseRevision ||
+        sync.boot !== this.#baseBoot ||
+        this.adapter.connection.device !== this.#baseDevice)
+    );
   }
-  get pending() { return this.history.some(entry => this.adapter.connection.commands.status(entry.id).outcome === 'pending'); }
+  get pending() {
+    return this.history.some(
+      entry => this.adapter.connection.commands.status(entry.id).outcome === 'pending',
+    );
+  }
   refresh() {
-    if (!this.dirty && !this.pending && this.adapter.connection.sync.state === 'ready') this.reset();
+    if (!this.dirty && !this.pending && this.adapter.connection.sync.state === 'ready')
+      this.reset();
   }
-  edit(config: Config) { this.draft = { ...config }; this.dirty = true; }
+  edit(config: Config) {
+    this.draft = { ...config };
+    this.dirty = true;
+  }
   reset() {
     const { sync, device } = this.adapter.connection;
     if (sync.state !== 'ready' || !sync.config) throw new Error('connect and synchronize first');

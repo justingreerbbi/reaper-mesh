@@ -11,11 +11,19 @@ export interface SerialPortLike {
   removeEventListener?(type: string, listener: () => void): void;
 }
 type Run = {
-  port: SerialPortLike; session: number; stopped: boolean; opened: boolean;
-  opening: Promise<void>; reading: Promise<void>; writing: Promise<void>;
+  port: SerialPortLike;
+  session: number;
+  stopped: boolean;
+  opened: boolean;
+  opening: Promise<void>;
+  reading: Promise<void>;
+  writing: Promise<void>;
   reader?: ReadableStreamDefaultReader<Uint8Array>;
   writer?: WritableStreamDefaultWriter<Uint8Array>;
-  busy: boolean; stopTimer?: () => void; cleanup?: Promise<void>; removed: () => void;
+  busy: boolean;
+  stopTimer?: () => void;
+  cleanup?: Promise<void>;
+  removed: () => void;
 };
 type Options = {
   now?: () => number;
@@ -33,28 +41,48 @@ export class SerialAdapter {
   constructor(connection = new Connection(), options: Options = {}) {
     this.connection = connection;
     this.#now = options.now ?? (() => Math.floor(performance.now()));
-    this.#schedule = options.schedule ?? (tick => {
-      const timer = setInterval(tick, 100);
-      return () => clearInterval(timer);
-    });
+    this.#schedule =
+      options.schedule ??
+      (tick => {
+        const timer = setInterval(tick, 100);
+        return () => clearInterval(timer);
+      });
   }
 
-  get active() { return this.#run !== undefined; }
+  get active() {
+    return this.#run !== undefined;
+  }
 
-  discover() { this.#readyRun(); const id = this.connection.discover(this.#now()); this.#flush(this.#run!); return id; }
-  recoverDiscovery() { this.#readyRun(); const result = this.connection.recoverDiscovery(this.#now()); this.#flush(this.#run!); return result; }
+  discover() {
+    this.#readyRun();
+    const id = this.connection.discover(this.#now());
+    this.#flush(this.#run!);
+    return id;
+  }
+  recoverDiscovery() {
+    this.#readyRun();
+    const result = this.connection.recoverDiscovery(this.#now());
+    this.#flush(this.#run!);
+    return result;
+  }
   sendMessage(text: string, destination = 'broadcast', channel = 0) {
-    this.#readyRun(); const id = this.connection.sendMessage(text, destination, channel, this.#now());
-    this.#flush(this.#run!); return id;
+    this.#readyRun();
+    const id = this.connection.sendMessage(text, destination, channel, this.#now());
+    this.#flush(this.#run!);
+    return id;
   }
   sendMessagePayload(payload: Uint8Array, destination = 'broadcast', channel = 0) {
-    this.#readyRun(); const id = this.connection.sendMessagePayload(payload, destination, channel, this.#now());
-    this.#flush(this.#run!); return id;
+    this.#readyRun();
+    const id = this.connection.sendMessagePayload(payload, destination, channel, this.#now());
+    this.#flush(this.#run!);
+    return id;
   }
 
   recoverMessage(id: string) {
-    this.#readyRun(); const found = this.connection.recoverMessage(id, this.#now());
-    this.#flush(this.#run!); return found;
+    this.#readyRun();
+    const found = this.connection.recoverMessage(id, this.#now());
+    this.#flush(this.#run!);
+    return found;
   }
 
   configure(config: Config) {
@@ -82,8 +110,14 @@ export class SerialAdapter {
     if (this.#run) throw new Error('serial adapter is opening, active, or cleaning up');
     if (!Number.isInteger(baudRate) || baudRate < 1) throw new Error('invalid baud rate');
     const run: Run = {
-      port, session: 0, stopped: false, opened: false, busy: false,
-      opening: Promise.resolve(), reading: Promise.resolve(), writing: Promise.resolve(),
+      port,
+      session: 0,
+      stopped: false,
+      opened: false,
+      busy: false,
+      opening: Promise.resolve(),
+      reading: Promise.resolve(),
+      writing: Promise.resolve(),
       removed: () => this.#fail(run, 'serial device removed'),
     };
     this.#run = run;
@@ -106,7 +140,9 @@ export class SerialAdapter {
           this.connection.tick(this.#now());
           this.#check(run);
           this.#flush(run);
-        } catch { this.#fail(run, 'serial lifecycle failure'); }
+        } catch {
+          this.#fail(run, 'serial lifecycle failure');
+        }
       });
       run.reading = this.#read(run);
       this.#flush(run);
@@ -122,7 +158,9 @@ export class SerialAdapter {
     if (run) await this.#stop(run);
   }
 
-  #current(run: Run) { return this.#run === run && !run.stopped; }
+  #current(run: Run) {
+    return this.#run === run && !run.stopped;
+  }
 
   #check(run: Run) {
     if (['disconnected', 'incompatible'].includes(this.connection.sync.state)) {
@@ -135,16 +173,22 @@ export class SerialAdapter {
       while (this.#current(run)) {
         const { done, value } = await run.reader!.read();
         if (!this.#current(run)) break;
-        if (done) { this.#fail(run, 'serial stream ended'); break; }
+        if (done) {
+          this.#fail(run, 'serial stream ended');
+          break;
+        }
         if (value) {
           // Browser buffers are bounded on open; also reject hostile custom adapters.
-          if (!(value instanceof Uint8Array) || value.length > 65536) throw new Error('invalid serial chunk');
+          if (!(value instanceof Uint8Array) || value.length > 65536)
+            throw new Error('invalid serial chunk');
           this.connection.receive(run.session, value, this.#now());
           this.#check(run);
           this.#flush(run);
         }
       }
-    } catch { this.#fail(run, 'serial read failed'); }
+    } catch {
+      this.#fail(run, 'serial read failed');
+    }
   }
 
   #flush(run: Run) {
@@ -160,8 +204,11 @@ export class SerialAdapter {
             await run.writer!.write(frame);
           }
         }
-      } catch { this.#fail(run, 'serial write failed'); }
-      finally { run.busy = false; }
+      } catch {
+        this.#fail(run, 'serial write failed');
+      } finally {
+        run.busy = false;
+      }
     })();
   }
 
@@ -178,9 +225,7 @@ export class SerialAdapter {
     run.cleanup = (async () => {
       // Opening itself cannot be cancelled by Web Serial. Do not reuse its port meanwhile.
       await run.opening.catch(() => {});
-      const cancelled = await Promise.allSettled([
-        run.reader?.cancel(), run.writer?.abort(),
-      ]);
+      const cancelled = await Promise.allSettled([run.reader?.cancel(), run.writer?.abort()]);
       await Promise.allSettled([run.reading, run.writing]);
       try {
         run.reader?.releaseLock();

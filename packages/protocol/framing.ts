@@ -10,7 +10,7 @@ export function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
   for (const byte of bytes) {
     crc ^= byte;
-    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
@@ -76,8 +76,14 @@ export function encodeFrame(payload: Uint8Array): Uint8Array {
 
 export function decodeFrame(encoded: Uint8Array): Uint8Array {
   const raw = cobsDecode(encoded);
-  if (raw.length < HEADER + 1 + CHECKSUM || raw[0] !== 0x52 || raw[1] !== 0x4d ||
-      raw[2] !== 1 || raw[3] !== 0) throw new Error('unsupported envelope');
+  if (
+    raw.length < HEADER + 1 + CHECKSUM ||
+    raw[0] !== 0x52 ||
+    raw[1] !== 0x4d ||
+    raw[2] !== 1 ||
+    raw[3] !== 0
+  )
+    throw new Error('unsupported envelope');
   const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
   const length = view.getUint16(4, true);
   if (length < 1 || length > MAX_PAYLOAD || raw.length !== HEADER + length + CHECKSUM) {
@@ -94,7 +100,9 @@ export class FrameDecoder {
   #buffer = new Uint8Array(MAX_ENCODED);
   #length = 0;
   #discarding = false;
-  get bufferedBytes() { return this.#length; }
+  get bufferedBytes() {
+    return this.#length;
+  }
 
   reset() {
     this.#length = 0;
@@ -107,13 +115,20 @@ export class FrameDecoder {
     let rejected = 0;
     for (const byte of chunk) {
       if (byte === 0) {
-        if (this.#discarding) { this.reset(); continue; }
+        if (this.#discarding) {
+          this.reset();
+          continue;
+        }
         if (!this.#length) continue; // Empty delimiters provide harmless alignment.
         const length = this.#length;
         this.#length = 0;
         let payload: Uint8Array;
-        try { payload = decodeFrame(this.#buffer.subarray(0, length)); }
-        catch { rejected++; continue; }
+        try {
+          payload = decodeFrame(this.#buffer.subarray(0, length));
+        } catch {
+          rejected++;
+          continue;
+        }
         accepted++;
         onPayload(payload);
       } else if (!this.#discarding) {

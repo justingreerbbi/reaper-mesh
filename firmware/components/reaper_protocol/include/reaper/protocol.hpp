@@ -22,22 +22,31 @@ struct Message {
 // Decode commits output only on success. Failed encoding sets length to zero;
 // the caller must never transmit a failed encoding's partially filled buffer.
 bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output);
-bool encode_payload(const Message& message, std::uint8_t* output, std::size_t capacity, std::size_t& length);
+bool encode_payload(const Message& message, std::uint8_t* output, std::size_t capacity,
+                    std::size_t& length);
 bool decode_frame(const std::uint8_t* encoded, std::size_t size, Message& output);
-bool encode_frame(const Message& message, std::uint8_t* output, std::size_t capacity, std::size_t& length);
+bool encode_frame(const Message& message, std::uint8_t* output, std::size_t capacity,
+                  std::size_t& length);
 bool valid_message_text(const std::uint8_t*, std::size_t);
 std::uint32_t crc32(const std::uint8_t* data, std::size_t size);
 
 class FrameDecoder {
  public:
   using Handler = void (*)(const Message&, void*);
-  struct Counts { std::size_t accepted = 0; std::size_t rejected = 0; };
+  struct Counts {
+    std::size_t accepted = 0;
+    std::size_t rejected = 0;
+  };
   Counts feed(const std::uint8_t* data, std::size_t size, Handler handler, void* context);
-  void reset() { length_ = 0; discarding_ = false; }
+  void reset() {
+    length_ = 0;
+    discarding_ = false;
+  }
   std::size_t buffered_bytes() const { return length_; }
+
  private:
   std::array<std::uint8_t, kMaxEncoded> buffer_{};
   std::size_t length_ = 0;
   bool discarding_ = false;
 };
-} // namespace reaper::protocol
+}  // namespace reaper::protocol
