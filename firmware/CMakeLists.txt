@@ -42,7 +42,7 @@ endforeach()
 add_executable(device_ui_test tests/device_ui_test.cpp app/device_ui.cpp)
 target_include_directories(device_ui_test PRIVATE app)
 target_compile_options(device_ui_test PRIVATE -Wall -Wextra -Werror -pedantic)
-foreach(scenario gestures screen unread render)
+foreach(scenario gestures screen unread settings render battery)
   add_test(NAME device_ui_${scenario} COMMAND device_ui_test ${scenario})
 endforeach()
 # This is a host-only codec target, not an ESP-IDF firmware image or flashing target.

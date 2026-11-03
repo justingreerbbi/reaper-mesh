@@ -2,6 +2,7 @@
 #include "nvs_storage.hpp"
 #include "status_display.hpp"
 #include "board_input.hpp"
+#include "board_power.hpp"
 #include "device_ui.hpp"
 #include "reaper/version.hpp"
 #include "mesh_service.hpp"
@@ -132,6 +133,7 @@ extern "C" void app_main() {
   display.begin();
   static BoardInput buttons;
   buttons.begin();
+  static BoardPower power;
   static reaper::ui::ButtonGestures gestures;
   static reaper::ui::Screen screen;
   static reaper::ui::Frame frame;
@@ -194,7 +196,9 @@ extern "C" void app_main() {
     }
     if (buttons.take_next_page(now_ms))
       screen.input(reaper::ui::Input::NextPage, now_ms);
-    screen.inbox(inbox.latest());
+    if (storage_ok)
+      screen.settings(current.settings.screen.timeout * 1000ull, current.settings.screen.wake);
+    screen.inbox(inbox.latest(), now_ms);
     screen.tick(now_ms);
     if (now >= next_display) {
       // At most ten frames a second; show() skips frames that did not change.
@@ -211,6 +215,9 @@ extern "C" void app_main() {
         status.node = device_string;
         status.version = d::kDisplayVersion;
         status.radio = radio_state(radio_info);
+        const auto battery = power.read(now_ms);
+        status.battery = battery.percent;
+        status.charging = battery.charging;
         status.rx = radio_info.received;
         status.tx = radio_info.transmitted;
         const auto& discovery = mesh.discovery();

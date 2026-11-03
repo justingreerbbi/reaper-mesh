@@ -184,12 +184,48 @@ void header(Frame& f, const char* title, Page page) {
   right(f, kWidth - 1, 0, number);
   line(f, 9);
 }
+// 5x7 charge bolt, same row format as kFont.
+constexpr std::uint8_t kBolt[7] = {0x02, 0x04, 0x08, 0x1f, 0x02, 0x04, 0x08};
+// Top-right battery: optional charge bolt, percent and a gauge icon, on the same line as a
+// 1x name and centered beside a 2x one. Returns its left edge.
+unsigned battery(Frame& f, int percent, bool charging) {
+  constexpr unsigned x0 = kWidth - 13, y0 = 4;  // 11x7 body plus a 2-pixel terminal
+  for (unsigned x = x0; x < x0 + 11; ++x) {
+    pixel(f, x, y0);
+    pixel(f, x, y0 + 6);
+  }
+  for (unsigned y = 1; y < 6; ++y) {
+    pixel(f, x0, y0 + y);
+    pixel(f, x0 + 10, y0 + y);
+  }
+  for (unsigned y = 2; y < 5; ++y) {
+    pixel(f, x0 + 11, y0 + y);
+    pixel(f, x0 + 12, y0 + y);
+  }
+  const unsigned value = percent > 100 ? 100u : static_cast<unsigned>(percent);
+  for (unsigned x = 0; x < (value * 7 + 50) / 100; ++x)
+    for (unsigned y = 2; y < 5; ++y)
+      pixel(f, x0 + 2 + x, y0 + y);
+  char label[8];
+  std::snprintf(label, sizeof(label), "%u%%", value);
+  unsigned left = x0 - 1 - glyphs(label) * kCell;
+  text(f, left, y0, label);
+  if (charging) {
+    left -= 7;
+    for (unsigned row = 0; row < 7; ++row)
+      for (unsigned col = 0; col < 5; ++col)
+        if (kBolt[row] & (0x10u >> col))
+          pixel(f, left + col, y0 + row);
+  }
+  return left;
+}
 void main_page(Frame& f, const Status& s) {
   const char* name = *s.name ? s.name : s.node;
-  if (glyphs(name) <= 10)
+  const unsigned room = s.battery >= 0 ? battery(f, s.battery, s.charging) : kWidth;
+  if (glyphs(name) * kCell * 2 <= room)
     text(f, 0, 0, name, 2);
   else
-    text(f, 0, 4, name);
+    text(f, 0, 4, name, 1, (room - 1) / kCell);
   line(f, 18);
   text(f, 0, 27, "RADIO");
   text(f, 40, 23, s.radio, 2);
@@ -198,10 +234,6 @@ void main_page(Frame& f, const Status& s) {
   text(f, 0, 44, counts);
   std::snprintf(counts, sizeof(counts), "NODES %lu", static_cast<unsigned long>(s.nodes));
   right(f, kWidth - 1, 44, counts);
-  if (s.battery >= 0) {
-    std::snprintf(counts, sizeof(counts), "BAT %d%%", s.battery);
-    text(f, 0, 56, counts);
-  }
   right(f, kWidth - 1, 56, s.version);
 }
 void nodes_page(Frame& f, const Status& s) {
@@ -321,10 +353,17 @@ void Screen::tick(std::uint64_t now) {
   if (stage_ == Stage::Running && on_ && timeout_ && now - active_ >= timeout_)
     sleep();
 }
-void Screen::inbox(std::uint32_t latest) {
+void Screen::inbox(std::uint32_t latest, std::uint64_t now) {
   if (latest < seen_)
     seen_ = latest;
+  const bool arrived = latest > latest_;
   latest_ = latest;
+  if (arrived && wake_ && stage_ == Stage::Running) {
+    if (on_)
+      active_ = now;
+    else
+      wake(now);
+  }
 }
 
 void render(const Screen& screen, const Status& status, Frame& frame) {

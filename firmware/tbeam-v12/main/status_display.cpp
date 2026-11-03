@@ -3,8 +3,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 bool tbeam_power_ready = false;
-// Set once the AXP2101 power-key interrupt is enabled; board_input.cpp polls it.
+// AXP2101 handle once the PMU is identified (board_power.cpp reads battery state), and whether
+// the power-key interrupt is enabled (board_input.cpp polls it).
 i2c_master_dev_handle_t tbeam_pmu = nullptr;
+bool tbeam_power_key = false;
 void StatusDisplay::begin() {
   i2c_master_bus_config_t config{};
   config.i2c_port = I2C_NUM_0;
@@ -39,12 +41,13 @@ void StatusDisplay::begin() {
       !read(0x90, verified_enabled) || !(verified_enabled & 2))
     return;
   tbeam_power_ready = true;
+  tbeam_pmu = pmu;
   // Power-key short press interrupt (INTEN2 0x41 bit 3) for the PWR page shortcut. Only that
   // bit changes; a stale status (INTSTS2 0x49 bit 3) is cleared by writing 1 to it.
   std::uint8_t irq = 0;
   if (read(0x41, irq) && write(0x41, irq | 0x08) && read(0x41, irq) && (irq & 0x08) &&
       write(0x49, 0x08))
-    tbeam_pmu = pmu;
+    tbeam_power_key = true;
   vTaskDelay(pdMS_TO_TICKS(20));
   configure();
 }

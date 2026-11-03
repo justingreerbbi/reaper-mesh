@@ -1,8 +1,9 @@
 #include "board_input.hpp"
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
-// Set by status_display.cpp once the AXP2101 power-key interrupt is enabled; null otherwise.
+// Set by status_display.cpp: the AXP2101 handle and whether its power-key interrupt is enabled.
 extern i2c_master_dev_handle_t tbeam_pmu;
+extern bool tbeam_power_key;
 void BoardInput::begin() {
   // Middle user button on GPIO38, active low. GPIO34-39 are input-only without internal
   // pull resistors, so this relies on the board's own pull-up.
@@ -18,7 +19,7 @@ bool BoardInput::main_pressed() const {
   return gpio_get_level(GPIO_NUM_38) == 0;
 }
 bool BoardInput::take_next_page(std::uint64_t now_ms) {
-  if (!tbeam_pmu || now_ms < next_poll_)
+  if (!tbeam_power_key || now_ms < next_poll_)
     return false;
   next_poll_ = now_ms + 50;
   // AXP2101 INTSTS2 (0x49) bit 3: power-key short press. Writing 1 clears only that bit.

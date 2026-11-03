@@ -137,16 +137,53 @@ int main(int argc, char** argv) {
     Screen s;
     s.start(0);
     s.tick(3000);
-    s.inbox(0);
+    s.inbox(0, 3000);
     CHECK(s.unread() == 0);
-    s.inbox(2);
+    s.inbox(2, 3000);
     CHECK(s.unread() == 2);  // new while the screen is on
     s.input(Input::Toggle, 4000);
     CHECK(s.unread() == 0);  // turning the screen off marks them seen
-    s.inbox(5);
-    CHECK(s.unread() == 3);
-    s.inbox(1);  // inbox restarted
+    s.inbox(5, 5000);
+    CHECK(s.unread() == 3 && !s.on());  // wake on message is off by default
+    s.inbox(1, 6000);                   // inbox restarted
     CHECK(s.unread() == 0);
+  } else if (scenario == "settings") {
+    Screen s;
+    s.start(0);
+    s.tick(3000);
+    // A new timeout applies from the last input.
+    s.settings(10000, false);
+    s.tick(12999);
+    CHECK(s.on());
+    s.tick(13000);
+    CHECK(!s.on());
+    // Wake on message: a new message turns the screen on at the main page.
+    s.settings(10000, true);
+    s.inbox(0, 14000);
+    CHECK(!s.on());  // no new message
+    s.inbox(1, 15000);
+    CHECK(s.on() && s.page() == Page::Main && s.unread() == 1);
+    // While on, a new message restarts the timeout and keeps the page.
+    s.input(Input::NextPage, 16000);
+    s.inbox(2, 24000);
+    s.tick(33999);
+    CHECK(s.on() && s.page() == Page::Nodes);
+    s.tick(34000);
+    CHECK(!s.on());
+    // An inbox restart is not a new message.
+    s.inbox(0, 35000);
+    CHECK(!s.on());
+    // Zero keeps the screen on.
+    s.settings(0, false);
+    s.input(Input::Home, 36000);
+    s.tick(10000000);
+    CHECK(s.on());
+    // Messages during startup do not change the sequence.
+    Screen early;
+    early.settings(30000, true);
+    early.start(0);
+    early.inbox(3, 100);
+    CHECK(early.stage() == Stage::Icon);
   } else if (scenario == "render") {
     Screen s;
     Frame f{};
@@ -181,6 +218,52 @@ int main(int argc, char** argv) {
     odd.name = "";
     render(s, odd, a);
     CHECK(count(a) > 300);  // falls back to the node ID
+  } else if (scenario == "battery") {
+    Screen s;
+    s.start(0);
+    s.tick(3000);
+    auto status = sample();
+    status.name = "BaseCamp01";  // 2x without a battery, 1x beside one
+    Frame none{}, full{}, half{}, charging{};
+    render(s, status, none);
+    for (unsigned y = 0; y < 18; ++y)
+      CHECK(!lit(none, 127, y));  // unknown battery: nothing in the corner
+    CHECK(lit(none, 1, 13));      // 2x name reaches the bottom of its row
+    status.battery = 100;
+    render(s, status, full);
+    status.battery = 40;
+    render(s, status, half);
+    status.charging = true;
+    render(s, status, charging);
+    // Icon outline and terminal, on the name line (y 4-10).
+    CHECK(lit(full, 115, 4) && lit(full, 125, 10) && lit(full, 127, 7) && !lit(full, 127, 4));
+    // Full fills the gauge; 40% fills three of its seven columns.
+    CHECK(lit(full, 123, 7) && lit(half, 119, 7) && !lit(half, 120, 7) && !lit(half, 116, 7));
+    // The name drops to 1x beside the battery: nothing below the shared line.
+    for (unsigned y = 11; y < 18; ++y)
+      for (unsigned x = 0; x < kWidth; ++x)
+        CHECK(!lit(full, x, y));
+    // The charge bolt adds pixels only left of the percent, and nothing else changes.
+    unsigned added = 0;
+    for (unsigned y = 0; y < kHeight; ++y)
+      for (unsigned x = 0; x < kWidth; ++x)
+        if (lit(charging, x, y) != lit(half, x, y)) {
+          CHECK(lit(charging, x, y) && y >= 4 && y < 11 && x >= 89 && x < 94);
+          ++added;
+        }
+    CHECK(added > 5);
+    // A short name stays 2x beside the battery.
+    status.name = "Camp";
+    Frame short_name{};
+    render(s, status, short_name);
+    CHECK(lit(short_name, 3, 13));  // bottom of a 2x "C"
+    // Out-of-range percent is clamped and stays in the frame.
+    status.battery = 250;
+    Frame clamped{};
+    render(s, status, clamped);
+    status.battery = 100;
+    render(s, status, full);
+    CHECK(clamped == full);
   } else if (scenario == "preview") {
     Screen s;
     Frame f{};
@@ -192,6 +275,11 @@ int main(int argc, char** argv) {
     render(s, status, f);
     print(f, "startup title");
     s.tick(3000);
+    auto battery = status;
+    battery.battery = 87;
+    battery.charging = true;
+    render(s, battery, f);
+    print(f, "main with battery");
     for (const char* title : {"main", "nodes", "debug"}) {
       render(s, status, f);
       print(f, title);
