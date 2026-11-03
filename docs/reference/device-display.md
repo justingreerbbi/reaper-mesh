@@ -86,7 +86,7 @@ The bolt means plugged in (USB power present), whether or not the battery is cha
 
 | Board | Source | State |
 | --- | --- | --- |
-| LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 5 VBUS good (plugged in) and bit 3 battery present, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. The percent is shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0`; percent confirmed by the owner with a battery |
+| LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 5 VBUS good (plugged in) and bit 3 battery present, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. The percent is shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0`; owner confirmed the percent with a battery and the bolt and `USB` without one |
 | Heltec WiFi LoRa 32 V3 | Battery voltage input, not yet verified on hardware; no USB power sense | Not shown |
 
 ## Planned

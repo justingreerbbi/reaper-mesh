@@ -44,7 +44,7 @@ exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean
 | `tbeam-usb-prototype-2` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon sent |
 | `tbeam-usb-prototype-3` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
 | `tbeam-reaper-mesh-v0.1.0` | Nov 3 | Device screen pages and buttons; new naming (commit `074f299`) | Owner confirmed screen and buttons; USB sync and settings preserved |
-| `tbeam-reaper-mesh-v0.2.0` | Nov 3 | Screen settings and battery indicator (commits `adc8765`, then `bafa382`) | Screen settings round trip and reboot persistence over USB; owner saw the battery percent; settings preserved |
+| `tbeam-reaper-mesh-v0.2.0` | Nov 3 | Screen settings and battery indicator (commits `adc8765`, then `bafa382`) | Screen settings round trip and reboot persistence over USB; owner confirmed the battery percent and the plugged-in indicator; settings preserved |
 
 ## First flash — November 1
 
@@ -335,8 +335,9 @@ state shows the bolt and `USB`. That image, still `tbeam-reaper-mesh-v0.2.0`, wa
 from clean commit `bafa382` (256,640-byte app, SHA-256
 `1203aeecdac1baa9ebbd836f2469a3f980111f4fa9309653469c4347fa5b2f72`) with ROM-verified hashes
 and NVS preserved. Three USB opens reached ready in 649/648/672 ms at revision 39 with the
-screen settings unchanged. Not yet checked: the plugged-in indicator, a changed timeout and
-wake-on-message on the physical screen, and the portal's Screen tab in a native browser.
+screen settings unchanged. The owner confirmed the bolt and `USB` show when plugged in with no
+battery. Not yet checked: a changed timeout and wake-on-message on the physical screen, and the
+portal's Screen tab in a native browser.
 
 `heltec-reaper-mesh-v0.2.0` builds without warnings but is not installed. Host checks: 276
 tests and 75 CTests pass, including record 5, screen-setting, TS-to-native USB, wake and
