@@ -17,8 +17,8 @@ you want to do.
 | --- | --- |
 | [Project specification and vision](overview/project-specification.md) | Draft project-wide standard: intent, use cases, phases, requirements and future direction |
 | [Introduction](overview/introduction.md) | What Reaper Mesh is, who it is for, and how the pieces fit together |
-| [Roadmap](overview/roadmap.md) | The four product phases and what each one delivers |
-| [Status](overview/status.md) | What is implemented and verified today versus what remains |
+| [Roadmap](overview/roadmap.md) | The four product phases, current focus and what comes next |
+| [Status](overview/status.md) | What is implemented and verified right now, and the installed firmware |
 | [Changelog](overview/changelog.md) | Dated record of firmware builds and hardware test evidence |
 
 ## Guides — do something
@@ -30,11 +30,9 @@ you want to do.
 | [T-Beam V1.2](guides/t-beam-v12.md) | Board-specific notes for the LILYGO T-Beam |
 | [Flashing firmware](guides/flashing-firmware.md) | Build, validate, install, and recover firmware over USB |
 | [First flash walkthrough](guides/first-flash.md) | Detailed record of the original Heltec V3 bring-up |
-| [Web portal](guides/web-portal.md) | Using the field portal: messaging, assets, settings, recovery |
+| [Web portal](guides/web-portal.md) | Using the field portal: messaging, map, settings, recovery |
 | [Channel encryption](guides/encryption.md) | Setting up agent-side encryption and its security limits |
-
-- [Web agent plugins](guides/plugins.md) — install and manage JSON extensions.
-- [Shared map items](reference/map-sharing.md) — map payloads, revisions, approval and limits.
+| [Web agent plugins](guides/plugins.md) | Installing and managing declarative JSON plugins |
 
 ## Reference — how it works in detail
 
@@ -48,18 +46,19 @@ you want to do.
 | [Persistence](reference/persistence.md) | Device configuration authority and the storage contract |
 | [Serial adapter](reference/serial-adapter.md) | The Web Serial transport layer |
 | [Compatibility](reference/compatibility.md) | Version matrix and RACE recovery coverage |
+| [Shared map items](reference/map-sharing.md) | Map item payloads, revisions, approval and limits |
 
 ## Contributing — change the project
 
 | Document | What it covers |
 | --- | --- |
 | [Development & CI](contributing/development.md) | Toolchain, host checks, and continuous integration |
-| [Development plan](contributing/plan.md) | Architecture, milestones, and acceptance gates |
-| [Decisions](contributing/decisions.md) | Confirmed choices and open questions |
+| [Development plan](contributing/plan.md) | Repository layout, architecture and engineering standards |
+| [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
 | [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 
-See also [`AI.md`](../AI.md) (the maintained handoff for AI contributors),
+See also [`AI.md`](../AI.md) (current focus, working rules, and where each kind of information belongs),
 [`AGENTS.md`](../AGENTS.md) (contributor rules), and
 [`firmware/README.md`](../firmware/README.md) (the embedded C++ foundation).
 

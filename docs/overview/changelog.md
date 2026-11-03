@@ -17,8 +17,10 @@ rather than repeating it.
 | Heltec WiFi LoRa 32 V3 | `usb-prototype-8` | `4209679` | Fixed position; US/915 antenna confirmed |
 | LILYGO T-Beam V1.2 | `tbeam-usb-prototype-3` | `4209679` | Fixed position; AXP2101 + SX1276 |
 
-Encrypted direct messaging was additionally verified on both boards on November 2 from a
-development tree using the updater's `--allow-dirty` option.
+On November 2 both boards were reinstalled from an uncommitted development tree (updater
+`--allow-dirty`) for the encryption check. They still report the version strings above, but
+the installed bytes no longer correspond exactly to commit `4209679`. The next firmware
+change adopts the `{device}-reaper-mesh-v{semver}` naming rule.
 
 ## Heltec V3 firmware progression
 
@@ -33,6 +35,14 @@ development tree using the updater's `--allow-dirty` option.
 | `usb-prototype-6` | Nov 1 | SPI DMA fix (commit `56c8cf0`) | Seven-fragment broadcast `TX_DONE`; unreachable unicast failed without false ACK |
 | `usb-prototype-7` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon received |
 | `usb-prototype-8` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
+
+## T-Beam V1.2 firmware progression
+
+| Build | Date | Headline change | Hardware evidence |
+| --- | --- | --- | --- |
+| `tbeam-usb-prototype-1` | Nov 1 | First T-Beam image (commit `594bb10`, 237,904-byte app) | AXP2101/SX1276 probe, local delivery, two-board direct RF with destination ACK |
+| `tbeam-usb-prototype-2` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon sent |
+| `tbeam-usb-prototype-3` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
 
 ## First flash — November 1
 
@@ -170,6 +180,14 @@ restored false, interval 300; final Heltec revision 28 mesh, T-Beam revision 17 
 tests and 64 CTests pass. The T-Beam serial driver needed a USB reconnect before installation;
 failed preflight attempts wrote nothing.
 
+Resource headroom: Heltec free heap 260,592 / minimum free main stack 16,892 bytes; T-Beam
+187,924 / 17,116 bytes. The frozen node snapshot trades a bounded RAM increase for paging that
+cannot be starved by incoming reports. Reproduce with
+`tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT` (add `--beacon-only` for the
+timed beacon test); it restores original settings. Local reports:
+`build/tbeam-v12/discovery-smoke.json`, `beacon-smoke.json`, `discovery-final-state.json`. The
+new browser controls were not manually desktop-tested.
+
 ## Fixed position — November 1
 
 Heltec `usb-prototype-8` and T-Beam `tbeam-usb-prototype-3` from clean source
@@ -187,6 +205,16 @@ free heap 259,064 / min stack 16,692 bytes; T-Beam 186,396 / 16,916 bytes. Final
 38/32. 220 host tests and 67 CTests pass. An extended run hit a T-Beam node-snapshot read
 timeout before its reboot step; fresh sessions recovered, and a deterministic
 reconnect-after-node-read-exhaustion regression was added.
+
+Before the T-Beam was upgraded, the new Heltec 8 and older T-Beam 2 exchanged exact 1,024-byte
+messages with destination ACKs in both directions; the regression passed again after both
+upgrades. The test harness previously aborted settings restoration on an unrelated node-read
+error; restoration now waits on configuration independently, and a repeated coordinate/privacy
+run passed. Final owner policies: both boards mesh/2 dBm; Heltec beacon/respond off; T-Beam
+beacon/respond on; interval 300 s; position source none and sharing off on both. Reproduce with
+`tools/hardware-position-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT`. Local reports:
+`build/tbeam-v12/position-smoke.json`, `position-persistence.json`,
+`position-mixed-pair-smoke.json`, `pair-smoke.json`.
 
 ## Field portal redesign — November 2
 
@@ -225,3 +253,47 @@ report is `build/tbeam-v12/encryption-smoke.json`.
 > group member can forge messages, and there is no forward secrecy. Reconnect/reboot during
 > an uncertain encrypted upload, key rotation over radio, and relay remain unqualified. See
 > [Channel encryption](../guides/encryption.md).
+
+## Browser PIN and local wipe — November 2
+
+The per-key vault screen was replaced by an optional, browser-only, app-wide PIN (4–6 digits,
+off by default). One unlock opens every channel key; *Lock app*, disconnect and reload clear
+key access. Keys stay Argon2id-wrapped with a persisted failed-attempt cooldown; existing key
+records migrate without losing key epochs or replay records. Settings → Privacy and the lock
+screen offer a typed-`WIPE` local reset that coordinates with other tabs and the writer lock.
+The PIN does not authenticate a device, and short PINs can be guessed offline. No firmware or
+wire schema changed. Checked with type checks, 166 non-compiler agent tests and the web build
+on a Windows host, where the full `npm run check` could not run (CRLF generated-file comparison,
+no C++ compiler). No hardware retest.
+
+## Agent terminology — November 2
+
+Software connected to a node is now called an **agent** everywhere: `agents/web/`,
+`packages/agent-core/`, `tools/hardware-agent-smoke.ts`. Wire fixtures, storage keys and
+persisted identities are unchanged. `npm ci --ignore-scripts` and `npm run check` pass on macOS.
+
+## Sent history separated from recovery admission — November 2
+
+Completed outgoing messages no longer use up the 32-entry recovery admission budget. The
+browser keeps a rolling 160-entry outgoing history and retires the oldest completed record when
+a new send needs space; unknown or unacknowledged unicast outcomes are never retired. The
+journal is bounded at 1 MiB of serialized characters, and older journals remain readable. A
+regression exercises 500 completed sends with reload and counter continuity. No firmware or
+wire change.
+
+## Task-first settings layout — November 2
+
+Settings were reordered for mixed technical experience: routine setup first, maintenance under
+*Advanced*, short contextual explanations and primary actions next to their sections. No
+protocol or hardware change.
+
+## Map workspace, shared map items and JSON plugins — November 2–3
+
+The Map workspace replaced Assets. Users can add, edit and delete local points and rectangles,
+and share them as validated `RMAP1` JSON inside ordinary text messages (1,024 bytes plaintext,
+950 bytes encrypted). Recipients review shared items on message cards (*Add/Update/Remove from
+map*); accepted items live in separate storage with revision barriers, so deleting message
+history does not remove them. Settings → Plugins installs declarative, browser-local JSON
+definitions that add map item types and settings; no plugin code runs. No firmware or transport
+change. Host, native-USB and isolated-browser checks only; no RF or remote-acceptance testing.
+See [Shared map items](../reference/map-sharing.md) and [Plugins](../guides/plugins.md).

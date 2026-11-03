@@ -1,154 +1,205 @@
 # Decisions and open questions
 
-Status date: November 1, 2026. Proposed choices are reviewable recommendations, not implementation commitments.
-
-| Topic | Current position | Status |
-| --- | --- | --- |
-| Repository | One Git repository for firmware, protocol, and agents; local `main` initialized | Established |
-| First board | US Heltec WiFi LoRa 32 V3 / Version 3 with built-in display, over USB; confirm unit-specific PCB/flash details before flashing | Owner-confirmed board family; CP2102 observed |
-| Regional scope | Initial development and operation in the US; future EU support. Design regional profiles now; validate EU settings and hardware before enabling EU transmission | Confirmed by owner |
-| Agent | Desktop browser web app; USB first, BLE later | User direction |
-| Protocol | Independent, documented Reaper Mesh protocol; no Meshtastic interoperability | Confirmed by owner |
-| Firmware stack | ESP-IDF/C++ with a thin SX1262 driver adapter; evaluate driver support/license in M0 | Proposed |
-| Agent stack | TypeScript + Vite with native DOM controls for the first small console; shared agent state library; no runtime UI framework needed yet | Local implementation; React proposal deferred |
-| Serialization | Draft schema-driven TLV with generated TS/C++ descriptors and bounded codecs; review TLV versus Protocol Buffers before target application/public release | Host/cross-language codec tests pass; target integration pending |
-| Serial framing | Draft v1: COBS + zero delimiter, RM/version/flags/length header, max 2,048-byte payload, CRC-32/ISO-HDLC; logs on a separate path | Host implementation tested; release format not frozen |
-| Initial channels | One public channel first; named logical channels next, sharing a radio preset; no privacy until crypto | Proposed |
-| Node roles | Normal node and relay-enabled node; forwarding controlled separately from logical channel type | Proposed |
-| Message length | Start with a configurable hard cap of 1,024 UTF-8 bytes, subject to airtime/memory measurements | Proposed, not a throughput promise |
-| Encryption | Deferred feature; reserve versioned authenticated-envelope extension, not homegrown crypto | User direction |
-| Testing | RACE means deliberate device/agent synchronization and easy recovery after interrupted connections; implement deterministic race/recovery and compatibility tests | Confirmed by owner |
-| Request history | Bounded FIFO receipts plus non-evicting per-owner sequence marks; query-only reconnect recovery; evicted results remain unknown and cannot reexecute | Host-tested draft with capacity/admission metadata; firmware persistence and owner-retirement UX pending |
-| Host verification | Strict TypeScript, generated-schema checks, 128 host/cross-language tests plus the web production build; pinned Node 24/25 CI workflow | Locally passing on Node 25; remote CI pending |
-| Update UX | Browser guided USB installation and recovery; versioned manifest, board checks, configuration migration | Proposed |
-| Licensing | Decision deferred by owner; do not assign a license or import incompatible third-party code in the meantime | Deferred |
-
-## Owner inputs needed before affected implementation
-
-1. Board revision and band verification before firmware development. Owner confirms a US-model Heltec V3 / Version 3 with built-in display; USB inventory identifies only the CP2102 bridge. Identify intended EU countries/bands before the EU milestone.
-2. Meaning of channel “types” and “power”: proposed interpretation is public/named logical channels, node forwarding roles, and transmit-power settings. Battery/power-saving behavior needs separate requirements.
-3. Whether 1,024-byte messages are an appropriate initial target. Licensing remains deferred and does not block first-party foundations.
-
-Do not block all planning on these answers. Do block RF transmission, irreversible operations, or protocol commitments that depend on them.
-
-## November 1: USB target implementation
-
-Pin ESP-IDF v5.5.4 (exact commit in firmware/esp-idf.lock.json). Use one serialized UART session and a single NVS blob, fail closed without automatic erase. Add explicit storage-error message 11 without changing existing fixtures. Preserve the original 0x9000/0x5000 NVS range; use a separate namespace. Build a single factory app for the first supervised test; OTA rollback remains unimplemented. Radio is held in reset and display initialization deferred. Read-only ROM inspection/reset is complete; the owner subsequently waived preserving the old firmware/settings, so backup integrity no longer gates first flash. 128 host tests and 24 CTest cases pass; these do not qualify hardware.
-
-## Owner clarification: existing firmware need not be preserved
-
-The owner explicitly declined keeping the factory/previous firmware and settings. Stop backup attempts and remove backup as a prerequisite. First flash still requires review/authorization of the concrete image and manual ROM USB reinstall route. No whole-chip/NVS erase is implied by this decision.
-
-## First supervised flash and USB smoke
-
-First flash completed November 1, 2026 using commit c41dc6e, USB app SHA-256 bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523. Esptool verified all three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS configuration commit, logical reconnect, retained receipt query, serial reopen, and reset with fresh boot identity and persisted revision/settings. Opening this CP2102 port reset the board; immediate negotiation timed out, while waiting two seconds succeeded. Browser Web Serial startup/retry handling needs qualification before calling the web path ready. No display, RF, physical cable-removal, power-cut, or long-duration qualification is claimed.
-
-## Bounded negotiation retries
-
-USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the agent protocol startup path; browser permission/stream behavior remains unverified on hardware.
-
-The owner requested continued development without routine confirmation prompts. This persists as authorization for ongoing reversible USB development/testing; no change to RF or irreversible eFuse boundaries.
-
-## Browser USB milestone
-
-November 1, 2026: native Brave Web Serial hardware QA passed against usb-prototype-0 on the Heltec V3. The browser chooser selected CP2102 cu.usbserial-0001; the console reached Connected · synchronized with revision 2. Saving label Reaper Mesh V3 returned Committed on device and revision 3. Explicit disconnect released the port and disabled editing; reconnect through the chooser returned the same label/revision and preserved the page-session command history. The radio remained disabled. Screenshot evidence is local/ignored at build/heltec-v3/browser-usb.png. Physical cable removal, browser reload during an uncertain command, real power loss, display, and RF remain unqualified.
-
-Correct the console status copy to reflect available USB firmware/configuration while retaining explicit radio/browser-installer limits. Next prioritize minimal board status feedback before messaging; do not expand radio scope.
-
-## Board status display
-
-OLED status is implemented for Heltec V3 SSD1306: SDA17/SCL18, reset21, active-low Vext36, address0x3c. The first-party driver/font uses a fixed 1025-byte transfer buffer, 400 kHz I2C, 40 ms per-transfer timeout, and redraw-on-change at most twice per second. An initialization/transfer failure disables further display updates without blocking USB indefinitely. Screen rows show REAPER USB 1, logical USB READY/IDLE, persisted revision or UNKNOWN, STORE OK/FAULT, and RADIO OFF. READY requires synchronized state and a successful reply within eight seconds; it is not physical cable detection. Firmware advertises usb-prototype-1. All 134 host tests and the target build pass. Visual OLED rendering remains unverified until observed on the physical screen.
-
-Keep presentation outside protocol state. Session exposes only a read-only synchronized accessor; display state does not control mutations. Use the pinned ESP-IDF I2C master directly to bound transfer time (the bundled esp_lcd I2C wrapper uses unbounded waits). No third-party display/font library is imported.
-
-## OLED firmware installation evidence
-
-Installed OLED update from commit 5a72fe6 on November 1, 2026. Application size 227,440 bytes; SHA-256 3baba75a548faca771733ec7e917c8d79fc25f9ee9f104c65de95c3fdbd70c7a. Esptool verified all three artifacts. Three physical TypeScript Connection/SerialAdapter opens confirmed usb-prototype-1 and persisted revision 3, reaching ready in 650/649/648 ms. NVS was not erased. These serial results do not verify visible OLED pixels or actual display-fault behavior; visual confirmation and real I2C fault injection remain pending.
-
-## Sustained development and message acceptance
-
-Owner confirms OLED rendering works and requests continued work through project completion without routine prompts. Physical configuration loss/reconnect/query/duplicate/reset tests pass. Message USB v1 uses bounded hex chunks to preserve embedded field buffers and whole-message UTF-8 validation. Eight volatile queue records and per-owner marks separate retry suppression from receipt retention. Queued does not mean transmitted or delivered; hardware RF stays off until board/antenna/profile checks. Additive tags and capabilities preserve prior fixtures. Host/native maximum-size and lost-acceptance tests use the actual C++ session and TS agent; simulator claims remain separate from RF evidence.
-
-## Message hardware and mesh core
-
-usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS agent/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
-
-Use an independent 54-byte-header/CRC radio frame with up to 160 fragment bytes and seven fragments per 1024-byte text. Bound flooding/reassembly and distinguish TX completion from destination ACK. Retry forwarding after a short duplicate horizon; retain destination receipts longer. Host topology tests cover the actual C++ implementation, while regional and RF hardware gates remain separate.
-
-## Backward-compatible radio/channel settings
-
-Keep base config schema 1 and append optional radio fields/capabilities. Omitted fields preserve newer policy, avoiding forced agent upgrades for unrelated edits. Use one revision/atomic record across label/region/radio state. Read legacy records; write record 2 only for nondefault radio policy, without erase. On committed policy change, quiesce queued messages before radio work. Logical named channels use fixed IDs with local labels and no privacy promise. RF stays disabled during configuration qualification.
-
-## Radio policy hardware regression and vendor driver
-
-Physical usb-prototype-3 testing now passes named-channel queue acceptance and radio-policy quiesce. A power change caused radio-config-changed; the agent now preserves accepted messages during config snapshot resync and observes the failure by query. Previous settings were restored to mode off, power 2, relay enabled, Public/Camp channels; revision 12 survives repeated opens. No RF was enabled. The failed first test exposed an integration path omitting device identity; a Connection-level regression now covers it.
-
-Pin Semtech sx126x_driver 2.5.0 core under its retained Clear BSD notices. Use a bounded board HAL, explicit TX gate, TX_DONE completion, and one shared airtime budget for source/relay/ACK traffic. Host fake-bus tests exercise the real vendor core and fail closed on calibration, busy, SPI and timeout faults. Board SPI integration and real RX/TX remain next; antenna confirmation is pending.
-
-## Inbox and effective radio state
-
-Keep inbox sequence/cursors separate from config counters. Retain eight device messages/32 agent messages and report retention gaps; read-only chunk recovery never sends mutations. Correlate live diagnostics with request, boot and config revision. Permit explicit local delivery to the connected node with reason local-delivery and no RF claim. Gate actual remote TX on board/antenna facts and mesh mode; receive-only cannot emit ACKs/relays. Preserve SPI transaction storage on timeouts and fail the radio closed while USB remains usable. Add a 64-sequence local replay window so independently completed uploads may enter the mesh out of order without reopening retired IDs.
-
-## Browser reload recovery
-
-Persist the agent incarnation and monotonic config/message counters before wire dispatch, with bounded plaintext local history. Unfinished restored operations become unknown and require query-only recovery on the same device/boot. Never persist live transport sessions or resume partial uploads. Use an exclusive Web Lock acquired before loading counters; a second tab can read but cannot write. Malformed storage remains exportable until an explicit disconnected reset. Storage failure before dispatch closes the logical link and emits no mutation. Clearing browser data/fresh profiles allocate new owner identities; this does not erase the device's bounded owner marks.
-
-## Guided ROM updater and antenna confirmation
-
-Validate build identity, compatibility, fixed partitions, outer/embedded image hashes and ROM security state before the first write. Stage immutable verified bytes to avoid a parallel-build race. Preserve NVS; stop on unexpected layouts or secured devices. Keep ROM verification separate from application qualification. Single-factory reinstall remains the prototype recovery route; signed releases/automatic rollback need separate work before public release. Owner confirms attached US/915 MHz antenna, so the US development board may proceed to explicit bounded RF tests.
-
-## Full-fragment physical RF qualification
-
-The first TX attempt found ESP32-S3's non-DMA SPI limit of 64 bytes. Retain the failed evidence; use DMA with aligned persistent buffers and verify actual host transaction capacity at startup. Prototype-6 then completed seven full-message fragment TX_DONE events and correctly failed an unreachable unicast after retries. Test restoration left off mode/revision 20; later owner browser changes selected mesh/revision 21 and were preserved. Neither TX_DONE nor local inbox delivery proves a remote receiver/relay works. The focused single-board prototype is ready for the separate physical multi-node qualification stage.
-
-## T-Beam V1.2
-
-Add a separate ESP32/4MB board target with bootloader at 0x1000, preserving Heltec ESP32-S3/8MB rules and NVS. Only verified AXP2101 radio-rail bits may change. Use a first-party bounded SX1276 register driver with the same Reaper radio profile and mandatory version/configuration readback; wrong radios fail closed. A canonical node-016hex identity works with the installed Heltec without changing wire semantics. Antenna is owner-confirmed; mode defaults off. ESP32 ROM lacks get_security_info, so read named security eFuses without writes before flashing.
-
-## Owner-directed phases (November 1, 2026)
-
-Phase 1 is complete. Phase 2 adds discovery/beacons, independently enabled responses, opt-in GPS/fixed-position reports and a map/nodes/messaging portal. Phase 3 is channel encryption/configuration; Phase 4 is screen/sleep/RX-TX/battery presentation. ../overview/roadmap.md is canonical and phase-2.md defines the proposed Phase 2 bounds and acceptance gates. Discovery response acknowledges discovery, not text delivery; no reply-to-reply ACK loop. GPS hardware alone never authorizes RF location sharing. Preserve working text compatibility while adding negotiated control capabilities. Use the supplied design references for original Reaper UI styling; prioritize code/CLI tests over repeated desktop exploration per owner token preference.
-
-## Discovery v1 vertical slice
-
-Use a separate direct-listener control namespace (radio3/4/5, USB22–25) while preserving text/ACK wire bytes. Presence replies acknowledge discovery only. Persist independent beacon/response/interval settings atomically in record3; default policy retains older record bytes. Freeze a bounded USB node snapshot per head query so ongoing RF updates cannot prevent paging from completing. Use owner high-water suppression for manual requests, one active collection, jitter and a rolling-six/minute reply limit. No GPS/location or map UI is implied by this slice.
-
-## Fixed-position vertical slice (Phase2.2a)
-
-Implement saved coordinates before GPS. Use offset fixed-point integers shared by USB/storage/RF, explicit none/fixed source and independently opt-in sharing; no implicit computer position. Keep manual discovery requests name-only v1 so older responders still work; position-bearing announcements/replies use control payload v2. Advertise fixed-location capability separately from discovery. Older discovery receivers cannot interpret v2 reports, but text/ACK stays compatible. Record4 preserves old record reads and legacy-agent omission semantics. GPS acquisition/reporting and the map portal remain subsequent work; do not call all of2.2 complete from fixed-position checks.
-
-## November 2: portal direction supersedes map-first/light styling
-
-Owner defers T-Beam GPS and prioritizes a polished messaging/asset workspace. Use a Signal-like conversation list/thread, dark technical surfaces and restrained corners. Asset map/list is a dedicated view plus a wide-screen companion panel; settings are separate from daily messaging. Preserve shared transport, journaling, unknown-result and query-only recovery behavior. Do not invent read receipts, timestamps, positions or online state.
-
-## November 2: local message deletion and unread state
-
-Use browser-only, identity-scoped deletion/read metadata instead of a new device command or RF receipt. Keep message/conversation deletion explicit and confirmation-bound; capture a fixed set of identities so concurrent arrivals survive. Remove local journal bodies and retain bounded identity tombstones to prevent reconnect resurrection. Sent-history removal retains request counters and cannot cancel transmissions. Unread badges/title represent local UX only, not device ACK/read status. Reuse the existing writer lock and fail closed on unavailable/corrupt/full metadata; do not silently discard tombstones.
-
-
-## November 2: app-wide PIN and portal spacing
-
-Owner replaces the vault UI with a browser-local, app-wide 4–6 digit PIN gate on device connection. One unlock opens every channel key and the workspace; manual Lock app, disconnect/reconnect and reload clear key access. Existing encrypted key records migrate without discarding key epochs or replay records. Argon2id/encrypted storage is retained, with a credential marker and persisted failed-attempt cooldown. This is not firmware/device authentication or an OS-backed login; short PINs remain susceptible to offline guessing. No USB/RF schemas or firmware changed. Settings and channel editor spacing now share a consistent rhythm, with anchored, viewport-bounded scrolling dialogs. Type checks, agent tests and web build are checked separately; full npm check is blocked by CRLF generated-file comparison and unavailable C++ compiler on this Windows host. No hardware qualification repeated.
-
-
-### Optional PIN and emergency local wipe (owner clarification)
-
-PIN protection is optional, off by default. Settings → Privacy enables or removes the browser-only PIN without losing channel keys or replay records. Unprotected storage is explicitly version2/protection=none; existing encrypted version1 records remain readable and protected until unlocked/migrated. The PIN does not authenticate or configure a device. Privacy and the lock screen offer a typed-WIPE local reset, with a cross-tab stop marker, checkpoint suppression, writer-lock coordination, local/session namespace deletion and a static replacement document. Never invoke the actual wipe against owner data merely to test it. Device inboxes/settings, exports, other profiles and forensic remnants are outside the local reset. No firmware/protocol files changed. Type checking, 166 non-compiler agent tests and production build pass; the full project check remains limited by Windows CRLF generated-file comparison and missing C++ toolchain.
-
-## November 2: agent terminology
-
-Owner names node-connected software **agents**. Use `agents/` for applications and `packages/agent-core/` for transport-independent state. Update project identifiers, UI labels, documentation and tool paths consistently. Preserve historical opaque IDs in frozen wire fixtures and standard browser API identifiers; terminology does not require a protocol or storage migration.
-
-## November 2: separate sent retention from recovery admission
-
-Completed outgoing messages no longer exhaust the 32-message recovery admission budget. Keep a rolling 160-entry outgoing history and retire only the oldest completed record when a validated new send needs space. Preserve unknown/unacknowledged unicast outcomes, monotonic IDs, checkpoint-before-dispatch and query-only reload recovery. Explicitly explain the remaining 32-unresolved safety limit. Browser journal bound is 1 MiB serialized characters; old journals remain readable without identity reset. No firmware/wire change or hardware qualification is implied. Regression exercises 500 completed sends, protected uncertainty and reload/counter continuity.
-
-## November 2: task-first portal UX
-
-Design for mixed technical experience: routine setup first, technical maintenance under Advanced, concise contextual explanations, proportional control widths, and primary actions beside their section or after their form. Region precedes name; Create channel sits beside Channels. Preserve opt-in privacy, explicit destructive confirmations and transport recovery semantics. See docs/guides/web-portal.md for review scope. No hardware/protocol change.
-
-## November 2: Map workspace, sharing and JSON plugins
-
-Owner authorizes implementation with one attached device; ask before any firmware change. Agent-only implementation uses validated RMAP1: JSON text inside existing 1024-byte messaging / 950-byte encrypted text; no firmware/schema change. Map replaces Assets, supports local points/rectangles, edit/delete/share, explicit incoming approval and revision barriers. Settings → Plugins installs/reviews/manages declarative browser-local JSON types/settings. Keep encrypted shared geometry in ciphertext at rest, preserve plaintext local-item disclosure and no-replay/ACK semantics. See docs/reference/map-sharing.md and docs/guides/plugins.md. Host/native and isolated-browser checks are not RF/remote-acceptance qualification.
-
-Map-sharing UX follow-up: review shared points/rectangles through message cards (Add/Update/Remove from map), not a map-side review queue/badge or unapproved preview. Preserve independent accepted-map storage and revision barriers when message history is deleted. Firmware/transport unchanged.
+One entry per decision: what was decided, why or with what consequence, and where the detail
+lives. Evidence belongs in the [Changelog](../overview/changelog.md). When a decision changes,
+mark the old entry **Superseded** and link the new one; do not rewrite history.
+
+Status values: **Confirmed** (owner decision), **Adopted** (implemented engineering choice),
+**Proposed** (recommendation awaiting review), **Deferred**, **Superseded**.
+
+## Open questions
+
+| # | Question | Needed before | Raised |
+| --- | --- | --- | --- |
+| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Nov 2 |
+| Q2 | License for first-party code, compatible with the vendored Semtech (Clear BSD) and bundled npm dependencies | Accepting outside contributions or any public distribution. The repository is public, and without a license all rights are reserved | Nov 1 (deferred), re-raised Nov 3 |
+| Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | Freezing message limits for a release; decide from measured airtime and delivery rates | Nov 1 |
+| Q4 | Keep the schema-driven TLV or move to Protocol Buffers | A public protocol release | Nov 1 |
+| Q5 | Should shared map items (`RMAP1`) get a capability gate or a content-type marker and compact encoding? Older agents show the JSON as a chat message, and JSON costs airtime | Expanding map sharing or other structured payloads | Nov 3 |
+| Q6 | Isolation and permissions for executable plugins (for example a sandboxed iframe or separate origin, so plugin code cannot reach channel keys) | Building Weather Radar, ADS-B, APRS or any plugin that runs code or uses the network | Nov 2 |
+| Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | Resuming GPS work (D26) | Nov 2 |
+| Q8 | Three-node relay and field qualification plan, plus formal performance targets | Claiming relay, range, throughput or battery commitments | Nov 1 |
+| Q9 | EU countries and bands | Any EU profile work (D3) | Nov 1 |
+| Q10 | Signed releases, rollback and stable-release support policy | A public updater or supported release | Nov 1 |
+
+## Product and scope
+
+### D1. Independent protocol
+Nov 1 · **Confirmed**. Reaper Mesh uses its own documented protocol. Meshtastic is a functional
+reference only: no interoperability and no copied code.
+
+### D2. One monorepo
+Nov 1 · **Adopted**. Firmware, protocol schema, agent core and agents live in one repository.
+See [plan](plan.md#repository-layout).
+
+### D3. US first, EU later
+Nov 1 · **Confirmed**. Develop and operate in the US. Regional profiles exist from the start, but
+EU transmission stays disabled until countries, hardware and settings are verified (Q9).
+
+### D4. Owner product phases
+Nov 1 · **Confirmed**. Phase 1 working communications (complete), Phase 2 discovery and field
+portal (active), Phase 3 encrypted channels, Phase 4 device presentation and power. See the
+[roadmap](../overview/roadmap.md).
+
+### D5. RACE means synchronization and recovery
+Nov 1 · **Confirmed**. RACE is the discipline of designing and testing device/agent
+synchronization and recovery across interrupted connections and concurrent operations. It is not
+a framework.
+
+### D6. Licensing deferred
+Nov 1 · **Deferred**. No license is assigned yet; do not import code with incompatible terms.
+See Q2.
+
+### D7. Agent terminology
+Nov 2 · **Confirmed**. Software connected to a node is an **agent** (`agents/`,
+`packages/agent-core/`). Frozen wire fixtures and storage keys keep their historical names.
+
+### D8. Firmware image naming
+Nov 2 · **Confirmed**. On the next firmware change, images are named
+`{device}-reaper-mesh-v{semver}` (for example `heltec-reaper-mesh-v8.0.2`) in firmware
+identification, manifests, packages and docs. Installed images are not reflashed only to rename.
+
+## Hardware and firmware
+
+### D9. Boards
+Nov 1 · **Confirmed**. US/915 MHz Heltec WiFi LoRa 32 V3 (first board), then a US/915 T-Beam
+V1.2. Antennas are owner-confirmed. See [hardware](../guides/hardware.md) and
+[T-Beam V1.2](../guides/t-beam-v12.md).
+
+### D10. Firmware stack
+Nov 1 · **Adopted**. ESP-IDF v5.5.4 (pinned commit in `firmware/esp-idf.lock.json`) with C++17.
+One serialized UART session; one NVS blob in its own namespace; storage faults fail closed with
+no automatic erase.
+
+### D11. No factory firmware backup
+Nov 1 · **Confirmed**. The owner waived preserving the previous firmware and settings. This does
+not authorize whole-chip or NVS erases.
+
+### D12. No irreversible eFuse changes in development
+Nov 1 · **Confirmed**. Secure boot and anti-rollback need separate design decisions (Q10).
+
+### D13. Radio drivers
+Nov 1 · **Adopted**. Vendored Semtech `sx126x_driver` 2.5.0 core (Clear BSD notices retained) for
+the SX1262, and a first-party bounded SX1276 driver that verifies chip version and configuration
+readback. One airtime budget covers source, relay and ACK traffic. SPI uses DMA; the non-DMA path
+is limited to 64 bytes.
+
+### D14. T-Beam target
+Nov 1 · **Adopted**. A separate ESP32/4 MB target (bootloader at `0x1000`) reusing the shared
+protocol and state machines. Only verified AXP2101 radio-rail bits are changed. The ESP32 ROM
+lacks `get_security_info`, so security eFuses are read (never written) before flashing.
+
+### D15. OLED status display
+Nov 1 · **Adopted**. A first-party, bounded I2C driver and font (no third-party display library),
+outside protocol state. Display failures disable the display without blocking USB.
+
+### D16. Firmware installation
+Nov 1 · **Adopted**. A manifest-validating ROM serial updater that checks provenance, target,
+layout, hashes and ROM security state, stages immutable images and preserves NVS. A single
+factory app with no rollback is the prototype recovery route. Signed releases and rollback are
+open (Q10). See [flashing firmware](../guides/flashing-firmware.md).
+
+## Protocol and synchronization
+
+### D17. Device is authoritative for configuration
+Nov 1 · **Adopted**. Compare-and-set revisions and atomic persistence; a successful write is
+acknowledged only after it is stored; lost replies are resolved by query. See
+[persistence](../reference/persistence.md).
+
+### D18. USB framing and encoding
+Nov 1 · **Adopted for the prototype**. COBS with a zero delimiter, a versioned header, a
+2,048-byte maximum payload and CRC-32; logs on a separate path. Payloads use a schema-driven TLV
+with generated TypeScript and C++ descriptors (Q4). See [protocol](../reference/protocol.md).
+
+### D19. Request history and recovery
+Nov 1 · **Adopted**. Bounded FIFO receipts plus non-evicting per-owner sequence marks.
+Reconnect recovery only queries; evicted results stay unknown and can never re-execute. Startup
+repeats the same hello at most every 500 ms within a five-second deadline.
+
+### D20. Additive configuration compatibility
+Nov 1 · **Adopted**. Config schema 1 gains optional fields and capabilities. Omitted fields
+preserve newer settings so older agents can still edit. Storage records 1–4 stay readable; a
+newer record is written only when needed. Policy changes quiesce queued messages first.
+
+### D21. Radio frame and mesh
+Nov 1 · **Adopted**. An independent radio frame with a 54-byte header and CRC, up to 160 payload
+bytes per fragment and 7 fragments per message. Bounded managed flooding with duplicate
+suppression and hop limits. TX completion is distinct from destination ACK. See
+[radio protocol](../reference/radio-protocol.md) and Q3.
+
+### D22. Channels and relay role
+Nov 1 · **Adopted**. Eight logical channel slots share one radio profile; names add no RF
+capacity or privacy. Relaying is a per-node setting, separate from channel type.
+
+### D23. Inbox
+Nov 1 · **Adopted**. The inbox has its own sequence and cursors, separate from configuration
+counters, and reports retention gaps. Local delivery to the connected node is explicit and makes
+no RF claim. Inbox v2 (Nov 2) adds the original RF destination so broadcasts stay in channel
+threads and direct messages appear in peer threads; v1 remains readable. See
+[inbox](../reference/inbox.md).
+
+### D24. Discovery v1
+Nov 1 · **Adopted**. A separate control namespace, so text/ACK bytes are unchanged. Beacons,
+discovery responses and location sharing are independent settings, all off by default. A
+presence reply acknowledges discovery only; replies never trigger replies. Manual requests are
+rate-limited with jitter and at most six replies per minute. See
+[Phase 2 contract](phase-2.md).
+
+### D25. Fixed position before GPS
+Nov 1 · **Adopted**. Saved coordinates as offset fixed-point integers shared by USB, storage and
+radio; sharing is opt-in; the computer's location is never used. Position-bearing reports use
+control payload v2; manual requests stay name-only v1 so older nodes still respond.
+
+### D26. GPS deferred
+Nov 2 · **Confirmed**. T-Beam GPS (Phase 2.2b) is deferred. Fixed positions serve the map. See Q7.
+
+## Agent and portal
+
+### D27. Agent stack
+Nov 1 · **Adopted**. TypeScript and Vite with native DOM controls and Leaflet for the map; no UI
+framework yet. Web Serial in Chromium browsers.
+
+### D28. Browser journal
+Nov 1 · **Adopted**. Identity, counters, outcomes, message bodies and inbox are saved to
+`localStorage` before any mutation is sent. A Web Lock allows one writer per browser storage
+bucket. Reload turns unfinished work into `unknown` and never replays uploads. Corrupt storage is
+kept for export until an explicit reset. Message bodies are stored in plaintext locally.
+
+### D29. Sent history separate from recovery budget
+Nov 2 · **Adopted**. A rolling 160-entry sent history, separate from the 32-entry limit on
+unresolved operations, within a 1 MiB journal.
+
+### D30. Messaging-first portal
+Nov 2 · **Confirmed**. Supersedes the earlier light, map-first design. A Signal-style dark
+messaging workspace with conversations and threads, a separate map, and settings apart from daily
+messaging. No invented read receipts, timestamps, positions or online state. See
+[web portal](../guides/web-portal.md).
+
+### D31. Local deletion and unread state
+Nov 2 · **Adopted**. Deletion and read state are browser-only and identity-scoped, with bounded
+tombstones so deleted messages do not reappear on reconnect. Unread counts are local UX, not
+device read receipts.
+
+### D32. Task-first settings
+Nov 2 · **Confirmed**. Routine setup first, technical maintenance under *Advanced*, primary
+actions beside their section.
+
+### D33. Agent-side channel encryption
+Nov 2 · **Adopted**. XChaCha20-Poly1305 envelopes created in the agent; devices carry
+ciphertext only and never see keys. Direct messages use the channel group key: not pairwise
+private, members can forge, no forward secrecy. Plaintext stays the default unless an agent
+requires encryption on a channel. See [channel encryption](../guides/encryption.md).
+
+### D34. Optional browser PIN and local wipe
+Nov 2 · **Confirmed**. Supersedes the per-key vault screen. An optional, off-by-default 4–6
+digit PIN unlocks all keys in this browser; it does not authenticate a device. A typed-`WIPE`
+reset deletes this browser's local data only.
+
+### D35. Map sharing over text messages
+Nov 2 · **Adopted** (see Q5). Map points and rectangles are shared as validated `RMAP1` JSON in
+ordinary text messages, with no firmware or schema change. Recipients approve items from the
+message card. See [shared map items](../reference/map-sharing.md).
+
+### D36. Declarative plugins only
+Nov 2 · **Adopted** (see Q6). Plugin manifest v1 is browser-local JSON that adds map item types
+and settings. No scripts, HTML, URLs or network access. See [plugins](../guides/plugins.md).

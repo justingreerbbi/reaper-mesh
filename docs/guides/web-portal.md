@@ -11,12 +11,12 @@ Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server b
 
 ## Layout
 
-Dark technical workspace with Messages and Assets navigation. On desktop, conversations have an inbox, a message thread and a compact asset tracker; at narrower sizes the tracker gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
+Dark technical workspace with Messages, Map and Settings navigation. On desktop, conversations have an inbox, a message thread and a compact map panel; at narrower sizes the map gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
 
-- Search channel and peer conversations by name or node ID; start a recipient from New message or an asset action.
+- Search channel and peer conversations by name or node ID; start a recipient from New message or from a device selected on the map.
 - Incoming/outgoing messages share a thread. Destination ACK means delivered, never read. Messages show their delivery status without a Message details dropdown; unknown work is never automatically resent.
 - Drafts are isolated by transport/device/conversation and retained in this tab across switching/disconnect. Enter sends when allowed; Shift+Enter adds a line. Drafts are not saved across page reload.
-- Assets shows the map, heard-node list, last-heard age and fixed positions. Selecting a marker selects the asset; messaging is an explicit action. Missing/stale observations never imply online status.
+- Map shows heard nodes, last-heard age, fixed positions and local or shared map items (see [Map authoring and sharing](#map-authoring-and-sharing)). Selecting a marker selects the device; messaging is an explicit action. Missing/stale observations never imply online status.
 - Settings contains device, radio, position, discovery, command history, recovery and diagnostics. No firmware changes are needed for this layout.
 
 Missing positions are never plotted. Map tiles load from Esri’s dark canvas service and may fail offline; node and message controls remain available. One USB device at a time remains the writer boundary until per-device journaling lands. Use the browser port chooser to pick Heltec or T-Beam.
