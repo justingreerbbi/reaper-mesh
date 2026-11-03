@@ -58,4 +58,4 @@ GPS work, when it resumes, must verify the T-Beam's UART and AXP2101 ALDO3 wirin
 
 ## Portal plugins
 
-Plugin manifest v1 is implemented: declarative, browser-local JSON that adds map item types and settings, with no executable code (see [plugins](../guides/plugins.md)). Candidate integrations such as Weather Radar, Reaper ADS-B and a Reaper APRS bridge need code and network access, so they wait on an isolation and permissions decision ([Q6](decisions.md#open-questions)).
+Plugin manifest v1 is implemented: declarative, browser-local JSON that adds map item types and settings, with no executable code (see [plugins](../guides/plugins.md)). Candidate integrations such as Weather Radar, Reaper ADS-B and a Reaper APRS bridge need code and network access, so they will run in sandboxed iframes ([D40](decisions.md#d40-code-plugins-run-in-sandboxed-iframes)) and wait on an approved design document for the plugin message API and permissions.
