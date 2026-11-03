@@ -37,7 +37,7 @@ try {
   opened.push(await openBoard(python, heltecPort));
   opened.push(await openBoard(python, tbeamPort));
   assert.match(opened[0].connection.device!, /^heltec-/);
-  assert.match(opened[1].connection.capabilities?.firmware ?? '', /^tbeam-usb-prototype-/);
+  assert.match(opened[1].connection.capabilities?.firmware ?? '', /^tbeam-reaper-mesh-v/);
   assert.notEqual(opened[0].connection.device, opened[1].connection.device);
   for (const [index, board] of opened.entries()) {
     const original = board.connection.sync.config!;

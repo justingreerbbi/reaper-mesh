@@ -39,12 +39,11 @@ manifest = {
     "source_dirty": bool(
         subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip()
     ),
-    "firmware": "tbeam-usb-prototype-3"
-    if tbeam
-    else re.findall(
+    # version.hpp lists the T-Beam name first, then the Heltec name.
+    "firmware": re.findall(
         r'kFirmwareVersion\[\] = "([^"]+)"',
         (root / "firmware/components/reaper_device/include/reaper/version.hpp").read_text(),
-    )[-1],
+    )[0 if tbeam else -1],
     "radio_config_schema": 1,
     "read_record_schemas": [1, 2, 3, 4],
     "usb_protocol": 1,
