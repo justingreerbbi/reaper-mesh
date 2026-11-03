@@ -146,3 +146,9 @@ Completed outgoing messages no longer exhaust the 32-message recovery admission 
 ## November 2: task-first portal UX
 
 Design for mixed technical experience: routine setup first, technical maintenance under Advanced, concise contextual explanations, proportional control widths, and primary actions beside their section or after their form. Region precedes name; Create channel sits beside Channels. Preserve opt-in privacy, explicit destructive confirmations and transport recovery semantics. See docs/guides/web-portal.md for review scope. No hardware/protocol change.
+
+## November 2: Map workspace, sharing and JSON plugins
+
+Owner authorizes implementation with one attached device; ask before any firmware change. Agent-only implementation uses validated RMAP1: JSON text inside existing 1024-byte messaging / 950-byte encrypted text; no firmware/schema change. Map replaces Assets, supports local points/rectangles, edit/delete/share, explicit incoming approval and revision barriers. Settings → Plugins installs/reviews/manages declarative browser-local JSON types/settings. Keep encrypted shared geometry in ciphertext at rest, preserve plaintext local-item disclosure and no-replay/ACK semantics. See docs/reference/map-sharing.md and docs/guides/plugins.md. Host/native and isolated-browser checks are not RF/remote-acceptance qualification.
+
+Map-sharing UX follow-up: review shared points/rectangles through message cards (Add/Update/Remove from map), not a map-side review queue/badge or unapproved preview. Preserve independent accepted-map storage and revision barriers when message history is deleted. Firmware/transport unchanged.

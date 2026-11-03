@@ -1,3 +1,4 @@
+import type { MapItem } from '../../packages/protocol/map-item.ts';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -15,6 +16,11 @@ export class FieldMap {
   readonly map: L.Map;
   readonly #layer: L.LayerGroup;
   #markers = new Map<string, L.Marker>();
+  #annotations: L.LayerGroup;
+  #annotationSignature = '';
+  #annotationBounds: L.LatLng[] = [];
+  onLocation?: (latitude: number, longitude: number) => void;
+  onAnnotation?: (id: string, context: boolean) => void;
   #selected?: string;
   #signature = '';
   onSelect?: (id: string | undefined) => void;
@@ -32,7 +38,10 @@ export class FieldMap {
     }).addTo(this.map);
     tiles.on('tileerror', () => { const status = document.getElementById('tile-status'); if (status) status.hidden = false; });
     this.#layer = L.layerGroup().addTo(this.map);
-    this.map.on('click', () => {
+    this.#annotations = L.layerGroup().addTo(this.map);
+    this.map.on('contextmenu', (event: L.LeafletMouseEvent) => { this.onLocation?.(event.latlng.lat, event.latlng.lng); });
+    this.map.on('click', (event: L.LeafletMouseEvent) => {
+      this.onLocation?.(event.latlng.lat, event.latlng.lng);
       this.select(undefined);
       this.onSelect?.(undefined);
     });
@@ -107,8 +116,38 @@ export class FieldMap {
     else if (points.length === 1 && !previous) this.map.setView([points[0].latitude, points[0].longitude], 12);
   }
 
+  setAnnotations(items: { key: string; item: MapItem; label: string; icon: string; showLabel?: boolean }[], showItems: boolean, showDevices: boolean) {
+    if (showDevices) this.#layer.addTo(this.map); else this.map.removeLayer(this.#layer);
+    if (showItems) this.#annotations.addTo(this.map); else this.map.removeLayer(this.#annotations);
+    const signature = JSON.stringify(items); if (signature === this.#annotationSignature) return;
+    this.#annotationSignature = signature; this.#annotations.clearLayers(); this.#annotationBounds = [];
+    for (const { key, item, label, icon, showLabel } of items) {
+      const c = item.coordinates, nw = L.latLng(c[0] / 1e7 - 90, c[1] / 1e7 - 180);
+      this.#annotationBounds.push(nw);
+      const style = { color: item.color, fillColor: item.color, fillOpacity: .18, weight: 2 };
+      let layer: L.Path | L.Marker;
+      if (item.geometry === 'rectangle') {
+        const se = L.latLng(c[2] / 1e7 - 90, c[3] / 1e7 - 180); this.#annotationBounds.push(se);
+        layer = L.rectangle(L.latLngBounds(nw, se), style);
+      } else {
+        const symbols: Record<string, string> = { pin: '●', flag: '⚑', camp: '▲', hazard: '!', medical: '+', observation: '◎', search: '▧' };
+        layer = L.marker(nw, { keyboard: true, title: item.name, alt: item.name, icon: L.divIcon({ className: 'annotation-pin', html: `<span style="color:${item.color}">${symbols[icon] ?? '●'}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) });
+      }
+      const tip = document.createElement('span'); tip.textContent = `${item.name} · ${label}`; layer.bindTooltip(tip, { permanent: showLabel });
+      layer.on('click', (event: L.LeafletMouseEvent) => { L.DomEvent.stopPropagation(event); this.onAnnotation?.(key, false); });
+      layer.on('contextmenu', (event: L.LeafletMouseEvent) => { L.DomEvent.stopPropagation(event); this.onAnnotation?.(key, true); });
+      layer.addTo(this.#annotations);
+    }
+  }
+
+  focusAnnotation(item: MapItem) {
+    const c = item.coordinates, nw: L.LatLngExpression = [c[0] / 1e7 - 90, c[1] / 1e7 - 180];
+    if (item.geometry === 'rectangle') this.map.fitBounds(L.latLngBounds(nw, [c[2] / 1e7 - 90, c[3] / 1e7 - 180]), { padding: [36, 36], maxZoom: 16 });
+    else this.map.setView(nw, Math.max(12, this.map.getZoom()));
+  }
+
   fit(points?: L.LatLngExpression[]) {
-    const targets = points ?? [...this.#markers.values()].map(marker => marker.getLatLng());
+    const targets = points ?? [...this.#markers.values()].map(marker => marker.getLatLng()).concat(this.#annotationBounds);
     if (!targets.length) return;
     if (targets.length === 1) {
       this.map.setView(targets[0], Math.max(this.map.getZoom(), 12));

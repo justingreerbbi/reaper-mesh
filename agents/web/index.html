@@ -44,9 +44,9 @@
 <span aria-hidden="true">▤</span>
 <span>Messages <span id="nav-unread" class="unread-badge" hidden></span></span>
 </button>
-<button class="nav-item" data-view-target="map" title="Asset tracker">
+<button class="nav-item" data-view-target="map" title="Map workspace">
 <span aria-hidden="true">⌖</span>
-<span>Assets</span>
+<span>Map</span>
 </button>
 <button id="open-manage" class="nav-item nav-settings" title="Device settings">
 <span aria-hidden="true">⚙</span>
@@ -91,7 +91,7 @@
 <h2 id="conversation-title">Public</h2>
 <span id="conversation-subtitle" class="muted small">Channel · messages received by this device</span>
 </div>
-<button id="locate-conversation" title="Show this asset on the map">Locate asset</button>
+<button id="locate-conversation" title="Show this asset on the map">Locate device</button>
 <button id="delete-conversation" title="Remove conversation from this browser">Delete chat</button>
 <button id="recipient-toggle" aria-expanded="false" aria-controls="recipient-controls" title="Choose a recipient">New message</button>
 </header>
@@ -114,7 +114,7 @@
 <div id="conversation-empty" class="thread-empty">
 <span class="empty-symbol">⌁</span>
 <h3>Start a conversation</h3>
-<p>Connect a device to send messages. Discover nearby assets to start a direct conversation.</p>
+<p>Connect a device to send messages. Find nearby devices to start a direct conversation.</p>
 <button id="conversation-connect" class="primary">Connect device</button>
 </div>
 <ul id="message-history" class="message-thread" aria-label="Conversation messages" aria-live="polite">
@@ -137,29 +137,29 @@
 </div>
 </form>
 </section>
-<aside class="tracker-pane" aria-label="Asset tracker">
+<aside class="tracker-pane" aria-label="Map workspace">
 <div class="pane-heading tracker-heading">
 <div>
-<span class="eyebrow">SITUATIONAL AWARENESS</span>
-<h2>Asset tracker <span id="node-count" class="count">0</span>
+<span class="eyebrow">MAP WORKSPACE</span>
+<h2>Map <span id="node-count" class="count">0</span>
 </h2>
 </div>
 <button id="fit-map" title="Fit reported positions">Fit map</button>
 </div>
 <div class="map-pane">
-<div id="map" aria-label="Reported asset positions">
+<div id="map" aria-label="Map canvas">
 </div>
 <div class="map-hud">
 <span id="map-caption" class="hud-chip">No reported positions</span>
 </div>
 <div id="map-empty" class="map-empty">
-<strong>No positions reported</strong>
-<span>Assets without a shared position remain in the list below.</span>
+<strong>No device positions reported</strong>
+<span>Add your own point or area, or discover device positions.</span>
 </div>
 <div id="tile-status" class="tile-status" role="status" hidden>Basemap unavailable · reported positions still work</div>
 </div>
 <div class="asset-toolbar">
-<h3>Heard assets</h3>
+<h3>Nearby devices</h3>
 <button id="discover">Find nearby devices</button>
 <button id="discovery-query" title="Query last discovery result">Check search</button>
 </div>
@@ -168,15 +168,15 @@
 <p id="discovery-result" class="small muted" role="status">
 </p>
 <div id="selected-asset" class="selected-asset" hidden>
-<span class="eyebrow">SELECTED ASSET</span>
+<span class="eyebrow">SELECTED DEVICE</span>
 <strong id="asset-name">
 </strong>
 <span id="asset-detail" class="mono">
 </span>
-<button id="asset-message">Message asset</button>
+<button id="asset-message">Message device</button>
 </div>
-<p id="nodes-empty" class="empty">No assets yet. Connect a device and select Discover.</p>
-<ul id="nodes" class="node-list" aria-label="Heard assets">
+<p id="nodes-empty" class="empty">No devices found yet. Connect a device and select Discover.</p>
+<ul id="nodes" class="node-list" aria-label="Nearby devices">
 </ul>
 <div class="tracker-footer mono">LAST-KNOWN POSITIONS · FIXED SOURCE</div>
 </aside>

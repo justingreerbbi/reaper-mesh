@@ -33,6 +33,9 @@ you want to do.
 | [Web portal](guides/web-portal.md) | Using the field portal: messaging, assets, settings, recovery |
 | [Channel encryption](guides/encryption.md) | Setting up agent-side encryption and its security limits |
 
+- [Web agent plugins](guides/plugins.md) — install and manage JSON extensions.
+- [Shared map items](reference/map-sharing.md) — map payloads, revisions, approval and limits.
+
 ## Reference — how it works in detail
 
 | Document | What it covers |

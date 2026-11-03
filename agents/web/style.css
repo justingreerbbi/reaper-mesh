@@ -1457,3 +1457,53 @@ option { background: var(--panel); color: var(--text); }
 @media (min-width: 721px) and (max-width: 1240px) { .app[data-view=messages] .stage { grid-template-columns: 68px 290px minmax(300px,1fr); } }
 
 @media (min-width: 1241px) and (max-width: 1699px) { .app[data-view=messages] .stage { grid-template-columns: 76px 300px minmax(310px, 1fr) 320px; } }
+
+/* Map authoring workspace, with one sidebar for annotations and device observations. */
+#map-side-panel { min-height: 0; overflow-y: auto; }
+#map-workspace { display: none; padding: 18px; border-bottom: 1px solid var(--line); }
+.app[data-view=map] #map-workspace { display: block; }
+.app[data-view=map] .tracker-pane { grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
+.app[data-view=map] .map-pane { grid-column: 1; grid-row: 2; min-height: 0; }
+.app[data-view=map] #map-side-panel { grid-column: 2; grid-row: 2; border-left: 1px solid var(--line); }
+#map-devices { padding: 16px 0; }
+#map-devices > summary { padding: 8px 18px; cursor: pointer; font-weight: 600; }
+#map-devices .node-list { max-height: none; padding-top: 12px; }
+#map-devices #selected-asset:not([hidden]) ~ .node-list { padding-top: 12px; }
+.map-toolbar, .map-layers, .map-list-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.map-toolbar button { flex: 1; min-height: 40px; }
+#map-tool-hint, #map-workspace p { font-size: 12px; line-height: 1.6; margin: 12px 0; overflow-wrap: anywhere; }
+.map-layers .check { font-size: 12px; }
+#map-workspace summary { cursor: pointer; padding: 16px 0 10px; font-weight: 600; font-size: 13px; }
+#map-workspace details { border-top: 1px solid var(--line); margin-top: 12px; }
+.map-list-row { margin: 8px 0; flex-wrap: nowrap; }
+.map-list-row button:first-child { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.shared-map-card { border: 1px solid var(--line); padding: 12px; margin: 12px 0; border-radius: 4px; overflow-wrap: anywhere; }
+.shared-map-card button { margin: 4px; }
+.map-dialog { width: min(620px, calc(100vw - 24px)); }
+.map-dialog .manage-body { overflow-y: auto; }
+.map-dialog p { line-height: 1.65; overflow-wrap: anywhere; }
+#map-color { width: 80px; padding: 4px; }
+#map-custom-fields:empty { display: none; }
+.annotation-pin { display: grid; place-items: center; background: #101920; border: 2px solid #d7e6e0; border-radius: 50%; box-shadow: 0 2px 8px #0009; font-size: 22px; font-weight: bold; }
+.plugin-import { font-size: 12px; margin: 0 !important; }
+.plugin-import input { max-width: 240px; margin-top: 6px; }
+@media (max-width: 900px) {
+  .app[data-view=map] .tracker-pane { display: flex; flex-direction: column; overflow-y: auto; }
+  .app[data-view=map] .tracker-heading { flex-shrink: 0; }
+  .app[data-view=map] .map-pane { min-height: 45dvh; flex: 0 0 45dvh; }
+  .app[data-view=map] #map-side-panel { overflow: visible; flex-shrink: 0; border-left: 0; }
+}
+
+.map-dialog.context-actions { width: min(380px, calc(100vw - 24px)); }
+.context-actions #map-detail-actions { display: grid; grid-template-columns: 1fr; margin: 0; }
+.context-actions #map-detail-actions button { text-align: left; }
+
+/* Shared annotations are reviewed in conversation, not in the map sidebar. */
+.map-message-card { min-width: 0; max-width: 420px; padding: 4px 0 12px; }
+.map-message-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.map-message-heading strong { overflow-wrap: anywhere; }
+.map-message-swatch { width: 14px; height: 14px; flex: 0 0 14px; border: 1px solid #ffffff70; border-radius: 3px; }
+.map-message-card p { margin: 8px 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.map-message-card button { margin-top: 12px; min-height: 40px; }
+.map-message-card button:disabled { opacity: .8; }
+.map-message-card [role=status]:empty { display: none; }
