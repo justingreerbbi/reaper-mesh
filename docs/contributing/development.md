@@ -13,11 +13,32 @@ npm run check
 
 `package-lock.json` pins TypeScript 7.0.2 and Node 24 type definitions 24.19.2, including transitive integrity hashes and platform-specific compiler packages. Install scripts are not required. Vite 8.3.5 is also pinned for the local browser build/dev server (MIT; retained dependency license notices apply). The field portal runtime depends on Leaflet 1.9.4 (BSD-2-Clause); see third-party-notices.md. Development-only tools: TypeScript/compiler packages use Apache-2.0, and Node/Undici type definitions use MIT. These dependency licenses do not select a license for Reaper Mesh, whose licensing decision remains deferred.
 
+## Formatting
+
+Code is formatted automatically; do not hand-align or compress code to save lines.
+
+| Files | Tool | Config |
+| --- | --- | --- |
+| TypeScript, CSS, HTML, JSON, YAML | Prettier 3.9.10 (pinned in `package-lock.json`) | `.prettierrc.json`, `.prettierignore` |
+| Firmware C/C++ (`firmware/`) | clang-format 23.1.3 | `.clang-format` |
+
+Both use a 100-column limit. Generated files, frozen fixtures, vendored sources and Markdown are excluded. Install clang-format once into the ignored `.tools/` folder:
+
+```sh
+python3 -m venv .tools/clang-format
+.tools/clang-format/bin/pip install clang-format==23.1.3
+```
+
+Then run `npm run format` to rewrite files, or `npm run format:check` to check them without changes. `tools/format-cpp.ts` refuses to run with any other clang-format version, because different versions format differently. `.editorconfig` sets line endings, final newlines and indentation for editors.
+
+## Continuous integration
+
 `.github/workflows/checks.yml` runs on pull requests, pushes to `main` and manual dispatch, with these jobs:
 
 | Job | What it checks |
 | --- | --- |
 | Host checks (Node 24, 25) | `npm ci --ignore-scripts` then `npm run check`: strict TypeScript, generated schema and vendor checks, compiler-backed host tests with sanitizers, Python updater tests and the web build |
+| Formatting | `npm run format:check` with the pinned Prettier and clang-format |
 | Firmware unit tests | Standalone CMake build of the portable firmware components with `-Werror`, the CTest suite and `codec_bridge selftest` |
 | Firmware build (heltec-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
 | Shell script lint | `shellcheck --severity=warning tools/*.sh` |
