@@ -26,7 +26,8 @@ At the owner's request, the conversation view is more compact:
 - The hints above and inside the message box show only something to act on or a problem
   (connect, unlock, radio unavailable, uploading, errors, messages no longer retained on the
   device). Explanations such as "Destination ACK confirms delivery, not reading" and "Device
-  history · received does not mean read" are gone.
+  history · received does not mean read" are gone. The header subtitle is gone for channels; a
+  direct message shows only the node ID, and only when its title is a name.
 - Removed: single-message delete, mark all read, and the message-privacy banner. The header,
   thread padding and composer are smaller, so the thread gets more of a laptop screen.
 

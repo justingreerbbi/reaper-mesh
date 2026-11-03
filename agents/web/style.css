@@ -738,6 +738,7 @@ body {
 }
 /* Hints show only when there is something to say; empty ones take no room. */
 #message-support:empty,
+#conversation-subtitle:empty,
 .thread-status:has(#inbox-status:empty):has(.new-messages[hidden]) {
   display: none;
 }

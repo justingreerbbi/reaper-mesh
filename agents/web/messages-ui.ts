@@ -473,11 +473,11 @@ export function renderMessages() {
       ? '#'
       : (currentRow?.name ?? destination.value).slice(0, 2).toUpperCase(),
   );
+  // Only a direct message titled by name needs a subtitle: its node ID.
+  const title = currentRow?.name ?? destination.value;
   text(
     'conversation-subtitle',
-    destination.value === 'broadcast'
-      ? `${names[selectedChannel] || 'Channel ' + selectedChannel} · traffic received by this device`
-      : `${destination.value} · ${names[selectedChannel] || 'Channel ' + selectedChannel}`,
+    destination.value !== 'broadcast' && title !== destination.value ? destination.value : '',
   );
   element('conversation-connect').hidden = ready;
   const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
