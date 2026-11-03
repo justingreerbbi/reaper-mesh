@@ -747,6 +747,8 @@ body {
   font-size: 12px;
 }
 #message-bytes {
+  /* Keeps the count and Send on the right even when there is no hint beside them. */
+  margin-left: auto;
   font-size: 11px;
   white-space: nowrap;
 }
