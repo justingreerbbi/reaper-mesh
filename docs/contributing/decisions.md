@@ -121,7 +121,7 @@ is limited to 64 bytes.
 ### D14. T-Beam target
 Nov 1 · **Adopted**. A separate ESP32/4 MB target (bootloader at `0x1000`) reusing the shared
 protocol and state machines. Only verified AXP2101 radio-rail bits are changed, plus the
-power-key short-press interrupt bits used by the screen (D44). Battery and charging state are
+power-key short-press interrupt bits used by the screen (D44). Battery and USB power state are
 read from the AXP2101 without writing (D44). The ESP32 ROM
 lacks `get_security_info`, so security eFuses are read (never written) before flashing.
 
@@ -149,9 +149,11 @@ turns off after 30 seconds by default.
 Nov 3 update (steps 3 and 5): the screen timeout and wake-on-message are device settings, set
 from the portal's Screen tab; there is no settings page on the device. They are stored in the
 device configuration (record 5, `screenVersion` 1) because the device must apply them with no
-agent connected, which an agent or plugin cannot do (D41). The main page shows the battery
-percent and a charge bolt in the top-right corner only when measured: the T-Beam reads its
-AXP2101 fuel gauge without writing; the Heltec shows nothing until its battery input is verified.
+agent connected, which an agent or plugin cannot do (D41). The top-right corner of the main page
+shows the battery percent and a bolt when plugged in, or the bolt and `USB` with no battery
+(owner direction: plugged-in state must show even without a battery), only when measured: the
+T-Beam reads its AXP2101 without writing; the Heltec shows nothing until its battery input is
+verified.
 These features never change the radio protocol (D41). See
 [device screen and buttons](../reference/device-display.md).
 

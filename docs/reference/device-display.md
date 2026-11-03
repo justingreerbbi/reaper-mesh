@@ -70,16 +70,24 @@ that omits them keeps the stored values. Wire fields and storage are in the
 [protocol](protocol.md#screen-settings-v1-phase-4) and
 [persistence](persistence.md#screen-settings-record-5) references.
 
-## Battery
+## Battery and USB power
 
-The battery appears in the top-right corner of the main page as a percent and a gauge icon, with
-a lightning bolt while charging. It is shown only when the board measures it; otherwise the
-corner is empty. Nothing is estimated.
+The top-right corner of the main page shows the board's power, using only what the board
+measures. Nothing is estimated.
+
+| State | Shown |
+| --- | --- |
+| Battery, plugged in | Lightning bolt, percent and gauge icon |
+| Battery, not plugged in | Percent and gauge icon |
+| Plugged in, no battery | Lightning bolt and `USB` |
+| Not measured | Nothing |
+
+The bolt means plugged in (USB power present), whether or not the battery is charging.
 
 | Board | Source | State |
 | --- | --- | --- |
-| LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 3 battery present, STATUS2 `0x01` bits 6:5 `01` charging, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. Shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0` |
-| Heltec WiFi LoRa 32 V3 | Battery voltage input, not yet verified on hardware; no charge-status signal | Not shown |
+| LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 5 VBUS good (plugged in) and bit 3 battery present, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. The percent is shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0`; percent confirmed by the owner with a battery |
+| Heltec WiFi LoRa 32 V3 | Battery voltage input, not yet verified on hardware; no USB power sense | Not shown |
 
 ## Planned
 
@@ -95,7 +103,7 @@ corner is empty. Nothing is estimated.
 | `firmware/app/board_input.hpp` | Board button interface |
 | `firmware/<board>/main/status_display.cpp` | Board panel power, reset and I2C setup |
 | `firmware/<board>/main/board_input.cpp` | Board button pins and optional extra buttons |
-| `firmware/app/board_power.hpp`, `firmware/<board>/main/board_power.cpp` | Battery percent and charging state, or unknown |
+| `firmware/app/board_power.hpp`, `firmware/<board>/main/board_power.cpp` | Battery percent and USB power, or unknown |
 | `firmware/app/main.cpp` | Samples buttons, applies screen settings, feeds the screen state and redraws |
 | `firmware/tests/device_ui_test.cpp` | Host tests; `device_ui_test preview` prints each page as ASCII art |
 

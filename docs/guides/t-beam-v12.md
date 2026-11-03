@@ -43,6 +43,6 @@ goes to the next page, long press returns to the main page. A short PWR press al
 next page; holding PWR about 6 s still powers the board off. RST resets the processor. Since
 `tbeam-reaper-mesh-v0.1.0` the firmware enables the AXP2101 power-key short-press interrupt for
 this, in addition to the radio rail. Since `tbeam-reaper-mesh-v0.2.0` the main page also shows
-the battery percent and a charge bolt, read from the AXP2101 fuel gauge without writing; nothing
-is shown without a battery. See [device screen and buttons](../reference/device-display.md).
+the battery percent, and a lightning bolt when plugged in (`USB` with no battery), read from the
+AXP2101 without writing. See [device screen and buttons](../reference/device-display.md).
 

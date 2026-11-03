@@ -15,12 +15,12 @@ rather than repeating it.
 | Board | Latest image | Source commit | Notes |
 | --- | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 | `usb-prototype-8` | `4209679` | Fixed position; US/915 antenna confirmed |
-| LILYGO T-Beam V1.2 | `tbeam-reaper-mesh-v0.2.0` | `adc8765` | Screen settings and battery indicator |
+| LILYGO T-Beam V1.2 | `tbeam-reaper-mesh-v0.2.0` | `bafa382` | Screen settings, battery and plugged-in indicator |
 
 On November 2 both boards were reinstalled from an uncommitted development tree (updater
 `--allow-dirty`) for the encryption check, so the Heltec's installed bytes no longer correspond
 exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean commit
-`074f299`, then from clean commit `adc8765`.
+`074f299`, then from clean commits `adc8765` and `bafa382`.
 
 ## Heltec V3 firmware progression
 
@@ -44,7 +44,7 @@ exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean
 | `tbeam-usb-prototype-2` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon sent |
 | `tbeam-usb-prototype-3` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
 | `tbeam-reaper-mesh-v0.1.0` | Nov 3 | Device screen pages and buttons; new naming (commit `074f299`) | Owner confirmed screen and buttons; USB sync and settings preserved |
-| `tbeam-reaper-mesh-v0.2.0` | Nov 3 | Screen settings and battery indicator (commit `adc8765`) | Screen settings round trip and reboot persistence over USB; settings preserved |
+| `tbeam-reaper-mesh-v0.2.0` | Nov 3 | Screen settings and battery indicator (commits `adc8765`, then `bafa382`) | Screen settings round trip and reboot persistence over USB; owner saw the battery percent; settings preserved |
 
 ## First flash — November 1
 
@@ -326,8 +326,17 @@ reported `screenVersion` 1. Over USB with the real TypeScript agent, screen sett
 (revision 36, 5 minutes with wake on), read back on a new connection with label, radio, position
 and discovery settings unchanged, saved again (revision 38, 1 minute with wake on) and read back
 after a reset with a new boot identity. The defaults (30 s, wake off) were then restored at
-revision 39. Not yet checked: the battery indicator, a changed timeout and wake-on-message on the
-physical screen, and the portal's Screen tab in a native browser.
+revision 39.
+
+The owner then confirmed the battery percent shows with a battery fitted, and reported that the
+corner was empty when plugged in with no battery. The plugged-in state must show even then, so
+the bolt was changed to mean "plugged in" (AXP2101 VBUS good, read only) and the no-battery
+state shows the bolt and `USB`. That image, still `tbeam-reaper-mesh-v0.2.0`, was installed
+from clean commit `bafa382` (256,640-byte app, SHA-256
+`1203aeecdac1baa9ebbd836f2469a3f980111f4fa9309653469c4347fa5b2f72`) with ROM-verified hashes
+and NVS preserved. Three USB opens reached ready in 649/648/672 ms at revision 39 with the
+screen settings unchanged. Not yet checked: the plugged-in indicator, a changed timeout and
+wake-on-message on the physical screen, and the portal's Screen tab in a native browser.
 
 `heltec-reaper-mesh-v0.2.0` builds without warnings but is not installed. Host checks: 276
 tests and 75 CTests pass, including record 5, screen-setting, TS-to-native USB, wake and
