@@ -61,13 +61,15 @@ recovery without a board. Full walkthrough: [Getting started](docs/guides/gettin
 ## Repository layout
 
 ```text
-firmware/              Embedded C++ core and board-specific adapters
-agents/web/           Desktop browser application (field portal), USB first
+firmware/              Embedded C++ components and board applications (heltec-v3, tbeam-v12)
+agents/web/            Desktop browser agent (field portal), USB first
 packages/protocol/     Shared schemas, generated bindings, compatibility fixtures
-packages/agent-core/  Transport-independent connection and message state
-tools/                 Build, flash, diagnostics, and release tooling
-tests/simulator/       Deterministic virtual nodes and fault injection
-tests/hardware/        Explicitly invoked physical-device checks
+packages/agent-core/   Transport-independent connection and message state
+packages/simulator/    Simulated devices for tests and the portal's Simulator mode
+examples/              Working examples, organized by the component they target
+                       (for example examples/agents/web/plugins/; see examples/README.md)
+tools/                 Build, flash, release tooling and explicitly invoked hardware checks
+tests/simulator/       Host tests: deterministic virtual nodes, fault injection, C++ and Python
 docs/                  All documentation (see docs/README.md)
 ```
 

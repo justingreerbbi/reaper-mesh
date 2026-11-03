@@ -24,6 +24,10 @@ When work finishes: update Status in place, add a dated Changelog entry with evi
 Decisions entry if scope or architecture changed, and update the affected reference contract.
 Say each fact in one place and link to it elsewhere.
 
+Put examples under `examples/` at the path of the component they target (for example
+`examples/agents/web/plugins/<name>/`), one folder per example with a README. See
+[examples/README.md](examples/README.md).
+
 Write documentation in plain, complete sentences. Do not drop spaces or articles to save tokens
 ("Heltec usb-prototype-8, revision 38", not "Heltec8 revision38").
 
