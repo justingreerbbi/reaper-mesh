@@ -13,7 +13,9 @@ Order of work:
 3. Outdoor range test.
 4. Power-loss, interrupted-flash and soak tests.
 5. **Core v1 protocol review.** Using the test results, define the core to freeze: the application payload type for data the firmware carries without understanding (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
-6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43).
+6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
+
+The core v1 review in step 5 also decides how channels are identified on air (Q11, D45), so it must happen before the radio header freezes.
 
 | Phase | Outcome | Included features | Status |
 | --- | --- | --- | --- |
@@ -21,6 +23,23 @@ Order of work:
 | 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: 2.1 discovery and 2.2a fixed position are verified on two boards; GPS is deferred; the messaging and map portal is the current focus. |
 | 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without keys | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Rotation, interrupted-upload recovery and a security review are pending. See [Channel encryption](../guides/encryption.md). |
 | 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | In progress: step 1 (screen pages, buttons, 30 s timeout) verified on the T-Beam; screen settings and the T-Beam battery indicator built in `v0.2.0`. Optional board-local features; they must not change the radio protocol (D41). |
+
+## Planned after qualification
+
+Owner-reported problems, recorded November 3. Portal feature work stays paused until field qualification passes (D37), so these are queued, not current.
+
+**Channels**
+
+- **Join a channel out of order.** A node cannot join an existing channel unless it uses the same slot number as everyone else, so adding a node later can mean reconfiguring devices. Options and a recommendation are in D45; the on-air part is decided in the core v1 review (step 5).
+- **Remove a channel.** The portal can create and rename channels but cannot remove one. The device already accepts an empty slot, so this is likely portal-only: clear the slot's name, then deal with what depends on it (queued messages fail with `radio-config-changed`, the channel's local keys and encryption policy, and its conversation history).
+
+**Map workspace.** The map tools feel unfinished from end to end and need one coherent pass rather than separate fixes:
+
+- Adding a point starts on any click, and the flow is awkward.
+- The cursor stays the grab hand while placing or drawing; use a crosshair in those modes.
+- Marker icons for devices and map items look improvised and inconsistent; they need a designed set.
+- Drawing a rectangle by clicking and dragging does not work; only typed coordinates do.
+- There is no full-screen mode for working on the map.
 
 ## Phase 2 delivery order
 

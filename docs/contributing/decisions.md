@@ -27,6 +27,7 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 | Q8 | Formal performance targets (range, throughput, battery), set from the [field qualification plan](field-qualification.md) results | After field qualification, before publishing any range, throughput or battery figures |
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
 | Q10 | Signed releases, rollback and stable-release support policy | Before the first public release or public updater |
+| Q11 | How channels are identified on air, so a node can join an existing channel without matching everyone's slot layout or reconfiguring devices (options in D45) | In the core v1 protocol review, together with Q3 and Q5; the radio header must not freeze with slot numbers as channel identity |
 
 Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins).
 
@@ -305,6 +306,32 @@ Rules:
 
 Sharing also changes: the user must pick the channel explicitly, with no preselected channel.
 See the [specification, section 5.4.1](../overview/project-specification.md#541-shared-map-items-and-plugins).
+
+### D45. Channel identity independent of slot numbers
+Nov 3 · **Proposed** (owner-reported problem; decide in the core v1 review, Q11). Today a
+channel is only its slot number (0–7) on air; names are local labels
+([radio configuration](../reference/radio-configuration.md)), and encryption keys are also tied
+to slot numbers ([Channel encryption](../guides/encryption.md)). A node joining later must use
+the same slot as everyone else. If that slot is already in use locally, the only fix is to
+reconfigure devices, and two unrelated groups that both use slot 1 share a channel.
+
+Options:
+
+1. **Channel ID on air (recommended).** Each channel gets a stable ID, for example 32 bits
+   derived from its name and a random value chosen when it is created, carried in the radio
+   header instead of the slot number. Slots become local storage positions, so a joining node
+   can put the channel in any free slot. Unrelated groups with the same name stay separate.
+   Needs a radio header change, which is why it belongs in the core v1 review.
+2. **Channel invite bundle.** The portal exports a channel as one text or QR bundle (name, ID,
+   and for encrypted channels the key and epoch, extending `RMKEY1`), and importing it puts the
+   channel in any free slot. Agent-only work; it relies on option 1 to be independent of slots.
+3. **Explicit slot choice (stopgap).** Without a protocol change, let the user pick the slot
+   number when creating or importing a channel, show slot numbers in the portal and warn on
+   conflicts. It does not fix collisions between groups.
+4. **More slots.** Raise the limit from 8 to 16 or 32. Reduces crowding but not mismatches.
+
+Recommendation: options 1 and 2 together, with option 3 only if a stopgap is needed before
+core v1.
 
 ## Priorities
 
