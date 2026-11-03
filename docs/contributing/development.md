@@ -13,6 +13,17 @@ npm run check
 
 `package-lock.json` pins TypeScript 7.0.2 and Node 24 type definitions 24.19.2, including transitive integrity hashes and platform-specific compiler packages. Install scripts are not required. Vite 8.3.5 is also pinned for the local browser build/dev server (MIT; retained dependency license notices apply). The field portal runtime depends on Leaflet 1.9.4 (BSD-2-Clause); see third-party-notices.md. Development-only tools: TypeScript/compiler packages use Apache-2.0, and Node/Undici type definitions use MIT. These dependency licenses do not select a license for Reaper Mesh, whose licensing decision remains deferred.
 
-`.github/workflows/checks.yml` runs the combined check for pushes and pull requests on Node 24 and 25 on Ubuntu. Checkout/setup actions are pinned to verified commit IDs, with read-only repository permissions and persisted Git credentials disabled. CI uses the lockfile through `npm ci --ignore-scripts`. The repository now tracks origin/main. The workflow is configured, but remote CI results have not been verified in this session.
+`.github/workflows/checks.yml` runs on pull requests, pushes to `main` and manual dispatch, with these jobs:
+
+| Job | What it checks |
+| --- | --- |
+| Host checks (Node 24, 25) | `npm ci --ignore-scripts` then `npm run check`: strict TypeScript, generated schema and vendor checks, compiler-backed host tests with sanitizers, Python updater tests and the web build |
+| Firmware unit tests | Standalone CMake build of the portable firmware components with `-Werror`, the CTest suite and `codec_bridge selftest` |
+| Firmware build (heltec-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
+| Shell script lint | `shellcheck --severity=warning tools/*.sh` |
+
+Actions and the container image are pinned to verified digests. Permissions are read-only, persisted Git credentials are disabled, and superseded pull-request runs are cancelled. When ESP-IDF is upgraded, update `firmware/esp-idf.lock.json`, `tools/bootstrap-esp-idf.sh` and the container tag and digest together. Firmware builds in CI do not flash anything or qualify hardware behavior.
+
+`tools/build-firmware.sh` uses the bootstrapped ESP-IDF under `.tools/` by default. Set `REAPER_IDF_FROM_ENV=1` to use a preinstalled ESP-IDF at `IDF_PATH` instead, as CI does.
 
 Passing host checks does not establish browser permission behavior, native serial-driver cleanup, firmware flash durability, or RF delivery. See `../reference/serial-adapter.md` and `../guides/hardware.md` for those boundaries.

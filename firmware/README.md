@@ -21,7 +21,7 @@ ctest --test-dir build/host-protocol --output-on-failure
 build/host-protocol/codec_bridge selftest
 ```
 
-The CLI bridge allocates host input/output storage; it is excluded from codec allocation claims and is not intended for untrusted hardware input. The CMake project only builds the host library/bridge. CI runs compiler-backed tests through `npm run check`; the host suite requires no firmware SDK.
+The CLI bridge allocates host input/output storage; it is excluded from codec allocation claims and is not intended for untrusted hardware input. The CMake project only builds the host library/bridge. CI runs compiler-backed tests through `npm run check`, this CTest suite separately, and both ESP-IDF target builds; the host suite requires no firmware SDK.
 
 ## Contracts and limits
 

@@ -53,8 +53,9 @@ than assuming these. The next firmware change renames images to
 
 `npm run check` passes all 262 tests on macOS as of November 3 (strict TypeScript,
 generated-schema and vendor checks, compiler-backed host tests and the web build). The
-standalone firmware CTest suite last recorded 67 passing tests. CI runs the host checks only; it
-does not build either firmware target.
+standalone firmware CTest suite last recorded 67 passing tests. CI runs the host checks, the CTest
+suite, both firmware target builds and shell script lint; see
+[Development and CI](../contributing/development.md).
 
 ## Not started or deferred
 

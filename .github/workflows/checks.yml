@@ -1,11 +1,19 @@
 name: Checks
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   host:
+    # Strict TypeScript, generated TS/C++ schema and vendor checks, compiler-backed host tests
+    # (UBSan/ASan), Python updater tests and the production web build.
+    name: Host checks (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -22,3 +30,67 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run check
+
+  firmware-unit:
+    # Standalone CMake/CTest suite for the portable firmware components, built with -Werror.
+    name: Firmware unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: cmake -S firmware -B build/host-protocol -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake --build build/host-protocol --parallel
+      - run: ctest --test-dir build/host-protocol --output-on-failure
+      - run: build/host-protocol/codec_bridge selftest
+
+  firmware-build:
+    # Builds each board image with the ESP-IDF pinned in firmware/esp-idf.lock.json and checks
+    # the generated manifest. Nothing is flashed; this does not qualify hardware behavior.
+    name: Firmware build (${{ matrix.board }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: espressif/idf:v5.5.4@sha256:b9f2d6ea1c19e0c9f7959bdb74a9e3c775642f9d0f3b841937c5fa3363db892b
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [heltec-v3, tbeam-v12]
+    env:
+      BOARD: ${{ matrix.board }}
+      REAPER_IDF_FROM_ENV: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Trust the checkout
+        # The container runs as root while the workspace belongs to the runner user.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build
+        shell: bash
+        run: bash tools/build-firmware.sh "$BOARD"
+      - name: Check manifest
+        shell: bash
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          board = os.environ["BOARD"]
+          manifest = json.load(open(f"build/{board}/reaper-manifest.json"))
+          assert not manifest["source_dirty"], "build modified or created tracked files"
+          rows = "\n".join(f"| `{a['file']}` | {a['offset']} | {a['size']:,} | `{a['sha256'][:16]}…` |" for a in manifest["artifacts"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"### {manifest['board']}: `{manifest['firmware']}`\n\n"
+                            f"ESP-IDF {manifest['sdk']['tag']}, target {manifest['target']}\n\n"
+                            f"| File | Offset | Bytes | SHA-256 |\n| --- | --- | --- | --- |\n{rows}\n\n")
+          EOF
+
+  scripts:
+    name: Shell script lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: shellcheck --severity=warning tools/*.sh
