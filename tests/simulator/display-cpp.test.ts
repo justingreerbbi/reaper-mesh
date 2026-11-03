@@ -26,7 +26,7 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_device/include',
     '-Ifirmware/tests/display_stubs',
-    '-Ifirmware/heltec-v3/main',
+    '-Ifirmware/app',
     'firmware/heltec-v3/main/status_display.cpp',
     'firmware/tests/display_test.cpp',
     '-o',
