@@ -10,14 +10,15 @@ Order of work:
 2. Three-node relay test.
 3. Outdoor range test.
 4. Power-loss, interrupted-flash and soak tests.
-5. Review the results for radio protocol changes, then resume Phase 2.3 portal work.
+5. **Core v1 protocol review.** Using the test results, define the core to freeze: the application payload type for data the firmware carries without understanding (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
+6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1.
 
 | Phase | Outcome | Included features | Status |
 | --- | --- | --- | --- |
 | 1 — Working communications | Two supported devices communicate reliably through the independent Reaper protocol | Heltec V3 and T-Beam V1.2 firmware; USB console; persistent configuration; public/named channels; 1024-byte messages; fragmentation; bounded mesh/relay core; destination ACKs; RACE recovery; validated firmware installation | Complete: actual bidirectional direct RF/ACK/inbox checks pass. Three-node relay, power-cut and field qualification remain release gates. |
 | 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: 2.1 discovery and 2.2a fixed position are verified on two boards; GPS is deferred; the messaging and map portal is the current focus. |
 | 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without keys | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Rotation, interrupted-upload recovery and a security review are pending. See [Channel encryption](../guides/encryption.md). |
-| 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | Planned |
+| 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | Planned. Optional board-local features; they must not change the radio protocol (D41). |
 
 ## Phase 2 delivery order
 
@@ -41,6 +42,8 @@ Messaging is the primary view: a searchable conversation list (channels and dire
 Show node name plus stable ID, last-heard age, reported location source and age, and honest queued/transmitted/destination-ACK/failed/unknown outcomes. Keep disconnected, stale, unsupported and empty states useful. A missing response is not proof that a node is offline. Map tiles may fail to load; node and message functions must keep working. Do not upload local mesh history to any service.
 
 ## Phase boundaries
+
+All phases follow the stable-core principle (D41): the firmware and protocol core stays small, and new features are built in agents and plugins wherever possible. Before core v1, breaking changes are allowed with owner approval (D42).
 
 Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry, cloud accounts, MQTT, remote administration or device-screen features. Discovery/location is plaintext and unauthenticated until the relevant protection is implemented; the portal must display that plainly. Phase 3 must define whether/how discovery metadata is protected, rather than implying channel encryption automatically hides beacons.
 

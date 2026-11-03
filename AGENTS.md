@@ -4,4 +4,6 @@ Read `AI.md`, `docs/overview/status.md` and `docs/overview/roadmap.md` before ch
 
 Install pinned dev tools with `npm ci --ignore-scripts`, then run `npm run check` for changes. This includes strict TypeScript checking, generated TS/C++ schema verification, compiler-backed host tests, and the web build. A C++17 compiler is required; see firmware/README.md for sanitizer/toolchain limits. Never hand-edit generated descriptors or silently refresh frozen compatibility fixtures. Update relevant protocol documentation and add behavioral recovery tests when changing the synchronization contract. Keep hardware limitations explicit; host tests do not qualify radio or firmware behavior.
 
+Project principles (details in `AI.md` and decisions D41/D42): keep the firmware and protocol core small and stable, and build new features in agents or plugins rather than firmware. The project is pre-release and used only by its maintainer, so before core v1 breaking protocol or storage changes are allowed with owner approval; propose them instead of adding compatibility layers for prototype builds, and never change fixtures silently.
+
 Format commits, branch names and pull request titles as described in `docs/contributing/commits-and-prs.md` (`type(scope): summary`, Conventional Commits).

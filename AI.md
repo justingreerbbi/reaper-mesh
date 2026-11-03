@@ -1,9 +1,24 @@
 # Reaper Mesh: contributor handoff
 
 Reaper Mesh is custom LoRa firmware for the Heltec WiFi LoRa 32 V3 and LILYGO T-Beam V1.2, plus
-a browser agent that talks to a node over USB. The goal is small, dependable messaging between a
-few nodes, with careful compatibility between releases. It uses its own documented protocol;
-Meshtastic is a functional reference only.
+a browser agent that talks to a node over USB. It uses its own documented protocol; Meshtastic is
+a functional reference only.
+
+## Project principles
+
+- **Stable core, extensible edges (D41).** Reaper Mesh is for organizations that need stability.
+  The core (firmware and the radio and USB protocols) stays small: messaging with ACKs, relay,
+  discovery, positions, channels and a way to carry application data it does not understand.
+  New features go in agents and plugins so boards rarely need firmware updates. Do not add
+  features to firmware just because they are requested; a firmware or protocol change needs a
+  stated reason why an agent or plugin cannot do it.
+- **Not stable yet (D42).** The project is in active development, used only by its maintainer
+  and not deployed. Until core v1, breaking protocol or storage changes are allowed with owner
+  approval when they simplify the core; propose one instead of adding another compatibility
+  layer for an earlier prototype build. Fixtures are still changed only deliberately, never
+  silently. Full compatibility rules start at core v1.
+
+See [project specification](docs/overview/project-specification.md) sections 1.3 and 1.4.
 
 This file holds current direction and working rules. It is not a log. Do not append test
 evidence or history here.
@@ -69,6 +84,8 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
   never authorizes broadcasting a position.
 - Do not add GPS, MQTT, telemetry, Wi-Fi networking, cloud accounts, voice or arbitrary modules
   without a scope decision.
+- Prefer agent-side or plugin implementations over firmware changes (D41). Board-local features
+  such as screen layout or battery display must not change the radio protocol.
 - Check dependency licenses before reuse. Do not copy Meshtastic code.
 
 ## Hardware and owner authorizations

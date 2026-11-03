@@ -8,7 +8,9 @@ for dated evidence.
 ## Product boundary
 
 Reliable text messaging and device configuration through a small USB web agent, backed by custom
-firmware on supported LoRa boards. No cloud service is required. BLE, mobile and native agents,
+firmware on supported LoRa boards. The firmware and protocol core stays small and stable, and new
+features are built in agents and plugins (D41); before core v1, breaking changes are allowed with
+owner approval (D42). No cloud service is required. BLE, mobile and native agents,
 additional boards and EU operation are later, separately scoped work.
 
 Longer messages consume more airtime and may reduce reliability, so message size, fragment count
