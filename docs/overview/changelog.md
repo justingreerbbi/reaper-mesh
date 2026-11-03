@@ -10,6 +10,29 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 3: chat layout
+
+At the owner's request, the conversation view is more compact:
+
+- Messages are chat bubbles (received left, sent right in the accent color) instead of cards.
+- Each message shows the time this browser first saw it, or when it was sent. The device
+  has no clock, so inbox messages downloaded later show when they reached the browser.
+  Messages saved before this change show no time. Times are stored with the existing
+  message-UI records, which still read the earlier three-field rows.
+- Sent messages show delivery as circles: empty while sending, one checked circle when
+  transmitted, two when delivered, red ! when failed and ? when unknown. The full status is
+  in the icon's tooltip. "Received on this channel" and other routine status text are gone.
+- A lock marks channels that require encryption, in the list and the header.
+- Removed: single-message delete, mark all read, and the message-privacy banner. The header,
+  thread padding and composer are smaller, so the thread gets more of a laptop screen.
+
+Verification: `npm run check` and `npm run format:check` passed, including a new message-time
+test. Browser QA used synthetic messages on a separate, empty origin (`localhost`, cleared
+afterwards): bubbles, sender names, times, all five delivery icons, the lock in the list and
+header with Public set to require encryption, and the phone layout with no horizontal scroll.
+At 800 × 600 the thread is 452 px tall and the composer 104 px. Real radio traffic was not
+used.
+
 ## November 3: portal cleanup
 
 At the owner's request:

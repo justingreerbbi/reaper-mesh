@@ -38,7 +38,12 @@ test('baseline history is read, unique new messages are unread once, and reload 
   const restored = new MessageState(memory);
   restored.observe([{ source: 'usb', messages: [first, second] }]);
   assert.equal(restored.unread('usb', [first, second]).length, 1);
-  restored.markRead('usb', [second]);
+  restored.observe([{ source: 'usb', messages: [second] }], {
+    source: 'usb',
+    device: first.device,
+    destination: first.origin,
+    channel: 0,
+  });
   assert.equal(new MessageState(memory).unread('usb', [second]).length, 0);
 });
 test('only attended matching device/source/channel conversations mark arrivals read', () => {
@@ -126,4 +131,51 @@ test('bounded tombstones fail closed instead of evicting old deletions and resur
   assert.throws(() => state.remove(['new-key']), /full/);
   assert.equal(state.deleted('key0'), true);
   assert.equal(state.deleted('new-key'), false);
+});
+test('message times record first sight, survive reload, and are never invented', () => {
+  const memory = store();
+  let now = 1000;
+  const clock = () => now;
+  const state = new MessageState(memory, () => true, clock);
+  state.observe([{ source: 'usb', messages: [first] }]); // first install: baseline, no time
+  now = 2000;
+  state.observe([{ source: 'usb', messages: [first, second] }]);
+  assert.equal(state.time(receivedKey('usb', first)), undefined);
+  assert.equal(state.time(receivedKey('usb', second)), 2000);
+  const outgoing = {
+    id: 'agent:1',
+    device: first.device,
+    destination: 'broadcast',
+    channel: 0,
+    text: 'out',
+    state: 'receiving',
+  };
+  now = 3000;
+  state.observeSent('usb', first.device, [
+    outgoing,
+    { ...outgoing, id: 'agent:2', state: 'acknowledged' },
+  ]);
+  now = 4000;
+  state.observeSent('usb', first.device, [{ ...outgoing, state: 'acknowledged' }]);
+  assert.equal(state.time(sentKey('usb', first.device, 'agent:1')), 3000);
+  assert.equal(state.time(sentKey('usb', first.device, 'agent:2')), undefined);
+  const restored = new MessageState(memory);
+  assert.equal(restored.time(receivedKey('usb', second)), 2000);
+  assert.equal(restored.time(sentKey('usb', first.device, 'agent:1')), 3000);
+  // Records saved before times existed still load.
+  const legacy = store();
+  legacy.setItem(
+    MESSAGE_UI_KEY,
+    JSON.stringify({ version: 1, records: [[receivedKey('usb', first), true, false]], hidden: [] }),
+  );
+  assert.equal(new MessageState(legacy).time(receivedKey('usb', first)), undefined);
+  legacy.setItem(
+    MESSAGE_UI_KEY,
+    JSON.stringify({
+      version: 1,
+      records: [[receivedKey('usb', first), true, false, -1]],
+      hidden: [],
+    }),
+  );
+  assert.throws(() => new MessageState(legacy), /Invalid message UI entry/);
 });

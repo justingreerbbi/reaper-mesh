@@ -1,7 +1,8 @@
-import { canonicalNode, conversationKey, type Incoming } from './conversations.ts';
+import { canonicalNode, conversationKey, type Incoming, type Outgoing } from './conversations.ts';
 export const MESSAGE_UI_KEY = 'reaper-mesh.message-ui.v1';
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
-type Flags = { read: boolean; deleted: boolean };
+/** `at` is when this browser first saw the message (ms since epoch); older records have none. */
+type Flags = { read: boolean; deleted: boolean; at?: number };
 export function receivedKey(source: string, message: Incoming) {
   return JSON.stringify([
     source,
@@ -43,9 +44,11 @@ export class MessageState {
   #store: Store;
   #writable: () => boolean;
   #initial = true;
-  constructor(store: Store, writable: () => boolean = () => true) {
+  #now: () => number;
+  constructor(store: Store, writable: () => boolean = () => true, now = Date.now) {
     this.#store = store;
     this.#writable = writable;
+    this.#now = now;
     const raw = store.getItem(MESSAGE_UI_KEY);
     if (!raw) return;
     if (raw.length > 2097152) throw Error('Message UI history exceeds its limit.');
@@ -61,15 +64,20 @@ export class MessageState {
     for (const row of value.records) {
       if (
         !Array.isArray(row) ||
-        row.length !== 3 ||
+        (row.length !== 3 && row.length !== 4) ||
         typeof row[0] !== 'string' ||
         row[0].length > 512 ||
         typeof row[1] !== 'boolean' ||
         typeof row[2] !== 'boolean' ||
+        (row.length === 4 && (!Number.isSafeInteger(row[3]) || row[3] < 0)) ||
         this.#records.has(row[0])
       )
         throw Error('Invalid message UI entry.');
-      this.#records.set(row[0], { read: row[1], deleted: row[2] });
+      this.#records.set(row[0], {
+        read: row[1],
+        deleted: row[2],
+        ...(row.length === 4 ? { at: row[3] } : {}),
+      });
     }
     for (const key of value.hidden) {
       if (typeof key !== 'string' || key.length > 512 || this.#hidden.has(key))
@@ -87,7 +95,11 @@ export class MessageState {
       );
     const raw = JSON.stringify({
       version: 1,
-      records: [...records].map(([key, flags]) => [key, flags.read, flags.deleted]),
+      records: [...records].map(([key, flags]) =>
+        flags.at === undefined
+          ? [key, flags.read, flags.deleted]
+          : [key, flags.read, flags.deleted, flags.at],
+      ),
       hidden: [...hidden],
     });
     if (raw.length > 2097152) throw Error('Message UI history exceeds its limit.');
@@ -100,7 +112,8 @@ export class MessageState {
     sources: readonly { source: string; messages: readonly Incoming[] }[],
     active?: { source: string; device: string; destination: string; channel: number },
   ) {
-    const next = new Map(this.#records);
+    const next = new Map(this.#records),
+      now = this.#now();
     let changed = false;
     for (const { source, messages } of sources)
       for (const message of messages) {
@@ -114,7 +127,11 @@ export class MessageState {
             inConversation(message, active.device, active.destination, active.channel)
           );
         if (!prior) {
-          next.set(key, { read, deleted: false });
+          // The first install's baseline has no known arrival time; never invent one.
+          next.set(
+            key,
+            this.#initial ? { read, deleted: false } : { read, deleted: false, at: now },
+          );
           changed = true;
         } else if (read && !prior.read && !prior.deleted) {
           next.set(key, { ...prior, read: true });
@@ -154,17 +171,23 @@ export class MessageState {
     hidden.delete(id);
     this.#commit(new Map(this.#records), hidden);
   }
-  markRead(source: string, messages: readonly Incoming[]) {
-    const next = new Map(this.#records);
+  /**
+   * Stamps sent messages first seen while still uploading, which is when they were sent.
+   * Sent history restored after the upload finished has no known time and stays unstamped.
+   */
+  observeSent(source: string, device: string, messages: readonly Outgoing[]) {
+    const next = new Map(this.#records),
+      now = this.#now();
     let changed = false;
     for (const m of messages) {
-      const key = receivedKey(source, m),
-        prior = next.get(key);
-      if (!prior?.read) {
-        next.set(key, { read: true, deleted: prior?.deleted ?? false });
-        changed = true;
-      }
+      const key = sentKey(source, device, m.id);
+      if (m.device !== device || m.state !== 'receiving' || next.has(key)) continue;
+      next.set(key, { read: true, deleted: false, at: now });
+      changed = true;
     }
     if (changed) this.#commit(next);
+  }
+  time(key: string) {
+    return this.#records.get(key)?.at;
   }
 }

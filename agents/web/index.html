@@ -184,16 +184,6 @@
         <aside class="inbox-pane" aria-label="Conversations">
           <div class="pane-heading">
             <h1>Messages</h1>
-            <button
-              id="mark-all-read"
-              class="icon-button"
-              aria-label="Mark all messages read"
-              title="Mark all messages read"
-            >
-              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m4 12 5 5L20 6" />
-              </svg>
-            </button>
           </div>
           <label class="sr-only" for="conversation-search">Search conversations</label>
           <input
@@ -256,7 +246,21 @@
             </button>
             <span id="conversation-avatar" class="avatar">#</span>
             <div class="conversation-title">
-              <h2 id="conversation-title">Public</h2>
+              <h2>
+                <span id="conversation-title">Public</span
+                ><svg
+                  id="conversation-lock"
+                  class="ui-icon lock-icon"
+                  viewBox="0 0 24 24"
+                  role="img"
+                  aria-label="Encrypted channel"
+                  hidden
+                >
+                  <title>Encrypted channel</title>
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+              </h2>
               <span id="conversation-subtitle" class="muted small"
                 >Channel · messages received by this device</span
               >
@@ -289,12 +293,6 @@
           <select id="message-channel" hidden aria-hidden="true" tabindex="-1">
             <option value="0">Public</option>
           </select>
-          <div id="message-security-notice" class="conversation-notice">
-            <span class="notice-dot"> </span>MESSAGE PRIVACY<span
-              >Message encryption is set per channel. Device IDs and routing information remain
-              visible.</span
-            >
-          </div>
           <div id="thread-scroll" class="thread-scroll">
             <div id="conversation-empty" class="thread-empty">
               <span class="empty-symbol" aria-hidden="true"
@@ -327,7 +325,7 @@
             <label class="sr-only" for="message-body">Message</label>
             <textarea
               id="message-body"
-              rows="2"
+              rows="1"
               placeholder="Write a message… Shift + Enter for a new line"
               maxlength="2048"
             ></textarea>

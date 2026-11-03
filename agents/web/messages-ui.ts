@@ -13,6 +13,8 @@ import {
   conversationKey,
   canonicalNode,
   ConversationDrafts,
+  deliveryLabel,
+  type Outgoing,
 } from './conversations.ts';
 import {
   app,
@@ -98,6 +100,84 @@ function requestDelete(
   };
   text('delete-description', description);
   deleteDialog.showModal();
+}
+
+const svgNs = 'http://www.w3.org/2000/svg';
+function icon(className: string, label: string, paths: string[], circles: number[][] = []) {
+  const svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('class', `ui-icon ${className}`);
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', label);
+  const title = document.createElementNS(svgNs, 'title');
+  title.textContent = label;
+  svg.append(title);
+  for (const [cx, cy, r] of circles) {
+    const circle = document.createElementNS(svgNs, 'circle');
+    circle.setAttribute('cx', String(cx));
+    circle.setAttribute('cy', String(cy));
+    circle.setAttribute('r', String(r));
+    svg.append(circle);
+  }
+  for (const d of paths) {
+    const path = document.createElementNS(svgNs, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
+function lockIcon() {
+  return icon('lock-icon', 'Encrypted', ['M8 11V7a4 4 0 0 1 8 0v4', 'M5 11h14v10H5z']);
+}
+/**
+ * Delivery as circles, like common messengers: an empty circle while sending, one checked
+ * circle once transmitted, two once delivered. The full status stays in the label.
+ */
+function deliveryIcon(m: Outgoing) {
+  const label = deliveryLabel(m);
+  const delivered = m.state === 'acknowledged' || m.reason === 'local-delivery';
+  const state =
+    m.state === 'failed' || m.state === 'rejected'
+      ? 'failed'
+      : m.state === 'unknown'
+        ? 'unknown'
+        : delivered
+          ? 'delivered'
+          : m.state === 'transmitted'
+            ? 'sent'
+            : 'sending';
+  const svg =
+    state === 'failed'
+      ? icon('delivery-icon', label, ['M12 7.5v5', 'M12 16v.5'], [[12, 12, 8]])
+      : state === 'unknown'
+        ? icon(
+            'delivery-icon',
+            label,
+            ['M10 9.5a2 2 0 1 1 2.5 2c-.4.2-.5.5-.5 1v.5', 'M12 16v.5'],
+            [[12, 12, 8]],
+          )
+        : state === 'delivered'
+          ? icon(
+              'delivery-icon',
+              label,
+              ['m5 12 2 2 3.5-3.5', 'm13.5 12 2 2 3.5-3.5'],
+              [
+                [8, 12, 6],
+                [16.5, 12, 6],
+              ],
+            )
+          : state === 'sent'
+            ? icon('delivery-icon', label, ['m9.5 12 2 2 3.5-3.5'], [[12, 12, 6.5]])
+            : icon('delivery-icon', label, [], [[12, 12, 6.5]]);
+  svg.dataset.state = state;
+  return svg;
+}
+function messageTime(at: number) {
+  const date = new Date(at);
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return date.toDateString() === new Date().toDateString()
+    ? time
+    : `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
 }
 
 export function hexBytes(value: string) {
@@ -205,6 +285,7 @@ export function renderMessages() {
           }
         : undefined,
     );
+    if (lastDevice) messageState?.observeSent(mode.value, lastDevice, connection.messaging.history);
     if (messageState) setMessageStateError('');
   } catch (e) {
     setMessageStateError(`Message history: ${String(e)}`);
@@ -280,8 +361,6 @@ export function renderMessages() {
   document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh`;
   text('nav-unread', totalUnread);
   element('nav-unread').hidden = totalUnread === 0;
-  element<HTMLButtonElement>('mark-all-read').disabled =
-    !unread.length || !recovery.writable || !messageState;
   const threadUnread = lastDevice
     ? unread.filter(m => inConversation(m, lastDevice!, destination.value, Number(channel.value)))
         .length
@@ -392,6 +471,8 @@ export function renderMessages() {
   }
   const currentRow = rows.find(row => row.key === key);
   text('conversation-title', currentRow?.name ?? (destination.value || 'New conversation'));
+  // An SVG element has no `hidden` property, so toggle the attribute.
+  element('conversation-lock').toggleAttribute('hidden', !encryptedRequired);
   text(
     'conversation-avatar',
     destination.value === 'broadcast'
@@ -427,8 +508,14 @@ export function renderMessages() {
     badge.hidden = !count;
     badge.setAttribute('aria-label', `${count} unread messages`);
   }
+  const locked = rows.map(row => !!encryption?.isRequired(row.channel));
   const listSignature =
-    JSON.stringify(rows) + key + filter + conversationFilter + JSON.stringify(unread);
+    JSON.stringify(rows) +
+    key +
+    filter +
+    conversationFilter +
+    JSON.stringify(unread) +
+    JSON.stringify(locked);
   const channelList = element('channel-list'),
     directList = element('direct-list');
   if (channelList.dataset.signature !== listSignature) {
@@ -449,7 +536,7 @@ export function renderMessages() {
       filter
         ? 'No matching conversations. Try another name, channel or node ID.'
         : conversationFilter === 'direct'
-          ? 'No direct conversations yet. Find a device in Map or use + to start one.'
+          ? 'No direct conversations yet. Find a device in Map to start one.'
           : 'No conversations to show.',
     );
     element('conversation-search-empty').hidden = visible.length !== 0;
@@ -466,6 +553,7 @@ export function renderMessages() {
       const name = document.createElement('strong');
       name.textContent = row.name;
       name.title = row.name;
+      if (encryption?.isRequired(row.channel)) name.append(lockIcon());
       const preview = document.createElement('span');
       preview.textContent =
         row.kind === 'direct'
@@ -518,23 +606,19 @@ export function renderMessages() {
   for (const m of messages) {
     const row = document.createElement('li');
     row.className = `message-row ${m.direction}`;
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble';
-    if (m.direction === 'incoming') {
+    if (m.direction === 'incoming' && destination.value === 'broadcast') {
       const sender = document.createElement('span');
       sender.className = 'message-sender';
       sender.textContent =
         connection.discovery.nodes.find(n => canonicalNode(n.node) === canonicalNode(m.origin))
           ?.name || m.origin;
-      bubble.append(sender);
+      row.append(sender);
     }
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
     const content = document.createElement('p');
     content.className = 'message-text';
     content.textContent = m.text;
-    const status = document.createElement('span');
-    status.className = 'message-state';
-    status.textContent = m.status;
-    status.dataset.state = m.entry?.state ?? 'received';
     const mapCard = m.mapWire
       ? mapWorkspace.messageCard(
           m.mapWire,
@@ -550,28 +634,32 @@ export function renderMessages() {
             : undefined,
         )
       : undefined;
-    bubble.append(mapCard ?? content, status);
-    const remove = document.createElement('button');
-    remove.className = 'message-delete';
-    remove.textContent = 'Delete';
-    remove.setAttribute(
-      'aria-label',
-      `Delete ${m.direction === 'incoming' ? 'received' : 'sent'} message`,
+    bubble.append(mapCard ?? content);
+    const meta = document.createElement('div');
+    meta.className = 'message-meta';
+    const encryptionState = (m.received ?? m.entry)?.encryptionState;
+    if (encryptionState === 'Encrypted') meta.append(lockIcon());
+    else if (encryptionState && !m.text.includes(encryptionState)) {
+      // A message that could not be read says why; normal states are icons only.
+      const problem = document.createElement('span');
+      problem.className = 'message-problem';
+      problem.textContent = encryptionState;
+      meta.append(problem);
+    }
+    const at = messageState?.time(
+      m.received
+        ? receivedKey(mode.value, m.received)
+        : sentKey(mode.value, lastDevice!, m.entry!.id),
     );
-    remove.disabled = !messageState || !recovery.writable || m.entry?.state === 'receiving';
-    remove.addEventListener('click', () =>
-      requestDelete(
-        [
-          m.received
-            ? receivedKey(mode.value, m.received)
-            : sentKey(mode.value, lastDevice!, m.entry!.id),
-        ],
-        m.entry ? [m.entry.id] : [],
-        'Delete this message from local history? It will also disappear from other local views of the same message.',
-      ),
-    );
-    bubble.append(remove);
-    row.append(bubble);
+    if (at !== undefined) {
+      const time = document.createElement('time');
+      time.dateTime = new Date(at).toISOString();
+      time.textContent = messageTime(at);
+      time.title = new Date(at).toLocaleString();
+      meta.append(time);
+    }
+    if (m.entry) meta.append(deliveryIcon(m.entry));
+    row.append(bubble, meta);
     thread.append(row);
   }
   if (stick)
@@ -693,14 +781,6 @@ export function initMessages() {
       messages.flatMap(m => (m.entry ? [m.entry.id] : [])),
       `Clear the ${messages.length} messages in this chat from this browser? The chat stays in your list.`,
     );
-  });
-  element('mark-all-read').addEventListener('click', () => {
-    try {
-      messageState?.markRead(mode.value, current().adapter.connection.inbox.history);
-      render();
-    } catch (e) {
-      showError(e);
-    }
   });
   element('jump-new-messages').addEventListener('click', () => {
     const node = element('thread-scroll');
