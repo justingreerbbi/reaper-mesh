@@ -13,7 +13,7 @@ Questions that need a decision now:
 
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
-| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Review pass done November 3; awaiting owner approval |
+| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.2 reviewed against current docs and code on November 3; awaiting owner approval |
 
 ## Parked questions
 

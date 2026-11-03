@@ -2,9 +2,9 @@
 
 | Document control | Value |
 | --- | --- |
-| Status | Draft for owner review; not an approved release standard |
-| Version | 0.1 |
-| Date | November 2, 2026 |
+| Status | Draft for owner approval; not an approved release standard |
+| Version | 0.2 (consistency review against current docs and code, November 3) |
+| Date | November 3, 2026 |
 | Scope | Project vision, product phases, system requirements and implementation direction |
 | Authority | Proposed project baseline; existing approved protocol contracts remain authoritative until explicitly revised |
 
@@ -20,7 +20,7 @@ This specification consolidates the intended product standard. It is not a claim
 
 - Reliable local and direct radio messaging with explicit delivery outcomes.
 - Simple channel creation and management, with optional agent-side message encryption.
-- Discovery and asset views based on observed information rather than assumed connectivity.
+- Discovery and map views based on observed information rather than assumed connectivity.
 - Local ownership of configuration, channel keys and agent history.
 - Predictable operation during disconnection, reboot, packet loss and partial failure.
 - A polished web interface that presents everyday actions directly and keeps technical diagnostics secondary.
@@ -36,7 +36,7 @@ The project uses an independent Reaper Mesh protocol. Interoperability with Mesh
 | User or setting                              | Intended workflow                                           | Required system behavior                                                                    |
 | -------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Individual operator                          | Connect a node, inspect its state and exchange messages     | Clear connection state, retained drafts and truthful delivery outcomes                      |
-| Small field teamSearch & RescueOverlanders | Use a common channel to coordinate activity                 | Matching channel numbers, explicit encryption policy and deliberate shared-key distribution |
+| Small field team, search and rescue, overlanders | Use a common channel to coordinate activity                 | Matching channel numbers, explicit encryption policy and deliberate shared-key distribution |
 | Camp, event or temporary work area           | Discover participating nodes and send channel broadcasts    | Bounded discovery traffic; no assumption that a missing reply means offline                 |
 | Asset or position observer                   | Inspect the last reported location of a node and contact it | Consistent map/list selection, location source and age, usable unlocated nodes              |
 | Privacy-conscious operator                   | Protect locally saved keys or remove local app data         | Optional app PIN, understandable protection state and confirmed local wipe                  |
@@ -48,11 +48,11 @@ These are intended applications and evaluation scenarios, not performance or dep
 
 | Layer | Responsibility | Boundary |
 | --- | --- | --- |
-| Web portal | Messaging, assets, channel management, key provisioning and local privacy controls | Must not imply browser preferences are device-wide policy |
+| Web portal | Messaging, the map (nodes, positions and shared map items), channel management, key provisioning, plugins and local privacy controls | Must not imply browser preferences are device-wide policy |
 | Shared agent core | Negotiation, state synchronization, command lifecycle, messaging and recovery | Transport-independent behavior with explicit connection/session context |
 | Device firmware | Authoritative persisted device settings, bounded queues, radio operation and inbox retention | Does not receive channel encryption keys or the app PIN |
 | Radio network | Carry bounded message fragments, acknowledgments and discovery reports | Delivery and observations are constrained by airtime, loss and topology |
-| Local browser storage | Agent journals, message metadata, encryption policies and key records | Scoped to browser origin/profile; separate from device storage |
+| Local browser storage | Agent journals, message metadata, encryption policies, key records, map items and installed plugins | Scoped to browser origin/profile; separate from device storage |
 | Build and update tooling | Validate target, schema, provenance, images and installation outcomes | Hardware qualification cannot be inferred from host tests |
 
 The initial agent supports one connected USB node at a time. Simultaneous multi-device browser operation requires separately designed device-scoped journals, ownership and selection behavior.
@@ -73,7 +73,7 @@ Phase completion records product milestones. It does not waive outstanding secur
 | Phase | Intended outcome | Current baseline | Acceptance direction |
 | --- | --- | --- | --- |
 | 1 — Working communications | Supported nodes exchange messages through the independent protocol | Owner marks complete; two-board direct RF, destination ACK and inbox behavior have recorded evidence | Preserve configuration authority, compatibility, bounded transport and recovery; qualify three-node relay separately |
-| 2 — Discovery and field portal | Operators discover nodes, inspect shared positions and communicate through a usable portal | Active; discovery and fixed-position slices have hardware evidence; messaging/asset portal is implemented and being refined | Complete end-to-end portal workflows, privacy controls, reconnect behavior and hardware/browser checks; GPS is explicitly deferred |
+| 2 — Discovery and field portal | Operators discover nodes, inspect shared positions and communicate through a usable portal | Active; discovery and fixed-position slices have hardware evidence; the messaging and map portal is implemented, with new features paused for field qualification | Complete end-to-end portal workflows, privacy controls, reconnect behavior and hardware/browser checks; GPS is explicitly deferred |
 | 3 — Encrypted channels | Agents encrypt message bodies while devices route ciphertext | Initial group-key implementation exists; direct encrypted exchanges on Heltec/T-Beam have recorded evidence | Validate key transfer/rotation, tamper/replay handling, no plaintext downgrade and interrupted encrypted upload recovery; independent security review remains outstanding |
 | 4 — Device presentation and power visibility | Clear on-device status and supported power information | Planned; existing OLED support is not completion of this phase | Define screen management, sleep/wake, RX/TX indication and measured battery reporting with unknown/unsupported states |
 
@@ -120,6 +120,14 @@ In this draft, **MUST** defines a proposed mandatory requirement, **SHOULD** def
 - Map markers and node-list selection MUST agree. Nodes without locations MUST remain usable for supported messaging workflows.
 - Tile/network failure MUST NOT disable messaging or fabricate node positions. Last-known data MUST remain distinguishable from current observations.
 
+### 5.4.1 Shared map items and plugins
+
+- Local map items MUST be saved without sending anything; sharing MUST be an explicit action per item.
+- Received map items MUST NOT be placed on the map until the user accepts them. Updates and removals MUST also require explicit acceptance and MUST respect per-item revision barriers.
+- Deleting messages MUST NOT remove accepted map items. Local items are plaintext browser data, and the UI MUST say so; encrypted shared items MUST stay ciphertext at rest.
+- Plugin manifest v1 is declarative JSON: it MAY add map item types, fields and settings, and MUST NOT execute code, load remote content or send messages. Only fields marked `shared` MAY be sent.
+- Plugins that run code MUST run isolated in a sandboxed iframe on a separate origin, with permissions declared in the manifest and approved by the user. They MUST NOT receive channel keys, and receive decrypted content only through an explicit, separately approved permission (decision D40). An approved design document precedes any implementation.
+
 ### 5.5 Optional local PIN
 
 - PIN protection MUST be optional and off by default for a new agent profile.
@@ -156,7 +164,7 @@ No cloud account is required for core operation. Map tiles may require a network
 
 ## 8. User experience and design standard
 
-The portal SHOULD use a restrained dark technical visual language with legible text, consistent spacing and clear status. Messages and assets are primary workflows; configuration and diagnostics are secondary.
+The portal SHOULD use a restrained dark technical visual language with legible text, consistent spacing and clear status. Messaging and the map are primary workflows; configuration and diagnostics are secondary.
 
 Every action MUST have one clear place in the interface. Existing channels SHOULD appear as a list or contextual submenu; empty capacity MUST be represented by Create channel rather than a grid of blank inputs. Selected-channel editing MAY use a separate dialog or view. Settings dialogs MUST stay anchored as sections change, grow within the available viewport and scroll internally when required.
 
@@ -168,12 +176,12 @@ Explanatory copy SHOULD be short and task-specific. Security limitations and con
 
 | Area | Current direction | Future possibility and decision boundary |
 | --- | --- | --- |
-| Firmware | ESP-IDF and C++17; board-specific drivers behind shared protocol/service boundaries | Additional boards require validated hardware profiles, resource budgets and physical qualification |
+| Firmware | ESP-IDF and C++17; a shared application (`firmware/app/`) with board-specific drivers behind shared protocol/service boundaries | Additional boards require validated hardware profiles, resource budgets and physical qualification |
 | Web agent | TypeScript, Vite, native DOM, shared agent core and Web Serial | A UI framework is optional only when justified by maintainability; it is not a product requirement |
 | Transport | USB-first, capability-negotiated device connection | BLE, mobile/native and simultaneous multi-device agents require separately approved contracts |
 | Cryptography | Agent-side XChaCha20-Poly1305 group-key envelope; Argon2id for protected local key storage | Pairwise keys and sender authentication require protocol/security design and review |
 | Location | Explicit fixed position; GPS acquisition deferred | GPS requires verified wiring, power, bounded parsing and freshness rules before inclusion |
-| Portal extensions | No implemented extension framework | Weather Radar, Reaper ADS-B and APRS bridges are candidate integrations; define permissions, isolation and data boundaries first |
+| Portal extensions | Declarative JSON plugins (manifest v1) for map item types, fields and settings | Code plugins such as Weather Radar, Reaper ADS-B and APRS bridges run in sandboxed iframes (D40) after the plugin API and permissions design is approved |
 | Regional operation | Initial US hardware and profile | EU or other regions require intended-country, hardware and regulatory validation before transmission |
 | Distribution | Validated local firmware tooling and retained provenance | Public signing, authenticated releases and automatic rollback require dedicated hardening |
 
@@ -188,8 +196,11 @@ These possibilities are not approved implementation work. Broad telemetry, MQTT/
 | Logical channels | Eight numeric slots | Shared radio profile; names do not create independent frequencies |
 | Plaintext message payload | Up to 1,024 UTF-8 bytes | Capacity bound, not a throughput guarantee |
 | Encrypted text payload | Up to 950 UTF-8 bytes | Current 1,024-byte envelope limit includes 74 bytes of overhead |
+| Radio preset | `US915_LAB1`: 915 MHz, 500 kHz bandwidth, spreading factor 7, at most 10 dBm | A short-range lab preset tuned for speed; range results describe this preset only |
+| Airtime budget | 1% refill with a one-second burst, shared by original, relay, retry and ACK traffic | About one full 1,024-byte message per node per minute after the first burst; a project courtesy limit, not a regulatory claim |
 | Discovery node snapshot | Up to 32 retained device entries | Observed cache, not a complete inventory or online roster |
 | Local retained histories | Bounded; the browser keeps a rolling 160-entry sent history, at most 32 unresolved operations, within a 1 MiB journal | Detailed limits remain in the referenced contracts |
+| Map workspace | Up to 512 local items, 1,024 shared item records and 16 plugins, within 2 MiB | Browser-local; not synchronized between agents |
 | Radio range, battery life and network throughput | Not established as product guarantees | Require documented measurements under specified conditions |
 
 Exact wire layouts, timing constants and storage bounds belong in the detailed references. Changing a baseline requires updating its contract, generated artifacts where applicable, tests and this specification when the product commitment changes.
@@ -206,25 +217,13 @@ Required verification includes:
 4. Target builds and physical checks for affected board/radio behavior.
 5. Recorded remaining limitations and an explicit release decision.
 
-Recorded evidence includes direct two-board messaging, destination acknowledgments, discovery, fixed-position behavior and initial encrypted direct exchanges. Three-board relay, extended coexistence/range/soak, arbitrary power interruption, interrupted updates and broader security review remain release qualification work. Existing hardware evidence MUST NOT be expanded into untested claims.
+Recorded evidence includes direct two-board messaging, destination acknowledgments, discovery, fixed-position behavior and initial encrypted direct exchanges. Three-board relay, extended coexistence/range/soak, arbitrary power interruption, interrupted updates and broader security review remain release qualification work; the procedures are in the [field qualification plan](../contributing/field-qualification.md). Existing hardware evidence MUST NOT be expanded into untested claims.
 
 The present project is a development prototype, not a production-qualified public release. A phase milestone alone does not change that status.
 
 ## 12. Open decisions and ownership
 
-The maintained list of open questions is in [Decisions](../contributing/decisions.md#open-questions).
-
-| Decision | Required before |
-| --- | --- |
-| Approval and precedence of this specification | Treating draft requirements as the governing project standard |
-| Formal performance targets and deployment envelope | Publishing range, throughput, scale or battery-life commitments |
-| Three-node relay and field qualification plan | Claiming physically qualified mesh forwarding |
-| GPS scope and acquisition requirements | Resuming GPS implementation |
-| Stronger identity or pairwise confidentiality | Expanding current group-key security claims |
-| Public update signing, rollback and recovery policy | Production automatic updates |
-| Extension permissions and isolation | Building or enabling third-party portal plugins |
-| Multi-device and broader regional/agent support | Enabling those capabilities |
-| Stable-release support and data migration policy | A supported public release |
+Open and parked questions, and the event that reopens each parked one, are maintained in [Decisions](../contributing/decisions.md#open-questions) rather than repeated here.
 
 The project owner approves scope and product commitments. Contributors propose changes with rationale, affected contracts, compatibility implications and verification evidence. Candidate ideas MUST remain labeled until approved.
 
@@ -241,6 +240,8 @@ Once approved, this document is the high-level product baseline: vision, use cas
 | Architecture and engineering standards | [Development plan](../contributing/plan.md) |
 | Exact wire, storage and recovery contracts | [Protocol](../reference/protocol.md), [radio protocol](../reference/radio-protocol.md), [messaging](../reference/messaging.md), [persistence](../reference/persistence.md), [compatibility](../reference/compatibility.md) |
 | Phase 2 requirements and acceptance | [Phase 2 contract](../contributing/phase-2.md) |
+| Relay, range, power-loss and soak test procedures | [Field qualification plan](../contributing/field-qualification.md) |
+| Shared map item and plugin contracts | [Shared map items](../reference/map-sharing.md), [plugins](../guides/plugins.md) |
 | Contributor working rules | [AI.md](../../AI.md) |
 
 Conflicts MUST be resolved explicitly rather than by silently changing a protocol or treating an old paragraph as current intent. Until this draft is approved, the latest explicit owner decisions and existing approved contracts take precedence.
