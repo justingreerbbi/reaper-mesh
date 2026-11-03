@@ -305,6 +305,80 @@ int main(int argc, char** argv) {
     bad.has_discovery = true;
     bad.settings.discovery.interval = 59;
     CHECK(authority.apply(bad).outcome == d::Outcome::Rejected);
+  } else if (scenario == "screen") {
+    // Default screen settings keep the earlier record format.
+    CHECK(authority.apply(command()).outcome == d::Outcome::Committed && store.data[2] == 1);
+    auto change = command(2, 1);
+    change.has_screen = true;
+    change.settings.screen = {60, true};
+    CHECK(authority.apply(change).outcome == d::Outcome::Committed && store.data[2] == 5);
+    d::Configuration rebooted(store, text<64>("boot-B"));
+    CHECK(rebooted.snapshot(snapshot) && snapshot.settings.screen.timeout == 60 &&
+          snapshot.settings.screen.wake &&
+          d::same_position(snapshot.settings.position, d::PositionSettings{}));
+    // A write without screen fields preserves them; so do position and discovery writes.
+    CHECK(authority.apply(command(3, 2, "legacy")).outcome == d::Outcome::Committed);
+    auto other = command(4, 3);
+    other.has_position = other.has_discovery = true;
+    other.settings.position = {true, 1, 900000000, 1800000000};
+    other.settings.discovery = {true, false, 120};
+    CHECK(authority.apply(other).outcome == d::Outcome::Committed && store.data[2] == 5);
+    d::Configuration reloaded(store, text<64>("boot-C"));
+    CHECK(reloaded.snapshot(snapshot) && snapshot.settings.screen.timeout == 60 &&
+          snapshot.settings.screen.wake && snapshot.settings.position.share &&
+          snapshot.settings.discovery.beacon && snapshot.settings.discovery.interval == 120);
+    for (std::size_t n = 0; n < store.size; ++n)
+      CHECK(!d::decode_record(store.data.data(), n, snapshot));
+    // Only 0 (always on) and 10-3600 seconds are accepted.
+    for (std::uint32_t timeout : {1u, 9u, 3601u}) {
+      auto bad = command(5, 4);
+      bad.has_screen = true;
+      bad.settings.screen.timeout = timeout;
+      CHECK(authority.apply(bad).outcome == d::Outcome::Rejected);
+    }
+    auto never = command(5, 4);
+    never.has_screen = true;
+    never.settings.screen = {0, false};
+    CHECK(authority.apply(never).outcome == d::Outcome::Committed);
+    // Returning to the defaults drops back to the earlier format.
+    auto reset = command(6, 5);
+    reset.has_screen = true;
+    reset.settings.screen = {30, false};
+    CHECK(authority.apply(reset).outcome == d::Outcome::Committed && store.data[2] == 4);
+    // An invalid stored wake flag fails closed.
+    change = command(7, 6);
+    change.has_screen = true;
+    change.settings.screen = {300, true};
+    CHECK(authority.apply(change).outcome == d::Outcome::Committed && store.data[2] == 5);
+    auto corrupt = store;
+    corrupt.data[corrupt.size - 5] = 2;
+    const auto crc = p::crc32(corrupt.data.data(), corrupt.size - 4);
+    for (unsigned i = 0; i < 4; ++i)
+      corrupt.data[corrupt.size - 4 + i] = static_cast<std::uint8_t>(crc >> (8 * i));
+    CHECK(!d::decode_record(corrupt.data.data(), corrupt.size, snapshot));
+    // Framed commands carry both screen fields or neither.
+    p::Message message{};
+    message.type = p::MessageType::Configure;
+    const auto set = [](p::FieldValue& field, const std::string& value) {
+      field.present = true;
+      field.length = value.size();
+      std::memcpy(field.text.data(), value.data(), value.size());
+    };
+    set(message.fields[p::kConfigureLink], "link-A");
+    set(message.fields[p::kConfigureBoot], "boot-A");
+    set(message.fields[p::kConfigureId], "agent-A:8");
+    set(message.fields[p::kConfigureRegion], "US");
+    set(message.fields[p::kConfigureLabel], "screen");
+    message.fields[p::kConfigureExpectedRevision] = {true, 7};
+    message.fields[p::kConfigureScreenTimeout] = {true, 10};
+    d::Command parsed{};
+    CHECK(!d::decode_command(message, parsed));
+    message.fields[p::kConfigureScreenWake] = {true, 2};
+    CHECK(!d::decode_command(message, parsed));
+    message.fields[p::kConfigureScreenWake] = {true, 1};
+    CHECK(d::decode_command(message, parsed) && parsed.has_screen &&
+          parsed.settings.screen.timeout == 10 && parsed.settings.screen.wake);
+    CHECK(authority.apply(parsed).outcome == d::Outcome::Committed);
   } else
     return 3;
   std::cout << "ok " << scenario << '\n';

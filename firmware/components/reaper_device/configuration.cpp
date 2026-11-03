@@ -14,9 +14,10 @@ bool equal(const RadioSettings& a, const RadioSettings& b) {
          equal(a.channels, b.channels);
 }
 bool equal(const Settings& a, const Settings& b) {
-  return same_position(a.position, b.position) && a.region == b.region && equal(a.label, b.label) &&
-         equal(a.radio, b.radio) && a.discovery.beacon == b.discovery.beacon &&
-         a.discovery.respond == b.discovery.respond && a.discovery.interval == b.discovery.interval;
+  return same_screen(a.screen, b.screen) && same_position(a.position, b.position) &&
+         a.region == b.region && equal(a.label, b.label) && equal(a.radio, b.radio) &&
+         a.discovery.beacon == b.discovery.beacon && a.discovery.respond == b.discovery.respond &&
+         a.discovery.interval == b.discovery.interval;
 }
 bool identity(const Text<64>& value) {
   if (!value.length || value.length > 64)
@@ -54,7 +55,7 @@ bool valid(const Command& command) {
       (command.has_radio && command.settings.radio.mode != RadioMode::Off &&
        command.settings.region != Region::Us))
     return false;
-  if (!valid_position(command.settings.position))
+  if (!valid_position(command.settings.position) || !valid_screen(command.settings.screen))
     return false;
   if (command.settings.discovery.interval < 60 || command.settings.discovery.interval > 3600)
     return false;
@@ -128,18 +129,20 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   if (!output || !settings_valid(snapshot.settings))
     return false;
   const auto& discovery = snapshot.settings.discovery;
-  const bool position = !same_position(snapshot.settings.position, PositionSettings{});
+  const bool screen = !same_screen(snapshot.settings.screen, ScreenSettings{});
+  const bool position = screen || !same_position(snapshot.settings.position, PositionSettings{});
   const bool presence =
       position || discovery.beacon || discovery.respond || discovery.interval != 300;
   const bool extended = presence || !equal(snapshot.settings.radio, RadioSettings{});
   const auto length = 13 + snapshot.settings.label.length +
                       (extended ? 5 + snapshot.settings.radio.channels.length : 0) +
-                      (presence ? 5 : 0) + (position ? 10 : 0);
+                      (presence ? 5 : 0) + (position ? 10 : 0) + (screen ? 5 : 0);
+  const std::size_t tail = screen ? 5 : 0;
   if (capacity < length)
     return false;
   output[0] = 'R';
   output[1] = 'C';
-  output[2] = position ? 4 : presence ? 3 : extended ? 2 : 1;
+  output[2] = screen ? 5 : position ? 4 : presence ? 3 : extended ? 2 : 1;
   write32(output + 3, snapshot.revision);
   output[7] = static_cast<std::uint8_t>(snapshot.settings.region);
   output[8] = static_cast<std::uint8_t>(snapshot.settings.label.length);
@@ -155,17 +158,22 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
     extra[4 + radio.channels.length] = radio.profile;
   }
   if (presence) {
-    auto* extra = output + length - 9 - (position ? 10 : 0);
+    auto* extra = output + length - 9 - (position ? 10 : 0) - tail;
     extra[0] = (discovery.beacon ? 1 : 0) | (discovery.respond ? 2 : 0);
     write32(extra + 1, discovery.interval);
   }
   if (position) {
-    auto* extra = output + length - 14;
+    auto* extra = output + length - 14 - tail;
     const auto& p = snapshot.settings.position;
     extra[0] = p.share;
     extra[1] = p.source;
     write32(extra + 2, p.latitude);
     write32(extra + 6, p.longitude);
+  }
+  if (screen) {
+    auto* extra = output + length - 9;
+    write32(extra, snapshot.settings.screen.timeout);
+    extra[4] = snapshot.settings.screen.wake;
   }
   write32(output + length - 4, protocol::crc32(output, length - 4));
   size = length;
@@ -174,11 +182,12 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
 
 bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output) {
   if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' ||
-      (data[2] < 1 || data[2] > 4) || data[7] > 2 || data[8] > 64 ||
+      (data[2] < 1 || data[2] > 5) || data[7] > 2 || data[8] > 64 ||
       (data[2] == 1 && size != std::size_t(data[8]) + 13) ||
       read32(data + size - 4) != protocol::crc32(data, size - 4))
     return false;
   Snapshot next{};
+  const std::size_t tail = data[2] == 5 ? 5 : 0;
   next.revision = read32(data + 3);
   next.settings.region = static_cast<Region>(data[7]);
   next.settings.label.assign(data + 9, data[8]);
@@ -188,7 +197,7 @@ bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output)
       return false;
     const auto* extra = data + offset;
     const auto names = extra[3];
-    if (size != offset + 9u + names + (data[2] >= 3 ? 5u : 0u) + (data[2] == 4 ? 10u : 0u) ||
+    if (size != offset + 9u + names + (data[2] >= 3 ? 5u : 0u) + (data[2] >= 4 ? 10u : 0u) + tail ||
         extra[0] > 2 || extra[1] > 10 || extra[2] > 1 ||
         !next.settings.radio.channels.assign(extra + 4, names))
       return false;
@@ -198,16 +207,22 @@ bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output)
     next.settings.radio.profile = extra[4 + names];
   }
   if (data[2] >= 3) {
-    const auto* extra = data + size - 9 - (data[2] == 4 ? 10 : 0);
+    const auto* extra = data + size - 9 - (data[2] >= 4 ? 10 : 0) - tail;
     if (extra[0] > 3)
       return false;
     next.settings.discovery = {bool(extra[0] & 1), bool(extra[0] & 2), read32(extra + 1)};
   }
-  if (data[2] == 4) {
-    const auto* extra = data + size - 14;
+  if (data[2] >= 4) {
+    const auto* extra = data + size - 14 - tail;
     if (extra[0] > 1)
       return false;
     next.settings.position = {bool(extra[0]), extra[1], read32(extra + 2), read32(extra + 6)};
+  }
+  if (tail) {
+    const auto* extra = data + size - 9;
+    if (extra[4] > 1)
+      return false;
+    next.settings.screen = {read32(extra), extra[4] != 0};
   }
   if (!settings_valid(next.settings))
     return false;
@@ -289,6 +304,14 @@ bool decode_command(const protocol::Message& message, Command& output) {
         message.fields[protocol::kConfigureLatitude].number,
         message.fields[protocol::kConfigureLongitude].number};
   }
+  const auto& timeout = message.fields[protocol::kConfigureScreenTimeout];
+  const auto& wake = message.fields[protocol::kConfigureScreenWake];
+  if (timeout.present || wake.present) {
+    if (!timeout.present || !wake.present || wake.number > 1)
+      return false;
+    next.has_screen = true;
+    next.settings.screen = {timeout.number, wake.number != 0};
+  }
   if (!valid(next))
     return false;
   output = next;
@@ -347,6 +370,7 @@ Result Configuration::apply(const Command& command) {
           previous.has_position != command.has_position ||
           previous.has_radio != command.has_radio ||
           previous.has_discovery != command.has_discovery ||
+          previous.has_screen != command.has_screen ||
           !equal(previous.settings, command.settings)) {
         return {Outcome::Rejected, snapshot_.revision};
       }
@@ -379,6 +403,8 @@ Result Configuration::apply(const Command& command) {
         next.settings.radio = snapshot_.settings.radio;
       if (!command.has_discovery)
         next.settings.discovery = snapshot_.settings.discovery;
+      if (!command.has_screen)
+        next.settings.screen = snapshot_.settings.screen;
       if (next.settings.region != Region::Us)
         next.settings.radio.mode = RadioMode::Off;
       std::array<std::uint8_t, kMaxRecord> record{};

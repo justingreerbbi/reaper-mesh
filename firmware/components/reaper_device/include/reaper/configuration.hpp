@@ -46,7 +46,19 @@ inline bool same_position(const PositionSettings& a, const PositionSettings& b) 
   return a.share == b.share && a.source == b.source && a.latitude == b.latitude &&
          a.longitude == b.longitude;
 }
+// Board-local screen policy (D44). A timeout of 0 keeps the screen on.
+struct ScreenSettings {
+  std::uint32_t timeout = 30;
+  bool wake = false;
+};
+inline bool valid_screen(const ScreenSettings& s) {
+  return s.timeout == 0 || (s.timeout >= 10 && s.timeout <= 3600);
+}
+inline bool same_screen(const ScreenSettings& a, const ScreenSettings& b) {
+  return a.timeout == b.timeout && a.wake == b.wake;
+}
 struct Settings {
+  ScreenSettings screen{};
   PositionSettings position{};
   DiscoverySettings discovery{};
   RadioSettings radio{};
@@ -62,7 +74,7 @@ struct Command {
   Text<64> boot{};
   std::uint32_t expected_revision = 0;
   Settings settings{};
-  bool has_radio = false, has_discovery = false, has_position = false;
+  bool has_radio = false, has_discovery = false, has_position = false, has_screen = false;
 };
 enum class Outcome { Committed, Conflict, Rejected, Unknown };
 struct Result {
@@ -71,7 +83,7 @@ struct Result {
 };
 enum class ReadStatus { Missing, Loaded, Failed };
 enum class CommitStatus { Committed, NotCommitted, Indeterminate };
-inline constexpr std::size_t kMaxRecord = 166;
+inline constexpr std::size_t kMaxRecord = 171;
 
 // Implementations must retain the prior complete record or the next complete record.
 // Committed means durably accepted; NotCommitted guarantees no change. Any ambiguous
