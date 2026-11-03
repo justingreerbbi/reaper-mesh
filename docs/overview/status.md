@@ -23,13 +23,13 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 | Board | Reported version | Built from | Port |
 | --- | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `usb-prototype-8` | Development tree, November 2 (`--allow-dirty`); last clean build `4209679` | `/dev/cu.usbserial-0001` |
-| LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.1.0` | Clean commit `074f299`, November 3 | `/dev/cu.wchusbserial57700003341` |
+| LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.2.0` | Clean commit `adc8765`, November 3 | `/dev/cu.wchusbserial57700003341` |
 
 Both antennas are owner-confirmed. The last recorded owner policies were: both boards in mesh
 mode at 2 dBm; Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
 position source none and sharing off. Always read the current settings from the device rather
 than assuming these. Images now use `{device}-reaper-mesh-v{semver}` names; the Heltec gets its
-first `heltec-reaper-mesh-v0.1.0` image when it is next updated.
+first `heltec-reaper-mesh-v0.2.0` image when it is next updated.
 
 ## What works, and how it was verified
 
@@ -38,7 +38,7 @@ first `heltec-reaper-mesh-v0.1.0` image when it is next updated.
 | Area | Implemented | Verified on hardware | Not yet verified |
 | --- | --- | --- | --- |
 | USB and configuration | Versioned handshake, capability gates, compare-and-set revisions, atomic NVS storage, startup retries, query-only recovery | Native browser saves and reconnects; lost reply, duplicate and reset recovery | Power cut, arbitrary cable removal, long soak |
-| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut, 30 s timeout; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and timeout | Heltec V3; induced I2C faults; screen settings, LED and battery not built yet |
+| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut; screen timeout and wake-on-message set from the portal; T-Beam battery percent and charge bolt; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and 30 s timeout. Screen settings saved, read back and kept across a reboot over USB | Owner check of the battery indicator, a changed timeout and wake-on-message on the screen; the portal Screen tab in a native browser; Heltec V3; induced I2C faults; LED not built yet |
 | Messages | 1,024-byte UTF-8 messages, bounded queue, explicit outcomes, inbox, browser journal | Bidirectional direct delivery with destination ACK between the two boards | Extended loss and latency; field use |
 | Mesh relay | Bounded managed-flooding core with hop limits and duplicate suppression | Host topology and fault tests only | **Any real relay**: needs a third board |
 | Radio | Pinned Semtech SX1262 driver, first-party SX1276 driver, shared airtime budget, DMA SPI | Probe, receive, 7-fragment transmit, direct two-board delivery | Range, coexistence, measured spectrum and power |
@@ -63,9 +63,9 @@ New portal features are paused (November 3) until these pass; see the
 
 ## Automated checks
 
-`npm run check` passes all 267 tests on macOS as of November 3 (strict TypeScript,
+`npm run check` passes all 276 tests on macOS as of November 3 (strict TypeScript,
 generated-schema and vendor checks, compiler-backed host tests and the web build). The
-standalone firmware CTest suite passes 72 tests. CI runs the host checks, the CTest
+standalone firmware CTest suite passes 75 tests. CI runs the host checks, the CTest
 suite, both firmware target builds and shell script lint; see
 [Development and CI](../contributing/development.md).
 

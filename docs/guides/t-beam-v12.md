@@ -42,5 +42,7 @@ The middle button (GPIO38) is the main button: single press toggles the screen, 
 goes to the next page, long press returns to the main page. A short PWR press also goes to the
 next page; holding PWR about 6 s still powers the board off. RST resets the processor. Since
 `tbeam-reaper-mesh-v0.1.0` the firmware enables the AXP2101 power-key short-press interrupt for
-this, in addition to the radio rail. See [device screen and buttons](../reference/device-display.md).
+this, in addition to the radio rail. Since `tbeam-reaper-mesh-v0.2.0` the main page also shows
+the battery percent and a charge bolt, read from the AXP2101 fuel gauge without writing; nothing
+is shown without a battery. See [device screen and buttons](../reference/device-display.md).
 

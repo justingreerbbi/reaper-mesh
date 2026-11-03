@@ -44,26 +44,47 @@ The USB link and radio start at the same time; nothing waits for the screen.
 
 | Page | Contents |
 | --- | --- |
-| Main | Device name (2× when it fits in 10 characters; the node ID if no name is set), radio state `RX`, `TX`, `OFF` or `FAULT`, `NEW n` (inbox messages that arrived after the screen last turned off), `NODES n` (nodes heard), and the firmware version in the bottom-right corner. Battery percent will appear bottom-left once measured; it is never estimated. |
+| Main | Device name (the node ID if no name is set), radio state `RX`, `TX`, `OFF` or `FAULT`, `NEW n` (inbox messages that arrived after the screen last turned off), `NODES n` (nodes heard), and the firmware version in the bottom-right corner. Top right: the battery (see below), when measured. The name is drawn at 2× when it fits beside the battery (10 characters with no battery shown), otherwise at 1× on the battery's line. |
 | Nodes | Up to five heard nodes: name (or node ID), `*` when it shared a position, and last-heard age. |
 | Debug | Node ID, USB state and configuration revision, NVS health, radio mode and power, RX/TX counters, free heap and minimum stack, uptime. |
 
-**Power:** the screen turns off 30 s after the last button press. Off means display off and
+**Power:** the screen turns off after the configured timeout (30 s by default) counted from
+the last button press. Off means display off and
 the panel's charge pump off, so it draws almost nothing; the panel keeps its image and wakes
 instantly. Frames are drawn at most ten times a second, and unchanged frames are not sent.
 The screen is a small part of the board's power draw; the processor and radio receiver use
 most of it, so larger savings need the sleep modes planned later in Phase 4.
 
-## Built-in defaults and planned settings
+## Screen settings
 
-Step 1 uses fixed defaults. Planned next:
+The portal's **Settings → Screen** tab sets two values, which are stored in the device
+configuration and work with no agent connected. There is no settings page on the device itself.
 
-- Device settings for the screen timeout (never, 10, 30, 60 or 300 s) and optional wake on a new
-  message, stored on the device and editable in the portal.
+| Setting | Values | Default |
+| --- | --- | --- |
+| Turn the screen off after | 10 s, 30 s, 1 min, 5 min or never (the device accepts 0 for never, or 10–3600 s) | 30 s |
+| Wake the screen when a message arrives | On or off. When on, a new inbox message turns the screen on at the main page, or restarts the timeout if it is already on | Off |
+
+They use the same revision-checked, atomic configuration writes as other settings, and a write
+that omits them keeps the stored values. Wire fields and storage are in the
+[protocol](protocol.md#screen-settings-v1-phase-4) and
+[persistence](persistence.md#screen-settings-record-5) references.
+
+## Battery
+
+The battery appears in the top-right corner of the main page as a percent and a gauge icon, with
+a lightning bolt while charging. It is shown only when the board measures it; otherwise the
+corner is empty. Nothing is estimated.
+
+| Board | Source | State |
+| --- | --- | --- |
+| LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 3 battery present, STATUS2 `0x01` bits 6:5 `01` charging, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. Shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0` |
+| Heltec WiFi LoRa 32 V3 | Battery voltage input, not yet verified on hardware; no charge-status signal | Not shown |
+
+## Planned
+
 - LED indication: a short blink on TX/RX and a slow blink while there are new messages
   (T-Beam GPIO4; Heltec LED to be verified).
-- Battery percent: T-Beam from the AXP2101 fuel gauge, Heltec from its battery voltage input
-  (both to be verified on hardware).
 
 ## Code map
 
@@ -74,7 +95,8 @@ Step 1 uses fixed defaults. Planned next:
 | `firmware/app/board_input.hpp` | Board button interface |
 | `firmware/<board>/main/status_display.cpp` | Board panel power, reset and I2C setup |
 | `firmware/<board>/main/board_input.cpp` | Board button pins and optional extra buttons |
-| `firmware/app/main.cpp` | Samples buttons, feeds the screen state and redraws |
+| `firmware/app/board_power.hpp`, `firmware/<board>/main/board_power.cpp` | Battery percent and charging state, or unknown |
+| `firmware/app/main.cpp` | Samples buttons, applies screen settings, feeds the screen state and redraws |
 | `firmware/tests/device_ui_test.cpp` | Host tests; `device_ui_test preview` prints each page as ASCII art |
 
 To change the startup icon, edit the `kIcon` rows in `device_ui.cpp` (32 rows of 32 characters,

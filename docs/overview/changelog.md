@@ -15,12 +15,12 @@ rather than repeating it.
 | Board | Latest image | Source commit | Notes |
 | --- | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 | `usb-prototype-8` | `4209679` | Fixed position; US/915 antenna confirmed |
-| LILYGO T-Beam V1.2 | `tbeam-reaper-mesh-v0.1.0` | `074f299` | Device screen pages and buttons; first image with the new naming |
+| LILYGO T-Beam V1.2 | `tbeam-reaper-mesh-v0.2.0` | `adc8765` | Screen settings and battery indicator |
 
 On November 2 both boards were reinstalled from an uncommitted development tree (updater
 `--allow-dirty`) for the encryption check, so the Heltec's installed bytes no longer correspond
 exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean commit
-`074f299`.
+`074f299`, then from clean commit `adc8765`.
 
 ## Heltec V3 firmware progression
 
@@ -44,6 +44,7 @@ exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean
 | `tbeam-usb-prototype-2` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon sent |
 | `tbeam-usb-prototype-3` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
 | `tbeam-reaper-mesh-v0.1.0` | Nov 3 | Device screen pages and buttons; new naming (commit `074f299`) | Owner confirmed screen and buttons; USB sync and settings preserved |
+| `tbeam-reaper-mesh-v0.2.0` | Nov 3 | Screen settings and battery indicator (commit `adc8765`) | Screen settings round trip and reboot persistence over USB; settings preserved |
 
 ## First flash — November 1
 
@@ -315,3 +316,20 @@ including new gesture, screen-state, unread-count and page-rendering tests. Firm
 a `version` field kind that allows `.`; wire bytes and frozen fixtures are unchanged. See
 [device screen and buttons](../reference/device-display.md).
 
+## Screen settings and battery indicator — November 3
+
+`tbeam-reaper-mesh-v0.2.0` from clean commit `adc8765` (256,640-byte app, SHA-256
+`dca4200abb8420f6dadfa62686849d58e1ae34815e6608edc57436c2feab462f`). The updater validated
+and installed it with ROM-verified hashes and NVS preserved. Three USB opens reached ready in
+655/645/647 ms at configuration revision 35, read from the existing record 4, and the welcome
+reported `screenVersion` 1. Over USB with the real TypeScript agent, screen settings were saved
+(revision 36, 5 minutes with wake on), read back on a new connection with label, radio, position
+and discovery settings unchanged, saved again (revision 38, 1 minute with wake on) and read back
+after a reset with a new boot identity. The defaults (30 s, wake off) were then restored at
+revision 39. Not yet checked: the battery indicator, a changed timeout and wake-on-message on the
+physical screen, and the portal's Screen tab in a native browser.
+
+`heltec-reaper-mesh-v0.2.0` builds without warnings but is not installed. Host checks: 276
+tests and 75 CTests pass, including record 5, screen-setting, TS-to-native USB, wake and
+battery-drawing tests. The 28 earlier fixtures are unchanged; three are appended. See
+[device screen and buttons](../reference/device-display.md).

@@ -59,6 +59,14 @@ The integrated firmware supports local delivery by selecting This device. An ack
 
 USB identity, monotonic request counters and bounded command/message/inbox history are checkpointed before dispatch. Reload restores unfinished work as unknown and never resumes partial sends. Query status after reconnecting to the same device/boot. The recovery panel exports history, retries unavailable storage, or explicitly resets disconnected history. Reset/cleared browser data allocates a new identity and can consume another device owner slot. Invalid saved JSON remains exportable; it is not silently discarded. A second tab is read-only. Native Brave local delivery and both outgoing/inbox retention across reload passed on usb-prototype-4.
 
+## Screen settings
+
+Settings → Screen sets how long the device's own screen stays on (10 s, 30 s, 1 min, 5 min or
+never) and whether a new message wakes it. The tab is enabled for firmware that advertises
+`screenVersion` 1. Saving uses the same revision-checked configuration and recovery as other
+settings; the values are stored on the device and apply with no browser connected. See
+[device screen and buttons](../reference/device-display.md#screen-settings).
+
 ## Discovery controls
 
 Firmware with discoveryVersion1/nodeCapacity32 exposes Discover on the map toolbar and discovery policy under Manage: independent opt-in beacons/responses, 60–3600-second interval, manual discovery and query-only recovery. Heard nodes show configured name, canonical ID and last-heard age, with Message and Locate actions when a shared fixed position exists. Missing positions are not fabricated. A node list is a bounded observation snapshot, not an online/offline guarantee. Settings use the existing CAS/atomic persistence and survive reconnect. Both firmware policies default off; a peer must have mesh radio mode and responding enabled to answer. The existing one-device browser writer lock remains until per-device portal journaling is implemented.
