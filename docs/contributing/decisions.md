@@ -9,17 +9,26 @@ Status values: **Confirmed** (owner decision), **Adopted** (implemented engineer
 
 ## Open questions
 
-| # | Question | Needed before | Raised |
+Questions that need a decision now:
+
+| # | Question | Needed before | State |
 | --- | --- | --- | --- |
-| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Nov 2 |
-| Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | Freezing message limits for a release; decide from measured airtime and delivery rates | Nov 1 |
-| Q4 | Keep the schema-driven TLV or move to Protocol Buffers | A public protocol release | Nov 1 |
-| Q5 | Should shared map items (`RMAP1`) get a capability gate or a content-type marker and compact encoding? Older agents show the JSON as a chat message, and JSON costs airtime | Expanding map sharing or other structured payloads | Nov 3 |
-| Q6 | Isolation and permissions for executable plugins (for example a sandboxed iframe or separate origin, so plugin code cannot reach channel keys) | Building Weather Radar, ADS-B, APRS or any plugin that runs code or uses the network | Nov 2 |
-| Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | Resuming GPS work (D26) | Nov 2 |
-| Q8 | Formal performance targets (range, throughput, battery). The test procedure is in the [field qualification plan](field-qualification.md); targets are set from its results | Publishing range, throughput or battery commitments | Nov 1 |
-| Q9 | EU countries and bands | Any EU profile work (D3) | Nov 1 |
-| Q10 | Signed releases, rollback and stable-release support policy | A public updater or supported release | Nov 1 |
+| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Review pass done November 3; awaiting owner approval |
+
+## Parked questions
+
+These cannot be answered yet. Each waits on a specific trigger; revisit it then.
+
+| # | Question | Revisit when |
+| --- | --- | --- |
+| Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | After the outdoor range test in the [field qualification plan](field-qualification.md), from measured airtime and delivery rates |
+| Q5 | Should shared map items get a message content type and a compact encoding, so older agents stop showing `RMAP1` JSON as chat text? (D39) | Together with Q3, when the radio protocol is reviewed after the range test |
+| Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | When the owner resumes GPS work (D26) |
+| Q8 | Formal performance targets (range, throughput, battery), set from the [field qualification plan](field-qualification.md) results | After field qualification, before publishing any range, throughput or battery figures |
+| Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
+| Q10 | Signed releases, rollback and stable-release support policy | Before the first public release or public updater |
+
+Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins).
 
 ## Product and scope
 
@@ -111,7 +120,7 @@ acknowledged only after it is stored; lost replies are resolved by query. See
 ### D18. USB framing and encoding
 Nov 1 · **Adopted for the prototype**. COBS with a zero delimiter, a versioned header, a
 2,048-byte maximum payload and CRC-32; logs on a separate path. Payloads use a schema-driven TLV
-with generated TypeScript and C++ descriptors (Q4). See [protocol](../reference/protocol.md).
+with generated TypeScript and C++ descriptors (kept, D38). See [protocol](../reference/protocol.md).
 
 ### D19. Request history and recovery
 Nov 1 · **Adopted**. Bounded FIFO receipts plus non-evicting per-owner sequence marks.
@@ -154,6 +163,13 @@ control payload v2; manual requests stay name-only v1 so older nodes still respo
 
 ### D26. GPS deferred
 Nov 2 · **Confirmed**. T-Beam GPS (Phase 2.2b) is deferred. Fixed positions serve the map. See Q7.
+
+### D38. Keep the schema-driven TLV encoding
+Nov 3 · **Confirmed** (closes Q4). The USB protocol keeps its schema-driven TLV encoding, with
+TypeScript and C++ descriptors generated from `packages/protocol/schema.json`. It is
+implemented, fuzz-tested and pinned by frozen fixtures; moving to Protocol Buffers would need a
+new protocol version, new codecs on both sides and a compatibility path for current firmware.
+Revisit only if outside agent developers need Protobuf tooling.
 
 ## Agent and portal
 
@@ -198,13 +214,30 @@ digit PIN unlocks all keys in this browser; it does not authenticate a device. A
 reset deletes this browser's local data only.
 
 ### D35. Map sharing over text messages
-Nov 2 · **Adopted** (see Q5). Map points and rectangles are shared as validated `RMAP1` JSON in
+Nov 2 · **Adopted** (see D39). Map points and rectangles are shared as validated `RMAP1` JSON in
 ordinary text messages, with no firmware or schema change. Recipients approve items from the
 message card. See [shared map items](../reference/map-sharing.md).
 
 ### D36. Declarative plugins only
-Nov 2 · **Adopted** (see Q6). Plugin manifest v1 is browser-local JSON that adds map item types
+Nov 2 · **Adopted**. Plugin manifest v1 is browser-local JSON that adds map item types
 and settings. No scripts, HTML, URLs or network access. See [plugins](../guides/plugins.md).
+Plugins that run code follow D40.
+
+### D39. Keep RMAP1 map sharing for the prototype
+Nov 3 · **Confirmed**. Shared map items stay `RMAP1` JSON inside ordinary text messages, with no
+firmware change. Older agents show the JSON as text, which is acceptable while every agent is the
+web portal and is updated together. A message content type and compact encoding (Q5) are
+reviewed with the message-size question (Q3) after the range test, when the radio protocol may
+change anyway.
+
+### D40. Code plugins run in sandboxed iframes
+Nov 3 · **Confirmed** (closes Q6). Plugins that run code, such as Weather Radar, ADS-B or an APRS
+bridge, run in a sandboxed iframe on a separate origin and talk to the portal only through a
+small message API. Their manifest declares the permissions they need (for example network
+hosts, node positions or map layers), and the user approves them on install. Plugins never
+receive channel keys, and get decrypted message content only through an explicit, separately
+approved permission. A short design document covering the message API, permissions and update
+review must be approved before any code-plugin implementation.
 
 ## Priorities
 

@@ -1,6 +1,6 @@
 # Field qualification plan
 
-This plan answers open question Q8 in [Decisions](decisions.md#open-questions): how to verify
+This plan supports parked question Q8 in [Decisions](decisions.md#parked-questions): how to verify
 three-node relay, range, power loss and long-running behavior on real hardware. Until these
 tests pass, new portal features are paused (decision D37). Results go in the
 [Changelog](../overview/changelog.md), and [Status](../overview/status.md) is updated in place.
