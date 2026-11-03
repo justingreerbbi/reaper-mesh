@@ -6,4 +6,4 @@ Install pinned dev tools with `npm ci --ignore-scripts`, then run `npm run check
 
 Project principles (details in `AI.md` and decisions D41/D42): keep the firmware and protocol core small and stable, and build new features in agents or plugins rather than firmware. The project is pre-release and used only by its maintainer, so before core v1 breaking protocol or storage changes are allowed with owner approval; propose them instead of adding compatibility layers for prototype builds, and never change fixtures silently.
 
-Format commits, branch names and pull request titles as described in `docs/contributing/commits-and-prs.md` (`type(scope): summary`, Conventional Commits).
+Format commits, branch names and pull request titles as described in `docs/contributing/commits-and-prs.md` (`type(scope): summary`, Conventional Commits). Every commit must be signed (SSH or GPG) and show Verified on GitHub; never disable signing or pass `--no-gpg-sign`. Pull requests are merged with "Create a merge commit".

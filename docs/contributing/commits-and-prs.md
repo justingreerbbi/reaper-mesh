@@ -99,6 +99,39 @@ protocol 1 cannot reassemble the larger fragments; update both boards.
 docs(examples): organize examples by the component they target
 ```
 
+## Signed commits
+
+Every commit MUST be signed and show **Verified** on GitHub. Signing proves who made a change,
+which matters for a project whose firmware and encryption others will trust.
+
+SSH signing is the simplest setup if you already use an SSH key:
+
+```sh
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519_signing.pub
+git config --global commit.gpgsign true
+```
+
+Then add the same public key on GitHub under **Settings → SSH and GPG keys → New SSH key** with
+key type **Signing Key**. A key registered only for authentication does not verify signatures.
+GPG keys work too; register them under **GPG keys**. The commit email must be a verified email
+on your GitHub account.
+
+To check signatures locally, list trusted keys in an allowed-signers file and point Git at it:
+
+```sh
+git config --global gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers
+git log --show-signature -1
+```
+
+`git log --format='%h %G? %s'` shows `G` for a good signature and `N` for none. Merge commits
+made by GitHub are signed with GitHub's key and show `E` locally (key not known) but Verified on
+GitHub.
+
+If a commit is unsigned, re-sign it before pushing: `git commit --amend -S --no-edit` for the
+last commit, or `git rebase --exec 'git commit --amend -S --no-edit' <base>` for several. Never
+disable signing or use `--no-gpg-sign` to get a commit through.
+
 ## Branches
 
 Name branches `type/short-description` using the same types, for example
@@ -107,8 +140,11 @@ directly to `main`; open a pull request.
 
 ## Pull requests
 
-- **Title**: the same format as a commit summary, `type(scope): summary`. When a pull request is
-  squash-merged, its title becomes the commit on `main`.
+- **Title**: the same format as a commit summary, `type(scope): summary`.
+- **Merge with "Create a merge commit".** It keeps each signed commit and the commit hashes listed
+  in `.git-blame-ignore-revs`. "Rebase and merge" is not used: GitHub cannot sign rebased commits,
+  so it is blocked while `main` requires signed commits. "Squash and merge" is not used either,
+  because it replaces the individual commits and their hashes.
 - **Description**: include these sections:
   - **What and why**: the change and the reason for it.
   - **Verification**: what ran (`npm run check`, CTest, firmware builds) and the result.
