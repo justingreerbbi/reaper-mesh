@@ -34,7 +34,7 @@ import {
 import { element, text } from './dom.ts';
 import { accessDialog, onLocalAppStop } from './access-ui.ts';
 import { connectDevice } from './connection-ui.ts';
-import { mapWorkspace, selectNode, setSelectedNode, setView } from './map-ui.ts';
+import { mapWorkspace, setSelectedNode, setView } from './map-ui.ts';
 
 const deleteDialog = element<HTMLDialogElement>('delete-history');
 let deletePlan:
@@ -404,9 +404,6 @@ export function renderMessages() {
       ? `${names[selectedChannel] || 'Channel ' + selectedChannel} · traffic received by this device`
       : `${destination.value} · ${names[selectedChannel] || 'Channel ' + selectedChannel}`,
   );
-  element<HTMLButtonElement>('locate-conversation').disabled = !connection.discovery.nodes.some(
-    n => canonicalNode(n.node) === canonicalNode(destination.value) && n.position,
-  );
   element('conversation-connect').hidden = ready;
   const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
@@ -498,11 +495,11 @@ export function renderMessages() {
     history,
     incoming,
   );
-  element<HTMLButtonElement>('delete-conversation').disabled =
+  element<HTMLButtonElement>('clear-conversation').disabled =
     !messageState ||
     !recovery.writable ||
     !lastDevice ||
-    (messages.length === 0 && !drafts.get(draftKey) && !!messageState.hidden(uiScope, key)) ||
+    messages.length === 0 ||
     messages.some(m => m.entry?.state === 'receiving');
   const orderScope = scope + ':';
   for (const m of messages)
@@ -654,10 +651,27 @@ export function initMessages() {
       renderMessages();
     });
   }
-  element('locate-conversation').addEventListener('click', () =>
-    selectNode(element<HTMLInputElement>('message-destination').value, { focusMap: true }),
-  );
-  element('delete-conversation').addEventListener('click', () => {
+  const options = element<HTMLButtonElement>('conversation-options'),
+    menu = element('conversation-options-menu');
+  const showMenu = (open: boolean) => {
+    menu.hidden = !open;
+    options.setAttribute('aria-expanded', String(open));
+  };
+  options.addEventListener('click', () => {
+    const open = options.getAttribute('aria-expanded') !== 'true';
+    showMenu(open);
+    if (open) menu.querySelector<HTMLButtonElement>('button:enabled')?.focus();
+  });
+  document.addEventListener('click', event => {
+    if (!menu.hidden && !(event.target as Element).closest('.conversation-menu')) showMenu(false);
+  });
+  options.parentElement!.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || menu.hidden) return;
+    showMenu(false);
+    options.focus();
+  });
+  element('clear-conversation').addEventListener('click', () => {
+    showMenu(false);
     if (!lastDevice) return;
     const connection = current().adapter.connection,
       destination = element<HTMLInputElement>('message-destination').value,
@@ -677,8 +691,7 @@ export function initMessages() {
     requestDelete(
       keys,
       messages.flatMap(m => (m.entry ? [m.entry.id] : [])),
-      `Delete this conversation and its ${messages.length} retained messages from this browser? A new message will make the conversation appear again.`,
-      { scope: messageScope(mode.value, lastDevice), key: conversationKey(destination, channel) },
+      `Clear the ${messages.length} messages in this chat from this browser? The chat stays in your list.`,
     );
   });
   element('mark-all-read').addEventListener('click', () => {

@@ -548,10 +548,39 @@ body {
   margin-top: 6px;
   font-size: 12px;
 }
-#delete-conversation {
-  background: transparent;
+/* Conversation options: a three-dot button with a small popup menu under it. */
+.conversation-menu {
+  position: relative;
+}
+.options-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 200px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.options-menu[hidden] {
+  display: none;
+}
+.options-menu button {
+  justify-content: flex-start;
+  min-height: 38px;
   border-color: transparent;
-  color: var(--muted);
+  background: transparent;
+  font-weight: 500;
+}
+.options-menu .danger-item {
+  color: var(--danger);
+}
+.options-menu .danger-item:hover:enabled {
+  background: var(--danger-bg);
 }
 .conversation-notice {
   display: flex;
@@ -1667,8 +1696,7 @@ form.manage-body > label:first-child {
     padding: 16px;
     gap: 10px;
   }
-  .conversation-head .avatar,
-  #locate-conversation {
+  .conversation-head .avatar {
     display: none;
   }
   .conversation-title {
@@ -1677,7 +1705,7 @@ form.manage-body > label:first-child {
   .conversation-title > span {
     font-size: 11px;
   }
-  .conversation-head #delete-conversation {
+  .conversation-head .conversation-menu {
     margin-left: auto;
   }
   .conversation-notice {

@@ -25,6 +25,9 @@ At the owner's request:
 - The New message button, its form and the inbox's + button are gone; channels and heard
   devices open from the conversation list or the map. As a result, direct messages always use
   channel 0 (Public) and its key, and an unheard node ID cannot be messaged.
+- The conversation header has a three-dot options menu in place of Locate device and Delete
+  chat. Its **Clear chat history** removes the chat's messages from this browser but keeps the
+  channel or direct message in the list, unlike Delete chat, which also hid it.
 - The message box keeps focus after Enter sends a message. It is read-only rather than disabled
   while the device takes the message.
 - Removed taglines and filler text: the sidebar "Local by design" block, "Local mesh · no cloud
@@ -34,7 +37,10 @@ At the owner's request:
 Verification: `npm run check` passed. Simulator QA covered the toggle, 35 consecutive label
 saves (past the old 32-entry limit) without blocking, an unknown outcome resolved on reconnect,
 an unknown outcome released after a simulated reboot, the settings tabs, both chevrons, the
-phone layout, and opening a channel from the list without the New message form. Message sending was not exercised (the simulator has no messaging); a browser
+phone layout, opening a channel from the list without the New message form, and the options
+menu opening and closing on Escape or an outside click. Clearing a chat with messages was not
+exercised (the simulator has no messaging); it uses the same confirmed local removal as deleting
+a single message, without hiding the conversation. Message sending was not exercised (the simulator has no messaging); a browser
 check confirmed a read-only box keeps focus while a disabled one loses it. No firmware,
 protocol or storage changes.
 

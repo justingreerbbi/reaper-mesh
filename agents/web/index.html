@@ -261,12 +261,28 @@
                 >Channel · messages received by this device</span
               >
             </div>
-            <button id="locate-conversation" title="Show this asset on the map">
-              Locate device
-            </button>
-            <button id="delete-conversation" title="Remove conversation from this browser">
-              Delete chat
-            </button>
+            <div class="conversation-menu">
+              <button
+                id="conversation-options"
+                class="icon-button"
+                aria-label="Conversation options"
+                title="Conversation options"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="conversation-options-menu"
+              >
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>
+              <div id="conversation-options-menu" class="options-menu" role="menu" hidden>
+                <button id="clear-conversation" class="danger-item" role="menuitem">
+                  Clear chat history
+                </button>
+              </div>
+            </div>
           </header>
           <!-- The open conversation's recipient and channel; conversations are chosen from the list or map. -->
           <input id="message-destination" type="hidden" value="broadcast" />
