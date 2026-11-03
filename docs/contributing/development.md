@@ -21,15 +21,18 @@ Code is formatted automatically; do not hand-align or compress code to save line
 | --- | --- | --- |
 | TypeScript, CSS, HTML, JSON, YAML | Prettier 3.9.10 (pinned in `package-lock.json`) | `.prettierrc.json`, `.prettierignore` |
 | Firmware C/C++ (`firmware/`) | clang-format 23.1.3 | `.clang-format` |
+| Python (`tools/`, `tests/`) | ruff 0.17.1 (format, plus lint for correctness and import order) | `ruff.toml` |
 
-Both use a 100-column limit. Generated files, frozen fixtures, vendored sources and Markdown are excluded. Install clang-format once into the ignored `.tools/` folder:
+All three use a 100-column limit. Generated files, frozen fixtures, vendored sources and Markdown are excluded. Install clang-format and ruff once into the ignored `.tools/` folder:
 
 ```sh
 python3 -m venv .tools/clang-format
 .tools/clang-format/bin/pip install clang-format==23.1.3
+python3 -m venv .tools/ruff
+.tools/ruff/bin/pip install ruff==0.17.1
 ```
 
-Then run `npm run format` to rewrite files, or `npm run format:check` to check them without changes. `tools/format-cpp.ts` refuses to run with any other clang-format version, because different versions format differently. `.editorconfig` sets line endings, final newlines and indentation for editors. `.gitattributes` makes Git store and check out text with LF on every OS (so generated-file comparisons also pass on Windows), keeps vendored files and frozen fixtures byte-exact, and marks generated files so GitHub collapses them in diffs.
+Then run `npm run format` to rewrite files, or `npm run format:check` to check them without changes. `tools/format-cpp.ts` and `tools/format-python.ts` refuse to run with any other clang-format or ruff version, because different versions format differently. `.editorconfig` sets line endings, final newlines and indentation for editors. `.gitattributes` makes Git store and check out text with LF on every OS (so generated-file comparisons also pass on Windows), keeps vendored files and frozen fixtures byte-exact, and marks generated files so GitHub collapses them in diffs.
 
 ## Continuous integration
 
@@ -38,7 +41,7 @@ Then run `npm run format` to rewrite files, or `npm run format:check` to check t
 | Job | What it checks |
 | --- | --- |
 | Host checks (Node 24, 25) | `npm ci --ignore-scripts` then `npm run check`: strict TypeScript, generated schema and vendor checks, compiler-backed host tests with sanitizers, Python updater tests and the web build |
-| Formatting | `npm run format:check` with the pinned Prettier and clang-format |
+| Formatting | `npm run format:check` with the pinned Prettier, clang-format and ruff |
 | Firmware unit tests | Standalone CMake build of the portable firmware components with `-Werror`, the CTest suite and `codec_bridge selftest` |
 | Firmware build (heltec-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
 | Shell script lint | `shellcheck --severity=warning tools/*.sh` |

@@ -1,0 +1,7 @@
+# Python style for tools/ and tests/. Run `npm run format` to apply.
+line-length = 100
+target-version = "py39"
+
+[lint]
+# Correctness checks (pyflakes, syntax/statement errors) and sorted imports.
+select = ["E4", "E7", "E9", "F", "I"]
