@@ -101,6 +101,10 @@ function values(container: HTMLElement, fields: PluginField[]) {
   }
   return result;
 }
+/** Clones a <template> from index.html; the map workspace's markup lives there. */
+const fromTemplate = (id: string) =>
+  (document.getElementById(id) as HTMLTemplateElement).content.cloneNode(true);
+
 export class MapWorkspace {
   #store?: MapStore;
   #error = '';
@@ -125,12 +129,7 @@ export class MapWorkspace {
     const tools = document.createElement('section');
     tools.id = 'map-workspace';
     tools.setAttribute('aria-label', 'Map tools');
-    tools.innerHTML = `<div class="map-toolbar"><button id="map-add-point" type="button">Add point</button><button id="map-add-area" type="button">Draw area</button><button id="map-cancel-tool" type="button" hidden>Cancel drawing</button></div>
-      <p id="map-tool-hint" role="status">Click the map to add a point, or use the tools above.</p>
-      <div class="map-layers"><label class="check"><input id="map-show-items" type="checkbox" checked>Map items</label><label class="check"><input id="map-show-devices" type="checkbox" checked>Devices</label></div>
-      <p id="map-workspace-error" class="warning" role="alert" hidden></p><p id="map-share-state" role="status"></p>
-      <details open><summary>Saved map items</summary><label class="sr-only" for="map-item-search">Search map items</label><input id="map-item-search" type="search" placeholder="Search map items"><div id="map-item-list"></div></details>
-      <button id="map-export" type="button">Export map workspace</button><p class="small muted">Local items are saved in this browser in plaintext. Encrypted received items retain ciphertext. Sharing requires a connected device.</p>`;
+    tools.append(fromTemplate('map-tools-template'));
     const tracker = document.querySelector('.tracker-pane')!;
     const sidebar = document.createElement('div');
     sidebar.id = 'map-side-panel';
@@ -147,16 +146,7 @@ export class MapWorkspace {
     sidebar.append(tools, devices);
     tracker.append(sidebar);
     const dialogs = document.createElement('div');
-    dialogs.innerHTML = `
-      <dialog id="map-location" class="manage map-dialog" aria-labelledby="map-location-title"><form method="dialog" class="manage-head"><h2 id="map-location-title">Add to map</h2><button>Cancel</button></form><div class="manage-body"><p id="map-location-coordinates"></p><div class="actions"><button id="map-location-point">Add point here</button><button id="map-location-area">Draw area from here</button></div></div></dialog>
-      <dialog id="map-editor" class="manage map-dialog" aria-labelledby="map-editor-title"><div class="manage-head"><h2 id="map-editor-title">Map item</h2><button id="map-editor-cancel" type="button">Cancel</button></div><form id="map-item-form" class="manage-body">
-      <label for="map-type">Type</label><select id="map-type"></select><div class="columns"><div><label for="map-name">Name</label><input id="map-name" required maxlength="48"></div><div><label for="map-color">Color</label><input id="map-color" type="color" value="#78c5ab"></div></div>
-      <div class="coordinate-fields"><div><label for="map-lat">Latitude / north</label><input id="map-lat" type="number" step="0.0000001" min="-90" max="90" required></div><div><label for="map-lng">Longitude / west</label><input id="map-lng" type="number" step="0.0000001" min="-180" max="180" required></div><div class="area-coordinate"><label for="map-south">South latitude</label><input id="map-south" type="number" step="0.0000001" min="-90" max="90"></div><div class="area-coordinate"><label for="map-east">East longitude</label><input id="map-east" type="number" step="0.0000001" min="-180" max="180"></div></div>
-      <label for="map-note">Short note</label><input id="map-note" maxlength="160"><div id="map-custom-fields"></div><p id="map-editor-error" class="warning" role="alert"></p><p class="small muted">Save locally first. Nothing is sent until you choose Share.</p><div class="actions"><button type="submit" class="primary">Save map item</button></div></form></dialog>
-      <dialog id="map-detail" class="manage map-dialog" aria-labelledby="map-detail-title"><form method="dialog" class="manage-head"><h2 id="map-detail-title">Map item</h2><button>Close</button></form><div class="manage-body"><div id="map-detail-body"></div><div id="map-detail-actions" class="actions"></div></div></dialog>
-      <dialog id="map-share" class="manage map-dialog" aria-labelledby="map-share-title"><form method="dialog" class="manage-head"><h2 id="map-share-title">Share map item</h2><button>Cancel</button></form><form id="map-share-form" class="manage-body"><p id="map-share-summary"></p><label for="map-share-channel">Channel</label><select id="map-share-channel"></select><label for="map-share-destination">Recipient</label><input id="map-share-destination" value="broadcast" required placeholder="broadcast or node ID"><p class="small muted">Use broadcast for everyone on the channel, or enter a node ID for direct sharing. Recipients can add it to their map from its message card.</p><label for="map-share-operation">Action</label><select id="map-share-operation"><option value="put">Share item / update</option><option value="withdraw">Request removal of my shared item</option></select><p id="map-share-budget" role="status"></p><p id="map-share-error" class="warning" role="alert"></p><div class="actions"><button id="map-share-send" class="primary" type="submit">Share</button></div></form></dialog>
-      <dialog id="plugin-preview" class="manage map-dialog" aria-labelledby="plugin-preview-title"><form method="dialog" class="manage-head"><h2 id="plugin-preview-title">Review plugin</h2><button>Cancel</button></form><div class="manage-body"><div id="plugin-preview-body"></div><button id="plugin-install-confirm" class="primary">Install / update plugin</button><p id="plugin-install-error" role="alert"></p></div></dialog>
-      <dialog id="plugin-settings-dialog" class="manage map-dialog" aria-labelledby="plugin-settings-title"><form method="dialog" class="manage-head"><h2 id="plugin-settings-title">Plugin settings</h2><button>Cancel</button></form><form id="plugin-settings-form" class="manage-body"><div id="plugin-settings-fields"></div><p id="plugin-settings-error" role="alert"></p><button class="primary">Save settings</button></form></dialog>`;
+    dialogs.append(fromTemplate('map-dialogs-template'));
     document.body.append(dialogs);
     const nav = document.querySelector('.manage-tabs')!;
     const pluginTab = button(
@@ -182,7 +172,7 @@ export class MapWorkspace {
     panel.className = 'manage-panel';
     panel.dataset.managePanel = 'plugins';
     panel.hidden = true;
-    panel.innerHTML = `<div class="section-toolbar"><h2>Plugins</h2><label class="plugin-import">Install / update JSON<input id="plugin-file" type="file" accept="application/json,.json"></label></div><p class="small muted">Plugins add map types, fields and settings without changing the app. JSON definitions cannot execute code or send messages. Settings apply to this browser. Removing a plugin preserves map items.</p><div id="plugin-list"></div>`;
+    panel.append(fromTemplate('plugin-panel-template'));
     document.querySelector('#manage > .manage-body')!.append(panel);
     try {
       this.#store = new MapStore(storage, () => host.writable());
