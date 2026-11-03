@@ -51,15 +51,15 @@ request retention — no radio, no flash durability.
 
 Walk through a recovery scenario to see the honesty guarantees in action:
 
-1. Open **Settings → Device**, change the device label, and **Save**. The revision advances
-   and history shows the device accepted the change.
-2. Under **Recovery**, set **Next save** to **Disconnect after commit**, edit the label, and
-   save. The connection closes and its command becomes **unknown**.
-3. Reconnect and choose **Query result** on that command. A retained receipt resolves it
-   *without* resending the change.
-4. **Lose result and change event** suppresses all replies for the next command (including its
-   retries); after the bounded retry window it becomes **unknown**, and a query still works.
-5. **Read-only on next connect** demonstrates capability-based mutation blocking.
+1. Open **Settings → Device**, change the device label, and **Save**. The revision advances.
+2. Under **Settings → Storage**, set **Next save** to **Disconnect after commit**, edit the
+   label, and save. The connection closes and the change's outcome becomes **unknown**.
+3. Reconnect. The app queries the device for the outcome *without* resending the change.
+4. Repeat step 2, then **Reboot simulated device** before reconnecting. The receipt is gone,
+   so the app says the change may not have applied and shows the device's settings.
+5. **Lose result and change event** suppresses all replies for the next command (including its
+   retries); after the bounded retry window it becomes **unknown**, and the app queries it.
+6. **Read-only on next connect** demonstrates capability-based mutation blocking.
 
 A page reload resets the simulator and agent history. A simulated reboot preserves config but
 clears receipts and owner marks and changes the boot identity.

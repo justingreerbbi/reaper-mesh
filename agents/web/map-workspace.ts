@@ -161,13 +161,12 @@ export class MapWorkspace {
           if (t === pluginTab) t.setAttribute('aria-current', 'page');
           else t.removeAttribute('aria-current');
         });
-        $('advanced-settings').removeAttribute('open');
         document.querySelector('.manage-body')!.scrollTop = 0;
       },
       'manage-tab',
     );
     pluginTab.dataset.manage = 'plugins';
-    nav.insertBefore(pluginTab, $('advanced-settings'));
+    nav.insertBefore(pluginTab, nav.querySelector('[data-manage="recovery"]'));
     const panel = document.createElement('section');
     panel.className = 'manage-panel';
     panel.dataset.managePanel = 'plugins';

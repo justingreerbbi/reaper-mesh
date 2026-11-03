@@ -18,7 +18,7 @@ import { initMessages, renderInbox, renderMessages } from './messages-ui.ts';
 import { initChannels, renderEncryption } from './channels-ui.ts';
 import {
   initSettings,
-  renderCommandHistory,
+  settleCommands,
   renderDiscovery,
   renderPosition,
   renderScreen,
@@ -58,7 +58,7 @@ function renderApp() {
   renderOverview();
   mapWorkspace.update();
   renderMap();
-  renderCommandHistory(model, ready);
+  settleCommands(model, ready);
 }
 
 const timer = setInterval(render, 100);

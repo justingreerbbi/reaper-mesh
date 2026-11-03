@@ -17,17 +17,19 @@ Dark technical workspace with Messages, Map and Settings navigation. On desktop,
 - Incoming/outgoing messages share a thread. Destination ACK means delivered, never read. Messages show their delivery status without a Message details dropdown; unknown work is never automatically resent.
 - Drafts are isolated by transport/device/conversation and retained in this tab across switching/disconnect. Enter sends when allowed; Shift+Enter adds a line. Drafts are not saved across page reload.
 - Map shows heard nodes, last-heard age, fixed positions and local or shared map items (see [Map authoring and sharing](#map-authoring-and-sharing)). Selecting a marker selects the device; messaging is an explicit action. Missing/stale observations never imply online status.
-- Settings contains device, radio, position, discovery, command history, recovery and diagnostics. No firmware changes are needed for this layout.
+- Settings tabs: device, radio, channels, position, discovery, screen, privacy, plugins, storage and diagnostics. There is no change-history page. No firmware changes are needed for this layout.
+- The header has one connection button: it connects, cancels while the port chooser is open, and disconnects once connected.
 
 Missing positions are never plotted. Map tiles load from Esri’s dark canvas service and may fail offline; node and message controls remain available. One USB device at a time remains the writer boundary until per-device journaling lands. Use the browser port chooser to pick Heltec or T-Beam.
 
 ## Try it without hardware
 
 1. Select **Simulator** and connect, then open Settings → Device with label/region editing; messaging, radio, discovery, and position stay gated until USB firmware advertises them.
-2. Change the device label, then **Save**. The revision advances and history shows device acceptance.
-3. Set **Next save** under Recovery to **Disconnect after commit**, edit the label, and save. The connection closes and its command becomes unknown.
-4. Reconnect and select **Query result** on that command. A retained receipt resolves it without resending the configuration change.
-5. **Lose result and change event** suppresses all replies for the next command, including its retries. After the bounded retry window it becomes unknown; result queries still work. **Read-only on next connect** demonstrates capability-based mutation blocking.
+2. Change the device label, then **Save**. The revision advances.
+3. Under Settings → Storage, set **Next save** to **Disconnect after commit**, edit the label, and save. The connection closes and the change's outcome becomes unknown.
+4. Reconnect. The app queries the device for that outcome without resending the change, and the label shows what the device applied.
+5. To see a lost outcome, repeat step 3, then **Reboot simulated device** before reconnecting. The receipt is gone, so the app says the change may not have applied and shows the device's settings.
+6. **Lose result and change event** suppresses all replies for the next command, including its retries. After the bounded retry window it becomes unknown and the app queries it. **Read-only on next connect** demonstrates capability-based mutation blocking.
 
 The simulator is shared with host tests under `packages/simulator/`. It uses the same framed/typed protocol and serial adapter as the USB path, but only models in-memory configuration and request retention. Reconnects preserve its state; a page reload resets the simulator and agent history. Reboot preserves simulated config but clears receipts/owner marks and changes boot identity. No flash durability or radio is simulated.
 
@@ -37,7 +39,7 @@ The simulator is shared with host tests under `packages/simulator/`. It uses the
 
 Device status/capabilities are readable even when writes are blocked. The UI displays the blocking reason, advertised byte limit, region availability, owner admission, receipt/owner capacities, and firmware/radio identifiers. The messaging UI exposes local delivery, bounded outgoing history and received messages; remote sends require live radio readiness.
 
-Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest** is selected. Pending changes cannot be resubmitted or cleared. Unknown commands can be queried after synchronization; they are never automatically resent. **Forget uncertain command** explicitly confirms loss of result recovery and does not undo/cancel device work. Clear non-pending history to release the agent's 32-entry limit.
+Drafts are preserved while editing. If the boot, device identity, or revision changes, saving the old draft is blocked until **Load latest** is selected. Pending changes cannot be resubmitted. The portal keeps no visible change history: it releases each settings change from the agent's 32-entry history once its outcome is final, and shows a message if the device rejected it or a conflict loaded newer settings. A change with an unknown outcome is queried once per connection, never resent. It is released when the result arrives, or when the device has rebooted (the receipt is gone); the app then says the change may not have applied, and the settings shown are what the device reports. Changes made through another device stay held until that device reconnects.
 
 Each connection source retains its own agent manager for this page session. Mode switching is disabled during an active connection/open/cleanup. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. USB history/incarnation survives reload in plaintext local storage, with a Web Lock preventing simultaneous writers in this browser bucket. Other browsers/profiles have separate identities. Device owner marks are not silently evicted; exhausted admission is read-only until an explicit device reboot, which loses volatile receipts/queues. Export/query pending history first. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
 
@@ -119,7 +121,7 @@ Settings use a single scrolling surface: Channels has horizontal channel links w
 
 ### Task-first interface review (November 2)
 
-Device setup follows region → name → save, with a content-sized region selector. Channels places Create channel beside its heading and opens the selected channel inline; Public omits the uneditable name field. Routine settings remain directly visible; Advanced contains change history, storage/recovery and diagnostics. Technical device metadata and key import use optional disclosure. Radio modes describe their effect, discovery explains announcements versus replies, and save/discard actions use consistent labels. Recipient setup explains IDs/broadcast and makes local testing secondary. Wipe/reset remain explicit and distinct from routine actions.
+Device setup follows region → name → save, with a content-sized region selector. Channels places Create channel beside its heading and opens the selected channel inline; Public omits the uneditable name field. Routine settings remain directly visible; storage and diagnostics are their own tabs (the Advanced group and change history were removed on November 3). Technical device metadata and key import use optional disclosure. Radio modes describe their effect, discovery explains announcements versus replies, and save/discard actions use consistent labels. Recipient setup explains IDs/broadcast and makes local testing secondary. Wipe/reset remain explicit and distinct from routine actions.
 
 The review applies familiar navigation, progressive disclosure, clear feedback and form grouping from [NN/g’s Web UX study guide](https://www.nngroup.com/articles/web-ux-study-guide/), plus the supplied Mailchimp, ICS, Erik Kennedy, Codilar and Proteus references. These are design principles, not a claim of formal usability testing or complete accessibility conformance. Firmware/privacy defaults and protocol contracts are unchanged.
 

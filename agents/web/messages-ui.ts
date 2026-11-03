@@ -33,7 +33,7 @@ import {
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { accessDialog, onLocalAppStop } from './access-ui.ts';
-import { connect } from './connection-ui.ts';
+import { connectDevice } from './connection-ui.ts';
 import { fieldMap, mapWorkspace, selectNode, setSelectedNode, setView } from './map-ui.ts';
 
 const deleteDialog = element<HTMLDialogElement>('delete-history');
@@ -277,7 +277,7 @@ export function renderMessages() {
     (n, source) => n + (messageState?.unread(source.source, source.messages).length ?? 0),
     0,
   );
-  document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh · Field communications`;
+  document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh`;
   text('nav-unread', totalUnread);
   element('nav-unread').hidden = totalUnread === 0;
   element<HTMLButtonElement>('mark-all-read').disabled =
@@ -291,7 +291,8 @@ export function renderMessages() {
   text('message-management-status', messageStateError);
   element('message-management-status').hidden = !messageStateError;
   const uploading = history.some(entry => entry.state === 'receiving');
-  body.disabled = uploading;
+  // Read-only rather than disabled, so the box keeps focus while the device takes the message.
+  body.readOnly = uploading;
   destination.disabled = channel.disabled = uploading;
   const selectedChannel = Number(channel.value),
     encryptedRequired = encryption?.isRequired(selectedChannel) ?? false;
@@ -670,7 +671,7 @@ export function initMessages() {
   element('back-conversations').addEventListener('click', () =>
     app.classList.remove('has-conversation'),
   );
-  element('conversation-connect').addEventListener('click', () => connect.click());
+  element('conversation-connect').addEventListener('click', () => void connectDevice());
   element('conversation-search').addEventListener('input', renderMessages);
   document.addEventListener('map-message-change', renderMessages);
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
