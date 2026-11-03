@@ -736,6 +736,11 @@ body {
   gap: 16px;
   padding: 4px 6px 0;
 }
+/* Hints show only when there is something to say; empty ones take no room. */
+#message-support:empty,
+.thread-status:has(#inbox-status:empty):has(.new-messages[hidden]) {
+  display: none;
+}
 #message-support {
   flex: 1;
   font-size: 12px;

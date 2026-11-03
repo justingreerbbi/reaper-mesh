@@ -399,7 +399,7 @@ export function renderMessages() {
       (encryptedRequired && !encryption?.unlocked
         ? 'Encryption required · unlock the app before sending'
         : !ready
-          ? 'Connect a device to send · your draft stays here'
+          ? 'Connect a device to send'
           : (connection.messageBlockReason ??
             (uploading
               ? 'Uploading message…'
@@ -407,13 +407,7 @@ export function renderMessages() {
                 ? sendBlockReason
                 : remoteBlocked
                   ? 'Radio unavailable · check Settings → Radio'
-                  : encryptedRequired
-                    ? destination.value === 'broadcast'
-                      ? 'Encrypted channel · device ACK confirms ciphertext delivery only'
-                      : "Encrypted with the channel key · anyone with this channel's key can read this direct message"
-                    : destination.value === 'broadcast'
-                      ? 'Broadcast · no recipient ACK'
-                      : 'Destination ACK confirms delivery, not reading'))),
+                  : ''))),
   );
   element<HTMLButtonElement>('message-send').disabled =
     !ready ||
@@ -673,11 +667,7 @@ export function renderInbox() {
   text(
     'inbox-status',
     connection.inbox.error ??
-      (connection.inbox.gap
-        ? 'Earlier messages are no longer retained on the device.'
-        : connection.sync.state !== 'ready'
-          ? 'History stays available while disconnected.'
-          : 'Device history · received does not mean read'),
+      (connection.inbox.gap ? 'Earlier messages are no longer retained on the device.' : ''),
   );
 }
 
