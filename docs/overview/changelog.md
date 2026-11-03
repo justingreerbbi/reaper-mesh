@@ -339,7 +339,14 @@ screen settings unchanged. The owner confirmed the bolt and `USB` show when plug
 battery. Not yet checked: a changed timeout and wake-on-message on the physical screen, and the
 portal's Screen tab in a native browser.
 
-`heltec-reaper-mesh-v0.2.0` builds without warnings but is not installed. Host checks: 276
+`heltec-reaper-mesh-v0.2.0` was installed on the Heltec from clean commit `cc28285` (285,968-byte
+app, SHA-256 `30ff5fd6c4c676e144670f9ae76d3a6f0f87c70add251f448b04dbfd1c330cee`) with
+ROM-verified hashes and NVS preserved; it reported `screenVersion` 1 at revision 44. Screen
+settings were saved (revision 45, 10 s with wake on) and read back after a reset with a new boot
+identity, with other settings unchanged. The owner confirmed the screen turned off after 10 s and
+woke on a message from the T-Beam. That commit also makes build manifests list config record 5,
+which v0.2.0 reads and writes. Still not checked: the portal's Screen tab in a native browser,
+and the Heltec's startup, pages and gestures. Host checks: 276
 tests and 75 CTests pass, including record 5, screen-setting, TS-to-native USB, wake and
 battery-drawing tests. The 28 earlier fixtures are unchanged; three are appended. See
 [device screen and buttons](../reference/device-display.md).

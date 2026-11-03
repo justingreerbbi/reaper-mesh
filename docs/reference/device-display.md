@@ -70,6 +70,9 @@ that omits them keeps the stored values. Wire fields and storage are in the
 [protocol](protocol.md#screen-settings-v1-phase-4) and
 [persistence](persistence.md#screen-settings-record-5) references.
 
+On November 3 the owner confirmed both settings on the Heltec V3 (`v0.2.0`): with a 10 s timeout
+and wake on, the screen turned off after 10 s, and a message from the T-Beam turned it back on.
+
 ## Battery and USB power
 
 The top-right corner of the main page shows the board's power, using only what the board
