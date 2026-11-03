@@ -14,7 +14,7 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 | Phase | State |
 | --- | --- |
 | 1 — Working communications | Complete by owner decision. Three-node relay, range and power-cut testing are still open release gates. |
-| 2 — Discovery and field portal | Active. Discovery (2.1) and fixed position (2.2a) are verified on two boards. GPS (2.2b) is deferred by the owner. The messaging and map portal (2.3) is the current focus. |
+| 2 — Discovery and field portal | Active. Discovery (2.1) and fixed position (2.2a) are verified on two boards. GPS (2.2b) is deferred by the owner. New portal features (2.3) are paused until relay and range testing pass. |
 | 3 — Encrypted channels | First implementation done and verified for direct messages between two boards. Rotation, interrupted-upload recovery and a security review are still open. |
 | 4 — Device presentation and power | Planned. |
 
@@ -48,6 +48,18 @@ than assuming these. The next firmware change renames images to
 | Encryption | Agent-side XChaCha20-Poly1305 group keys; devices carry ciphertext only | Encrypted direct messages in both directions | Reconnect or reboot during upload, key rotation over radio, relay, security review |
 | Web portal | Messaging inbox, map with local and shared items, settings, optional PIN, local wipe, JSON plugins | Earlier portal versions checked in native Brave over USB | Native desktop QA of the map, sharing and plugin features |
 | Firmware updates | Manifest-validating ROM updater that preserves NVS | Repeated installs on both boards | Interrupted flash, rollback, signed releases |
+
+## Next qualification work
+
+New portal features are paused (November 3) until these pass; see the
+[field qualification plan](../contributing/field-qualification.md).
+
+| Test | State |
+| --- | --- |
+| Three-node relay | Not started: needs a third board and `tools/hardware-relay-smoke.ts` |
+| Outdoor range (`US915_LAB1`) | Not started |
+| Power loss and interrupted flash | Not started |
+| 24-hour soak | Not started |
 
 ## Automated checks
 

@@ -55,6 +55,7 @@ you want to do.
 | [Development & CI](contributing/development.md) | Toolchain, host checks, and continuous integration |
 | [Development plan](contributing/plan.md) | Repository layout, architecture and engineering standards |
 | [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
+| [Field qualification plan](contributing/field-qualification.md) | Three-node relay, outdoor range, power-loss and soak tests |
 | [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 

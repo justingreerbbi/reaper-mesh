@@ -77,7 +77,7 @@ Phase completion records product milestones. It does not waive outstanding secur
 | 3 — Encrypted channels | Agents encrypt message bodies while devices route ciphertext | Initial group-key implementation exists; direct encrypted exchanges on Heltec/T-Beam have recorded evidence | Validate key transfer/rotation, tamper/replay handling, no plaintext downgrade and interrupted encrypted upload recovery; independent security review remains outstanding |
 | 4 — Device presentation and power visibility | Clear on-device status and supported power information | Planned; existing OLED support is not completion of this phase | Define screen management, sleep/wake, RX/TX indication and measured battery reporting with unknown/unsupported states |
 
-The current priority is the messaging and asset portal, channel/key usability and agent privacy. GPS acquisition is not the next automatic task.
+The current priority is field qualification: three-node relay, outdoor range, power loss and soak testing on real hardware (owner direction, November 3). New portal features are paused until relay and range pass. GPS acquisition is not the next automatic task.
 
 ## 5. Functional requirements
 

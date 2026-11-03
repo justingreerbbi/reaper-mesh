@@ -2,7 +2,15 @@
 
 Owner-directed phases, set November 1, 2026 and last updated November 3. This is the canonical list of product priorities. Current implementation and verification state is in [Status](status.md); architecture is in the [development plan](../contributing/plan.md).
 
-**Current focus:** Phase 2.3, the messaging and map portal. GPS (2.2b) is deferred by the owner. Release gates from Phase 1 (three-node relay, range, power cut) remain open.
+**Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
+
+Order of work:
+
+1. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
+2. Three-node relay test.
+3. Outdoor range test.
+4. Power-loss, interrupted-flash and soak tests.
+5. Review the results for radio protocol changes, then resume Phase 2.3 portal work.
 
 | Phase | Outcome | Included features | Status |
 | --- | --- | --- | --- |
@@ -18,7 +26,7 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 | 2.1 Discovery | Versioned control messages; beacon/response settings; manual who-is-listening request; bounded jittered replies; node cache; capability negotiation; separate node-table sync stream | Discovery controls; node list with name/ID, last heard, response outcome and feature availability | **Done.** Two real boards discover one another; disabled responders stay silent; no response/ACK loops; duplicate/lost/reordered reply and reconnect/reboot tests pass. |
 | 2.2a Fixed position | Persist fixed coordinates; independently enable location sharing; include only valid authorized positions | Position settings; last-known markers; nodes without coordinates remain usable | **Done.** Fixed coordinates exchanged on two boards; disabled sharing emits no coordinates; reboot persistence verified. |
 | 2.2b GPS | Optional T-Beam GPS input; distinguish GPS/fixed/unavailable and fix age | Location source and age | **Deferred by the owner (November 2).** Needs an actual valid T-Beam fix; invalid or stale fixes are never shown as current. |
-| 2.3 Field portal | Expose correlated node snapshots/updates and clear unsupported-capability states; keep existing message/configuration recovery | Messaging-first workspace (conversation inbox and threads), map with local and shared items, settings apart from daily use, responsive layout | **Current focus.** Implemented and checked in host and isolated-browser tests. Remaining: native desktop QA over USB, and a connection selector that supports both devices (needs per-device journaling). Must work with no GPS, no nodes and no map tiles, and reconnect without replaying sends. |
+| 2.3 Field portal | Expose correlated node snapshots/updates and clear unsupported-capability states; keep existing message/configuration recovery | Messaging-first workspace (conversation inbox and threads), map with local and shared items, settings apart from daily use, responsive layout | **Paused for new features** until field qualification passes. Implemented and checked in host and isolated-browser tests. Remaining: native desktop QA over USB, and a connection selector that supports both devices (needs per-device journaling). Must work with no GPS, no nodes and no map tiles, and reconnect without replaying sends. |
 | 2.3b Portal plugins | None | Declarative JSON plugin manifests that add map item types and settings | **v1 done** (no plugin code runs). Executable plugins and integrations such as Weather Radar, Reaper ADS-B and a Reaper APRS bridge wait on an isolation and permissions decision ([Q6](../contributing/decisions.md#open-questions)). |
 | 2.4 Qualification | Resource/airtime measurements; mixed Phase 1/2 compatibility; physical loss/reconnect checks | End-to-end connection, discovery, map, messaging and settings checks | Not started as a whole. Shared automated checks and both target builds must pass, with two-board discovery/location/message evidence recorded. Relay qualification still requires a third node. |
 

@@ -1,6 +1,6 @@
 # Phase 2: discovery, position and field portal
 
-This is the requirements and acceptance contract for Phase 2. Current state is in [Status](../overview/status.md) and slice order in the [Roadmap](../overview/roadmap.md): discovery (2.1) and fixed position (2.2a) are done and verified on two boards; GPS (2.2b) is deferred by the owner; the messaging and map portal (2.3) is the current focus. Hardware evidence is in the [Changelog](../overview/changelog.md). See [protocol](../reference/protocol.md) for the implemented discovery and position wire layout.
+This is the requirements and acceptance contract for Phase 2. Current state is in [Status](../overview/status.md) and slice order in the [Roadmap](../overview/roadmap.md): discovery (2.1) and fixed position (2.2a) are done and verified on two boards; GPS (2.2b) is deferred by the owner; new messaging and map portal features (2.3) are paused until field qualification passes. Hardware evidence is in the [Changelog](../overview/changelog.md). See [protocol](../reference/protocol.md) for the implemented discovery and position wire layout.
 
 ## Discovery behavior
 
