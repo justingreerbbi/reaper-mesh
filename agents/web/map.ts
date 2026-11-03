@@ -1,6 +1,5 @@
 import type { MapItem } from '../../packages/protocol/map-item.ts';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 export type MapPoint = Readonly<{
   id: string;

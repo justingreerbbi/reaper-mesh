@@ -1,4 +1,4 @@
-// Map workspace, node selection and switching between the Messages and Map views.
+// Map workspace, node selection and navigation between the portal workspaces.
 import { DEFAULT_CHANNELS } from '../../packages/protocol/radio-config.ts';
 import { degrees } from '../../packages/protocol/position-config.ts';
 import { MapWorkspace } from './map-workspace.ts';
@@ -63,13 +63,21 @@ export type Panel = 'device' | 'nodes' | 'messages';
 export function setPanelOpen(_open: boolean) {
   fieldMap.invalidate();
 }
-export function setView(view: 'map' | Panel) {
+export function setView(view: 'overview' | 'map' | Panel) {
   if (view === 'device') {
     openManage('device');
     return;
   }
   app.dataset.view = view === 'nodes' ? 'map' : view;
-  for (const button of document.querySelectorAll<HTMLElement>('[data-view-target]')) {
+  text(
+    'workspace-title',
+    app.dataset.view === 'overview'
+      ? 'Overview'
+      : app.dataset.view === 'map'
+        ? 'Map & devices'
+        : 'Messages',
+  );
+  for (const button of document.querySelectorAll<HTMLElement>('.nav-rail [data-view-target]')) {
     const active = button.dataset.viewTarget === app.dataset.view;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-current', active ? 'page' : 'false');
@@ -144,7 +152,9 @@ export function initMap() {
     render();
   };
   for (const button of document.querySelectorAll<HTMLElement>('[data-view-target]')) {
-    button.addEventListener('click', () => setView(button.dataset.viewTarget as 'map' | Panel));
+    button.addEventListener('click', () =>
+      setView(button.dataset.viewTarget as 'overview' | 'map' | Panel),
+    );
   }
   for (const tab of document.querySelectorAll<HTMLElement>('.dock-tab')) {
     tab.addEventListener('click', () => {
@@ -157,5 +167,5 @@ export function initMap() {
     if (selectedNode) selectNode(selectedNode, { message: true });
   });
   window.addEventListener('resize', () => fieldMap.invalidate());
-  setView('messages');
+  setView('overview');
 }

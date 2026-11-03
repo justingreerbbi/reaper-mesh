@@ -3,57 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#090e12" />
+    <meta name="theme-color" content="#101217" />
     <title>Reaper Mesh · Local data cleared</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        font: 16px/1.6 system-ui;
-        background: #090e12;
-        color: #e0e8ee;
-      }
-      body {
-        margin: 0;
-        min-height: 100dvh;
-        display: grid;
-        place-content: center;
-        padding: 24px;
-        box-sizing: border-box;
-      }
-      main {
-        max-width: 440px;
-      }
-      h1 {
-        font-size: 26px;
-      }
-      p {
-        color: #9aabb7;
-      }
-      a {
-        display: inline-block;
-        margin-top: 16px;
-        padding: 12px 20px;
-        background: #94dfbd;
-        color: #10241c;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 600;
-      }
-      a:focus-visible {
-        outline: 2px solid white;
-        outline-offset: 4px;
-      }
-    </style>
+    <link rel="stylesheet" href="./theme.css" />
   </head>
-  <body>
+  <body class="session-page">
     <main>
+      <span class="eyebrow">Reaper Mesh / Local workspace</span>
       <h1>Local data wiped</h1>
       <p>
         This browser’s Reaper Mesh keys, PIN, settings and message history have been deleted. The
         app has disconnected.
       </p>
       <p>Devices and other browsers keep their own data.</p>
-      <a href="./">Open Reaper Mesh</a>
+      <a class="button-link" href="./">Open Reaper Mesh</a>
     </main>
   </body>
 </html>
