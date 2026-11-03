@@ -1,4 +1,4 @@
-// Settings dialog: navigation, radio, position, discovery, recovery and command history.
+// Settings dialog: navigation, radio, position, discovery, screen, recovery and command history.
 import { degrees, coordinate } from '../../packages/protocol/position-config.ts';
 import {
   DEFAULT_CHANNELS,
@@ -29,6 +29,8 @@ let positionDirty = false,
 let discoveryDirty = false,
   discoveryBase = '',
   nodeSignature = '';
+let screenDirty = false,
+  screenBase = '';
 let radioDirty = false;
 let radioBase = '';
 
@@ -252,6 +254,44 @@ export function renderPosition() {
   element<HTMLButtonElement>('position-save').disabled =
     !writable || !positionDirty || stale || model.pending;
   element<HTMLButtonElement>('position-reset').disabled = !ready;
+}
+
+export function renderScreen() {
+  const model = current(),
+    connection = model.adapter.connection,
+    { sync } = connection;
+  const ready = connection.supportsScreen && sync.state === 'ready';
+  const screen = sync.config?.screen;
+  const writable = ready && !connection.writeBlockReason && !!screen;
+  const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
+  const select = element<HTMLSelectElement>('screen-timeout');
+  if (!screenDirty && screen) {
+    // Keep a device value set outside this portal selectable instead of silently replacing it.
+    const value = String(screen.timeout);
+    select.querySelector('option[data-custom]')?.remove();
+    if (![...select.options].some(option => option.value === value)) {
+      const option = new Option(`${screen.timeout} seconds`, value);
+      option.dataset.custom = '';
+      select.add(option);
+    }
+    select.value = value;
+    element<HTMLInputElement>('screen-wake').checked = screen.wake;
+    screenBase = context;
+  }
+  const stale = screenDirty && screenBase !== context;
+  text(
+    'screen-support',
+    !connection.supportsScreen
+      ? 'Connect to firmware with screen settings support.'
+      : stale
+        ? 'Device state changed. Load the latest screen settings.'
+        : (connection.writeBlockReason ?? ''),
+  );
+  for (const id of ['screen-timeout', 'screen-wake'])
+    element<HTMLInputElement>(id).disabled = !writable || model.pending;
+  element<HTMLButtonElement>('screen-save').disabled =
+    !writable || !screenDirty || stale || model.pending;
+  element<HTMLButtonElement>('screen-reset').disabled = !ready;
 }
 
 export function renderDiscovery() {
@@ -490,6 +530,32 @@ export function initSettings() {
         },
       });
       positionDirty = false;
+      clearError();
+      render();
+    } catch (error) {
+      showError(error);
+    }
+  });
+  element('screen-form').addEventListener('input', () => {
+    screenDirty = true;
+    render();
+  });
+  element('screen-reset').addEventListener('click', () => {
+    screenDirty = false;
+    render();
+  });
+  element('screen-form').addEventListener('submit', event => {
+    event.preventDefault();
+    try {
+      const config = current().adapter.connection.sync.config!;
+      current().adapter.configure({
+        ...config,
+        screen: {
+          timeout: Number(element<HTMLSelectElement>('screen-timeout').value),
+          wake: element<HTMLInputElement>('screen-wake').checked,
+        },
+      });
+      screenDirty = false;
       clearError();
       render();
     } catch (error) {

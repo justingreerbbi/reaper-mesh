@@ -19,6 +19,7 @@ import {
   renderCommandHistory,
   renderDiscovery,
   renderPosition,
+  renderScreen,
   renderRadio,
 } from './settings-ui.ts';
 import { fieldMap, initMap, mapWorkspace, renderMap } from './map-ui.ts';
@@ -45,6 +46,7 @@ function renderApp() {
   renderConnection(model, active, cleanupError);
   renderPinSettings();
   renderPosition();
+  renderScreen();
   renderDiscovery();
   renderRadio();
   renderEncryption();

@@ -201,3 +201,15 @@ Outgoing retention is independent of unresolved-send admission: at most 32 unres
 ## Map application payload v1
 
 Shared map annotations use an `RMAP1:` UTF-8 application envelope inside existing message data. No USB/radio/config schema change. Existing channel encryption can wrap it. Object identity, revisions, approval, plugin metadata, retention and compatibility are specified in [map-sharing.md](map-sharing.md); device ACK remains distinct from agent/user acceptance.
+
+## Screen settings v1 (Phase 4)
+
+Welcome appends `screenVersion` 1 (tag 26) and feature bit 9 (512). Configure, snapshot and
+event append `screenTimeout` and `screenWake`. `screenTimeout` is in seconds: 0 keeps the screen
+on, otherwise 10–3600. `screenWake` is 0 or 1. A configure carries both or neither; omitting both
+preserves the device's screen settings, so older agents keep working. Agents write them only
+when `screenVersion` is 1 and bit 9 is set. A device that advertises another version stays
+readable and its screen settings are left alone. They are board-local: no radio packet
+changes. The 28 earlier fixtures are unchanged; three fixtures (welcome, configure, snapshot)
+are appended. Storage is record 5 ([persistence](persistence.md#screen-settings-record-5)). Screen
+behavior is in [device screen and buttons](device-display.md#screen-settings).

@@ -343,6 +343,7 @@
         <button type="button" class="manage-tab" data-manage="channels">Channels</button>
         <button type="button" class="manage-tab" data-manage="position">Position</button>
         <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
+        <button type="button" class="manage-tab" data-manage="screen">Screen</button>
         <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
         <details id="advanced-settings" class="advanced-settings">
           <summary>Advanced</summary>
@@ -603,6 +604,34 @@
                 Save discovery settings
               </button>
               <button id="discovery-reset" type="button">Discard changes</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="manage-panel" data-manage-panel="screen" hidden>
+          <h2>Screen</h2>
+          <p id="screen-support" role="status" class="muted"></p>
+          <p class="small muted">
+            Control the device's own screen. A button press always wakes it. These settings are
+            stored on the device and never change what it sends over the radio.
+          </p>
+          <form id="screen-form">
+            <label for="screen-timeout">Turn the screen off after</label>
+            <select id="screen-timeout">
+              <option value="10">10 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">1 minute</option>
+              <option value="300">5 minutes</option>
+              <option value="0">Never</option>
+            </select>
+            <label class="check">
+              <input id="screen-wake" type="checkbox" />Wake the screen when a message
+              arrives</label
+            >
+            <p class="field-help">Shows the main page with the new-message count.</p>
+            <div class="actions">
+              <button id="screen-save" class="primary" type="submit">Save screen settings</button>
+              <button id="screen-reset" type="button">Discard changes</button>
             </div>
           </form>
         </section>

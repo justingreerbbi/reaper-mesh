@@ -117,7 +117,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeMaxVersion], 1);
     number(reply.fields[p::kWelcomeConfigSchema], 1);
     number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) |
-                                                  (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0));
+                                                  (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0) | 512);
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -128,6 +128,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeRadioVersion], radio_ ? 1 : 0);
     number(reply.fields[p::kWelcomeRadioSchema], 1);
     number(reply.fields[p::kWelcomeMaxChannels], 8);
+    number(reply.fields[p::kWelcomeScreenVersion], 1);
     if (inbox_) {
       number(reply.fields[p::kWelcomeInboxVersion], 2);
       number(reply.fields[p::kWelcomeInboxCapacity], Inbox::kCapacity);
@@ -375,6 +376,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       number(reply.fields[p::kSnapshotLatitude], position.latitude);
       number(reply.fields[p::kSnapshotLongitude], position.longitude);
     }
+    number(reply.fields[p::kSnapshotScreenTimeout], snapshot.settings.screen.timeout);
+    number(reply.fields[p::kSnapshotScreenWake], snapshot.settings.screen.wake);
     synchronized_ = true;
     return true;
   }

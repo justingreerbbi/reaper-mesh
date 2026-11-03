@@ -6,6 +6,7 @@ import {
 } from '../protocol/discovery-config.ts';
 import { encodeMessage, validateField } from '../protocol/messages.ts';
 import { radioFields, validRadio, type RadioConfig } from '../protocol/radio-config.ts';
+import { screenFields, validScreen, type ScreenConfig } from '../protocol/screen-config.ts';
 import * as recovery from './recovery-data.ts';
 import { Synchronizer, copyConfig, type Config } from './sync.ts';
 
@@ -119,6 +120,12 @@ export class Commands {
         };
         if (!validDiscovery(discovery)) throw new Error('invalid discovery recovery settings');
       }
+      let screen: ScreenConfig | undefined;
+      if (config.screen !== undefined) {
+        const s = recovery.object(config.screen);
+        screen = { timeout: recovery.u32(s.timeout), wake: s.wake as boolean };
+        if (!validScreen(screen)) throw new Error('invalid screen recovery settings');
+      }
       const command: ConfigCommand = Object.freeze({
         id: identity.id,
         boot,
@@ -129,6 +136,7 @@ export class Commands {
           ...(position ? { position } : {}),
           ...(discovery ? { discovery } : {}),
           ...(radio ? { radio } : {}),
+          ...(screen ? { screen } : {}),
         }),
       });
       encodeMessage({
@@ -142,6 +150,7 @@ export class Commands {
         ...positionFields(position),
         ...discoveryFields(discovery),
         ...radioFields(radio),
+        ...screenFields(screen),
       } as import('../protocol/messages.ts').Message);
       const outcome = recovery.string(item.outcome);
       if (!['pending', 'unknown', 'committed', 'conflict', 'rejected'].includes(outcome))

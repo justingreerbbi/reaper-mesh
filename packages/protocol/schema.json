@@ -35,7 +35,8 @@
       "inboxCapacity": "u32?",
       "discoveryVersion": "u32?",
       "nodeCapacity": "u32?",
-      "locationVersion": "u32?"
+      "locationVersion": "u32?",
+      "screenVersion": "u32?"
     }
   },
   "sync": {
@@ -67,7 +68,9 @@
       "shareLocation": "u32?",
       "positionSource": "u32?",
       "latitude": "u32?",
-      "longitude": "u32?"
+      "longitude": "u32?",
+      "screenTimeout": "u32?",
+      "screenWake": "u32?"
     }
   },
   "event": {
@@ -90,7 +93,9 @@
       "shareLocation": "u32?",
       "positionSource": "u32?",
       "latitude": "u32?",
-      "longitude": "u32?"
+      "longitude": "u32?",
+      "screenTimeout": "u32?",
+      "screenWake": "u32?"
     }
   },
   "ping": {
@@ -128,7 +133,9 @@
       "shareLocation": "u32?",
       "positionSource": "u32?",
       "latitude": "u32?",
-      "longitude": "u32?"
+      "longitude": "u32?",
+      "screenTimeout": "u32?",
+      "screenWake": "u32?"
     }
   },
   "result": {

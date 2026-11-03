@@ -20,7 +20,7 @@ Order of work:
 | 1 — Working communications | Two supported devices communicate reliably through the independent Reaper protocol | Heltec V3 and T-Beam V1.2 firmware; USB console; persistent configuration; public/named channels; 1024-byte messages; fragmentation; bounded mesh/relay core; destination ACKs; RACE recovery; validated firmware installation | Complete: actual bidirectional direct RF/ACK/inbox checks pass. Three-node relay, power-cut and field qualification remain release gates. |
 | 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: 2.1 discovery and 2.2a fixed position are verified on two boards; GPS is deferred; the messaging and map portal is the current focus. |
 | 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without keys | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Rotation, interrupted-upload recovery and a security review are pending. See [Channel encryption](../guides/encryption.md). |
-| 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | In progress: step 1 (screen pages, buttons, 30 s timeout) verified on the T-Beam. Optional board-local features; they must not change the radio protocol (D41). |
+| 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | In progress: step 1 (screen pages, buttons, 30 s timeout) verified on the T-Beam; screen settings and the T-Beam battery indicator built in `v0.2.0`. Optional board-local features; they must not change the radio protocol (D41). |
 
 ## Phase 2 delivery order
 
@@ -66,7 +66,7 @@ Board-local features only (D41). Design and rules: [device screen and buttons](.
 
 1. **Done (November 3):** startup icon and title, main/nodes/debug pages, main-button gestures, T-Beam PWR page shortcut, 30-second screen timeout. Verified on the T-Beam; the Heltec builds but is not yet checked on hardware.
 2. Check step 1 on the Heltec V3.
-3. Screen settings stored on the device and editable in the portal: timeout and optional wake on a new message.
+3. **Built (November 3):** screen settings stored on the device and set from the portal's Screen tab: timeout and optional wake on a new message. There is no settings page on the device. Settings round trip and reboot persistence verified on the T-Beam over USB.
 4. LED indication for TX/RX and new messages.
-5. Measured battery percent (T-Beam fuel gauge, Heltec battery voltage), shown only when known.
+5. **Built for the T-Beam (November 3):** measured battery percent and a plugged-in indicator in the top right of the main page (also shown with no battery), shown only when known. The Heltec shows nothing until its battery voltage input is verified.
 6. Processor sleep modes for real battery savings, without missing radio traffic.

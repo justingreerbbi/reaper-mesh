@@ -1,4 +1,5 @@
 import { positionFields, readPosition, validPosition } from '../protocol/position-config.ts';
+import { readScreen, screenFields, validScreen } from '../protocol/screen-config.ts';
 import { Discovery } from './discovery.ts';
 import { discoveryFields, validDiscovery } from '../protocol/discovery-config.ts';
 import * as recovery from './recovery-data.ts';
@@ -128,6 +129,9 @@ export class Connection {
       !!(this.capabilities.features & 256)
     );
   }
+  get supportsScreen() {
+    return this.capabilities?.screenVersion === 1 && !!(this.capabilities.features & 512);
+  }
   get supportsDiscovery() {
     return (
       this.capabilities?.discoveryVersion === 1 &&
@@ -220,6 +224,8 @@ export class Connection {
     if (blocked) throw new Error(blocked);
     if (config.position && (!this.supportsPosition || !validPosition(config.position)))
       throw new Error('unsupported or invalid position settings');
+    if (config.screen && (!this.supportsScreen || !validScreen(config.screen)))
+      throw new Error('unsupported or invalid screen settings');
     if (config.discovery && (!this.supportsDiscovery || !validDiscovery(config.discovery)))
       throw new Error('unsupported or invalid discovery settings');
     if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region)))
@@ -242,6 +248,7 @@ export class Connection {
       ...positionFields(config.position),
       ...discoveryFields(config.discovery),
       ...radioFields(config.radio),
+      ...screenFields(config.screen),
     } as Message);
     const command = this.commands.submit(config, now);
     this.#commandDevices.set(command.id, this.device!);
@@ -471,11 +478,17 @@ export class Connection {
       this.#deadline = this.#now + 5000;
     } else if (message.type === 'snapshot' || message.type === 'event') {
       if (message.boot !== this.sync.boot) return;
-      let position;
+      let position, screen;
       try {
         if (this.supportsPosition) position = readPosition(message);
       } catch {
         this.close('invalid-position-settings');
+        return;
+      }
+      try {
+        if (this.supportsScreen) screen = readScreen(message);
+      } catch {
+        this.close('invalid-screen-settings');
         return;
       }
       const value = {
@@ -485,6 +498,7 @@ export class Connection {
           region: message.region,
           label: message.label,
           ...(position ? { position } : {}),
+          ...(screen ? { screen } : {}),
           ...(message.beacon !== undefined &&
           message.respond !== undefined &&
           message.beaconInterval !== undefined &&
@@ -582,6 +596,7 @@ export class Connection {
       ...positionFields(command.config.position),
       ...discoveryFields(command.config.discovery),
       ...radioFields(command.config.radio),
+      ...screenFields(command.config.screen),
     } as Message);
   }
 

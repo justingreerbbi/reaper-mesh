@@ -52,6 +52,7 @@ const scenarios = {
   validation: 'malformed commands are rejected without consuming a request sequence',
   position: 'preserves opt-in position across legacy writes, reboot, failed and uncertain commits',
   discovery: 'persists discovery atomically and preserves it for legacy writes',
+  screen: 'persists screen settings in record 5, preserves them for other writes and fails closed',
   radio: 'migrates radio settings, preserves them for legacy writes and enforces regional disable',
   wire: 'validated framed USB commands reach configuration without exposing partial decodes',
 };

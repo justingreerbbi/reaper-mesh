@@ -39,8 +39,14 @@ class Screen {
   // on the main page. With it on: Toggle turns it off, NextPage cycles, Home returns to Main.
   void input(Input, std::uint64_t now);
   void tick(std::uint64_t now);
+  // Device screen settings. With `wake`, a new message turns the screen on at the main page,
+  // or restarts the timeout when it is already on.
+  void settings(std::uint64_t timeout_ms, bool wake) {
+    timeout_ = timeout_ms;
+    wake_ = wake;
+  }
   // Latest inbox sequence; messages that arrive after the screen last turned off count as new.
-  void inbox(std::uint32_t latest);
+  void inbox(std::uint32_t latest, std::uint64_t now);
   bool on() const { return on_; }
   Stage stage() const { return stage_; }
   Page page() const { return page_; }
@@ -52,7 +58,7 @@ class Screen {
   std::uint64_t timeout_, started_ = 0, active_ = 0;
   Stage stage_ = Stage::Icon;
   Page page_ = Page::Main;
-  bool on_ = true;
+  bool on_ = true, wake_ = false;
   std::uint32_t latest_ = 0, seen_ = 0;
 };
 
@@ -69,7 +75,8 @@ struct Status {
   const char* radio = "OFF";  // RX, TX, OFF or FAULT
   std::uint32_t rx = 0, tx = 0, nodes = 0;
   std::uint32_t unread = 0;  // filled in by render() from the Screen
-  int battery = -1;          // percent; negative when unknown, and then not shown
+  int battery = -1;          // percent from a hardware measurement; negative when unknown
+  bool external = false;     // plugged in (USB power present), shown with or without a battery
   std::array<NodeRow, 5> rows{};
   std::size_t row_count = 0;
   const char* usb = "";

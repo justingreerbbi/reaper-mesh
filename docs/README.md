@@ -46,7 +46,7 @@ you want to do.
 | [Persistence](reference/persistence.md) | Device configuration authority and the storage contract |
 | [Serial adapter](reference/serial-adapter.md) | The Web Serial transport layer |
 | [Compatibility](reference/compatibility.md) | Version matrix and RACE recovery coverage |
-| [Device screen and buttons](reference/device-display.md) | On-device pages, button gestures and screen timeout |
+| [Device screen and buttons](reference/device-display.md) | On-device pages, button gestures, screen settings and battery |
 | [Shared map items](reference/map-sharing.md) | Map item payloads, revisions, approval and limits |
 
 ## Contributing — change the project

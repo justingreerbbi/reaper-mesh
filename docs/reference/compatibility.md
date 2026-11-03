@@ -39,3 +39,13 @@ Discovery extension: Heltec usb-prototype-7 / T-Beam tbeam-usb-prototype-2 retai
 USB/radio framing stays1; base config schema stays1. locationVersion1/feature256 gates none/fixed settings; discoveryVersion1/nodeCapacity32/feature128 is also required. Records1–4 are readable; nondefault position uses record4 (max166 bytes). Old agents omit location fields and preserve its policy. Future unsupported location capabilities leave this agent's base configuration usable while position edits are disabled. Existing frozen fixture bytes remain unchanged, with three position fixtures appended.
 
 Location-bearing beacon/presence payloadv2 is rejected by discovery-v1-only receivers; name-only payloadv1 and manual requests remain supported. Text/data1/ACK2 are unchanged. Physically checked Heltec8↔T-Beam2 and Heltec8↔T-Beam3 with1024-byte messages, destination ACK and exact inbox body in each direction. New/new fixed reports and sharing-off identity-only responses are separately checked. This does not establish old firmware reading record4 after downgrade, relay, range or security.
+
+## Screen settings (`v0.2.0`)
+
+USB v1, config schema 1 and the radio protocol are unchanged. `screenVersion` 1 with feature bit
+9 gates the screen timeout and wake settings. Agents without screen support omit both fields,
+which preserves the device's values; this agent leaves screen settings alone on firmware that
+does not advertise them or advertises another version. Records 1–5 are readable; record 5 is
+written only for non-default screen settings. Downgrading to firmware that reads only records 1–4
+with a record 5 stored is unsupported and fails closed without erasing. The 28 earlier fixtures
+are unchanged; three are appended.
