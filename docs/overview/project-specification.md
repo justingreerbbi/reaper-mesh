@@ -149,7 +149,15 @@ In this draft, **MUST** defines a proposed mandatory requirement, **SHOULD** def
 ### 5.4.1 Shared map items and plugins
 
 - Local map items MUST be saved without sending anything; sharing MUST be an explicit action per item.
-- Received map items MUST NOT be placed on the map until the user accepts them. Updates and removals MUST also require explicit acceptance and MUST respect per-item revision barriers.
+- When sharing, the user MUST choose the channel explicitly. The share dialog MUST NOT preselect a channel, and Share stays disabled until one is chosen. The dialog SHOULD show whether the chosen channel is encrypted. Broadcast to the channel or a specific node remains the user's choice.
+- A shared item belongs to the node that first shared it: its identity is the channel, the original sender's node ID and the item's ID. Only that sender's updates and removals apply to it, and per-item revision barriers MUST reject older or repeated revisions. Other users MAY copy an item and share their own version.
+- By default, received items, updates and removals MUST NOT change the map until the user accepts them on the message card.
+- Each channel has an agent-local **Auto-add shared map items** setting, off by default. When it is on, valid items, updates and removals from that channel apply to the map automatically, without a prompt, following the ownership and revision rules above. The message card still appears and says the change was applied automatically.
+- Auto-add MUST be available only on channels where this agent requires encryption and holds the key. Senders on unencrypted channels, including Public, are not authenticated, so anyone in radio range could otherwise change the map. If encryption is no longer required on a channel, auto-add for that channel MUST turn off.
+- Group keys do not authenticate individual senders: any holder of the channel key can send items that appear to come from another member. The auto-add setting MUST say so.
+- A user MAY remove an auto-added item locally. Later updates to that item MUST then appear as message cards instead of re-adding it, until the user adds it back.
+- Auto-add MUST respect the map workspace storage limits. When storage is full, new items MUST fall back to message cards rather than evicting saved items.
+- Shared items are stored locally on each agent. Delivery is best effort: an agent that is offline, or whose device has already discarded the message from its inbox, misses that update. There is no history synchronization between agents.
 - Deleting messages MUST NOT remove accepted map items. Local items are plaintext browser data, and the UI MUST say so; encrypted shared items MUST stay ciphertext at rest.
 - Plugin manifest v1 is declarative JSON: it MAY add map item types, fields and settings, and MUST NOT execute code, load remote content or send messages. Only fields marked `shared` MAY be sent.
 - Plugins that run code MUST run isolated in a sandboxed iframe on a separate origin, with permissions declared in the manifest and approved by the user. They MUST NOT receive channel keys, and receive decrypted content only through an explicit, separately approved permission (decision D40). An approved design document precedes any implementation.
