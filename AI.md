@@ -33,8 +33,12 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 
 ## Current focus (November 3, 2026)
 
-- Phase 1 is complete by owner decision. Phase 2 is active; its current focus is the messaging
-  and map portal (inbox, conversations, map with shared items, settings, plugins).
+- Field qualification comes first: new portal features are paused until three-node relay and
+  an outdoor range test pass on hardware (owner direction, November 3). Portal work is limited
+  to bug fixes and native QA. See the
+  [field qualification plan](docs/contributing/field-qualification.md).
+- Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
+  resumes after qualification.
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.
 - Phase 3 encryption has a first implementation; see [Channel encryption](docs/guides/encryption.md).
 - Open release gates stay visible: three-node relay, range, power cut, interrupted flash, soak,

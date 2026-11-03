@@ -18,7 +18,7 @@ Status values: **Confirmed** (owner decision), **Adopted** (implemented engineer
 | Q5 | Should shared map items (`RMAP1`) get a capability gate or a content-type marker and compact encoding? Older agents show the JSON as a chat message, and JSON costs airtime | Expanding map sharing or other structured payloads | Nov 3 |
 | Q6 | Isolation and permissions for executable plugins (for example a sandboxed iframe or separate origin, so plugin code cannot reach channel keys) | Building Weather Radar, ADS-B, APRS or any plugin that runs code or uses the network | Nov 2 |
 | Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | Resuming GPS work (D26) | Nov 2 |
-| Q8 | Three-node relay and field qualification plan, plus formal performance targets | Claiming relay, range, throughput or battery commitments | Nov 1 |
+| Q8 | Formal performance targets (range, throughput, battery). The test procedure is in the [field qualification plan](field-qualification.md); targets are set from its results | Publishing range, throughput or battery commitments | Nov 1 |
 | Q9 | EU countries and bands | Any EU profile work (D3) | Nov 1 |
 | Q10 | Signed releases, rollback and stable-release support policy | A public updater or supported release | Nov 1 |
 
@@ -203,3 +203,12 @@ message card. See [shared map items](../reference/map-sharing.md).
 ### D36. Declarative plugins only
 Nov 2 · **Adopted** (see Q6). Plugin manifest v1 is browser-local JSON that adds map item types
 and settings. No scripts, HTML, URLs or network access. See [plugins](../guides/plugins.md).
+
+## Priorities
+
+### D37. Field qualification before new portal features
+Nov 3 · **Confirmed**. Pause new portal features until three-node relay and an outdoor range
+test pass on real hardware. Portal work is limited to bug fixes and native QA meanwhile. Relay
+is the product's core promise and has only been simulated; problems found in the field could
+change the radio protocol, which is cheaper before more features depend on it. See the
+[field qualification plan](field-qualification.md).
