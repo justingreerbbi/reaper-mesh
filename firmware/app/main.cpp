@@ -1,6 +1,9 @@
 #include "reaper/session.hpp"
 #include "nvs_storage.hpp"
 #include "status_display.hpp"
+#include "board_input.hpp"
+#include "device_ui.hpp"
+#include "reaper/version.hpp"
 #include "mesh_service.hpp"
 #ifdef REAPER_TBEAM_V12
 #include "tbeam_profile.hpp"
@@ -50,15 +53,20 @@ void received(const p::Message& request, void* context) {
   if (session.take_error(reply))
     write_frame(reply);
 }
-const char* radio_line(const d::RadioInfo& info) {
+const char* radio_state(const d::RadioInfo& info) {
   auto is = [&](const char* state) {
     return info.state.length == std::strlen(state) &&
            !std::memcmp(info.state.bytes.data(), state, info.state.length);
   };
-  return is("receiving")      ? "RADIO RX"
-         : is("transmitting") ? "RADIO TX"
-         : is("fault")        ? "RADIO FAULT"
-                              : "RADIO OFF";
+  return is("receiving") ? "RX" : is("transmitting") ? "TX" : is("fault") ? "FAULT" : "OFF";
+}
+const char* mode_name(d::RadioMode mode) {
+  return mode == d::RadioMode::Mesh ? "MESH" : mode == d::RadioMode::Receive ? "RECV" : "OFF";
+}
+template <std::size_t N>
+void copy_text(const d::Text<N>& value, char (&out)[N + 1]) {
+  std::memcpy(out, value.bytes.data(), value.length);
+  out[value.length] = 0;
 }
 void halt() {
   for (;;)
@@ -122,6 +130,12 @@ extern "C" void app_main() {
   static d::RadioInfo radio_info;
   static StatusDisplay display;
   display.begin();
+  static BoardInput buttons;
+  buttons.begin();
+  static reaper::ui::ButtonGestures gestures;
+  static reaper::ui::Screen screen;
+  static reaper::ui::Frame frame;
+  screen.start(static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
   std::uint64_t node = 0;
   for (auto byte : mac)
     node = (node << 8) | byte;
@@ -164,13 +178,71 @@ extern "C" void app_main() {
     radio_info.heap_free = esp_get_free_heap_size();
     radio_info.stack_free = uxTaskGetStackHighWaterMark(nullptr);  // ESP-IDF reports bytes.
     const auto now = esp_timer_get_time();
+    const auto now_ms = static_cast<std::uint64_t>(now / 1000);
+    switch (gestures.sample(buttons.main_pressed(), now_ms)) {
+      case reaper::ui::Press::Single:
+        screen.input(reaper::ui::Input::Toggle, now_ms);
+        break;
+      case reaper::ui::Press::Double:
+        screen.input(reaper::ui::Input::NextPage, now_ms);
+        break;
+      case reaper::ui::Press::Long:
+        screen.input(reaper::ui::Input::Home, now_ms);
+        break;
+      case reaper::ui::Press::None:
+        break;
+    }
+    if (buttons.take_next_page(now_ms))
+      screen.input(reaper::ui::Input::NextPage, now_ms);
+    screen.inbox(inbox.latest());
+    screen.tick(now_ms);
     if (now >= next_display) {
-      next_display = now + 500000;
-      d::Snapshot snapshot{};
-      const bool healthy = authority.snapshot(snapshot);
-      display.update(
-          session.synchronized() && now - last_reply < 8000000 ? "USB READY" : "USB IDLE", healthy,
-          snapshot.revision, radio_line(radio_info));
+      // At most ten frames a second; show() skips frames that did not change.
+      next_display = now + 100000;
+      display.power(screen.on());
+      if (screen.on()) {
+        d::Snapshot snapshot{};
+        const bool healthy = authority.snapshot(snapshot);
+        static char label[65];
+        static char peer_names[5][65];
+        copy_text(snapshot.settings.label, label);
+        reaper::ui::Status status;
+        status.name = label;
+        status.node = device_string;
+        status.version = d::kDisplayVersion;
+        status.radio = radio_state(radio_info);
+        status.rx = radio_info.received;
+        status.tx = radio_info.transmitted;
+        const auto& discovery = mesh.discovery();
+        status.nodes = static_cast<std::uint32_t>(discovery.count());
+        for (std::size_t i = 0; i < status.rows.size(); ++i) {
+          const auto* peer = discovery.peer(i);
+          if (!peer)
+            break;
+          if (peer->name.length)
+            copy_text(peer->name, peer_names[i]);
+          else
+            std::snprintf(peer_names[i], sizeof(peer_names[i]), "node-%016llx",
+                          static_cast<unsigned long long>(peer->key.origin));
+          status.rows[i].name = peer_names[i];
+          status.rows[i].age_s =
+              static_cast<std::uint32_t>(now_ms > peer->seen ? (now_ms - peer->seen) / 1000 : 0);
+          status.rows[i].position = peer->position.source != 0;
+          status.row_count = i + 1;
+        }
+        status.usb = !healthy                                               ? "USB BLOCKED"
+                     : session.synchronized() && now - last_reply < 8000000 ? "USB READY"
+                                                                            : "USB IDLE";
+        status.storage_ok = healthy;
+        status.revision = snapshot.revision;
+        status.mode = mode_name(snapshot.settings.radio.mode);
+        status.power_dbm = snapshot.settings.radio.power;
+        status.heap = radio_info.heap_free;
+        status.stack = radio_info.stack_free;
+        status.uptime_s = now_ms / 1000;
+        reaper::ui::render(screen, status, frame);
+        display.show(frame);
+      }
     }
     vTaskDelay(1);  // Yield even under continuous malformed input; keep the idle watchdog healthy.
   }
