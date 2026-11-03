@@ -29,7 +29,7 @@ python3 -m venv .tools/clang-format
 .tools/clang-format/bin/pip install clang-format==23.1.3
 ```
 
-Then run `npm run format` to rewrite files, or `npm run format:check` to check them without changes. `tools/format-cpp.ts` refuses to run with any other clang-format version, because different versions format differently. `.editorconfig` sets line endings, final newlines and indentation for editors.
+Then run `npm run format` to rewrite files, or `npm run format:check` to check them without changes. `tools/format-cpp.ts` refuses to run with any other clang-format version, because different versions format differently. `.editorconfig` sets line endings, final newlines and indentation for editors. `.gitattributes` makes Git store and check out text with LF on every OS (so generated-file comparisons also pass on Windows), keeps vendored files and frozen fixtures byte-exact, and marks generated files so GitHub collapses them in diffs.
 
 ## Continuous integration
 

@@ -1,0 +1,20 @@
+# Store text with LF and check it out with LF on every OS, so generated-file and fixture
+# comparisons in `npm run check` match on Windows too.
+* text=auto eol=lf
+
+# Vendored and frozen files keep their exact bytes; tools/check-vendor.ts hashes the vendor files.
+firmware/components/reaper_radio/vendor/** -text linguist-vendored
+packages/protocol/fixtures/** -text
+
+# Generated files: collapsed in GitHub diffs. Edit packages/protocol/schema.json instead.
+packages/protocol/messages.generated.ts linguist-generated
+firmware/components/reaper_protocol/include/reaper/schema.generated.hpp linguist-generated
+package-lock.json linguist-generated
+
+# Binary formats, in case they are added.
+*.png binary
+*.jpg binary
+*.ico binary
+*.bin binary
+*.zip binary
+*.pdf binary
