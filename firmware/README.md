@@ -54,8 +54,8 @@ The board adapter, atomic NVS authority, independent mesh core and SX1262 integr
 
 Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and ../docs/guides/first-flash.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, initializes the status OLED and probes SX1262 over bounded DMA-backed SPI. Radio is off by default; explicit mesh mode requires the confirmed US band/antenna facts. It uses a single factory application partition; OTA rollback is not implemented.
 
-## OLED status
+## Device screen and buttons
 
-The Heltec V3 SSD1306 OLED shows firmware ID, logical USB status, persisted revision, storage
-health, and radio state through a bounded, fail-closed first-party driver. The pin map, timing,
-and test evidence are in the [changelog](../docs/overview/changelog.md#oled-status--november-1).
+Both boards share the screen pages, button gestures and SSD1306 driver in `app/`. See
+[device screen and buttons](../docs/reference/device-display.md) for the design, board pins and
+code map.

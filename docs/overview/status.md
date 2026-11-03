@@ -16,20 +16,20 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 | 1 — Working communications | Complete by owner decision. Three-node relay, range and power-cut testing are still open release gates. |
 | 2 — Discovery and field portal | Active. Discovery (2.1) and fixed position (2.2a) are verified on two boards. GPS (2.2b) is deferred by the owner. New portal features (2.3) are paused until relay and range testing pass. |
 | 3 — Encrypted channels | First implementation done and verified for direct messages between two boards. Rotation, interrupted-upload recovery and a security review are still open. |
-| 4 — Device presentation and power | Planned. |
+| 4 — Device presentation and power | In progress: screen pages, buttons and screen timeout verified on the T-Beam. |
 
 ## Installed firmware
 
 | Board | Reported version | Built from | Port |
 | --- | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `usb-prototype-8` | Development tree, November 2 (`--allow-dirty`); last clean build `4209679` | `/dev/cu.usbserial-0001` |
-| LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-usb-prototype-3` | Development tree, November 2 (`--allow-dirty`); last clean build `4209679` | `/dev/cu.wchusbserial57700003341` |
+| LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.1.0` | Clean commit `074f299`, November 3 | `/dev/cu.wchusbserial57700003341` |
 
 Both antennas are owner-confirmed. The last recorded owner policies were: both boards in mesh
 mode at 2 dBm; Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
 position source none and sharing off. Always read the current settings from the device rather
-than assuming these. The next firmware change renames images to
-`{device}-reaper-mesh-v{semver}` (for example `heltec-reaper-mesh-v8.0.2`).
+than assuming these. Images now use `{device}-reaper-mesh-v{semver}` names; the Heltec gets its
+first `heltec-reaper-mesh-v0.1.0` image when it is next updated.
 
 ## What works, and how it was verified
 
@@ -38,7 +38,7 @@ than assuming these. The next firmware change renames images to
 | Area | Implemented | Verified on hardware | Not yet verified |
 | --- | --- | --- | --- |
 | USB and configuration | Versioned handshake, capability gates, compare-and-set revisions, atomic NVS storage, startup retries, query-only recovery | Native browser saves and reconnects; lost reply, duplicate and reset recovery | Power cut, arbitrary cable removal, long soak |
-| OLED status (Heltec) | Bounded, fail-closed status display | Owner confirmed visible operation | Induced I2C faults; T-Beam display |
+| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut, 30 s timeout; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and timeout | Heltec V3; induced I2C faults; screen settings, LED and battery not built yet |
 | Messages | 1,024-byte UTF-8 messages, bounded queue, explicit outcomes, inbox, browser journal | Bidirectional direct delivery with destination ACK between the two boards | Extended loss and latency; field use |
 | Mesh relay | Bounded managed-flooding core with hop limits and duplicate suppression | Host topology and fault tests only | **Any real relay**: needs a third board |
 | Radio | Pinned Semtech SX1262 driver, first-party SX1276 driver, shared airtime budget, DMA SPI | Probe, receive, 7-fragment transmit, direct two-board delivery | Range, coexistence, measured spectrum and power |
@@ -63,9 +63,9 @@ New portal features are paused (November 3) until these pass; see the
 
 ## Automated checks
 
-`npm run check` passes all 262 tests on macOS as of November 3 (strict TypeScript,
+`npm run check` passes all 267 tests on macOS as of November 3 (strict TypeScript,
 generated-schema and vendor checks, compiler-backed host tests and the web build). The
-standalone firmware CTest suite last recorded 67 passing tests. CI runs the host checks, the CTest
+standalone firmware CTest suite passes 72 tests. CI runs the host checks, the CTest
 suite, both firmware target builds and shell script lint; see
 [Development and CI](../contributing/development.md).
 

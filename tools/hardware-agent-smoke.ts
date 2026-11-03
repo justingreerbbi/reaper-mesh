@@ -118,7 +118,7 @@ for (let run = 0; run < 3; run++) {
         }
       };
       if (run === 0 && messageTest === '--tbeam-test' && agent.sync.config?.region === 'UNSET') {
-        assert.match(agent.capabilities?.firmware ?? '', /^tbeam-usb-prototype-/);
+        assert.match(agent.capabilities?.firmware ?? '', /^tbeam-reaper-mesh-v/);
         const first = adapter.configure({
           region: 'US',
           label: 'Reaper T-Beam V1.2',

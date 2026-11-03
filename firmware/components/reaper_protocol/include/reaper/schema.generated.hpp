@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 namespace reaper::protocol {
-enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels };
+enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version };
 enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
@@ -13,7 +13,7 @@ inline constexpr std::size_t kHelloLink = 0;
 inline constexpr std::size_t kHelloMinVersion = 1;
 inline constexpr std::size_t kHelloMaxVersion = 2;
 inline constexpr std::size_t kHelloOwner = 3;
-inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Version, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kWelcomeLink = 0;
 inline constexpr std::size_t kWelcomeDevice = 1;
 inline constexpr std::size_t kWelcomeBoot = 2;

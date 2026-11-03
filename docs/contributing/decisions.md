@@ -69,6 +69,9 @@ Nov 2 · **Confirmed**. Software connected to a node is an **agent** (`agents/`,
 Nov 2 · **Confirmed**. On the next firmware change, images are named
 `{device}-reaper-mesh-v{semver}` (for example `heltec-reaper-mesh-v8.0.2`) in firmware
 identification, manifests, packages and docs. Installed images are not reflashed only to rename.
+Applied November 3 starting at `v0.1.0` (`tbeam-reaper-mesh-v0.1.0`, `heltec-reaper-mesh-v0.1.0`);
+0.x marks pre-release builds until core v1 (D42). Firmware IDs use the protocol's `version`
+field kind, which allows `.`.
 
 ### D41. Stable core, extensible edges
 Nov 3 · **Confirmed**. Reaper Mesh is built for organizations that need stability. The core
@@ -117,11 +120,12 @@ is limited to 64 bytes.
 
 ### D14. T-Beam target
 Nov 1 · **Adopted**. A separate ESP32/4 MB target (bootloader at `0x1000`) reusing the shared
-protocol and state machines. Only verified AXP2101 radio-rail bits are changed. The ESP32 ROM
+protocol and state machines. Only verified AXP2101 radio-rail bits are changed, plus the
+power-key short-press interrupt bits used by the screen (D44). The ESP32 ROM
 lacks `get_security_info`, so security eFuses are read (never written) before flashing.
 
 ### D15. OLED status display
-Nov 1 · **Adopted**. A first-party, bounded I2C driver and font (no third-party display library),
+Nov 1 · **Adopted**; the status rows were replaced by the screen pages in D44. A first-party, bounded I2C driver and font (no third-party display library),
 outside protocol state. Display failures disable the display without blocking USB.
 
 ### D16. Firmware installation
@@ -129,6 +133,19 @@ Nov 1 · **Adopted**. A manifest-validating ROM serial updater that checks prove
 layout, hashes and ROM security state, stages immutable images and preserves NVS. A single
 factory app with no rollback is the prototype recovery route. Signed releases and rollback are
 open (Q10). See [flashing firmware](../guides/flashing-firmware.md).
+
+### D44. Device screen and buttons
+Nov 3 · **Confirmed**. Phase 4 step 1, owner-directed while waiting for a third board. Every
+board has one main button that reaches every screen function: single press toggles the screen,
+double press goes to the next page, long press returns to the main page. Extra buttons only add
+shortcuts; the T-Beam PWR short press goes to the next page through the AXP2101 power-key
+interrupt (enable INTEN2 `0x41` bit 3, poll and clear INTSTS2 `0x49` bit 3), the only power-chip
+change beyond the radio rail. The screen shows a startup icon and title, then a main page
+(device name, radio RX/TX/OFF/FAULT, new-message count, nodes heard, small version), a nodes
+page and a debug page. There is no message page and no message text on the device. The screen
+turns off after 30 seconds by default; screen settings, LED and battery come in later steps.
+These features never change the radio protocol (D41). See
+[device screen and buttons](../reference/device-display.md).
 
 ## Protocol and synchronization
 

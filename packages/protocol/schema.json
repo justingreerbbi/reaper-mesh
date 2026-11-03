@@ -24,7 +24,7 @@
       "ownerAdmitted": "u32?",
       "regions": "u32?",
       "maxLabelBytes": "u32?",
-      "firmware": "id?",
+      "firmware": "version?",
       "radioVersion": "u32?",
       "messageVersion": "u32?",
       "maxMessageBytes": "u32?",

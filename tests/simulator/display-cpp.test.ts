@@ -27,6 +27,7 @@ execFileSync(
     '-Ifirmware/components/reaper_device/include',
     '-Ifirmware/tests/display_stubs',
     '-Ifirmware/app',
+    'firmware/app/status_display.cpp',
     'firmware/heltec-v3/main/status_display.cpp',
     'firmware/tests/display_test.cpp',
     '-o',
@@ -35,11 +36,12 @@ execFileSync(
   { stdio: 'pipe', timeout: 30000 },
 );
 for (const [scenario, description] of Object.entries({
-  updates: 'renders bounded frames for readiness, maximum revision and storage fault',
+  updates: 'sends full bounded frames and skips unchanged ones',
+  power: 'turns the panel and charge pump off and on without drawing while off',
   'init-failure': 'leaves USB independent when the display bus fails',
   'tx-failure': 'bounds transfer timeout and disables redraws after a failed transaction',
 })) {
-  test(`OLED status ${description}`, () => {
+  test(`OLED panel ${description}`, () => {
     assert.equal(
       execFileSync(binary, [scenario], { encoding: 'utf8', timeout: 10000 }).trim(),
       `ok ${scenario}`,

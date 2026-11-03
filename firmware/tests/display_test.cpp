@@ -34,32 +34,45 @@ int main(int argc, char** argv) {
     return 2;
   const std::string scenario = argv[1];
   StatusDisplay display;
+  reaper::ui::Frame a{}, b{};
+  a[0] = 1;
+  b[1023] = 0x80;
   if (scenario == "init-failure") {
     fail_bus = true;
     display.begin();
-    display.update("USB READY", true, 1);
-    CHECK(writes.empty());
+    display.show(a);
+    display.power(false);
+    CHECK(writes.empty() && !display.ready());
   } else {
     display.begin();
-    CHECK(writes.size() == 1);
-    display.update("USB IDLE", true, 0);
+    CHECK(writes.size() == 1 && display.ready());
+    display.show(a);
     CHECK(writes.size() == 3);
-    CHECK(writes.back().size() == 1025 && writes.back()[0] == 0x40);
+    CHECK(writes.back().size() == 1025 && writes.back()[0] == 0x40 && writes.back()[1] == 1);
     if (scenario == "updates") {
-      const auto idle = writes.back();
-      display.update("USB IDLE", true, 0);
-      CHECK(writes.size() == 3);
-      display.update("USB READY", true, 0xffffffff);
-      CHECK(writes.size() == 5 && writes.back() != idle);
-      const auto ready = writes.back();
-      display.update("USB READY", false, 0);
-      CHECK(writes.size() == 7 && writes.back() != ready);
+      display.show(a);
+      CHECK(writes.size() == 3);  // unchanged frames are not sent
+      display.show(b);
+      CHECK(writes.size() == 5 && writes.back()[1024] == 0x80);
+    } else if (scenario == "power") {
+      display.power(false);
+      CHECK(writes.size() == 4);
+      CHECK((writes.back() == std::vector<std::uint8_t>{0x00, 0xae, 0x8d, 0x10}));
+      display.power(false);
+      display.show(b);
+      CHECK(writes.size() == 4);  // nothing is drawn while the panel is off
+      display.power(true);
+      CHECK(writes.size() == 5);
+      CHECK((writes.back() == std::vector<std::uint8_t>{0x00, 0x8d, 0x14, 0xaf}));
+      display.show(b);
+      CHECK(writes.size() == 7);
     } else if (scenario == "tx-failure") {
       fail_tx = true;
-      display.update("USB READY", true, 1);
-      CHECK(writes.size() == 4);
+      display.show(b);
+      CHECK(writes.size() == 4 && !display.ready());
       fail_tx = false;
-      display.update("USB READY", true, 1);
+      display.show(a);
+      display.power(false);
       CHECK(writes.size() == 4);
     } else
       return 3;
