@@ -78,6 +78,15 @@ bool valid(Kind kind, const FieldValue& value) {
   const auto size = value.length;
   if (kind == Kind::Id)
     return identity(p, size);
+  if (kind == Kind::Version) {
+    // Like an identity, plus '.' for semantic versions such as tbeam-reaper-mesh-v0.1.0.
+    if (size == 0 || size > 64)
+      return false;
+    for (std::size_t i = 0; i < size; ++i)
+      if (!id_byte(p[i]) && p[i] != '.')
+        return false;
+    return true;
+  }
   if (kind == Kind::CommandId) {
     std::size_t split = 0;
     while (split < size && p[split] != ':')

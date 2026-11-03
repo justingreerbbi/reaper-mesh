@@ -16,6 +16,8 @@ export function validateField(kind: string, value: unknown) {
   }
   if (typeof value !== 'string') throw new Error('invalid string');
   if (kind === 'id' && !/^[A-Za-z0-9_-]{1,64}$/.test(value)) throw new Error('invalid identity');
+  if (kind === 'version' && !/^[A-Za-z0-9._-]{1,64}$/.test(value))
+    throw new Error('invalid version');
   if (kind === 'commandId') {
     const match = /^([A-Za-z0-9_-]{1,64}):([1-9][0-9]{0,9})$/.exec(value);
     if (!match || Number(match[2]) > 0xffffffff) throw new Error('invalid command ID');
