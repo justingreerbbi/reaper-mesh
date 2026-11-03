@@ -1,6 +1,6 @@
 # Third-party notices
 
-Reaper Mesh licensing remains deferred. This does not change dependency licenses.
+Reaper Mesh is licensed under the Apache License 2.0 (`LICENSE`, with attribution in `NOTICE`). Bundled third-party code keeps its own license, listed below. Keep `NOTICE` in sync with this page when a bundled dependency is added or removed.
 
 ## Semtech SX126x driver
 
@@ -14,6 +14,10 @@ Firmware uses pinned ESP-IDF v5.5.4. Preserve its Apache-2.0 license and applica
 
 The field portal bundles Leaflet 1.9.4 (BSD-2-Clause) for the interactive position map. Preserve Leaflet copyright and license notices when redistributing the web agent build. Map tiles are loaded at runtime from Esri’s publicly reachable World Dark Gray Canvas service; the agent remains usable when tiles cannot load. Leaflet does not select a license for Reaper Mesh.
 
+## Web agent encryption library
+
+The web agent bundles libsodium.js (`libsodium-wrappers-sumo` 0.8.4, ISC License) for channel encryption and PIN key derivation. Preserve its copyright and license notice when redistributing the web agent build.
+
 ## Web tooling
 
-Development tooling is pinned in package-lock.json; preserve applicable notices for any tooling/runtime code actually redistributed. No root project license has been selected.
+Development tooling is pinned in package-lock.json; preserve applicable notices for any tooling/runtime code actually redistributed.

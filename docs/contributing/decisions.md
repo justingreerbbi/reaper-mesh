@@ -12,7 +12,6 @@ Status values: **Confirmed** (owner decision), **Adopted** (implemented engineer
 | # | Question | Needed before | Raised |
 | --- | --- | --- | --- |
 | Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Nov 2 |
-| Q2 | License for first-party code, compatible with the vendored Semtech (Clear BSD) and bundled npm dependencies | Accepting outside contributions or any public distribution. The repository is public, and without a license all rights are reserved | Nov 1 (deferred), re-raised Nov 3 |
 | Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | Freezing message limits for a release; decide from measured airtime and delivery rates | Nov 1 |
 | Q4 | Keep the schema-driven TLV or move to Protocol Buffers | A public protocol release | Nov 1 |
 | Q5 | Should shared map items (`RMAP1`) get a capability gate or a content-type marker and compact encoding? Older agents show the JSON as a chat message, and JSON costs airtime | Expanding map sharing or other structured payloads | Nov 3 |
@@ -46,9 +45,12 @@ Nov 1 · **Confirmed**. RACE is the discipline of designing and testing device/a
 synchronization and recovery across interrupted connections and concurrent operations. It is not
 a framework.
 
-### D6. Licensing deferred
-Nov 1 · **Deferred**. No license is assigned yet; do not import code with incompatible terms.
-See Q2.
+### D6. Apache License 2.0
+Nov 3 · **Confirmed** (deferred since Nov 1). First-party code is licensed under Apache-2.0,
+for its explicit patent grant, contribution terms and compatibility with ESP-IDF (Apache-2.0),
+the Semtech driver (Clear BSD), Leaflet (BSD-2-Clause) and libsodium (ISC). Contributions are
+accepted under the same license. Meshtastic remains a functional reference only; its code is not
+copied. See [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE).
 
 ### D7. Agent terminology
 Nov 2 · **Confirmed**. Software connected to a node is an **agent** (`agents/`,

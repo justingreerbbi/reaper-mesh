@@ -29,7 +29,7 @@ This specification consolidates the intended product standard. It is not a claim
 
 Reaper Mesh is not currently specified as a safety-critical emergency service, a guaranteed-delivery network, a high-bandwidth transport or an anonymous communications system. Candidate field uses do not establish suitability for life-safety decisions.
 
-The project uses an independent Reaper Mesh protocol. Interoperability with Meshtastic or another mesh protocol is not an established requirement. Licensing and public distribution terms remain owner decisions.
+The project uses an independent Reaper Mesh protocol. Interoperability with Meshtastic or another mesh protocol is not an established requirement. The project is licensed under Apache-2.0; public release and distribution terms remain owner decisions.
 
 ## 2. Users and use cases
 
@@ -217,7 +217,6 @@ The maintained list of open questions is in [Decisions](../contributing/decision
 | Decision | Required before |
 | --- | --- |
 | Approval and precedence of this specification | Treating draft requirements as the governing project standard |
-| Licensing and public distribution terms | General distribution and new dependency reuse decisions |
 | Formal performance targets and deployment envelope | Publishing range, throughput, scale or battery-life commitments |
 | Three-node relay and field qualification plan | Claiming physically qualified mesh forwarding |
 | GPS scope and acquisition requirements | Resuming GPS implementation |

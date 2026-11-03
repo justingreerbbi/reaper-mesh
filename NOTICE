@@ -1,0 +1,19 @@
+Reaper Mesh
+Copyright 2026 Justin Greer
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes third-party software:
+
+- Semtech sx126x_driver 2.5.0 (Clear BSD License), vendored unmodified in
+  firmware/components/reaper_radio/vendor/. Its license is in LICENSE.txt in
+  that directory.
+- Leaflet 1.9.4 (BSD-2-Clause), bundled in the web agent build.
+- libsodium.js / libsodium-wrappers-sumo 0.8.4 (ISC License), bundled in the
+  web agent build.
+
+Firmware images are built with Espressif ESP-IDF v5.5.4 (Apache License 2.0)
+and include components under their own licenses. Firmware packages retain the
+SDK's license and notice files under notices/esp-idf/.
+
+See docs/contributing/third-party-notices.md for details.
