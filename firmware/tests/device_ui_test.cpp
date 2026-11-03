@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
     s.tick(3000);
     auto status = sample();
     status.name = "BaseCamp01";  // 2x without a battery, 1x beside one
-    Frame none{}, full{}, half{}, charging{};
+    Frame none{}, full{}, half{}, plugged{};
     render(s, status, none);
     for (unsigned y = 0; y < 18; ++y)
       CHECK(!lit(none, 127, y));  // unknown battery: nothing in the corner
@@ -233,8 +233,8 @@ int main(int argc, char** argv) {
     render(s, status, full);
     status.battery = 40;
     render(s, status, half);
-    status.charging = true;
-    render(s, status, charging);
+    status.external = true;
+    render(s, status, plugged);
     // Icon outline and terminal, on the name line (y 4-10).
     CHECK(lit(full, 115, 4) && lit(full, 125, 10) && lit(full, 127, 7) && !lit(full, 127, 4));
     // Full fills the gauge; 40% fills three of its seven columns.
@@ -243,15 +243,31 @@ int main(int argc, char** argv) {
     for (unsigned y = 11; y < 18; ++y)
       for (unsigned x = 0; x < kWidth; ++x)
         CHECK(!lit(full, x, y));
-    // The charge bolt adds pixels only left of the percent, and nothing else changes.
+    // The plugged-in bolt adds pixels only left of the percent, and nothing else changes.
     unsigned added = 0;
     for (unsigned y = 0; y < kHeight; ++y)
       for (unsigned x = 0; x < kWidth; ++x)
-        if (lit(charging, x, y) != lit(half, x, y)) {
-          CHECK(lit(charging, x, y) && y >= 4 && y < 11 && x >= 89 && x < 94);
+        if (lit(plugged, x, y) != lit(half, x, y)) {
+          CHECK(lit(plugged, x, y) && y >= 4 && y < 11 && x >= 89 && x < 94);
           ++added;
         }
     CHECK(added > 5);
+    // Plugged in with no battery: the bolt and "USB" at the right edge, no gauge icon.
+    status.battery = -1;
+    Frame usb{};
+    render(s, status, usb);
+    CHECK(lit(usb, 127, 5));   // right side of the "B" at the edge
+    CHECK(!lit(usb, 127, 7));  // no battery terminal
+    unsigned bolt = 0;
+    for (unsigned y = 4; y < 11; ++y)
+      for (unsigned x = 104; x < 109; ++x)
+        bolt += lit(usb, x, y);
+    CHECK(bolt > 5);
+    for (unsigned y = 11; y < 18; ++y)
+      for (unsigned x = 0; x < kWidth; ++x)
+        CHECK(!lit(usb, x, y));  // the long name moved to 1x beside it
+    status.external = false;
+    status.battery = 40;
     // A short name stays 2x beside the battery.
     status.name = "Camp";
     Frame short_name{};
@@ -277,9 +293,12 @@ int main(int argc, char** argv) {
     s.tick(3000);
     auto battery = status;
     battery.battery = 87;
-    battery.charging = true;
+    battery.external = true;
     render(s, battery, f);
     print(f, "main with battery");
+    battery.battery = -1;
+    render(s, battery, f);
+    print(f, "main plugged in without a battery");
     for (const char* title : {"main", "nodes", "debug"}) {
       render(s, status, f);
       print(f, title);

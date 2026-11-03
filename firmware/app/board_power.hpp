@@ -1,10 +1,10 @@
 #pragma once
 #include <cstdint>
-// Battery state for the screen. Values come only from a supported hardware measurement;
-// boards without one report unknown and the screen shows no battery.
+// Power state for the screen. Values come only from a supported hardware measurement; boards
+// without one report an unknown percent and no external power, and the screen shows nothing.
 struct Battery {
-  int percent = -1;  // 0-100; negative when unknown
-  bool charging = false;
+  int percent = -1;       // 0-100; negative when unknown or no battery
+  bool external = false;  // USB power present
 };
 class BoardPower {
  public:

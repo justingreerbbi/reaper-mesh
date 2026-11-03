@@ -184,33 +184,41 @@ void header(Frame& f, const char* title, Page page) {
   right(f, kWidth - 1, 0, number);
   line(f, 9);
 }
-// 5x7 charge bolt, same row format as kFont.
+// 5x7 plugged-in bolt, same row format as kFont.
 constexpr std::uint8_t kBolt[7] = {0x02, 0x04, 0x08, 0x1f, 0x02, 0x04, 0x08};
-// Top-right battery: optional charge bolt, percent and a gauge icon, on the same line as a
-// 1x name and centered beside a 2x one. Returns its left edge.
-unsigned battery(Frame& f, int percent, bool charging) {
-  constexpr unsigned x0 = kWidth - 13, y0 = 4;  // 11x7 body plus a 2-pixel terminal
-  for (unsigned x = x0; x < x0 + 11; ++x) {
-    pixel(f, x, y0);
-    pixel(f, x, y0 + 6);
+// Top-right power, on the same line as a 1x name and centered beside a 2x one: a bolt while
+// plugged in, then the battery percent and a gauge icon when measured, or "USB" with no battery.
+// Returns its left edge, or the frame width when there is nothing to show.
+unsigned power(Frame& f, int percent, bool external) {
+  constexpr unsigned y0 = 4;
+  unsigned left = kWidth;
+  if (percent >= 0) {
+    constexpr unsigned x0 = kWidth - 13;  // 11x7 body plus a 2-pixel terminal
+    for (unsigned x = x0; x < x0 + 11; ++x) {
+      pixel(f, x, y0);
+      pixel(f, x, y0 + 6);
+    }
+    for (unsigned y = 1; y < 6; ++y) {
+      pixel(f, x0, y0 + y);
+      pixel(f, x0 + 10, y0 + y);
+    }
+    for (unsigned y = 2; y < 5; ++y) {
+      pixel(f, x0 + 11, y0 + y);
+      pixel(f, x0 + 12, y0 + y);
+    }
+    const unsigned value = percent > 100 ? 100u : static_cast<unsigned>(percent);
+    for (unsigned x = 0; x < (value * 7 + 50) / 100; ++x)
+      for (unsigned y = 2; y < 5; ++y)
+        pixel(f, x0 + 2 + x, y0 + y);
+    char label[8];
+    std::snprintf(label, sizeof(label), "%u%%", value);
+    left = x0 - 1 - glyphs(label) * kCell;
+    text(f, left, y0, label);
+  } else if (external) {
+    left = kWidth + 1 - 3 * kCell;
+    text(f, left, y0, "USB");
   }
-  for (unsigned y = 1; y < 6; ++y) {
-    pixel(f, x0, y0 + y);
-    pixel(f, x0 + 10, y0 + y);
-  }
-  for (unsigned y = 2; y < 5; ++y) {
-    pixel(f, x0 + 11, y0 + y);
-    pixel(f, x0 + 12, y0 + y);
-  }
-  const unsigned value = percent > 100 ? 100u : static_cast<unsigned>(percent);
-  for (unsigned x = 0; x < (value * 7 + 50) / 100; ++x)
-    for (unsigned y = 2; y < 5; ++y)
-      pixel(f, x0 + 2 + x, y0 + y);
-  char label[8];
-  std::snprintf(label, sizeof(label), "%u%%", value);
-  unsigned left = x0 - 1 - glyphs(label) * kCell;
-  text(f, left, y0, label);
-  if (charging) {
+  if (external) {
     left -= 7;
     for (unsigned row = 0; row < 7; ++row)
       for (unsigned col = 0; col < 5; ++col)
@@ -221,7 +229,7 @@ unsigned battery(Frame& f, int percent, bool charging) {
 }
 void main_page(Frame& f, const Status& s) {
   const char* name = *s.name ? s.name : s.node;
-  const unsigned room = s.battery >= 0 ? battery(f, s.battery, s.charging) : kWidth;
+  const unsigned room = power(f, s.battery, s.external);
   if (glyphs(name) * kCell * 2 <= room)
     text(f, 0, 0, name, 2);
   else

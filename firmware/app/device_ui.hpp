@@ -76,7 +76,7 @@ struct Status {
   std::uint32_t rx = 0, tx = 0, nodes = 0;
   std::uint32_t unread = 0;  // filled in by render() from the Screen
   int battery = -1;          // percent from a hardware measurement; negative when unknown
-  bool charging = false;     // shown only with a known percent
+  bool external = false;     // plugged in (USB power present), shown with or without a battery
   std::array<NodeRow, 5> rows{};
   std::size_t row_count = 0;
   const char* usb = "";

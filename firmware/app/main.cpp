@@ -217,7 +217,7 @@ extern "C" void app_main() {
         status.radio = radio_state(radio_info);
         const auto battery = power.read(now_ms);
         status.battery = battery.percent;
-        status.charging = battery.charging;
+        status.external = battery.external;
         status.rx = radio_info.received;
         status.tx = radio_info.transmitted;
         const auto& discovery = mesh.discovery();
