@@ -1,6 +1,6 @@
 # Phase 2: discovery, position and field portal
 
-Status: slice 2.1 discovery is implemented and physically checked on Heltec7/T-Beam2. Fixed-position slice2.2a is implemented and physically checked; GPS and field-portal sections remain the contract for subsequent slices. See ../reference/protocol.md for the implemented discovery wire layout.
+This is the requirements and acceptance contract for Phase 2. Current state is in [Status](../overview/status.md) and slice order in the [Roadmap](../overview/roadmap.md): discovery (2.1) and fixed position (2.2a) are done and verified on two boards; GPS (2.2b) is deferred by the owner; the messaging and map portal (2.3) is the current focus. Hardware evidence is in the [Changelog](../overview/changelog.md). See [protocol](../reference/protocol.md) for the implemented discovery and position wire layout.
 
 ## Discovery behavior
 
@@ -48,32 +48,14 @@ Expose a separate node-table sequence/snapshot stream with bounded pages/cursors
 7. Map/list selection agrees; nodes with no position remain messageable; tile failure and USB disconnect preserve drafts and honest outcomes. Unlocated nodes are never plotted at a fabricated coordinate.
 8. Both firmware targets build, host checks pass, and real two-board discovery/fixed-position/message tests run. Actual GPS acquisition is separately observed; simulated positions are labeled. Do not claim relay/range/security qualification from these checks.
 
-## Slice 2.1 evidence
+## Implementation notes
 
-Discovery core, persistent settings, capability-gated USB, fixed node snapshots, query-only recovery and minimal console controls are implemented. Host checks pass 210 tests; CMake/CTest passes64. Actual two-board tests confirm disabled responses produce zero replies; enabling responses yields one per request in both directions; both configured names appear in node snapshots. A real 60-second periodic T-Beam beacon reached the Heltec without a manual request and with zero reply TX. Existing 1024-byte messages/ACK/inbox still pass both directions. No GPS/position fields were transmitted. Per-device browser journaling, 256-node host history and the map-first redesign remain later Phase2 work; this console uses the device's bounded32-node snapshot.
+Discovery (2.1) adds the discovery core, persistent settings, capability-gated USB, frozen node snapshots and query-only recovery. The device keeps a bounded 32-node snapshot; the 256-entry host history and per-device browser journaling are still to come. Reproduce the hardware checks with `tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT` (add `--beacon-only` for the timed beacon test).
 
-Installed images: Heltec usb-prototype-7 and T-Beam tbeam-usb-prototype-2 from clean commit a44319b, with all ROM artifact hashes verified and NVS preserved. Application sizes274256/244416 bytes. Observed free heap260592/187924 bytes and minimum free main stack16892/17116 bytes respectively. The coherent node snapshot trades a bounded RAM increase for paging that cannot starve under incoming reports. Final persisted state: Heltec revision28 mesh, T-Beam revision17 off; beacon/response flags false and interval300 on both. The T-Beam serial driver needed a USB reconnect before installation; failed preflight attempts wrote nothing.
+Fixed position (2.2a) adds saved coordinates on both boards, independent opt-in sharing, an additive USB location capability, storage record 4 with migration, radio control payload v2 and position fields in node snapshots. Manual discovery stays v1 and Phase 1 text/ACK is unchanged. Host tests cover (0,0), coordinate boundaries, invalid and partial fields, failed and ambiguous persistence, reboot, legacy writes, lost-reply recovery, stale and duplicate observations, frozen node snapshots and cancellation of pending location-bearing control packets. Three position fixtures were appended without changing existing fixture bytes. Reproduce the hardware checks with `tools/hardware-position-smoke.ts` and `tools/hardware-position-persistence.ts`.
 
-Reproduce with tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; append --beacon-only for the timed periodic test. Both restore original settings. Local ignored reports: build/tbeam-v12/discovery-smoke.json, beacon-smoke.json and discovery-final-state.json. Native browser interaction with the new controls has not been manually checked; shared agent/core and actual USB protocol behavior are tested.
+GPS work, when it resumes, must verify the T-Beam's UART and AXP2101 ALDO3 wiring against official documentation, bound parsing with checksums and fix freshness, keep acquisition separate from sharing, and preserve compatibility with fixed-position-only agents.
 
-## Slice 2.2a: fixed position
+## Portal plugins
 
-Implemented saved fixed coordinates on both boards, independent opt-in sharing, additive USB/location capability, record4 persistence/migration, radio control payloadv2 and node-snapshot position fields. Manual discovery stays v1; Phase1 text/ACK is unchanged. The minimal console offers none/fixed source, coordinate inputs, sharing switch and received fixed-position details. No map or GPS acquisition is implemented in this slice. See ../reference/protocol.md for exact coordinate representation, compatibility and privacy boundaries.
-
-Host tests cover (0,0), coordinate boundaries, invalid/partial fields, failed/ambiguous persistence, reboot, legacy writes, lost-reply recovery, stale/duplicate observations, frozen node snapshots and cancellation of selected location-bearing control flights. Both target builds pass; see the qualification evidence below. Reproduce synthetic-coordinate RF checks with tools/hardware-position-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT; original policies are restored afterward.
-
-### Fixed-position qualification (November 1, 2026)
-
-Installed Heltec usb-prototype-8 and T-Beam tbeam-usb-prototype-3 from clean source420967909bb4693746620b76ca2d88ef7d0e4eb3, application sizes275712/245856 bytes. ROM verified all three images on each device; NVS was preserved. Heltec's first application write stopped responding at70%; re-running the exact validated ROM updater completed successfully. This is one observed recovery, not arbitrary power-cut qualification.
-
-Real two-board tests received exact synthetic fixed coordinates in each direction (geographic0,0 and−90,180), one response per request. Disabling sharing then produced one identity-only response in each direction and cleared the latest node position. No owner location or GPS fix was used. USB reopen retained settings; separate tools/hardware-position-persistence.ts reset each board through read-only ROM identity inspection, verified a different boot and the saved record4 position, then restored original policies. That test kept RF sharing false throughout.
-
-Before upgrading the T-Beam, the new Heltec8 and older T-Beam2 exchanged exact1024-byte messages and destination ACKs in both directions. After both upgrades, the same regression passed again. Recorded resource headroom: Heltec free heap259064/minimum free main stack16692 bytes; T-Beam186396/16916 bytes. Final revisions38/32; position source/sharing were restored to none/off. Existing owner policies were preserved: both mesh/2dBm; Heltec beacon/respond false; T-Beam beacon/respond true; intervals300. These differ from the older2.1 checkpoint because the owner changed T-Beam policy between tasks.
-
-An extended test attempt hit a T-Beam node-snapshot read timeout before its reboot step. Fresh sessions recovered; original policies/sharing-off were explicitly verified. The harness previously aborted restoration on an unrelated node-read error; restoration now waits on configuration independently. A repeated two-board coordinate/privacy run subsequently passed. The read is bounded and query-only; no discovery/message mutation was replayed. A deterministic reconnect-after-node-read-exhaustion regression is included. Retain the transient hardware observation for serial/soak work; no zero-fault endurance claim.
-
-## Deferred portal plugin planning
-
-November 2 owner direction: revisit a simple plugin architecture for optional portal functionality soon. Candidate examples are Weather Radar, Reaper ADS-B and a Reaper APRS bridge. This is a planning item under the Phase 2 portal; do not implement the extension framework or integrations yet.
-
-Host checks pass220 tests and the web build; standalone CTest passes67. Existing fixture bytes are unchanged; three position fixtures are appended. New browser controls are compiled/shared-core tested but have not been manually desktop-tested. Local evidence: build/tbeam-v12/position-smoke.json, position-persistence.json, position-mixed-pair-smoke.json and pair-smoke.json; logs/private/tmp/reaper-position-*. GPS and map integration remain unimplemented and Phase2.2 as a whole is still active.
+Plugin manifest v1 is implemented: declarative, browser-local JSON that adds map item types and settings, with no executable code (see [plugins](../guides/plugins.md)). Candidate integrations such as Weather Radar, Reaper ADS-B and a Reaper APRS bridge need code and network access, so they wait on an isolation and permissions decision ([Q6](decisions.md#open-questions)).

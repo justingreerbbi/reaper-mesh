@@ -11,12 +11,12 @@ Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server b
 
 ## Layout
 
-Dark technical workspace with Messages and Assets navigation. On desktop, conversations have an inbox, a message thread and a compact asset tracker; at narrower sizes the tracker gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
+Dark technical workspace with Messages, Map and Settings navigation. On desktop, conversations have an inbox, a message thread and a compact map panel; at narrower sizes the map gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
 
-- Search channel and peer conversations by name or node ID; start a recipient from New message or an asset action.
+- Search channel and peer conversations by name or node ID; start a recipient from New message or from a device selected on the map.
 - Incoming/outgoing messages share a thread. Destination ACK means delivered, never read. Messages show their delivery status without a Message details dropdown; unknown work is never automatically resent.
 - Drafts are isolated by transport/device/conversation and retained in this tab across switching/disconnect. Enter sends when allowed; Shift+Enter adds a line. Drafts are not saved across page reload.
-- Assets shows the map, heard-node list, last-heard age and fixed positions. Selecting a marker selects the asset; messaging is an explicit action. Missing/stale observations never imply online status.
+- Map shows heard nodes, last-heard age, fixed positions and local or shared map items (see [Map authoring and sharing](#map-authoring-and-sharing)). Selecting a marker selects the device; messaging is an explicit action. Missing/stale observations never imply online status.
 - Settings contains device, radio, position, discovery, command history, recovery and diagnostics. No firmware changes are needed for this layout.
 
 Missing positions are never plotted. Map tiles load from Esri’s dark canvas service and may fail offline; node and message controls remain available. One USB device at a time remains the writer boundary until per-device journaling lands. Use the browser port chooser to pick Heltec or T-Beam.
@@ -116,3 +116,9 @@ Device setup follows region → name → save, with a content-sized region selec
 The review applies familiar navigation, progressive disclosure, clear feedback and form grouping from [NN/g’s Web UX study guide](https://www.nngroup.com/articles/web-ux-study-guide/), plus the supplied Mailchimp, ICS, Erik Kennedy, Codilar and Proteus references. These are design principles, not a claim of formal usability testing or complete accessibility conformance. Firmware/privacy defaults and protocol contracts are unchanged.
 
 The conversation sidebar uses a single scrolling viewport instead of separate half-height channel/direct lists. All / Channels / Direct filters share the same search and show unread counts even for the other category. All groups both categories in the same scroll; filtering does not change the open thread. Selecting a conversation from an asset switches to its category when necessary. Direct rows separate the peer name from the channel/preview to avoid crowding; only unread counts use a trailing badge. Drafts, routing and delivery semantics are unchanged.
+
+## Map authoring and sharing
+
+Map replaces Assets. Click empty map space for Add point here / Draw area from here, or choose Add point / Draw area in the tools. Rectangle drawing uses two opposite corners; Cancel drawing or Escape abandons placement. The editor supports coordinates, type, color, name, note and plugin fields. Save is local and works disconnected. Select or right-click a map annotation for Edit, Share and Delete; the saved-item list exposes equivalent actions for touch/keyboard users. Accepted items can be removed locally or copied under a fresh ID.
+
+Share chooses an existing numeric channel, broadcast or canonical node ID and an item/update or withdrawal operation. It shows actual payload budget and transport state; nothing implies recipient acceptance. Incoming items/updates/withdrawals appear as cards in the appropriate channel or direct message. Cards show name, type, color, note, coordinates and metadata, with Add to map, Update on map or Remove from map. Ignoring a card leaves the map unchanged. There is no map review sidebar, review badge or unapproved map preview. Existing accepted geometry stays until an update/removal is accepted. Use separate map-item/device layer toggles. Settings → Plugins manages definitions; see [plugins.md](plugins.md). Full protocol/limits/qualification are in [map-sharing.md](../reference/map-sharing.md).

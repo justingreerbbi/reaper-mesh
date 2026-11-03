@@ -53,3 +53,19 @@ test('actual TypeScript message agent uploads 1024 bytes and queries a lost nati
   assert.equal(agent.messaging.history[0].state, 'queued'); assert.equal(agent.messaging.history[0].text, body);
   assert.equal(agent.messaging.history[0].messageId, 'boot-A_1'); assert.deepEqual(agent.drain(), []);
 });
+
+test('map application text passes unchanged native firmware message admission without a schema update', async () => {
+  const { encodeMap, decodeMap } = await import('../../packages/protocol/map-item.ts');
+  const body = encodeMap({ operation: 'put', item: { id: '11223344-1122-3344-5566-112233445566', revision: 1, geometry: 'point', type: 'core/point', color: '#abcdef', name: 'Field point', note: 'Native compatibility', coordinates: [900000000, 1800000000], metadata: {} } });
+  const bytes = Buffer.from(body), count = Math.ceil(bytes.length / 32);
+  const requests: Message[] = [
+    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
+    ...Array.from({ length: count }, (_, part): Message => ({ type: 'submit', link: 'link-A', boot: 'boot-A', id: 'agent-A:1', channel: 0, destination: 'broadcast', part, count, data: bytes.subarray(part * 32, (part + 1) * 32).toString('hex') })),
+  ];
+  const lines = execFileSync(binary, ['messages'], { input: requests.map(m => hex(wire(m))).join('\n') + '\n', encoding: 'utf8', timeout: 10000 }).trim().split('\n');
+  assert.equal(lines.pop(), 'writes=0');
+  const responses: Message[] = []; for (const line of lines) new FrameDecoder().feed(Buffer.from(line, 'hex'), payload => responses.push(decodeMessage(payload)));
+  const result = responses.at(-1); assert.equal(result?.type, 'messageStatus'); assert.equal(result?.type === 'messageStatus' && result.state, 'queued');
+  assert.equal(decodeMap(body)?.item.name, 'Field point');
+});

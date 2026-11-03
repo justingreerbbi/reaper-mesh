@@ -1,3 +1,5 @@
+import { MapWorkspace } from './map-workspace.ts';
+import { MAP_PREFIX } from '../../packages/protocol/map-item.ts';
 import { MessageState, receivedKey, sentKey, messageScope, inConversation } from './message-state.ts';
 import { conversations, threadMessages, conversationKey, canonicalNode, ConversationDrafts } from './conversations.ts';
 import { coordinate, degrees } from '../../packages/protocol/position-config.ts';
@@ -276,6 +278,29 @@ manage.addEventListener('close', () => { element<HTMLTextAreaElement>('channel-k
 
 const current = () => models[mode.value as keyof typeof models];
 const showError = (value: unknown) => { error = value instanceof Error ? value.message : String(value); render(); };
+const mapWorkspace = new MapWorkspace(fieldMap, {
+  openMap: () => setView('map'),
+  writable: () => recovery.writable && !localAppStopped,
+  stopped: () => localAppStopped || app.inert,
+  context: () => {
+    const c = current().adapter.connection;
+    return { channels: (c.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|'), ready: c.sync.state === 'ready', device: c.device, source: mode.value, messages: c.inbox.history, sent: c.messaging.history, block: c.messageBlockReason ?? c.messaging.sendBlockReason };
+  },
+  decode: (payload, identity) => {
+    if (payload.ciphertext) {
+      const result = encryption?.decrypt(hexBytes(payload.ciphertext), payload.channel, payload.origin, payload.destination, identity);
+      return result?.state === 'decrypted' ? result.text : undefined;
+    }
+    return encryption?.isRequired(payload.channel) ? undefined : payload.text;
+  },
+  budget: channel => encryption?.isRequired(channel) ? 950 : 1024,
+  send: (body, destination, channel) => {
+    if (encryptionError) throw Error(encryptionError);
+    const adapter = current().adapter;
+    return encryption?.isRequired(channel) ? adapter.sendMessagePayload(encryption.encrypt(body, channel, adapter.connection.device!, destination), destination, channel) : adapter.sendMessage(body, destination, channel);
+  },
+});
+
 function hexBytes(value: string) {
   if (!/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('Saved encrypted message is malformed.');
   return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
@@ -371,7 +396,7 @@ function render() {
   const model = current();
   model.refresh();
   const { connection, active, cleanupError } = model.adapter;
-  if (renderAccess(active)) return;
+  if (renderAccess(active)) { mapWorkspace.update(); return; }
   const { sync, capabilities } = connection;
   const ready = sync.state === 'ready';
   const writable = ready && !connection.writeBlockReason;
@@ -441,6 +466,7 @@ function render() {
   renderEncryption();
   renderMessages();
   renderInbox();
+  mapWorkspace.update();
   renderMap();
   element('simulation').hidden = mode.value !== 'demo';
   element<HTMLButtonElement>('reboot').disabled = busy;
@@ -594,6 +620,7 @@ element('recipient-done').addEventListener('click', () => { chooseConversation(e
 element('back-conversations').addEventListener('click', () => app.classList.remove('has-conversation'));
 element('conversation-connect').addEventListener('click', () => connect.click());
 element('conversation-search').addEventListener('input', renderMessages);
+document.addEventListener('map-message-change', renderMessages);
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
   button.addEventListener('click', () => {
     conversationFilter = button.dataset.conversationFilter as typeof conversationFilter;
@@ -644,18 +671,18 @@ function renderMessages() {
   try { messageState?.observe(sources, attended && lastDevice ? { source: mode.value, device: lastDevice, destination: destination.value, channel: Number(channel.value) } : undefined); if (messageState) messageStateError = ''; }
   catch (e) { messageStateError = `Message history: ${String(e)}`; }
   const history = connection.messaging.history.filter(m => !messageState?.deleted(sentKey(mode.value, m.device, m.id))).map(m => {
-    if (!m.payloadHex) return m;
+    if (!m.payloadHex) return { ...m, mapWire: m.text.startsWith(MAP_PREFIX) ? m.text : undefined, text: m.text.startsWith(MAP_PREFIX) ? 'Shared map item' : m.text };
     const result = encryption?.decrypt(hexBytes(m.payloadHex), m.channel, connection.device ?? m.device, m.destination);
-    return { ...m, text: result?.text ?? 'Encrypted message · app locked', encryptionState: encryptionLabel(result?.state) };
+    return { ...m, mapWire: result?.state === 'decrypted' && result.text?.startsWith(MAP_PREFIX) ? result.text : undefined, text: result?.text?.startsWith(MAP_PREFIX) ? 'Shared map item' : result?.text ?? 'Encrypted message · app locked', encryptionState: encryptionLabel(result?.state) };
   });
   const incoming = connection.inbox.history.filter(m => !messageState?.deleted(receivedKey(mode.value, m))).map(m => {
     if (m.payloadHex) {
       const identity = `${mode.value}:${m.device}:${canonicalNode(m.origin)}:${m.messageId}`;
       const result = encryption?.decrypt(hexBytes(m.payloadHex), m.channel, m.origin, m.destination ?? 'broadcast', identity);
-      return { ...m, text: result?.text ?? 'Encrypted message · app locked', encryptionState: encryptionLabel(result?.state) };
+      return { ...m, mapWire: result?.state === 'decrypted' && result.text?.startsWith(MAP_PREFIX) ? result.text : undefined, text: result?.text?.startsWith(MAP_PREFIX) ? 'Shared map item' : result?.text ?? 'Encrypted message · app locked', encryptionState: encryptionLabel(result?.state) };
     }
     if (encryption?.isRequired(m.channel)) return { ...m, text: 'Plaintext rejected · channel requires encryption', encryptionState: 'Plaintext rejected' };
-    return m;
+    return { ...m, mapWire: m.text.startsWith(MAP_PREFIX) ? m.text : undefined, text: m.text.startsWith(MAP_PREFIX) ? 'Shared map item' : m.text };
   });
   const unread = messageState?.unread(mode.value, connection.inbox.history) ?? [];
   const totalUnread = sources.reduce((n, source) => n + (messageState?.unread(source.source, source.messages).length ?? 0), 0);
@@ -714,7 +741,7 @@ function renderMessages() {
     const hasChannels = visible.some(row => row.kind === 'channel'), hasDirect = visible.some(row => row.kind === 'direct');
     element('channel-list-heading').hidden = !hasChannels || conversationFilter !== 'all';
     element('direct-list-heading').hidden = !hasDirect || conversationFilter !== 'all';
-    text('conversation-search-empty', filter ? 'No matching conversations. Try another name, channel or node ID.' : conversationFilter === 'direct' ? 'No direct conversations yet. Find a device in Assets or use + to start one.' : 'No conversations to show.');
+    text('conversation-search-empty', filter ? 'No matching conversations. Try another name, channel or node ID.' : conversationFilter === 'direct' ? 'No direct conversations yet. Find a device in Map or use + to start one.' : 'No conversations to show.');
     element('conversation-search-empty').hidden = visible.length !== 0;
     const renderRow = (row: typeof rows[number], list: HTMLElement) => {
       const button = document.createElement('button'); button.className = 'conversation-row'; button.classList.toggle('is-selected', row.key === key); button.setAttribute('aria-pressed', String(row.key === key));
@@ -733,7 +760,7 @@ function renderMessages() {
   for (const m of messages) if (!observedOrder.has(orderScope + m.key)) observedOrder.set(orderScope + m.key, ++nextOrder);
   while (observedOrder.size > 256) observedOrder.delete(observedOrder.keys().next().value!);
   messages.sort((a, b) => observedOrder.get(orderScope + a.key)! - observedOrder.get(orderScope + b.key)!);
-  const signature = scope + key + ready + JSON.stringify(messages);
+  const signature = scope + key + ready + JSON.stringify(messages) + mapWorkspace.messageVersion;
   element('conversation-empty').hidden = messages.length > 0;
   if (signature === messageSignature) return; messageSignature = signature;
   const stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
@@ -743,7 +770,12 @@ function renderMessages() {
     const bubble = document.createElement('div'); bubble.className = 'message-bubble';
     if (m.direction === 'incoming') { const sender = document.createElement('span'); sender.className = 'message-sender'; sender.textContent = connection.discovery.nodes.find(n => canonicalNode(n.node) === canonicalNode(m.origin))?.name || m.origin; bubble.append(sender); }
     const content = document.createElement('p'); content.className = 'message-text'; content.textContent = m.text;
-    const status = document.createElement('span'); status.className = 'message-state'; status.textContent = m.status; status.dataset.state = m.entry?.state ?? 'received'; bubble.append(content, status);
+    const status = document.createElement('span'); status.className = 'message-state'; status.textContent = m.status; status.dataset.state = m.entry?.state ?? 'received';
+    const mapCard = m.mapWire ? mapWorkspace.messageCard(m.mapWire, m.received ? {
+      origin: canonicalNode(m.received.origin), channel: m.received.channel, destination: m.received.destination ?? 'broadcast',
+      ...(m.received.payloadHex ? { ciphertext: m.received.payloadHex } : { text: m.mapWire }),
+    } : undefined) : undefined;
+    bubble.append(mapCard ?? content, status);
     const remove = document.createElement('button'); remove.className = 'message-delete'; remove.textContent = 'Delete'; remove.setAttribute('aria-label', `Delete ${m.direction === 'incoming' ? 'received' : 'sent'} message`);
     remove.disabled = !messageState || !recovery.writable || m.entry?.state === 'receiving';
     remove.addEventListener('click', () => requestDelete([m.received ? receivedKey(mode.value, m.received) : sentKey(mode.value, lastDevice!, m.entry!.id)], m.entry ? [m.entry.id] : [], 'Delete this message from local history? It will also disappear from other local views of the same message.'));

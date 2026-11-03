@@ -197,3 +197,7 @@ Committed position/privacy changes cancel pending controls, including controls a
 An agent is the software connected to a node. This naming convention changes no wire fields, owner identity rules, persisted request IDs, or synchronization/recovery behavior. Frozen v1 fixtures retain their historical `client-A` owner/ID values and exact bytes: these are opaque valid identities, not required terminology or a migration target.
 
 Outgoing retention is independent of unresolved-send admission: at most 32 unresolved messages are admitted, while oldest completed entries roll off only when the 160-entry history is full and a valid new send is admitted. Unknown and unacknowledged unicast outcomes are never automatically retired. IDs/counters are not recycled; retirement and the new immutable payload are checkpointed before dispatch. Existing format-1 journals remain readable; older agents reject journals exceeding their old bound rather than resetting them. Browser journal length is bounded to 1 MiB serialized characters.
+
+## Map application payload v1
+
+Shared map annotations use an `RMAP1:` UTF-8 application envelope inside existing message data. No USB/radio/config schema change. Existing channel encryption can wrap it. Object identity, revisions, approval, plugin metadata, retention and compatibility are specified in [map-sharing.md](map-sharing.md); device ACK remains distinct from agent/user acceptance.

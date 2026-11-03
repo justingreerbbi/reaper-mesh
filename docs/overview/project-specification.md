@@ -77,7 +77,7 @@ Phase completion records product milestones. It does not waive outstanding secur
 | 3 — Encrypted channels | Agents encrypt message bodies while devices route ciphertext | Initial group-key implementation exists; direct encrypted exchanges on Heltec/T-Beam have recorded evidence | Validate key transfer/rotation, tamper/replay handling, no plaintext downgrade and interrupted encrypted upload recovery; independent security review remains outstanding |
 | 4 — Device presentation and power visibility | Clear on-device status and supported power information | Planned; existing OLED support is not completion of this phase | Define screen management, sleep/wake, RX/TX indication and measured battery reporting with unknown/unsupported states |
 
-The current priority is the messaging and asset portal, channel/key usability and agent privacy. GPS acquisition is not the next automatic task. Older documents may retain historical map-first priorities or earlier qualification status; this draft follows the latest owner direction and maintained handoff.
+The current priority is the messaging and asset portal, channel/key usability and agent privacy. GPS acquisition is not the next automatic task.
 
 ## 5. Functional requirements
 
@@ -189,7 +189,7 @@ These possibilities are not approved implementation work. Broad telemetry, MQTT/
 | Plaintext message payload | Up to 1,024 UTF-8 bytes | Capacity bound, not a throughput guarantee |
 | Encrypted text payload | Up to 950 UTF-8 bytes | Current 1,024-byte envelope limit includes 74 bytes of overhead |
 | Discovery node snapshot | Up to 32 retained device entries | Observed cache, not a complete inventory or online roster |
-| Local retained histories | Bounded; current recovery journal retains up to 32 entries per history | Detailed limits remain in the referenced contracts |
+| Local retained histories | Bounded; the browser keeps a rolling 160-entry sent history, at most 32 unresolved operations, within a 1 MiB journal | Detailed limits remain in the referenced contracts |
 | Radio range, battery life and network throughput | Not established as product guarantees | Require documented measurements under specified conditions |
 
 Exact wire layouts, timing constants and storage bounds belong in the detailed references. Changing a baseline requires updating its contract, generated artifacts where applicable, tests and this specification when the product commitment changes.
@@ -212,6 +212,8 @@ The present project is a development prototype, not a production-qualified publi
 
 ## 12. Open decisions and ownership
 
+The maintained list of open questions is in [Decisions](../contributing/decisions.md#open-questions).
+
 | Decision | Required before |
 | --- | --- |
 | Approval and precedence of this specification | Treating draft requirements as the governing project standard |
@@ -229,21 +231,17 @@ The project owner approves scope and product commitments. Contributors propose c
 
 ## 13. Maintenance and reference hierarchy
 
-Once approved, this document is intended to be the high-level product baseline: vision, use cases, phases and cross-system requirements. Detailed references define exact protocol and implementation contracts; the decision log records approved changes; status and changelog documents retain dated evidence. AI.md remains the maintained contributor handoff.
+Once approved, this document is the high-level product baseline: vision, use cases, phases and cross-system requirements. Each other kind of information has one home:
 
-Conflicts MUST be resolved explicitly rather than by silently changing a protocol or treating an old status paragraph as current intent. Until this draft is approved, the latest explicit owner decisions and existing approved contracts take precedence.
+| Information | Canonical document |
+| --- | --- |
+| Product priorities and phase order | [Roadmap](roadmap.md) |
+| What is implemented and verified now; installed firmware | [Status](status.md) |
+| Dated hardware and test evidence | [Changelog](changelog.md) |
+| Decisions and open questions | [Decisions](../contributing/decisions.md) |
+| Architecture and engineering standards | [Development plan](../contributing/plan.md) |
+| Exact wire, storage and recovery contracts | [Protocol](../reference/protocol.md), [radio protocol](../reference/radio-protocol.md), [messaging](../reference/messaging.md), [persistence](../reference/persistence.md), [compatibility](../reference/compatibility.md) |
+| Phase 2 requirements and acceptance | [Phase 2 contract](../contributing/phase-2.md) |
+| Contributor working rules | [AI.md](../../AI.md) |
 
-- [Documentation index](../README.md)
-- [Roadmap](roadmap.md)
-- [Implementation status and evidence](status.md)
-- [Contributor handoff](../../AI.md)
-- [Development plan](../contributing/plan.md)
-- [Decisions](../contributing/decisions.md)
-- [Phase 2 contract](../contributing/phase-2.md)
-- [USB protocol and recovery](../reference/protocol.md)
-- [Radio protocol](../reference/radio-protocol.md)
-- [Messaging](../reference/messaging.md)
-- [Persistence](../reference/persistence.md)
-- [Compatibility](../reference/compatibility.md)
-- [Web portal](../guides/web-portal.md)
-- [Encryption and agent privacy](../guides/encryption.md)
+Conflicts MUST be resolved explicitly rather than by silently changing a protocol or treating an old paragraph as current intent. Until this draft is approved, the latest explicit owner decisions and existing approved contracts take precedence.

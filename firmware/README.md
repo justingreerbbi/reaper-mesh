@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF Heltec V3 USB application. The development board runs usb-prototype-6; physical USB smoke tests pass. See [first flash and recovery](../docs/guides/first-flash.md).
+This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF board applications (Heltec V3 and T-Beam V1.2). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); see [first flash and recovery](../docs/guides/first-flash.md) for the original bring-up.
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Build and test
