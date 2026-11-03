@@ -22,7 +22,7 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 | # | Question | Revisit when |
 | --- | --- | --- |
 | Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | After the outdoor range test in the [field qualification plan](field-qualification.md), from measured airtime and delivery rates |
-| Q5 | Should shared map items get a message content type and a compact encoding, so older agents stop showing `RMAP1` JSON as chat text? (D39) | Together with Q3, when the radio protocol is reviewed after the range test |
+| Q5 | Define the application payload type for core v1: typed payloads that firmware carries, relays and acknowledges without understanding them, so features such as map items live in agents and older agents ignore unknown types (D39, D41). Includes a compact encoding for map items, replacing `RMAP1` JSON in text | In the core v1 protocol review after field qualification, together with Q3 |
 | Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | When the owner resumes GPS work (D26) |
 | Q8 | Formal performance targets (range, throughput, battery), set from the [field qualification plan](field-qualification.md) results | After field qualification, before publishing any range, throughput or battery figures |
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
@@ -69,6 +69,26 @@ Nov 2 · **Confirmed**. Software connected to a node is an **agent** (`agents/`,
 Nov 2 · **Confirmed**. On the next firmware change, images are named
 `{device}-reaper-mesh-v{semver}` (for example `heltec-reaper-mesh-v8.0.2`) in firmware
 identification, manifests, packages and docs. Installed images are not reflashed only to rename.
+
+### D41. Stable core, extensible edges
+Nov 3 · **Confirmed**. Reaper Mesh is built for organizations that need stability. The core
+(firmware and the radio and USB protocols) stays small: messaging with acknowledgments, relay,
+discovery, positions, channels and a way to carry application data it does not understand. New
+features go in agents and plugins, so boards rarely need firmware updates and agents keep
+working with installed firmware. This contrasts with mass-market mesh projects that keep adding
+requested features to the firmware core, forcing frequent firmware and app updates. A firmware
+or protocol change needs a stated reason why an agent or plugin cannot do it. Optional
+board-local features (screen, battery display) must not change the radio protocol. See the
+[specification](../overview/project-specification.md#13-stable-core-extensible-edges).
+
+### D42. No compatibility promise before core v1
+Nov 3 · **Confirmed**. The project is in active development, used only by its maintainer and not
+deployed. Until core v1, the owner may approve breaking changes to the protocols or storage
+formats when they simplify the core, instead of keeping compatibility layers for earlier
+prototype builds; boards are reflashed as needed. Fixtures still pin current behavior and are
+only changed deliberately, with owner approval. At core v1 the formats are frozen, fixtures are
+reset to that baseline, and full compatibility rules apply. See the
+[specification](../overview/project-specification.md#14-project-stage).
 
 ## Hardware and firmware
 

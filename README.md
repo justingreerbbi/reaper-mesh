@@ -3,16 +3,18 @@
 **Long-range text messaging over LoRa radio — no internet, no cell service, no cloud.**
 
 Reaper Mesh is custom firmware for inexpensive LoRa boards plus a desktop browser agent
-that talks to them over USB. The goal is deliberately narrow: dependable messaging between a
-small number of devices, with small firmware and careful compatibility across releases.
+that talks to them over USB. It is built for organizations that need stability: a small,
+stable firmware and protocol core, with new features added in agents and plugins so boards
+rarely need firmware updates.
 
 Reaper Mesh uses its own independent, documented protocol. [Meshtastic](https://meshtastic.org/)
 is used only as a functional reference, not for interoperability.
 
 > [!IMPORTANT]
-> This is a working development prototype, not a production or certified release. It is
-> careful to state exactly what has and has not been verified on hardware. See the
-> [current status](docs/overview/status.md).
+> This is a working development prototype in active development, not a production or
+> certified release. It is used only by its maintainer, and there is no compatibility promise
+> until core v1. It is careful to state exactly what has and has not been verified on
+> hardware. See the [current status](docs/overview/status.md).
 
 ## What works today
 

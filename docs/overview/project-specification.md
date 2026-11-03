@@ -18,6 +18,7 @@ This specification consolidates the intended product standard. It is not a claim
 
 ### 1.1 Intended outcomes
 
+- A small, stable core that rarely needs firmware updates, with new capability added in agents and plugins.
 - Reliable local and direct radio messaging with explicit delivery outcomes.
 - Simple channel creation and management, with optional agent-side message encryption.
 - Discovery and map views based on observed information rather than assumed connectivity.
@@ -30,6 +31,31 @@ This specification consolidates the intended product standard. It is not a claim
 Reaper Mesh is not currently specified as a safety-critical emergency service, a guaranteed-delivery network, a high-bandwidth transport or an anonymous communications system. Candidate field uses do not establish suitability for life-safety decisions.
 
 The project uses an independent Reaper Mesh protocol. Interoperability with Meshtastic or another mesh protocol is not an established requirement. The project is licensed under Apache-2.0; public release and distribution terms remain owner decisions.
+
+### 1.3 Stable core, extensible edges
+
+Reaper Mesh is built for organizations that need a messaging system that stays stable once deployed. Its core (board firmware and the radio and USB protocols) is kept deliberately small: messaging with acknowledgments, relay, discovery, positions, channels and the means to carry new kinds of data. New capability is added at the edges, in agents and plugins, so boards do not need frequent firmware updates and agents keep working with the firmware already installed.
+
+This is a deliberate contrast with mass-market mesh projects, where many requested features are added to the firmware core. Each addition brings new firmware and app versions, older installs stop working with newer ones, and the core grows with features most users never use. Reaper Mesh does not follow that model.
+
+In practice:
+
+- New features SHOULD be built in agents or plugins. A firmware or protocol change needs a stated reason why the edge cannot do it.
+- The core SHOULD carry application data it does not understand: firmware relays, acknowledges and delivers typed payloads, and agents ignore types they do not support. This lets new features reach older firmware and lets older agents coexist with newer ones.
+- Once core v1 is released, firmware changes are expected to be limited to bug fixes, new boards and rare, deliberate major versions.
+- Optional board-local features, such as screen layout or battery display, MUST NOT change the radio protocol.
+
+### 1.4 Project stage
+
+Reaper Mesh is in active development and is not yet stable. It is used only by its maintainer, on development boards, and is not deployed anywhere. There are no outside users to keep compatible with.
+
+Until core v1 is declared:
+
+- The owner may approve breaking changes to the radio protocol, USB protocol or storage formats when they simplify the core, instead of adding another compatibility layer for earlier prototype builds. Boards are reflashed as needed.
+- Compatibility fixtures pin the current behavior so changes are always deliberate. A breaking change updates them explicitly with owner approval; they are never refreshed silently.
+- Testing, recovery and honest-reporting requirements apply in full.
+
+At core v1, the protocol and storage formats are frozen, the fixtures are reset to that baseline, and the compatibility requirements in section 6 apply from then on.
 
 ## 2. Users and use cases
 
@@ -152,7 +178,7 @@ The system MUST preserve connection/session identity, boot identity, request ide
 
 Configuration and message recovery MUST remain distinct. Configuration commits MUST not be inferred from a successful transport write; message delivery MUST not be inferred from configuration synchronization. Unavailable or corrupt persisted state MUST fail closed without automatic formatting or implicit data loss.
 
-Protocol changes MUST use negotiated versions/capabilities, generated bindings and preserved compatibility fixtures. Frozen fixtures MUST NOT be silently refreshed. New synchronization behavior requires deterministic race/recovery tests, including delayed, duplicated, missing and out-of-order information.
+From core v1 onward, protocol changes MUST use negotiated versions/capabilities, generated bindings and preserved compatibility fixtures; before core v1, see section 1.4. Frozen fixtures MUST NOT be silently refreshed. New synchronization behavior requires deterministic race/recovery tests, including delayed, duplicated, missing and out-of-order information.
 
 ## 7. Security, privacy and trust
 
