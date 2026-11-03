@@ -1,5 +1,7 @@
 // Web agent entry point: wires the UI modules together and runs the render loop.
+import 'leaflet/dist/leaflet.css';
 import './style.css';
+import { initOverview, renderOverview } from './overview-ui.ts';
 import { WIPE_SIGNAL } from './local-data.ts';
 import { current, encryption, models, recovery, render, setRenderer } from './app-state.ts';
 import {
@@ -32,6 +34,7 @@ initChannels();
 initSettings();
 initMap();
 initConnection();
+initOverview();
 
 function renderApp() {
   if (isAppStopped()) return;
@@ -52,6 +55,7 @@ function renderApp() {
   renderEncryption();
   renderMessages();
   renderInbox();
+  renderOverview();
   mapWorkspace.update();
   renderMap();
   renderCommandHistory(model, ready);

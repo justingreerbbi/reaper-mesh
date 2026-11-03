@@ -15,7 +15,7 @@ import {
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { messagesModeChanged } from './messages-ui.ts';
-import { fieldMap, setPanelOpen, setSelectedNode, setView } from './map-ui.ts';
+import { fieldMap, setPanelOpen, setSelectedNode } from './map-ui.ts';
 import { invalidateHistory } from './settings-ui.ts';
 
 const label = element<HTMLInputElement>('label');
@@ -185,7 +185,6 @@ export function initConnection() {
       if (token === attempt) {
         busy = false;
         if (model.adapter.connection.sync.state === 'ready') {
-          setView('messages');
           setPanelOpen(true);
         }
         render();

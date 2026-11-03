@@ -46,7 +46,7 @@ first `heltec-reaper-mesh-v0.2.0` image when it is next updated.
 | Discovery | Beacons, manual requests, rate-limited replies, node snapshots; all off by default | Two-board discovery, opt-out silence, periodic beacon | Native browser QA of the controls |
 | Fixed position | Saved coordinates, opt-in sharing, versioned reports | Two-board coordinate exchange, privacy switch, reboot persistence | Native browser QA of the controls |
 | Encryption | Agent-side XChaCha20-Poly1305 group keys; devices carry ciphertext only | Encrypted direct messages in both directions | Reconnect or reboot during upload, key rotation over radio, relay, security review |
-| Web portal | Messaging inbox, map with local and shared items, settings, optional PIN, local wipe, JSON plugins | Earlier portal versions checked in native Brave over USB | Native desktop QA of the map, sharing and plugin features |
+| Web portal | Overview dashboard, separate messaging and map workspaces, shared app-wide theme for messaging, map tools, settings and recovery pages, optional PIN, local wipe, JSON plugins | Earlier portal versions checked in native Brave over USB; replacement styles checked at 1920 × 1080 and phone sizes, including simulator saves and all settings sections | USB and hardware QA of the redesigned shell; sharing and plugin flows |
 | Firmware updates | Manifest-validating ROM updater that preserves NVS | Repeated installs on both boards | Interrupted flash, rollback, signed releases |
 
 ## Next qualification work

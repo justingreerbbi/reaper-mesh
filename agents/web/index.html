@@ -3,18 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#090e12" />
+    <meta name="theme-color" content="#101217" />
     <title>Reaper Mesh · Field communications</title>
+    <link rel="stylesheet" href="/theme.css" />
   </head>
   <body>
-    <div class="app" data-view="messages" data-panel="messages">
+    <div class="app" data-view="overview" data-panel="messages">
       <header class="bar">
         <a class="brand" href="/" aria-label="Reaper Mesh home">
           <span class="mark">R/M</span>
           <span>REAPER<span class="brand-sub">MESH NETWORK</span> </span>
         </a>
-        <span class="bar-divider"> </span>
-        <span class="workspace-label">FIELD COMMUNICATIONS</span>
+        <span class="workspace-label"
+          >Workspace <span aria-hidden="true">/</span>
+          <strong id="workspace-title">Overview</strong></span
+        >
         <div class="bar-status">
           <span id="rail-status" class="rail-dot" data-state="disconnected"> </span>
           <span id="status" role="status">Disconnected</span>
@@ -35,20 +38,163 @@
       <div id="error" class="error" role="alert" hidden></div>
       <main class="stage">
         <nav class="nav-rail" aria-label="Workspace">
-          <button class="nav-item is-active" data-view-target="messages" title="Messages">
-            <span aria-hidden="true">▤</span>
+          <span class="nav-label">WORKSPACE</span>
+          <button class="nav-item is-active" data-view-target="overview" title="Overview">
+            <span aria-hidden="true"
+              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                <rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></span
+            ><span>Overview</span>
+          </button>
+          <button class="nav-item" data-view-target="messages" title="Messages">
+            <span aria-hidden="true"
+              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"
+                />
+                <path d="M7 9h9M7 13h6" /></svg
+            ></span>
             <span>Messages <span id="nav-unread" class="unread-badge" hidden></span></span>
           </button>
           <button class="nav-item" data-view-target="map" title="Map workspace">
-            <span aria-hidden="true">⌖</span>
-            <span>Map</span>
+            <span aria-hidden="true"
+              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Z" />
+                <path d="M9 3v16M15 5v16" /></svg
+            ></span>
+            <span>Map &amp; devices</span>
           </button>
           <button id="open-manage" class="nav-item nav-settings" title="Device settings">
-            <span aria-hidden="true">⚙</span>
+            <span aria-hidden="true"
+              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16M4 17h16" />
+                <circle cx="9" cy="7" r="3" />
+                <circle cx="15" cy="17" r="3" /></svg
+            ></span>
             <span>Settings</span>
           </button>
-          <span class="rail-version mono">RM / 01</span>
+          <div class="rail-version">
+            <strong>Local by design</strong
+            ><span>One device. Your browser.<br />No cloud account.</span
+            ><span class="mono">REAPER MESH · PRE-RELEASE</span>
+          </div>
         </nav>
+        <section class="overview-pane" aria-labelledby="overview-title">
+          <div class="overview-content">
+            <header class="overview-heading">
+              <div>
+                <span class="eyebrow">FIELD COMMUNICATIONS</span>
+                <h1 id="overview-title">Network overview</h1>
+                <p>Your device, conversations, and last-heard network at a glance.</p>
+              </div>
+              <button data-view-target="messages" type="button">
+                Open messages <span aria-hidden="true">↗</span>
+              </button>
+            </header>
+            <div class="overview-metrics" aria-label="Network summary">
+              <article class="metric">
+                <span>Connection</span><strong id="overview-connection">Disconnected</strong
+                ><small id="overview-source">USB device</small>
+              </article>
+              <article class="metric">
+                <span>Heard devices</span><strong id="overview-nodes">—</strong
+                ><small>Last-known observations</small>
+              </article>
+              <article class="metric">
+                <span>Unread messages</span><strong id="overview-unread">—</strong
+                ><small>For the selected device</small>
+              </article>
+              <article class="metric">
+                <span>Saved messages</span><strong id="overview-messages">—</strong
+                ><small>Sent and received locally</small>
+              </article>
+            </div>
+            <div class="overview-grid">
+              <article class="overview-card device-card">
+                <header>
+                  <h2>Connected device</h2>
+                  <button type="button" data-settings-target="device">Manage device ↗</button>
+                </header>
+                <div class="device-summary">
+                  <span class="device-symbol" aria-hidden="true"
+                    ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="6" y="7" width="12" height="14" rx="3" />
+                      <path d="M9 7V3M9 12h6M10 17h4" /></svg
+                  ></span>
+                  <div>
+                    <h3 id="overview-device-name">No device connected</h3>
+                    <p id="overview-device-help">Connect over USB to see your network.</p>
+                  </div>
+                </div>
+                <dl class="overview-details">
+                  <div>
+                    <dt>Device ID</dt>
+                    <dd id="overview-device">—</dd>
+                  </div>
+                  <div>
+                    <dt>Firmware</dt>
+                    <dd id="overview-firmware">—</dd>
+                  </div>
+                  <div>
+                    <dt>Radio mode</dt>
+                    <dd id="overview-radio">—</dd>
+                  </div>
+                  <div>
+                    <dt>Position sharing</dt>
+                    <dd id="overview-position">—</dd>
+                  </div>
+                </dl>
+                <p id="overview-support" class="overview-note"></p>
+              </article>
+              <article class="overview-card">
+                <header>
+                  <h2>Last-heard devices</h2>
+                  <button type="button" data-view-target="map">Open map ↗</button>
+                </header>
+                <div id="overview-node-list" class="overview-list"></div>
+                <p class="overview-note">
+                  Discovery observations do not indicate a live connection.
+                </p>
+              </article>
+              <article class="overview-card delivery-card">
+                <header>
+                  <div>
+                    <h2>Recent sends</h2>
+                    <p>Latest outgoing records for this device</p>
+                  </div>
+                  <button type="button" data-view-target="messages">View messages ↗</button>
+                </header>
+                <div id="overview-deliveries" class="overview-list"></div>
+              </article>
+              <article class="overview-card workspace-card">
+                <header><h2>Your workspace</h2></header>
+                <button type="button" data-view-target="messages">
+                  <span
+                    ><strong>Messages</strong><small>Channels and direct conversations</small></span
+                  ><span aria-hidden="true">↗</span>
+                </button>
+                <button type="button" data-view-target="map">
+                  <span
+                    ><strong>Map &amp; devices</strong
+                    ><small>Positions, points, and shared areas</small></span
+                  ><span aria-hidden="true">↗</span>
+                </button>
+                <button type="button" data-settings-target="channels">
+                  <span
+                    ><strong>Channels &amp; privacy</strong
+                    ><small>Channel names and message encryption</small></span
+                  ><span aria-hidden="true">↗</span>
+                </button>
+              </article>
+            </div>
+            <p class="overview-footnote">
+              Local history stays in this browser. Delivery status reflects device reports; it is
+              not a read receipt.
+            </p>
+          </div>
+        </section>
         <aside class="inbox-pane" aria-label="Conversations">
           <div class="pane-heading">
             <div>
@@ -61,7 +207,9 @@
               aria-label="Mark all messages read"
               title="Mark all messages read"
             >
-              ✓
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m4 12 5 5L20 6" />
+              </svg>
             </button>
             <button
               id="new-conversation"
@@ -69,7 +217,9 @@
               aria-label="Start conversation"
               title="Start conversation"
             >
-              ＋
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 4v16M4 12h16" />
+              </svg>
             </button>
           </div>
           <label class="sr-only" for="conversation-search">Search conversations</label>
@@ -131,7 +281,9 @@
               class="mobile-only icon-button"
               aria-label="Back to conversations"
             >
-              ‹
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m14 6-6 6 6 6" />
+              </svg>
             </button>
             <span id="conversation-avatar" class="avatar">#</span>
             <div class="conversation-title">
@@ -186,7 +338,13 @@
           </div>
           <div id="thread-scroll" class="thread-scroll">
             <div id="conversation-empty" class="thread-empty">
-              <span class="empty-symbol">⌁</span>
+              <span class="empty-symbol" aria-hidden="true"
+                ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"
+                  />
+                  <path d="M7 9h9M7 13h6" /></svg
+              ></span>
               <h3>Start a conversation</h3>
               <p>
                 Connect a device to send messages. Find nearby devices to start a direct

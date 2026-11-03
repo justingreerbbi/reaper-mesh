@@ -10,6 +10,33 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 3: portal workspace redesign
+
+At the owner's request, the portal now opens on a read-only network overview with connection,
+selected-device message counts, discovery observations and recent send outcomes. Persistent
+navigation separates the overview, conversations and map; settings uses a larger dialog with
+section navigation. Connecting preserves the selected workspace.
+
+The original portal stylesheet was replaced, and the interim override stylesheet was removed.
+A shared theme defines colors, typography, fields, buttons, focus states and recovery pages.
+The new component stylesheet covers message bubbles and delivery states, the composer,
+recipient controls, map tools and overlays, all settings sections, plugins and dialogs.
+Navigation and empty states use consistent SVG icons. Leaflet's vendor CSS loads before the
+application stylesheet so map controls use the application theme.
+
+Verification: `npm ci --ignore-scripts` and `npm run check` passed (276 tests, strict TypeScript,
+generated-schema and vendor checks, compiler-backed host tests and the web build). Browser QA
+at 1920 × 1080 covered the overview, messages, recipient controls, map, map-item editor,
+all primary and advanced settings sections, standalone recovery-page styling (without a wipe),
+and simulator connect/save/disconnect. A synthetic
+visual fixture checked incoming/outgoing bubbles, delivery labels, shared-item cards and long
+identifier wrapping without touching device history. Phone QA at 390 × 844 covered overview,
+conversation/back navigation and all primary settings sections without horizontal overflow.
+The web build retains its large-bundle warning. No firmware, protocol, storage or compatibility
+fixtures changed. No USB or radio hardware tests were performed; populated hardware discovery
+and delivery summaries still need device QA. Screenshots and the synthetic fixture are under
+ignored `build/web-redesign/`.
+
 ## Installed firmware at a glance
 
 | Board | Latest image | Source commit | Notes |
