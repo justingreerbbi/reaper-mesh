@@ -1,6 +1,7 @@
 import type { PositionConfig } from '../protocol/position-config.ts';
 import type { DiscoveryConfig } from '../protocol/discovery-config.ts';
 import type { RadioConfig } from '../protocol/radio-config.ts';
+import type { ScreenConfig } from '../protocol/screen-config.ts';
 /** Transport-independent synchronization core. Wire decoding must validate input first. */
 export type Config = Readonly<{
   region: string;
@@ -8,6 +9,7 @@ export type Config = Readonly<{
   position?: PositionConfig;
   radio?: RadioConfig;
   discovery?: DiscoveryConfig;
+  screen?: ScreenConfig;
 }>;
 export type Event = Readonly<{
   session: number;
@@ -140,5 +142,6 @@ export function copyConfig(config: Config): Config {
     ...(config.position ? { position: Object.freeze({ ...config.position }) } : {}),
     ...(config.discovery ? { discovery: Object.freeze({ ...config.discovery }) } : {}),
     ...(config.radio ? { radio: Object.freeze({ ...config.radio }) } : {}),
+    ...(config.screen ? { screen: Object.freeze({ ...config.screen }) } : {}),
   });
 }

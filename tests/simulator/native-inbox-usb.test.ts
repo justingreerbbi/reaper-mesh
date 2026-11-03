@@ -264,3 +264,101 @@ test('native node paging freezes position with identity while a later name-only 
   assert.equal(responses[5].type === 'nodeReply' && responses[5].positionSource, undefined);
   assert.equal(responses[5].type === 'nodeReply' && responses[5].name, 'Delta');
 });
+
+test('screen settings cross TS/native USB, persist with the revision and reject partial or invalid updates', () => {
+  const requests: Message[] = [
+    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
+    {
+      type: 'configure',
+      link: 'link-A',
+      boot: 'boot-A',
+      id: 'agent-A:1',
+      expectedRevision: 0,
+      region: 'US',
+      label: 'screen',
+      screenTimeout: 60,
+      screenWake: 1,
+    },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 2 },
+    {
+      type: 'configure',
+      link: 'link-A',
+      boot: 'boot-A',
+      id: 'agent-A:2',
+      expectedRevision: 1,
+      region: 'US',
+      label: 'legacy edit',
+    },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 3 },
+    {
+      type: 'configure',
+      link: 'link-A',
+      boot: 'boot-A',
+      id: 'agent-A:3',
+      expectedRevision: 2,
+      region: 'US',
+      label: 'partial',
+      screenTimeout: 60,
+    },
+    {
+      type: 'configure',
+      link: 'link-A',
+      boot: 'boot-A',
+      id: 'agent-A:4',
+      expectedRevision: 2,
+      region: 'US',
+      label: 'too short',
+      screenTimeout: 5,
+      screenWake: 0,
+    },
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 4 },
+  ];
+  const lines = execFileSync(binary, ['discovery'], {
+    input: requests.map(message => hex(wire(message))).join('\n') + '\n',
+    encoding: 'utf8',
+    timeout: 10000,
+  })
+    .trim()
+    .split('\n');
+  assert.equal(lines.pop(), 'writes=2');
+  const frames = lines.map(line => Uint8Array.from(Buffer.from(line, 'hex')));
+  const responses: Message[] = [];
+  for (const frame of frames)
+    new FrameDecoder().feed(frame, payload => responses.push(decodeMessage(payload)));
+  const welcome = responses[0];
+  assert.equal(welcome.type === 'welcome' && welcome.screenVersion, 1);
+  assert.ok(welcome.type === 'welcome' && (welcome.features ?? 0) & 512);
+  const first = responses[1];
+  assert.ok(first.type === 'snapshot' && first.screenTimeout === 30 && first.screenWake === 0);
+  assert.equal(responses[2].type === 'result' && responses[2].outcome, 'committed');
+  const saved = responses[3];
+  assert.ok(saved.type === 'snapshot' && saved.screenTimeout === 60 && saved.screenWake === 1);
+  const legacy = responses[5];
+  assert.ok(legacy.type === 'snapshot' && legacy.revision === 2 && legacy.screenTimeout === 60);
+  assert.equal(responses[6].type === 'result' && responses[6].outcome, 'rejected');
+  assert.equal(responses[7].type === 'result' && responses[7].outcome, 'rejected');
+  assert.equal(responses[8].type === 'snapshot' && responses[8].revision, 2);
+
+  // The actual agent reads the native welcome and snapshot and sends both fields.
+  const agent = new Connection('agent-A');
+  const session = agent.open('link-A', 0);
+  agent.drain();
+  agent.receive(session, frames[0], 0);
+  agent.drain();
+  agent.receive(session, frames[1], 0);
+  agent.drain();
+  assert.equal(agent.supportsScreen, true);
+  assert.deepEqual(agent.sync.config?.screen, { timeout: 30, wake: false });
+  agent.configure({ ...agent.sync.config!, screen: { timeout: 60, wake: true } }, 1);
+  const sent: Message[] = [];
+  for (const bytes of agent.drain())
+    new FrameDecoder().feed(bytes, payload => sent.push(decodeMessage(payload)));
+  assert.ok(
+    sent[0].type === 'configure' && sent[0].screenTimeout === 60 && sent[0].screenWake === 1,
+  );
+  agent.receive(session, frames[2], 1);
+  agent.drain();
+  agent.receive(session, frames[3], 1);
+  assert.deepEqual(agent.sync.config?.screen, { timeout: 60, wake: true });
+});
