@@ -2,13 +2,16 @@
 #include "reaper/protocol.hpp"
 
 namespace reaper::device {
-template <std::size_t N> struct Text {
+template <std::size_t N>
+struct Text {
   std::array<std::uint8_t, N> bytes{};
   std::size_t length = 0;
   bool assign(const std::uint8_t* data, std::size_t size) {
-    if (size > N || (!data && size)) return false;
+    if (size > N || (!data && size))
+      return false;
     bytes.fill(0);
-    for (std::size_t i = 0; i < size; ++i) bytes[i] = data[i];
+    for (std::size_t i = 0; i < size; ++i)
+      bytes[i] = data[i];
     length = size;
     return true;
   }
@@ -21,21 +24,51 @@ struct RadioSettings {
   bool relay = false;
   std::uint8_t profile = 1;
   Text<71> channels{};
-  RadioSettings() { const std::uint8_t names[] = "Public|||||||"; channels.assign(names, sizeof(names) - 1); }
+  RadioSettings() {
+    const std::uint8_t names[] = "Public|||||||";
+    channels.assign(names, sizeof(names) - 1);
+  }
 };
-struct DiscoverySettings { bool beacon = false, respond = false; std::uint32_t interval = 300; };
+struct DiscoverySettings {
+  bool beacon = false, respond = false;
+  std::uint32_t interval = 300;
+};
 // Coordinates use degrees * 1e7, offset by +90/+180 degrees for unsigned wire/storage.
 struct PositionSettings {
-  bool share = false; std::uint8_t source = 0;
+  bool share = false;
+  std::uint8_t source = 0;
   std::uint32_t latitude = 900000000, longitude = 1800000000;
 };
-inline bool valid_position(const PositionSettings& p) { return p.source <= 1 && p.latitude <= 1800000000 && p.longitude <= 3600000000U; }
-inline bool same_position(const PositionSettings& a, const PositionSettings& b) { return a.share == b.share && a.source == b.source && a.latitude == b.latitude && a.longitude == b.longitude; }
-struct Settings { PositionSettings position{}; DiscoverySettings discovery{}; RadioSettings radio{}; Region region = Region::Unset; Text<64> label{}; };
-struct Snapshot { Settings settings{}; std::uint32_t revision = 0; };
-struct Command { Text<75> id{}; Text<64> boot{}; std::uint32_t expected_revision = 0; Settings settings{}; bool has_radio = false, has_discovery = false, has_position = false; };
+inline bool valid_position(const PositionSettings& p) {
+  return p.source <= 1 && p.latitude <= 1800000000 && p.longitude <= 3600000000U;
+}
+inline bool same_position(const PositionSettings& a, const PositionSettings& b) {
+  return a.share == b.share && a.source == b.source && a.latitude == b.latitude &&
+         a.longitude == b.longitude;
+}
+struct Settings {
+  PositionSettings position{};
+  DiscoverySettings discovery{};
+  RadioSettings radio{};
+  Region region = Region::Unset;
+  Text<64> label{};
+};
+struct Snapshot {
+  Settings settings{};
+  std::uint32_t revision = 0;
+};
+struct Command {
+  Text<75> id{};
+  Text<64> boot{};
+  std::uint32_t expected_revision = 0;
+  Settings settings{};
+  bool has_radio = false, has_discovery = false, has_position = false;
+};
 enum class Outcome { Committed, Conflict, Rejected, Unknown };
-struct Result { Outcome outcome = Outcome::Unknown; std::uint32_t revision = 0; };
+struct Result {
+  Outcome outcome = Outcome::Unknown;
+  std::uint32_t revision = 0;
+};
 enum class ReadStatus { Missing, Loaded, Failed };
 enum class CommitStatus { Committed, NotCommitted, Indeterminate };
 inline constexpr std::size_t kMaxRecord = 166;
@@ -45,7 +78,8 @@ inline constexpr std::size_t kMaxRecord = 166;
 // error MUST return Indeterminate. No auto-erase/reformat on load errors is allowed.
 struct Storage {
   virtual ~Storage() = default;
-  virtual ReadStatus read(std::uint8_t* output, std::size_t capacity, std::size_t& size) noexcept = 0;
+  virtual ReadStatus read(std::uint8_t* output, std::size_t capacity,
+                          std::size_t& size) noexcept = 0;
   virtual CommitStatus commit(const std::uint8_t* record, std::size_t size) noexcept = 0;
 };
 
@@ -65,9 +99,18 @@ class Configuration {
   bool admit(const Text<64>& owner);
   Result apply(const Command& command);
   Result query(const Text<75>& id) const;
+
  private:
-  struct Owner { bool used = false; Text<64> id{}; std::uint32_t highest = 0; };
-  struct Receipt { bool used = false; Command command{}; Result result{}; };
+  struct Owner {
+    bool used = false;
+    Text<64> id{};
+    std::uint32_t highest = 0;
+  };
+  struct Receipt {
+    bool used = false;
+    Command command{};
+    Result result{};
+  };
   Storage& storage_;
   Text<64> boot_{};
   Snapshot snapshot_{};
@@ -77,4 +120,4 @@ class Configuration {
   std::size_t next_receipt_ = 0;
   void retain(const Command&, Result);
 };
-} // namespace reaper::device
+}  // namespace reaper::device

@@ -7,7 +7,10 @@ import { decodeMessage, encodeMessage, type Message } from '../../packages/proto
 function deferred<T = void>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   return { promise, resolve, reject };
 }
 // Drain microtasks and stream callbacks without elapsed-time sleeps.
@@ -19,28 +22,53 @@ function fixture(options: { blockOpen?: boolean; blockWrite?: boolean; failClose
   let input!: ReadableStreamDefaultController<Uint8Array>;
   let tick: (() => void) | undefined;
   let now = 0;
-  let cancelled = 0, aborted = 0, closed = 0;
+  let cancelled = 0,
+    aborted = 0,
+    closed = 0;
   const writes: Uint8Array[] = [];
   const listeners = new Set<() => void>();
   const port: SerialPortLike = {
-    readable: new ReadableStream({ start(controller) { input = controller; }, cancel() { cancelled++; } }),
-    writable: new WritableStream({
-      async write(bytes) { writes.push(bytes.slice()); if (options.blockWrite) await writeGate.promise; },
-      abort() { aborted++; },
+    readable: new ReadableStream({
+      start(controller) {
+        input = controller;
+      },
+      cancel() {
+        cancelled++;
+      },
     }),
-    async open() { if (options.blockOpen) await opened.promise; },
+    writable: new WritableStream({
+      async write(bytes) {
+        writes.push(bytes.slice());
+        if (options.blockWrite) await writeGate.promise;
+      },
+      abort() {
+        aborted++;
+      },
+    }),
+    async open() {
+      if (options.blockOpen) await opened.promise;
+    },
     async close() {
       assert.equal(port.readable?.locked, false);
       assert.equal(port.writable?.locked, false);
       if (options.failClose) throw new Error('close failure');
       closed++;
     },
-    addEventListener(_type, listener) { listeners.add(listener); },
-    removeEventListener(_type, listener) { listeners.delete(listener); },
+    addEventListener(_type, listener) {
+      listeners.add(listener);
+    },
+    removeEventListener(_type, listener) {
+      listeners.delete(listener);
+    },
   };
   const adapter = new SerialAdapter(undefined, {
     now: () => now,
-    schedule(callback) { tick = callback; return () => { tick = undefined; }; },
+    schedule(callback) {
+      tick = callback;
+      return () => {
+        tick = undefined;
+      };
+    },
   });
   const send = (message: Message) => input.enqueue(encodeFrame(encodeMessage(message)));
   const messages = () => {
@@ -49,14 +77,34 @@ function fixture(options: { blockOpen?: boolean; blockWrite?: boolean; failClose
     for (const write of writes) decoder.feed(write, bytes => result.push(decodeMessage(bytes)));
     return result;
   };
-  return { adapter, port, opened, writeGate, writes, send, messages,
-    end: () => input.close(), failRead: () => input.error(new Error('unplugged')),
-    remove: () => { for (const listener of listeners) listener(); },
-    advance(value: number) { now = value; tick?.(); },
+  return {
+    adapter,
+    port,
+    opened,
+    writeGate,
+    writes,
+    send,
+    messages,
+    end: () => input.close(),
+    failRead: () => input.error(new Error('unplugged')),
+    remove: () => {
+      for (const listener of listeners) listener();
+    },
+    advance(value: number) {
+      now = value;
+      tick?.();
+    },
     stats: () => ({ cancelled, aborted, closed, listeners: listeners.size, ticking: !!tick }),
   };
 }
-const welcome: Message = { type: 'welcome', link: 'link-A', device: 'device-A', boot: 'boot-A', minVersion: 1, maxVersion: 1 };
+const welcome: Message = {
+  type: 'welcome',
+  link: 'link-A',
+  device: 'device-A',
+  boot: 'boot-A',
+  minVersion: 1,
+  maxVersion: 1,
+};
 
 test('adapter carries handshake and snapshot over actual stream interfaces', async () => {
   const f = fixture();
@@ -67,13 +115,27 @@ test('adapter carries handshake and snapshot over actual stream interfaces', asy
   await settle();
   const sync = f.messages().find(message => message.type === 'sync')!;
   assert.equal(sync.type, 'sync');
-  f.send({ type: 'snapshot', link: 'link-A', boot: 'boot-A', request: sync.request,
-    sequence: 0, revision: 0, region: 'US', label: 'connected' });
+  f.send({
+    type: 'snapshot',
+    link: 'link-A',
+    boot: 'boot-A',
+    request: sync.request,
+    sequence: 0,
+    revision: 0,
+    region: 'US',
+    label: 'connected',
+  });
   await settle();
   assert.equal(f.adapter.connection.sync.state, 'ready');
   assert.equal(f.adapter.connection.sync.config?.label, 'connected');
   await f.adapter.disconnect();
-  assert.deepEqual(f.stats(), { cancelled: 1, aborted: 1, closed: 1, listeners: 0, ticking: false });
+  assert.deepEqual(f.stats(), {
+    cancelled: 1,
+    aborted: 1,
+    closed: 1,
+    listeners: 0,
+    ticking: false,
+  });
   assert.equal(f.adapter.active, false);
 });
 
@@ -92,7 +154,9 @@ test('disconnect during pending open invalidates it and closes only after it res
 
 test('a failed open never starts I/O or closes a port it did not acquire', async () => {
   const f = fixture();
-  f.port.open = async () => { throw new Error('port busy'); };
+  f.port.open = async () => {
+    throw new Error('port busy');
+  };
   await assert.rejects(f.adapter.connect(f.port, 'link-A'), /port busy/);
   assert.equal(f.stats().closed, 0);
   assert.equal(f.writes.length, 0);
@@ -185,8 +249,15 @@ test('reopening after cleanup sends only a fresh handshake to the next port', as
   const second = fixture();
   await first.adapter.connect(second.port, 'link-B');
   await settle();
-  assert.deepEqual(second.messages(), [{ type: 'hello', link: 'link-B', minVersion: 1, maxVersion: 1,
-    owner: first.adapter.connection.commands.incarnation }]);
+  assert.deepEqual(second.messages(), [
+    {
+      type: 'hello',
+      link: 'link-B',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: first.adapter.connection.commands.incarnation,
+    },
+  ]);
   assert.equal(first.writes.length, 1);
   await first.adapter.disconnect();
   assert.equal(second.stats().closed, 1);

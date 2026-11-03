@@ -23,12 +23,30 @@ export function validateField(kind: string, value: unknown) {
   if (kind === 'outcome' && !['committed', 'conflict', 'rejected', 'unknown'].includes(value)) {
     throw new Error('invalid command outcome');
   }
-  if (kind === 'radioMode' && !['off', 'receive', 'mesh'].includes(value)) throw new Error('invalid radio mode');
-  if (kind === 'channels' && !/^Public(?:\|[A-Za-z0-9_-]{0,8}){7}$/.test(value)) throw new Error('invalid channels');
+  if (kind === 'radioMode' && !['off', 'receive', 'mesh'].includes(value))
+    throw new Error('invalid radio mode');
+  if (kind === 'channels' && !/^Public(?:\|[A-Za-z0-9_-]{0,8}){7}$/.test(value))
+    throw new Error('invalid channels');
   if (kind === 'hex' && !/^(?:[0-9a-f]{2}){1,32}$/.test(value)) throw new Error('invalid chunk');
-  if (kind === 'messageState' && !['receiving', 'queued', 'transmitted', 'acknowledged', 'failed', 'rejected', 'unknown'].includes(value)) throw new Error('invalid message state');
-  if (kind === 'region' && !['UNSET', 'US', 'EU'].includes(value)) throw new Error('invalid region');
-  if (kind === 'label' && (encoder.encode(value).length > 64 || /[\u0000-\u001f\u007f]/u.test(value))) {
+  if (
+    kind === 'messageState' &&
+    ![
+      'receiving',
+      'queued',
+      'transmitted',
+      'acknowledged',
+      'failed',
+      'rejected',
+      'unknown',
+    ].includes(value)
+  )
+    throw new Error('invalid message state');
+  if (kind === 'region' && !['UNSET', 'US', 'EU'].includes(value))
+    throw new Error('invalid region');
+  if (
+    kind === 'label' &&
+    (encoder.encode(value).length > 64 || /[\u0000-\u001f\u007f]/u.test(value))
+  ) {
     throw new Error('invalid label');
   }
   if (decoder.decode(encoder.encode(value)) !== value) throw new Error('invalid Unicode');
@@ -38,7 +56,10 @@ export function validateField(kind: string, value: unknown) {
 export function encodeMessage(message: Message): Uint8Array {
   const descriptor = (schema as Record<string, Descriptor>)[message.type];
   if (!descriptor) throw new Error('unknown message');
-  if ((message.type === 'hello' || message.type === 'welcome') && message.minVersion > message.maxVersion) {
+  if (
+    (message.type === 'hello' || message.type === 'welcome') &&
+    message.minVersion > message.maxVersion
+  ) {
     throw new Error('invalid version range');
   }
   const chunks: Uint8Array[] = [Uint8Array.of(1, descriptor.tag)];
@@ -62,7 +83,10 @@ export function encodeMessage(message: Message): Uint8Array {
   if (total > MAX_PAYLOAD) throw new Error('message too large');
   const output = new Uint8Array(total);
   let cursor = 0;
-  for (const chunk of chunks) { output.set(chunk, cursor); cursor += chunk.length; }
+  for (const chunk of chunks) {
+    output.set(chunk, cursor);
+    cursor += chunk.length;
+  }
   return output;
 }
 
@@ -89,14 +113,21 @@ export function decodeMessage(payload: Uint8Array): Message {
       const [name, descriptorKind] = field;
       const kind = descriptorKind.replace(/\?$/, '');
       if (kind === 'u32' && length !== 4) throw new Error('invalid integer width');
-      const value = kind === 'u32' ? view.getUint32(cursor, true) : decoder.decode(payload.subarray(cursor, cursor + length));
+      const value =
+        kind === 'u32'
+          ? view.getUint32(cursor, true)
+          : decoder.decode(payload.subarray(cursor, cursor + length));
       validateField(kind, value);
       output[name] = value;
     }
     cursor += length;
   }
-  if (fields.some(([name, kind]) => !kind.endsWith('?') && !(name in output))) throw new Error('missing required field');
-  if ((type === 'hello' || type === 'welcome') && (output.minVersion as number) > (output.maxVersion as number)) {
+  if (fields.some(([name, kind]) => !kind.endsWith('?') && !(name in output)))
+    throw new Error('missing required field');
+  if (
+    (type === 'hello' || type === 'welcome') &&
+    (output.minVersion as number) > (output.maxVersion as number)
+  ) {
     throw new Error('invalid version range');
   }
   return Object.freeze(output) as Message;

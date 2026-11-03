@@ -5,70 +5,138 @@
 #include <cstring>
 #include <cstdlib>
 
-namespace p = reaper::protocol; namespace d = reaper::device;
+namespace p = reaper::protocol;
+namespace d = reaper::device;
 struct Store : d::Storage {
-  std::array<std::uint8_t, d::kMaxRecord> record{}; std::size_t size = 0; unsigned writes = 0; bool uncertain = false;
-  d::ReadStatus read(std::uint8_t* out, std::size_t capacity, std::size_t& length) noexcept override {
-    length = size; if (!size) return d::ReadStatus::Missing;
-    if (size > capacity) return d::ReadStatus::Failed;
-    std::memcpy(out, record.data(), size); return d::ReadStatus::Loaded;
+  std::array<std::uint8_t, d::kMaxRecord> record{};
+  std::size_t size = 0;
+  unsigned writes = 0;
+  bool uncertain = false;
+  d::ReadStatus read(std::uint8_t* out, std::size_t capacity,
+                     std::size_t& length) noexcept override {
+    length = size;
+    if (!size)
+      return d::ReadStatus::Missing;
+    if (size > capacity)
+      return d::ReadStatus::Failed;
+    std::memcpy(out, record.data(), size);
+    return d::ReadStatus::Loaded;
   }
   d::CommitStatus commit(const std::uint8_t* data, std::size_t length) noexcept override {
-    ++writes; if (uncertain) return d::CommitStatus::Indeterminate;
-    std::memcpy(record.data(), data, length); size = length; return d::CommitStatus::Committed;
+    ++writes;
+    if (uncertain)
+      return d::CommitStatus::Indeterminate;
+    std::memcpy(record.data(), data, length);
+    size = length;
+    return d::CommitStatus::Committed;
   }
 };
-template<std::size_t N> d::Text<N> text(const char* value) {
-  d::Text<N> out; out.assign(reinterpret_cast<const std::uint8_t*>(value), std::strlen(value)); return out;
+template <std::size_t N>
+d::Text<N> text(const char* value) {
+  d::Text<N> out;
+  out.assign(reinterpret_cast<const std::uint8_t*>(value), std::strlen(value));
+  return out;
 }
 void print(const p::Message& message) {
-  std::array<std::uint8_t, p::kMaxEncoded + 1> bytes{}; std::size_t size = 0;
-  if (!p::encode_frame(message, bytes.data(), bytes.size(), size)) std::exit(3);
+  std::array<std::uint8_t, p::kMaxEncoded + 1> bytes{};
+  std::size_t size = 0;
+  if (!p::encode_frame(message, bytes.data(), bytes.size(), size))
+    std::exit(3);
   constexpr char digits[] = "0123456789abcdef";
-  for (std::size_t i = 0; i < size; ++i) std::cout << digits[bytes[i] >> 4] << digits[bytes[i] & 15];
+  for (std::size_t i = 0; i < size; ++i)
+    std::cout << digits[bytes[i] >> 4] << digits[bytes[i] & 15];
 }
 int main(int argc, char** argv) {
-  Store store; store.uncertain = argc > 1 && std::string(argv[1]) == "uncertain";
+  Store store;
+  store.uncertain = argc > 1 && std::string(argv[1]) == "uncertain";
   d::Configuration authority(store, text<64>("boot-A"));
   d::MessageQueue messages(text<64>("boot-A"));
-  d::RadioInfo info; info.state = text<64>("off"); info.reason = text<64>("radio-off"); info.probe = true; info.heap_free = 200000; info.stack_free = 10000;
+  d::RadioInfo info;
+  info.state = text<64>("off");
+  info.reason = text<64>("radio-off");
+  info.probe = true;
+  info.heap_free = 200000;
+  info.stack_free = 10000;
   d::Inbox inbox;
   const bool with_inbox = argc > 1 && std::string(argv[1]) == "inbox";
   if (with_inbox) {
     const auto body = std::string(31, 'x') + "\xf0\x9f\x93\xbb" + std::string(989, 'z');
-    if (!inbox.append(text<64>("node-B"), text<64>("remote_1"), text<64>("broadcast"), 0, reinterpret_cast<const std::uint8_t*>(body.data()), body.size())) return 4;
+    if (!inbox.append(text<64>("node-B"), text<64>("remote_1"), text<64>("broadcast"), 0,
+                      reinterpret_cast<const std::uint8_t*>(body.data()), body.size()))
+      return 4;
   }
-  const bool with_discovery = argc > 1 && (std::string(argv[1]) == "discovery" || std::string(argv[1]) == "position");
-  std::array<std::uint8_t, 16> nonce{}; nonce[0] = 1; d::Discovery discovery(1, nonce);
+  const bool with_discovery =
+      argc > 1 && (std::string(argv[1]) == "discovery" || std::string(argv[1]) == "position");
+  std::array<std::uint8_t, 16> nonce{};
+  nonce[0] = 1;
+  d::Discovery discovery(1, nonce);
   if (with_discovery) {
-    d::Settings settings{}; settings.region = d::Region::Us; settings.radio.mode = d::RadioMode::Mesh; discovery.policy(&settings, true, 0);
-    reaper::mesh::Packet peer{}; peer.kind = reaper::mesh::PacketKind::Beacon; peer.key.origin = 2; peer.key.boot[0] = 2; peer.key.sequence = 1;
-    peer.destination = reaper::mesh::kBroadcast; peer.count = peer.hops = 1; peer.size = peer.total = 7; peer.bytes[0] = 1; peer.bytes[1] = 5; std::memcpy(peer.bytes.data() + 2, "Bravo", 5);
+    d::Settings settings{};
+    settings.region = d::Region::Us;
+    settings.radio.mode = d::RadioMode::Mesh;
+    discovery.policy(&settings, true, 0);
+    reaper::mesh::Packet peer{};
+    peer.kind = reaper::mesh::PacketKind::Beacon;
+    peer.key.origin = 2;
+    peer.key.boot[0] = 2;
+    peer.key.sequence = 1;
+    peer.destination = reaper::mesh::kBroadcast;
+    peer.count = peer.hops = 1;
+    peer.size = peer.total = 7;
+    peer.bytes[0] = 1;
+    peer.bytes[1] = 5;
+    std::memcpy(peer.bytes.data() + 2, "Bravo", 5);
     if (std::string(argv[1]) == "position") {
-      peer.bytes[0] = 2; peer.bytes[7] = 1; peer.size = peer.total = 20;
-      for (unsigned i = 0; i < 4; ++i) { peer.bytes[8 + i] = 900000000U >> (8 * i); peer.bytes[12 + i] = 1800000000U >> (8 * i); }
+      peer.bytes[0] = 2;
+      peer.bytes[7] = 1;
+      peer.size = peer.total = 20;
+      for (unsigned i = 0; i < 4; ++i) {
+        peer.bytes[8 + i] = 900000000U >> (8 * i);
+        peer.bytes[12 + i] = 1800000000U >> (8 * i);
+      }
     }
-    if (!discovery.receive(peer, 0)) return 5;
+    if (!discovery.receive(peer, 0))
+      return 5;
   }
-  d::Session session(authority, text<64>("device-A"), text<64>("boot-A"),
-    argc > 1 && (std::string(argv[1]) == "messages" || with_inbox) ? &messages : nullptr,
-    with_inbox ? &info : nullptr, with_inbox ? &inbox : nullptr, with_discovery ? &discovery : nullptr);
+  d::Session session(
+      authority, text<64>("device-A"), text<64>("boot-A"),
+      argc > 1 && (std::string(argv[1]) == "messages" || with_inbox) ? &messages : nullptr,
+      with_inbox ? &info : nullptr, with_inbox ? &inbox : nullptr,
+      with_discovery ? &discovery : nullptr);
   std::string line;
   while (std::getline(std::cin, line)) {
-    if (line.size() % 2 || line.size() > 2 * (p::kMaxEncoded + 1)) return 2;
+    if (line.size() % 2 || line.size() > 2 * (p::kMaxEncoded + 1))
+      return 2;
     std::vector<std::uint8_t> bytes;
-    for (std::size_t i = 0; i < line.size(); i += 2) bytes.push_back(static_cast<std::uint8_t>(std::stoul(line.substr(i, 2), nullptr, 16)));
+    for (std::size_t i = 0; i < line.size(); i += 2)
+      bytes.push_back(static_cast<std::uint8_t>(std::stoul(line.substr(i, 2), nullptr, 16)));
     p::Message input{}, output{};
-    if (!bytes.empty() && bytes.back() == 0 && p::decode_frame(bytes.data(), bytes.size() - 1, input) && ([&]() {
-      if (with_discovery && input.type == p::MessageType::NodeQuery && input.fields[p::kNodeQueryGeneration].number == 1) {
-        reaper::mesh::Packet peer{}; peer.kind = reaper::mesh::PacketKind::Beacon; peer.key.origin = 2; peer.key.boot[0] = 2; peer.key.sequence = 2;
-        peer.destination = reaper::mesh::kBroadcast; peer.count = peer.hops = 1; peer.size = peer.total = 7; peer.bytes[0] = 1; peer.bytes[1] = 5; std::memcpy(peer.bytes.data() + 2, "Delta", 5); discovery.receive(peer, 1);
-      }
-      return session.handle(input, output);
-    })()) {
+    if (!bytes.empty() && bytes.back() == 0 &&
+        p::decode_frame(bytes.data(), bytes.size() - 1, input) && ([&]() {
+          if (with_discovery && input.type == p::MessageType::NodeQuery &&
+              input.fields[p::kNodeQueryGeneration].number == 1) {
+            reaper::mesh::Packet peer{};
+            peer.kind = reaper::mesh::PacketKind::Beacon;
+            peer.key.origin = 2;
+            peer.key.boot[0] = 2;
+            peer.key.sequence = 2;
+            peer.destination = reaper::mesh::kBroadcast;
+            peer.count = peer.hops = 1;
+            peer.size = peer.total = 7;
+            peer.bytes[0] = 1;
+            peer.bytes[1] = 5;
+            std::memcpy(peer.bytes.data() + 2, "Delta", 5);
+            discovery.receive(peer, 1);
+          }
+          return session.handle(input, output);
+        })()) {
       print(output);
-      if (session.take_error(output)) { std::cout << '|'; print(output); }
-    } else std::cout << "NONE";
+      if (session.take_error(output)) {
+        std::cout << '|';
+        print(output);
+      }
+    } else
+      std::cout << "NONE";
     std::cout << '\n';
   }
   std::cout << "writes=" << store.writes << '\n';

@@ -3,6 +3,17 @@
 This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF board applications (Heltec V3 and T-Beam V1.2). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); see [first flash and recovery](../docs/guides/first-flash.md) for the original bring-up.
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
+## Layout
+
+| Path | Contents |
+| --- | --- |
+| `components/` | Portable components shared by every board and by host tests |
+| `app/` | Shared board application: `main.cpp`, NVS storage, mesh service, and the `radio_bus.hpp`/`status_display.hpp` interfaces |
+| `heltec-v3/`, `tbeam-v12/` | One ESP-IDF project per board: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's `radio_bus.cpp` and `status_display.cpp`; its `CMakeLists.txt` compiles them together with `app/` |
+| `tests/` | Host tests and stubs for the standalone CMake/CTest build |
+
+Board differences that remain inside `app/` are selected with `REAPER_TBEAM_V12`. A new board gets its own project folder with a profile and the two board implementations; it should not need to copy `app/`.
+
 ## Build and test
 
 ```sh

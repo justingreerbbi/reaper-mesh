@@ -10,12 +10,28 @@ function ready(metadata: Partial<typeof deviceCapabilities> = deviceCapabilities
   const connection = new Connection('agent-A');
   const session = connection.open('link-A', 0);
   connection.drain();
-  const send = (message: Message) => connection.receive(session, encodeFrame(encodeMessage(message)), 0);
-  send({ type: 'welcome', link: 'link-A', device: 'device-A', boot: 'boot-A',
-    minVersion: 1, maxVersion: 1, ...metadata });
+  const send = (message: Message) =>
+    connection.receive(session, encodeFrame(encodeMessage(message)), 0);
+  send({
+    type: 'welcome',
+    link: 'link-A',
+    device: 'device-A',
+    boot: 'boot-A',
+    minVersion: 1,
+    maxVersion: 1,
+    ...metadata,
+  });
   connection.drain();
-  send({ type: 'snapshot', link: 'link-A', boot: 'boot-A', request: connection.sync.snapshotRequest,
-    sequence: 0, revision: 0, region: 'US', label: 'initial' });
+  send({
+    type: 'snapshot',
+    link: 'link-A',
+    boot: 'boot-A',
+    request: connection.sync.snapshotRequest,
+    sequence: 0,
+    revision: 0,
+    region: 'US',
+    label: 'initial',
+  });
   return connection;
 }
 const config = { region: 'US', label: 'changed' };
@@ -36,12 +52,22 @@ test('advertised write/query/sequence-suppression guarantees gate mutation', () 
     assert.throws(() => connection.configure(config, 0), /lacks safe/);
   }
   // Unknown feature bits do not disable the known compatible behavior.
-  assert.equal(ready({ ...deviceCapabilities, features: 7 | 128 }).configure(config, 0), 'agent-A:1');
+  assert.equal(
+    ready({ ...deviceCapabilities, features: 7 | 128 }).configure(config, 0),
+    'agent-A:1',
+  );
 });
 
 test('unknown config schema and unusable resource limits block writes', () => {
-  for (const changed of [{ configSchema: 2 }, { maxPayload: 511 }, { receiptCapacity: 0 },
-    { ownerCapacity: 0 }, { maxLabelBytes: 0 }, { maxLabelBytes: 65 }, { regions: 0 }]) {
+  for (const changed of [
+    { configSchema: 2 },
+    { maxPayload: 511 },
+    { receiptCapacity: 0 },
+    { ownerCapacity: 0 },
+    { maxLabelBytes: 0 },
+    { maxLabelBytes: 65 },
+    { regions: 0 },
+  ]) {
     const connection = ready({ ...deviceCapabilities, ...changed });
     assert.throws(() => connection.configure(config, 0));
     assert.equal(connection.sync.state, 'ready');
@@ -72,7 +98,14 @@ test('capabilities are immutable and cleared when a connection closes', () => {
 });
 
 test('optional handshake fields round-trip and legacy required fields remain sufficient', () => {
-  const welcome: Message = { type: 'welcome', link: 'A', device: 'D', boot: 'B', minVersion: 1, maxVersion: 1 };
+  const welcome: Message = {
+    type: 'welcome',
+    link: 'A',
+    device: 'D',
+    boot: 'B',
+    minVersion: 1,
+    maxVersion: 1,
+  };
   for (const message of [welcome, { ...welcome, ...deviceCapabilities }]) {
     assert.deepEqual(decodeMessage(encodeMessage(message)), message);
   }
@@ -83,5 +116,8 @@ test('owner admission is idempotent, bounded, and does not consume command seque
   assert.equal(device.admit('agent-A'), true);
   assert.equal(device.admit('agent-A'), true);
   assert.equal(device.admit('agent-B'), false);
-  assert.equal(device.apply({ id: 'agent-A:1', boot: device.boot, expectedRevision: 0, config }).outcome, 'committed');
+  assert.equal(
+    device.apply({ id: 'agent-A:1', boot: device.boot, expectedRevision: 0, config }).outcome,
+    'committed',
+  );
 });

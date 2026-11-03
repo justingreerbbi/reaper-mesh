@@ -11,7 +11,9 @@ struct MessageKey {
   std::uint64_t origin = 0;
   std::array<std::uint8_t, 16> boot{};
   std::uint32_t sequence = 0;
-  bool operator==(const MessageKey& other) const { return origin == other.origin && boot == other.boot && sequence == other.sequence; }
+  bool operator==(const MessageKey& other) const {
+    return origin == other.origin && boot == other.boot && sequence == other.sequence;
+  }
 };
 struct Packet {
   PacketKind kind = PacketKind::Data;
@@ -22,7 +24,10 @@ struct Packet {
   std::uint16_t total = 0;
   std::array<std::uint8_t, kFragmentBytes> bytes{};
 };
-struct PositionReport { std::uint8_t source = 0; std::uint32_t latitude = 0, longitude = 0, age_ms = 0; };
+struct PositionReport {
+  std::uint8_t source = 0;
+  std::uint32_t latitude = 0, longitude = 0, age_ms = 0;
+};
 // Call only after valid_packet: v1 has no position; v2 appends one fixed-position report.
 PositionReport position_report(const Packet&);
 bool valid_packet(const Packet&);
@@ -30,4 +35,4 @@ bool encrypted_payload(const std::uint8_t*, std::size_t, std::uint32_t channel);
 bool valid_message_payload(const std::uint8_t*, std::size_t, std::uint32_t channel);
 bool encode_packet(const Packet&, std::uint8_t*, std::size_t capacity, std::size_t& size);
 bool decode_packet(const std::uint8_t*, std::size_t size, Packet&);
-} // namespace reaper::mesh
+}  // namespace reaper::mesh

@@ -11,8 +11,21 @@
       "icon": "observation",
       "defaultColor": "#4caf50",
       "fields": [
-        { "id": "condition", "label": "Condition", "type": "select", "options": ["Good", "Needs attention"], "default": "Good", "shared": true },
-        { "id": "local-reference", "label": "Private local reference", "type": "text", "default": "", "shared": false }
+        {
+          "id": "condition",
+          "label": "Condition",
+          "type": "select",
+          "options": ["Good", "Needs attention"],
+          "default": "Good",
+          "shared": true
+        },
+        {
+          "id": "local-reference",
+          "label": "Private local reference",
+          "type": "text",
+          "default": "",
+          "shared": false
+        }
       ]
     }
   ],

@@ -26,8 +26,8 @@ class MessageQueue {
   static constexpr std::size_t kCapacity = 8;
   explicit MessageQueue(Text<64> boot) : boot_(boot) {}
   MessageReceipt submit(const Text<64>& owner, const Text<75>& id, std::uint32_t channel,
-    const Text<64>& destination, std::uint32_t part, std::uint32_t count,
-    const std::uint8_t* bytes, std::size_t size, std::uint64_t now);
+                        const Text<64>& destination, std::uint32_t part, std::uint32_t count,
+                        const std::uint8_t* bytes, std::size_t size, std::uint64_t now);
   MessageReceipt query(const Text<75>& id) const;
   void tick(std::uint64_t now);
   void channels(std::uint8_t enabled) { channels_ = enabled; }
@@ -37,8 +37,13 @@ class MessageQueue {
   bool transmitted(const Text<64>& message_id, std::uint64_t now);
   bool acknowledge(const Text<64>& message_id, const Text<64>& destination, std::uint64_t now);
   const std::array<MessageRecord, kCapacity>& records() const { return records_; }
+
  private:
-  struct Owner { Text<64> id{}; std::uint32_t highest = 0; bool used = false; };
+  struct Owner {
+    Text<64> id{};
+    std::uint32_t highest = 0;
+    bool used = false;
+  };
   Text<64> boot_{};
   std::array<MessageRecord, kCapacity> records_{};
   std::array<Owner, 8> owners_{};
@@ -46,4 +51,4 @@ class MessageQueue {
   std::uint32_t counter_ = 0;
   std::size_t next_ = 0;
 };
-} // namespace reaper::device
+}  // namespace reaper::device

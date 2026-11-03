@@ -5,4 +5,4 @@ namespace reaper::board {
 // fact, not automatic validation of other hardware or a compliance claim.
 inline constexpr bool kUsBandOwnerConfirmed = true;
 inline constexpr bool kAntennaVerified = true;
-}
+}  // namespace reaper::board

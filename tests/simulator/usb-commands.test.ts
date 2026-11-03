@@ -18,52 +18,112 @@ function setup(device = new ConfigDevice()) {
   const requests: Message[] = [];
   const adapter = new SerialAdapter(new Connection('agent-A'), {
     now: () => now,
-    schedule(callback) { tick = callback; return () => { tick = undefined; }; },
+    schedule(callback) {
+      tick = callback;
+      return () => {
+        tick = undefined;
+      };
+    },
   });
   function port(): SerialPortLike {
     let input!: ReadableStreamDefaultController<Uint8Array>;
     const decoder = new FrameDecoder();
     const reply = (message: Message) => input.enqueue(encodeFrame(encodeMessage(message)));
     return {
-      readable: new ReadableStream({ start(controller) { input = controller; } }),
-      writable: new WritableStream({ write(bytes) {
-        decoder.feed(bytes, payload => {
-          const message = decodeMessage(payload);
-          requests.push(message);
-          const link = message.link;
-          if (message.type === 'hello') {
-            reply({ type: 'welcome', link, device: identity, boot: device.boot, minVersion: 1, maxVersion: 1,
-              ...deviceCapabilities, receiptCapacity: device.capacity, ownerCapacity: device.ownerCapacity,
-              ownerAdmitted: message.owner && device.admit(message.owner) ? 1 : 0 });
-          } else if (message.type === 'sync') {
-            reply({ type: 'snapshot', link, boot: device.boot, request: message.request,
-              sequence: device.revision, revision: device.revision,
-              region: device.config.region, label: device.config.label } as Message);
-          } else if (message.type === 'ping') {
-            reply({ type: 'pong', link, boot: device.boot, request: message.request });
-          } else if (message.type === 'configure') {
-            const before = device.commits;
-            const result = device.apply({ id: message.id, boot: message.boot,
-              expectedRevision: message.expectedRevision,
-              config: { region: message.region, label: message.label } });
-            if (!dropEvents && device.commits > before) reply({ type: 'event', link, boot: device.boot,
-              sequence: device.revision, revision: device.revision,
-              region: device.config.region, label: device.config.label } as Message);
-            if (dropResults) dropResults--;
-            else reply({ type: 'result', link, ...result } as Message);
-          } else if (message.type === 'query') {
-            reply({ type: 'result', link, ...device.query(message.id), revision: device.revision } as Message);
-          }
-        });
-      } }),
-      async open() {}, async close() {},
+      readable: new ReadableStream({
+        start(controller) {
+          input = controller;
+        },
+      }),
+      writable: new WritableStream({
+        write(bytes) {
+          decoder.feed(bytes, payload => {
+            const message = decodeMessage(payload);
+            requests.push(message);
+            const link = message.link;
+            if (message.type === 'hello') {
+              reply({
+                type: 'welcome',
+                link,
+                device: identity,
+                boot: device.boot,
+                minVersion: 1,
+                maxVersion: 1,
+                ...deviceCapabilities,
+                receiptCapacity: device.capacity,
+                ownerCapacity: device.ownerCapacity,
+                ownerAdmitted: message.owner && device.admit(message.owner) ? 1 : 0,
+              });
+            } else if (message.type === 'sync') {
+              reply({
+                type: 'snapshot',
+                link,
+                boot: device.boot,
+                request: message.request,
+                sequence: device.revision,
+                revision: device.revision,
+                region: device.config.region,
+                label: device.config.label,
+              } as Message);
+            } else if (message.type === 'ping') {
+              reply({ type: 'pong', link, boot: device.boot, request: message.request });
+            } else if (message.type === 'configure') {
+              const before = device.commits;
+              const result = device.apply({
+                id: message.id,
+                boot: message.boot,
+                expectedRevision: message.expectedRevision,
+                config: { region: message.region, label: message.label },
+              });
+              if (!dropEvents && device.commits > before)
+                reply({
+                  type: 'event',
+                  link,
+                  boot: device.boot,
+                  sequence: device.revision,
+                  revision: device.revision,
+                  region: device.config.region,
+                  label: device.config.label,
+                } as Message);
+              if (dropResults) dropResults--;
+              else reply({ type: 'result', link, ...result } as Message);
+            } else if (message.type === 'query') {
+              reply({
+                type: 'result',
+                link,
+                ...device.query(message.id),
+                revision: device.revision,
+              } as Message);
+            }
+          });
+        },
+      }),
+      async open() {},
+      async close() {},
     };
   }
-  const connect = async (link: string) => { await adapter.connect(port(), link); await settle(); };
-  const advance = async (time: number) => { now = time; tick?.(); await settle(); };
-  return { adapter, device, requests, connect, advance,
-    drop(results: number, events = false) { dropResults = results; dropEvents = events; },
-    setIdentity(value: string) { identity = value; },
+  const connect = async (link: string) => {
+    await adapter.connect(port(), link);
+    await settle();
+  };
+  const advance = async (time: number) => {
+    now = time;
+    tick?.();
+    await settle();
+  };
+  return {
+    adapter,
+    device,
+    requests,
+    connect,
+    advance,
+    drop(results: number, events = false) {
+      dropResults = results;
+      dropEvents = events;
+    },
+    setIdentity(value: string) {
+      identity = value;
+    },
   };
 }
 const config = { region: 'US', label: 'new config' };
@@ -111,8 +171,10 @@ test('disconnect after commit recovers by query on the new link without mutation
   await settle();
   assert.equal(f.adapter.connection.commands.status(id).outcome, 'committed');
   assert.equal(f.device.commits, 1);
-  assert.deepEqual(f.requests.filter(message => message.link === 'link-B').map(message => message.type),
-    ['hello', 'sync', 'query', 'sync']);
+  assert.deepEqual(
+    f.requests.filter(message => message.link === 'link-B').map(message => message.type),
+    ['hello', 'sync', 'query', 'sync'],
+  );
 });
 
 test('an evicted receipt remains unknown after resync without replaying the old change', async t => {
@@ -123,8 +185,12 @@ test('an evicted receipt remains unknown after resync without replaying the old 
   const id = f.adapter.configure(config);
   await settle();
   await f.adapter.disconnect();
-  f.device.apply({ id: 'agent-B:1', boot: f.device.boot, expectedRevision: 1,
-    config: { ...config, label: 'later change' } });
+  f.device.apply({
+    id: 'agent-B:1',
+    boot: f.device.boot,
+    expectedRevision: 1,
+    config: { ...config, label: 'later change' },
+  });
   await f.connect('link-B');
   f.adapter.recover(id);
   await settle();
@@ -166,8 +232,12 @@ test('revision conflict over USB refreshes authoritative state', async t => {
   const f = setup();
   t.after(() => f.adapter.disconnect());
   await f.connect('link-A');
-  f.device.apply({ id: 'agent-B:1', boot: f.device.boot, expectedRevision: 0,
-    config: { ...config, label: 'other agent' } });
+  f.device.apply({
+    id: 'agent-B:1',
+    boot: f.device.boot,
+    expectedRevision: 0,
+    config: { ...config, label: 'other agent' },
+  });
   const id = f.adapter.configure(config);
   await settle();
   assert.equal(f.adapter.connection.commands.status(id).outcome, 'conflict');

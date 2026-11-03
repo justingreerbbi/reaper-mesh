@@ -2,9 +2,19 @@ import type { PositionConfig } from '../protocol/position-config.ts';
 import type { DiscoveryConfig } from '../protocol/discovery-config.ts';
 import type { RadioConfig } from '../protocol/radio-config.ts';
 /** Transport-independent synchronization core. Wire decoding must validate input first. */
-export type Config = Readonly<{ region: string; label: string; position?: PositionConfig; radio?: RadioConfig; discovery?: DiscoveryConfig }>;
+export type Config = Readonly<{
+  region: string;
+  label: string;
+  position?: PositionConfig;
+  radio?: RadioConfig;
+  discovery?: DiscoveryConfig;
+}>;
 export type Event = Readonly<{
-  session: number; boot: string; sequence: number; revision: number; config: Config;
+  session: number;
+  boot: string;
+  sequence: number;
+  revision: number;
+  config: Config;
 }>;
 export type Snapshot = Event & Readonly<{ request: number }>;
 export type State = 'disconnected' | 'negotiating' | 'synchronizing' | 'ready' | 'incompatible';
@@ -61,8 +71,12 @@ export class Synchronizer {
   }
 
   snapshot(snapshot: Snapshot) {
-    if (!this.#matches(snapshot) || this.state !== 'synchronizing' ||
-        snapshot.request !== this.snapshotRequest) return;
+    if (
+      !this.#matches(snapshot) ||
+      this.state !== 'synchronizing' ||
+      snapshot.request !== this.snapshotRequest
+    )
+      return;
     if (snapshot.sequence < this.sequence || snapshot.revision < this.revision) {
       this.#resync();
       return;
@@ -121,5 +135,10 @@ export class Synchronizer {
 }
 
 export function copyConfig(config: Config): Config {
-  return Object.freeze({ ...config, ...(config.position ? { position: Object.freeze({ ...config.position }) } : {}), ...(config.discovery ? { discovery: Object.freeze({ ...config.discovery }) } : {}), ...(config.radio ? { radio: Object.freeze({ ...config.radio }) } : {}) });
+  return Object.freeze({
+    ...config,
+    ...(config.position ? { position: Object.freeze({ ...config.position }) } : {}),
+    ...(config.discovery ? { discovery: Object.freeze({ ...config.discovery }) } : {}),
+    ...(config.radio ? { radio: Object.freeze({ ...config.radio }) } : {}),
+  });
 }

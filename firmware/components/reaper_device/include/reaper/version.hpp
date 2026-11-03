@@ -7,4 +7,4 @@ inline constexpr char kDisplayVersion[] = "REAPER TBEAM 3";
 inline constexpr char kFirmwareVersion[] = "usb-prototype-8";
 inline constexpr char kDisplayVersion[] = "REAPER USB 8";
 #endif
-}
+}  // namespace reaper::device

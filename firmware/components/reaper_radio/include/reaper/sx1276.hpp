@@ -14,13 +14,16 @@ class Sx1276 {
   std::uint8_t chip_mode() const { return version_; }
   std::uint8_t command_status() const { return 0; }
   std::uint16_t device_errors() const { return 0; }
+
  private:
-  Bus& bus_; mesh::AirtimeBudget budget_{};
+  Bus& bus_;
+  mesh::AirtimeBudget budget_{};
   bool healthy_ = false, receive_ = false, allow_tx_ = false, transmitting_ = false;
-  std::uint8_t version_ = 0; std::uint64_t deadline_ = 0;
+  std::uint8_t version_ = 0;
+  std::uint64_t deadline_ = 0;
   bool read(std::uint8_t reg, std::uint8_t& value);
   bool write(std::uint8_t reg, std::uint8_t value);
   bool transfer(std::uint8_t reg, const std::uint8_t*, std::uint8_t*, std::size_t);
   bool listen();
 };
-}
+}  // namespace reaper::radio

@@ -23,10 +23,11 @@ ranges and security advisories, without forcing routine upgrades just to keep co
 | `packages/protocol/` | `schema.json` (the single source for USB message types), generated TypeScript bindings, framing, typed config/position/discovery/map/encryption payloads, and frozen fixtures |
 | `packages/agent-core/` | Transport-independent agent logic: serial adapter, connection state machine, commands, sync, messaging, inbox and discovery |
 | `packages/simulator/` | Simulated devices used by host tests and the portal's Simulator mode |
-| `agents/web/` | Browser portal (TypeScript, Vite, native DOM, Leaflet) |
+| `agents/web/` | Browser portal (TypeScript, Vite, native DOM, Leaflet). `main.ts` wires the UI modules and runs the render loop; `app-state.ts` holds shared state and the render hook; one `*-ui.ts` module per area: `connection`, `messages`, `map`, `settings`, `channels`, `access` |
 | `firmware/components/` | Portable C++17 firmware components: `reaper_protocol` (codec, generated descriptors), `reaper_device` (session, configuration, messages, inbox, discovery), `reaper_mesh` (radio packets, mesh core, regional profiles, airtime budget), `reaper_radio` (vendored Semtech SX126x driver and first-party SX1276 driver) |
-| `firmware/heltec-v3/` | ESP-IDF application for the Heltec V3 (ESP32-S3, SX1262). Its `main/` also currently holds the shared application entry point, NVS storage and mesh service |
-| `firmware/tbeam-v12/` | ESP-IDF target for the T-Beam V1.2 (ESP32, SX1276, AXP2101); reuses the shared sources from `heltec-v3/main/` and adds its own radio bus and display |
+| `firmware/app/` | Shared board application: entry point (`main.cpp`), NVS storage, mesh service, and the `radio_bus.hpp`/`status_display.hpp` interfaces each board implements |
+| `firmware/heltec-v3/` | ESP-IDF project for the Heltec V3 (ESP32-S3, SX1262): board profile, radio bus and display implementations, partitions and SDK defaults |
+| `firmware/tbeam-v12/` | ESP-IDF project for the T-Beam V1.2 (ESP32, SX1276, AXP2101): the same pieces for that board |
 | `examples/` | Working examples, organized by the path of the component they target (for example `examples/agents/web/plugins/field-survey/`). See [examples/README.md](../../examples/README.md) |
 | `tools/` | Protocol generator, vendor checks, firmware build/package/update tools and hardware smoke tests |
 | `tests/simulator/` | Host test suite, including compiler-backed C++ tests through a codec bridge |
