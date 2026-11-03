@@ -1,16 +1,16 @@
 """Host-only destructive-input and preflight checks; never opens a serial port."""
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
-from pathlib import Path
 import struct
 import tempfile
 import unittest
-from unittest.mock import patch
-import contextlib
-import io
 import zipfile
+from pathlib import Path
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "updater", Path(__file__).resolve().parents[1] / "tools/update-firmware.py"
@@ -221,7 +221,10 @@ class UpdateTests(unittest.TestCase):
             ]
         }
         flash = "esptool.py v4.12.0\nChip is ESP32-D0WDQ6-V3\nDetected flash size: 4MB"
-        summary = lambda: "espefuse.py v4.12.0\n" + json.dumps(fields)
+
+        def summary():
+            return "espefuse.py v4.12.0\n" + json.dumps(fields)
+
         updater.preflight(flash, summary(), "esp32")
         fields["ABS_DONE_1"]["value"] = True
         with self.assertRaises(ValueError):

@@ -1,8 +1,13 @@
 """Opt-in physical USB smoke check; changes label/region and resets the board."""
 
 import argparse
-import serial, json, time, struct, zlib, sys
+import json
+import struct
+import time
+import zlib
 from pathlib import Path
+
+import serial
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--port", required=True)

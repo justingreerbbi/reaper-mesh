@@ -8,11 +8,11 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import signal
+from pathlib import Path
 
-from esptool.targets.esp32s3 import ESP32S3ROM
 import serial
+from esptool.targets.esp32s3 import ESP32S3ROM
 
 
 def timeout(_signal, _frame):

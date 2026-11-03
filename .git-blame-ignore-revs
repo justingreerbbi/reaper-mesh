@@ -3,3 +3,6 @@
 
 # style: reformat all code with Prettier and clang-format
 20d67da0114de1586ce5d22a2e65cfb3c8a291d4
+
+# style: format Python with ruff
+3630f38169b94f299f255ecd3543b663afa32082

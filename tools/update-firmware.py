@@ -5,15 +5,15 @@ Hashes detect corruption; they are not publisher authentication.
 """
 
 import argparse
-from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
 import re
 import struct
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
 
 SDK = "735507283d5b2f9fb363a1901172dbd9e847945d"
 FILES = {

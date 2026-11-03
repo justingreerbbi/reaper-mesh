@@ -3,9 +3,9 @@
 import hashlib
 import json
 import re
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
 board = sys.argv[1] if len(sys.argv) > 1 else "heltec-v3"

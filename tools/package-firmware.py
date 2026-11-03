@@ -4,9 +4,9 @@ import argparse
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
 import zipfile
+from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location("reaper_updater", root / "tools/update-firmware.py")
