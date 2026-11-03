@@ -53,14 +53,16 @@ you want to do.
 | Document | What it covers |
 | --- | --- |
 | [Development & CI](contributing/development.md) | Toolchain, host checks, and continuous integration |
+| [Commits and pull requests](contributing/commits-and-prs.md) | Conventional Commit format, scopes, branch names and pull request checklist |
 | [Development plan](contributing/plan.md) | Repository layout, architecture and engineering standards |
 | [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
 | [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 
 See also [`AI.md`](../AI.md) (current focus, working rules, and where each kind of information belongs),
-[`AGENTS.md`](../AGENTS.md) (contributor rules), and
-[`firmware/README.md`](../firmware/README.md) (the embedded C++ foundation).
+[`AGENTS.md`](../AGENTS.md) (contributor rules),
+[`firmware/README.md`](../firmware/README.md) (the embedded C++ foundation), and
+[`examples/README.md`](../examples/README.md) (working examples, organized by the component they target).
 
 ## Conventions used in these docs
 

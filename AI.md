@@ -24,6 +24,10 @@ When work finishes: update Status in place, add a dated Changelog entry with evi
 Decisions entry if scope or architecture changed, and update the affected reference contract.
 Say each fact in one place and link to it elsewhere.
 
+Put examples under `examples/` at the path of the component they target (for example
+`examples/agents/web/plugins/<name>/`), one folder per example with a README. See
+[examples/README.md](examples/README.md).
+
 Write documentation in plain, complete sentences. Do not drop spaces or articles to save tokens
 ("Heltec usb-prototype-8, revision 38", not "Heltec8 revision38").
 
@@ -84,6 +88,9 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 
 The owner prefers token-efficient work: targeted reads, CLI checks and automated tests. Use
 desktop or browser control only for necessary visual or hardware checks.
+
+Write commits, branch names and pull requests in the format in
+[Commits and pull requests](docs/contributing/commits-and-prs.md) (`type(scope): summary`).
 
 Define observable acceptance criteria before coding. Install tools with
 `npm ci --ignore-scripts` and run `npm run check` (needs a C++17 compiler). Report what ran,

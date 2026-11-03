@@ -27,6 +27,7 @@ ranges and security advisories, without forcing routine upgrades just to keep co
 | `firmware/components/` | Portable C++17 firmware components: `reaper_protocol` (codec, generated descriptors), `reaper_device` (session, configuration, messages, inbox, discovery), `reaper_mesh` (radio packets, mesh core, regional profiles, airtime budget), `reaper_radio` (vendored Semtech SX126x driver and first-party SX1276 driver) |
 | `firmware/heltec-v3/` | ESP-IDF application for the Heltec V3 (ESP32-S3, SX1262). Its `main/` also currently holds the shared application entry point, NVS storage and mesh service |
 | `firmware/tbeam-v12/` | ESP-IDF target for the T-Beam V1.2 (ESP32, SX1276, AXP2101); reuses the shared sources from `heltec-v3/main/` and adds its own radio bus and display |
+| `examples/` | Working examples, organized by the path of the component they target (for example `examples/agents/web/plugins/field-survey/`). See [examples/README.md](../../examples/README.md) |
 | `tools/` | Protocol generator, vendor checks, firmware build/package/update tools and hardware smoke tests |
 | `tests/simulator/` | Host test suite, including compiler-backed C++ tests through a codec bridge |
 

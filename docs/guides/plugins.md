@@ -2,7 +2,7 @@
 
 Open Settings → Plugins → Install / update JSON, select a definition and review its identity, version, types and settings. Confirm to install. The manager supports enable/disable, settings, export and uninstall. Existing items survive disable/uninstall and render with a generic fallback. Definitions/settings persist in this browser; they are not installed on firmware or automatically distributed by radio.
 
-Try [Field Survey](../../examples/plugins/field-survey.json), which adds a survey observation type, a shared condition field, a local-only reference and a show-labels setting. Install the file through the manager; no source edit or rebuild is needed. `show-labels` is the current presentation setting interpreted by the map host. Other plugin settings are validated/stored configuration exposed through the registry; JSON does not supply new executable behavior.
+Try the [Field Survey example](../../examples/agents/web/plugins/field-survey/) (`field-survey.json`), which adds a survey observation type, a shared condition field, a local-only reference and a show-labels setting. Install the file through the manager; no source edit or rebuild is needed. `show-labels` is the current presentation setting interpreted by the map host. Other plugin settings are validated/stored configuration exposed through the registry; JSON does not supply new executable behavior.
 
 ## Manifest version 1
 

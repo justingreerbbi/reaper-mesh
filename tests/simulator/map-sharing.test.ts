@@ -48,7 +48,7 @@ test('map and plugin writes are atomic and honor the browser writer lock', () =>
   writable = true; assert.throws(() => store.save(item()), /changed/); store.remove(item().id); assert.equal(store.state.local.length, 0);
 });
 test('plugins install, persist settings, disable, update atomically and uninstall without losing map items', () => {
-  const plugin = parsePlugin(readFileSync('examples/plugins/field-survey.json', 'utf8'));
+  const plugin = parsePlugin(readFileSync('examples/agents/web/plugins/field-survey/field-survey.json', 'utf8'));
   const memory = new Memory(), store = new MapStore(memory, () => true); store.install(plugin);
   assert.ok(availableTypes(store.state.plugins).some(t => t.id === plugin.id + '/observation'));
   store.save({ ...item(), type: plugin.id + '/observation', metadata: { condition: 'Good' } });
