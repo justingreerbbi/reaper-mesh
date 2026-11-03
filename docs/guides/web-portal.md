@@ -13,7 +13,7 @@ Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server b
 
 Dark technical workspace with Messages, Map and Settings navigation. On desktop, conversations have an inbox, a message thread and a compact map panel; at narrower sizes the map gets its own workspace. Mobile opens the inbox, then a conversation with a back action.
 
-- Search channel and peer conversations by name or node ID; start a recipient from New message or from a device selected on the map.
+- Search channel and peer conversations by name or node ID. Open a channel or a heard device from the list, or a device selected on the map. There is no separate New message form, so direct messages use channel 0 (Public) and its key, and a node that has not been heard cannot be messaged.
 - Incoming/outgoing messages share a thread. Destination ACK means delivered, never read. Messages show their delivery status without a Message details dropdown; unknown work is never automatically resent.
 - Drafts are isolated by transport/device/conversation and retained in this tab across switching/disconnect. Enter sends when allowed; Shift+Enter adds a line. Drafts are not saved across page reload.
 - Map shows heard nodes, last-heard age, fixed positions and local or shared map items (see [Map authoring and sharing](#map-authoring-and-sharing)). Selecting a marker selects the device; messaging is an explicit action. Missing/stale observations never imply online status.
@@ -121,7 +121,7 @@ Settings use a single scrolling surface: Channels has horizontal channel links w
 
 ### Task-first interface review (November 2)
 
-Device setup follows region → name → save, with a content-sized region selector. Channels places Create channel beside its heading and opens the selected channel inline; Public omits the uneditable name field. Routine settings remain directly visible; storage and diagnostics are their own tabs (the Advanced group and change history were removed on November 3). Technical device metadata and key import use optional disclosure. Radio modes describe their effect, discovery explains announcements versus replies, and save/discard actions use consistent labels. Recipient setup explains IDs/broadcast and makes local testing secondary. Wipe/reset remain explicit and distinct from routine actions.
+Device setup follows region → name → save, with a content-sized region selector. Channels places Create channel beside its heading and opens the selected channel inline; Public omits the uneditable name field. Routine settings remain directly visible; storage and diagnostics are their own tabs (the Advanced group and change history were removed on November 3). Technical device metadata and key import use optional disclosure. Radio modes describe their effect, discovery explains announcements versus replies, and save/discard actions use consistent labels. Wipe/reset remain explicit and distinct from routine actions.
 
 The review applies familiar navigation, progressive disclosure, clear feedback and form grouping from [NN/g’s Web UX study guide](https://www.nngroup.com/articles/web-ux-study-guide/), plus the supplied Mailchimp, ICS, Erik Kennedy, Codilar and Proteus references. These are design principles, not a claim of formal usability testing or complete accessibility conformance. Firmware/privacy defaults and protocol contracts are unchanged.
 

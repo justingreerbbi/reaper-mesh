@@ -22,6 +22,9 @@ At the owner's request:
   releases settled settings changes by itself. It reports a rejection or conflict as a
   message. It queries an unknown outcome once per connection and releases it when the device's
   receipt is gone.
+- The New message button, its form and the inbox's + button are gone; channels and heard
+  devices open from the conversation list or the map. As a result, direct messages always use
+  channel 0 (Public) and its key, and an unheard node ID cannot be messaged.
 - The message box keeps focus after Enter sends a message. It is read-only rather than disabled
   while the device takes the message.
 - Removed taglines and filler text: the sidebar "Local by design" block, "Local mesh · no cloud
@@ -30,8 +33,8 @@ At the owner's request:
 
 Verification: `npm run check` passed. Simulator QA covered the toggle, 35 consecutive label
 saves (past the old 32-entry limit) without blocking, an unknown outcome resolved on reconnect,
-an unknown outcome released after a simulated reboot, the settings tabs, both chevrons and the
-phone layout. Message sending was not exercised (the simulator has no messaging); a browser
+an unknown outcome released after a simulated reboot, the settings tabs, both chevrons, the
+phone layout, and opening a channel from the list without the New message form. Message sending was not exercised (the simulator has no messaging); a browser
 check confirmed a read-only box keeps focus while a disabled one loses it. No firmware,
 protocol or storage changes.
 

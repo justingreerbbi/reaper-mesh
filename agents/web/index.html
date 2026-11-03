@@ -194,16 +194,6 @@
                 <path d="m4 12 5 5L20 6" />
               </svg>
             </button>
-            <button
-              id="new-conversation"
-              class="icon-button"
-              aria-label="Start conversation"
-              title="Start conversation"
-            >
-              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 4v16M4 12h16" />
-              </svg>
-            </button>
           </div>
           <label class="sr-only" for="conversation-search">Search conversations</label>
           <input
@@ -277,38 +267,12 @@
             <button id="delete-conversation" title="Remove conversation from this browser">
               Delete chat
             </button>
-            <button
-              id="recipient-toggle"
-              aria-expanded="false"
-              aria-controls="recipient-controls"
-              title="Choose a recipient"
-            >
-              New message
-            </button>
           </header>
-          <div id="recipient-controls" class="recipient-controls" hidden>
-            <label for="message-destination">Recipient</label>
-            <input
-              id="message-destination"
-              aria-describedby="recipient-help"
-              type="text"
-              value="broadcast"
-              autocomplete="off"
-            />
-            <p id="recipient-help" class="small muted">
-              Paste a node ID, or choose Channel broadcast to message everyone on a channel.
-            </p>
-            <label for="message-channel">Channel</label>
-            <select id="message-channel">
-              <option value="0">Public</option>
-            </select>
-            <button id="broadcast-destination" type="button">Channel broadcast</button>
-            <details class="recipient-test">
-              <summary>Test this device</summary>
-              <button id="self-destination" type="button">Send to this device only</button>
-            </details>
-            <button id="recipient-done" class="primary" type="button">Open conversation</button>
-          </div>
+          <!-- The open conversation's recipient and channel; conversations are chosen from the list or map. -->
+          <input id="message-destination" type="hidden" value="broadcast" />
+          <select id="message-channel" hidden aria-hidden="true" tabindex="-1">
+            <option value="0">Public</option>
+          </select>
           <div id="message-security-notice" class="conversation-notice">
             <span class="notice-dot"> </span>MESSAGE PRIVACY<span
               >Message encryption is set per channel. Device IDs and routing information remain

@@ -725,50 +725,6 @@ body {
 #message-send {
   min-width: 96px;
 }
-.recipient-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px 20px;
-  padding: 24px 32px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  max-height: 50dvh;
-  overflow-y: auto;
-}
-.recipient-controls label {
-  margin: 0;
-}
-.recipient-controls input {
-  grid-column: 1;
-}
-.recipient-controls label:nth-of-type(2) {
-  grid-column: 2;
-  grid-row: 1;
-}
-.recipient-controls select {
-  grid-column: 2;
-  grid-row: 2;
-}
-#recipient-help {
-  grid-column: 1;
-  grid-row: 3;
-}
-#recipient-done {
-  grid-column: 2;
-  grid-row: 3;
-  align-self: start;
-  justify-self: end;
-}
-#broadcast-destination {
-  justify-self: start;
-}
-.recipient-test {
-  grid-column: 2;
-  font-size: 12px;
-}
-.recipient-test summary {
-  padding-block: 8px;
-}
 
 /* Map canvas and tools share the same card, field and action vocabulary. */
 .tracker-pane {
@@ -1756,19 +1712,6 @@ form.manage-body > label:first-child {
   }
   .compose-bottom {
     padding-top: 8px;
-  }
-  .recipient-controls {
-    padding: 20px;
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .recipient-controls > *,
-  .recipient-controls label:nth-of-type(2),
-  .recipient-controls select,
-  #recipient-help,
-  #recipient-done,
-  .recipient-test {
-    grid-column: 1;
-    grid-row: auto;
   }
   .tracker-pane {
     display: flex;

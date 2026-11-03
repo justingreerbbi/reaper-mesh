@@ -34,7 +34,7 @@ import {
 import { element, text } from './dom.ts';
 import { accessDialog, onLocalAppStop } from './access-ui.ts';
 import { connectDevice } from './connection-ui.ts';
-import { fieldMap, mapWorkspace, selectNode, setSelectedNode, setView } from './map-ui.ts';
+import { mapWorkspace, selectNode, setSelectedNode, setView } from './map-ui.ts';
 
 const deleteDialog = element<HTMLDialogElement>('delete-history');
 let deletePlan:
@@ -326,17 +326,15 @@ export function renderMessages() {
               ? 'Uploading message…'
               : sendBlockReason
                 ? sendBlockReason
-                : !element('recipient-controls').hidden
-                  ? 'Choose a recipient, then select Open conversation'
-                  : remoteBlocked
-                    ? 'Radio unavailable · check Settings → Radio'
-                    : encryptedRequired
-                      ? destination.value === 'broadcast'
-                        ? 'Encrypted channel · device ACK confirms ciphertext delivery only'
-                        : "Encrypted with the channel key · anyone with this channel's key can read this direct message"
-                      : destination.value === 'broadcast'
-                        ? 'Broadcast · no recipient ACK'
-                        : 'Destination ACK confirms delivery, not reading'))),
+                : remoteBlocked
+                  ? 'Radio unavailable · check Settings → Radio'
+                  : encryptedRequired
+                    ? destination.value === 'broadcast'
+                      ? 'Encrypted channel · device ACK confirms ciphertext delivery only'
+                      : "Encrypted with the channel key · anyone with this channel's key can read this direct message"
+                    : destination.value === 'broadcast'
+                      ? 'Broadcast · no recipient ACK'
+                      : 'Destination ACK confirms delivery, not reading'))),
   );
   element<HTMLButtonElement>('message-send').disabled =
     !ready ||
@@ -348,9 +346,7 @@ export function renderMessages() {
     !bytes ||
     bytes > maxBytes ||
     !!sendBlockReason ||
-    remoteBlocked ||
-    !element('recipient-controls').hidden;
-  element<HTMLButtonElement>('self-destination').disabled = !connection.device || uploading;
+    remoteBlocked;
   const uiScope = messageScope(mode.value, lastDevice ?? '');
   const visibleThread = (row: { key: string; destination: string; channel: number }) =>
     !messageState?.hidden(uiScope, row.key) ||
@@ -645,29 +641,6 @@ export function initMessages() {
       showError(e);
     }
   });
-  element('new-conversation').addEventListener('click', () => {
-    element('recipient-controls').hidden = false;
-    element('recipient-toggle').setAttribute('aria-expanded', 'true');
-    app.classList.add('has-conversation');
-    renderMessages();
-    element('message-destination').focus();
-  });
-  element('recipient-toggle').addEventListener('click', () => {
-    const controls = element('recipient-controls');
-    controls.hidden = !controls.hidden;
-    element('recipient-toggle').setAttribute('aria-expanded', String(!controls.hidden));
-    renderMessages();
-    if (!controls.hidden) element('message-destination').focus();
-  });
-  element('recipient-done').addEventListener('click', () => {
-    chooseConversation(
-      element<HTMLInputElement>('message-destination').value.trim(),
-      Number(element<HTMLSelectElement>('message-channel').value),
-    );
-    element('recipient-controls').hidden = true;
-    element('recipient-toggle').setAttribute('aria-expanded', 'false');
-    renderMessages();
-  });
   element('back-conversations').addEventListener('click', () =>
     app.classList.remove('has-conversation'),
   );
@@ -684,18 +657,6 @@ export function initMessages() {
   element('locate-conversation').addEventListener('click', () =>
     selectNode(element<HTMLInputElement>('message-destination').value, { focusMap: true }),
   );
-  element('message-channel').addEventListener('change', () =>
-    chooseConversation(
-      element<HTMLInputElement>('message-destination').value,
-      Number(element<HTMLSelectElement>('message-channel').value),
-    ),
-  );
-  element('broadcast-destination').addEventListener('click', () => {
-    chooseConversation('broadcast', Number(element<HTMLSelectElement>('message-channel').value));
-    setSelectedNode('');
-    fieldMap.select(undefined);
-    renderMessages();
-  });
   element('delete-conversation').addEventListener('click', () => {
     if (!lastDevice) return;
     const connection = current().adapter.connection,
@@ -767,10 +728,4 @@ export function initMessages() {
       showError(e);
     }
   });
-  element('self-destination').addEventListener('click', () => {
-    const device = current().adapter.connection.device;
-    if (device) selectNode(device, { message: true });
-    else renderMessages();
-  });
-  element('message-destination').addEventListener('input', renderMessages);
 }
