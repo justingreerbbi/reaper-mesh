@@ -22,6 +22,7 @@ import {
   showError,
 } from './app-state.ts';
 import { element, text } from './dom.ts';
+import { preparePublicClear, publicHistoryCount } from './messages-ui.ts';
 
 let editingChannel = 0;
 // Saves in progress, so their "…" status is replaced once the device's table shows the result.
@@ -135,10 +136,11 @@ export function renderEncryption() {
   const isPublic = editingChannel === 0;
   remove.textContent = isPublic ? 'Reset Public' : 'Remove channel';
   const { adapter, pending } = current();
+  const hasKeys = !!encryption && (encryption.hasKey(id) || encryption.isRequired(id));
   remove.disabled = isPublic
-    ? !encryption?.unlocked ||
-      !recovery.writable ||
-      !(encryption.hasKey(id) || encryption.isRequired(id))
+    ? !recovery.writable ||
+      (hasKeys && !encryption?.unlocked) ||
+      (!hasKeys && publicHistoryCount() === 0)
     : !radioConfig() || pending || !!adapter.connection.radioBlockReason;
   const policy = element<HTMLSelectElement>('encryption-policy');
   if (document.activeElement !== policy)
@@ -251,14 +253,16 @@ export function initChannels() {
       const channel = table().find(item => item.slot === editingChannel);
       if (!channel) return;
       if (channel.slot === 0) {
-        if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
         if (
           !confirm(
-            'Reset Public? Its encryption key is deleted from this browser and Public goes back to unencrypted. Encrypted messages already saved on Public can no longer be read.',
+            'Reset Public? Its messages are deleted from this browser and its encryption key is removed, so Public goes back to unencrypted. Direct messages stay, but any encrypted with this key can no longer be read.',
           )
         )
           return;
-        encryption.reset(channel.id);
+        const clearChat = preparePublicClear();
+        if (encryption?.hasKey(channel.id) || encryption?.isRequired(channel.id))
+          encryption.reset(channel.id);
+        clearChat();
         element<HTMLSelectElement>('encryption-policy').value = 'plaintext';
         text('channel-remove-status', 'Public was reset.');
         render();
