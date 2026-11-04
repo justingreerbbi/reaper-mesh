@@ -212,7 +212,7 @@ Explanatory copy SHOULD be short and task-specific. Security limitations and con
 | --- | --- | --- |
 | Firmware | ESP-IDF and C++17; a shared application (`firmware/app/`) with board-specific drivers behind shared protocol/service boundaries | Additional boards require validated hardware profiles, resource budgets and physical qualification |
 | Web agent | TypeScript, Vite, native DOM, shared agent core and Web Serial | A UI framework is optional only when justified by maintainability; it is not a product requirement |
-| Transport | USB-first, capability-negotiated device connection | BLE, mobile/native and simultaneous multi-device agents require separately approved contracts |
+| Transport | Capability-negotiated device connection over USB, or Bluetooth with physical-access pairing (D47) | Mobile/native and simultaneous multi-device agents require separately approved contracts |
 | Cryptography | Agent-side XChaCha20-Poly1305 group-key envelope; Argon2id for protected local key storage | Pairwise keys and sender authentication require protocol/security design and review |
 | Location | Explicit fixed position; GPS acquisition deferred | GPS requires verified wiring, power, bounded parsing and freshness rules before inclusion |
 | Portal extensions | Declarative JSON plugins (manifest v1) for map item types, fields and settings | Code plugins such as Weather Radar, Reaper ADS-B and APRS bridges run in sandboxed iframes (D40) after the plugin API and permissions design is approved |

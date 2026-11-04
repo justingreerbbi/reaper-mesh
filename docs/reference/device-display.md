@@ -22,6 +22,8 @@ works. Hardware evidence is in the [changelog](../overview/changelog.md).
 | Double press | Wake on the main page | Next page |
 | Long press (about 1 s) | Wake on the main page | Return to the main page |
 
+Holding on past the long press reaches two Bluetooth actions: 5 s opens pairing and 15 s forgets all paired devices. Both are drawn over any page and keep the screen on; see [Bluetooth link](bluetooth.md).
+
 A single press is reported about 0.3 s after release, once the double-press window has passed.
 Presses are debounced for 30 ms. During the startup sequence, any button skips to the main page.
 

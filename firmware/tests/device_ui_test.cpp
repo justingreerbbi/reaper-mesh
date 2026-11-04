@@ -84,6 +84,20 @@ int main(int argc, char** argv) {
     CHECK(hold(g, false, now, 100) == Press::None);
     CHECK(hold(g, true, now, 80) == Press::None);
     CHECK(hold(g, false, now, 500) == Press::Double);
+    // The Bluetooth holds follow the long press, once each, while the same press continues.
+    CHECK(hold(g, true, now, 1200) == Press::Long);
+    CHECK(hold(g, true, now, 3700) == Press::None);
+    CHECK(hold(g, true, now, 200) == Press::PairHold);
+    CHECK(hold(g, true, now, 9900) == Press::None);
+    CHECK(hold(g, true, now, 200) == Press::ForgetHold);
+    CHECK(hold(g, true, now, 2000) == Press::None);
+    CHECK(hold(g, false, now, 500) == Press::None);
+    // Releasing early means no forget, and the next press starts over.
+    CHECK(hold(g, true, now, 1200) == Press::Long);
+    CHECK(hold(g, true, now, 4000) == Press::PairHold);
+    CHECK(hold(g, false, now, 500) == Press::None);
+    CHECK(hold(g, true, now, 1200) == Press::Long);
+    CHECK(hold(g, false, now, 500) == Press::None);
     // Long press fires while held and nothing follows on release.
     CHECK(hold(g, true, now, 1200) == Press::Long);
     CHECK(hold(g, false, now, 500) == Press::None);
@@ -218,6 +232,44 @@ int main(int argc, char** argv) {
     odd.name = "";
     render(s, odd, a);
     CHECK(count(a) > 300);  // falls back to the node ID
+  } else if (scenario == "ble") {
+    Screen s;
+    Frame f{};
+    auto status = sample();
+    s.start(0);
+    // Attention skips startup and wakes the screen without changing the page.
+    s.attention(100);
+    CHECK(s.stage() == Stage::Running && s.on());
+    s.input(Input::NextPage, 200);
+    s.input(Input::Toggle, 300);
+    CHECK(!s.on());
+    s.attention(400);
+    CHECK(s.on() && s.page() == Page::Nodes);
+    // The pairing page replaces whichever page is showing, and each state draws differently.
+    render(s, status, f);
+    const Frame nodes = f;
+    status.ble.name = "Reaper-1A2B";
+    status.ble.seconds = 120;
+    Frame previous = nodes;
+    for (const auto notice :
+         {BleNotice::Open, BleNotice::Passkey, BleNotice::Full, BleNotice::Paired,
+          BleNotice::Failed, BleNotice::Forgotten, BleNotice::Unavailable}) {
+      status.ble.notice = notice;
+      render(s, status, f);
+      CHECK(f != previous && count(f) > 50);
+      previous = f;
+    }
+    // A passkey always shows six digits, including leading zeros, and no two keys look alike.
+    status.ble.notice = BleNotice::Passkey;
+    status.ble.passkey = 42;
+    render(s, status, f);
+    const Frame low = f;
+    status.ble.passkey = 999999;
+    render(s, status, f);
+    CHECK(f != low);
+    status.ble.notice = BleNotice::None;
+    render(s, status, f);
+    CHECK(f == nodes);
   } else if (scenario == "battery") {
     Screen s;
     s.start(0);

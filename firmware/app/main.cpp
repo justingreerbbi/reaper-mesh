@@ -4,6 +4,8 @@
 #include "board_input.hpp"
 #include "board_power.hpp"
 #include "device_ui.hpp"
+#include "ble_link.hpp"
+#include "reaper/host_links.hpp"
 #include "reaper/version.hpp"
 #include "mesh_service.hpp"
 #ifdef REAPER_TBEAM_V12
@@ -32,27 +34,12 @@ constexpr int kTx = 1, kRx = 3;
 #else
 constexpr int kTx = 43, kRx = 44;
 #endif
-static p::FrameDecoder decoder;
-static p::Message reply;
-static std::int64_t last_reply = 0;
-static std::array<std::uint8_t, p::kMaxEncoded + 1> output;
-bool write_frame(const p::Message& message) {
-  std::size_t size = 0;
-  return p::encode_frame(message, output.data(), output.size(), size) &&
-         uart_write_bytes(kUart, output.data(), size) == static_cast<int>(size) &&
+static BleLink ble;
+bool write_link(d::HostLink link, const std::uint8_t* data, std::size_t size, void*) {
+  if (link == d::HostLink::Ble)
+    return ble.write(data, size);
+  return uart_write_bytes(kUart, data, size) == static_cast<int>(size) &&
          uart_wait_tx_done(kUart, pdMS_TO_TICKS(500)) == ESP_OK;
-}
-void received(const p::Message& request, void* context) {
-  auto& session = *static_cast<d::Session*>(context);
-  if (session.handle(request, reply)) {
-    if (!write_frame(reply)) {
-      session.reset();
-      return;
-    }
-    last_reply = esp_timer_get_time();
-  }
-  if (session.take_error(reply))
-    write_frame(reply);
 }
 const char* radio_state(const d::RadioInfo& info) {
   auto is = [&](const char* state) {
@@ -75,7 +62,9 @@ void halt() {
 }
 }  // namespace
 
-extern "C" void app_main() {
+// The firmware's own task. Bluetooth reserves early memory on the classic ESP32, so the startup
+// task cannot get a stack this large: the rest of the heap only becomes usable after it exists.
+static void run(void*) {
   // Hold the board radio in reset until its adapter initializes.
 #ifdef REAPER_TBEAM_V12
   constexpr auto reset_pin = GPIO_NUM_23;
@@ -145,10 +134,11 @@ extern "C" void app_main() {
                           reaper::board::kUsBandOwnerConfirmed && reaper::board::kAntennaVerified);
   static d::Session session(authority, device, boot, &messages, &radio_info, &inbox,
                             &mesh.discovery());
+  static d::HostLinks links(session, write_link, nullptr);
   mesh.begin();
+  ble.begin();
   std::int64_t next_display = 0;
   std::array<std::uint8_t, 256> input{};
-  std::int64_t last_read = 0;
   for (;;) {
     session.tick(static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
     uart_event_t event{};
@@ -158,21 +148,18 @@ extern "C" void app_main() {
           const int size = uart_read_bytes(kUart, input.data(), input.size(), 0);
           if (size <= 0)
             break;
-          last_read = esp_timer_get_time();
-          decoder.feed(input.data(), static_cast<std::size_t>(size), received, &session);
+          links.feed(d::HostLink::Usb, input.data(), static_cast<std::size_t>(size),
+                     static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
         }
       } else if (event.type == UART_FIFO_OVF || event.type == UART_BUFFER_FULL ||
                  event.type == UART_PARITY_ERR || event.type == UART_FRAME_ERR) {
         uart_flush_input(kUart);
         xQueueReset(events);
-        decoder.reset();
-        session.reset();
+        links.closed(d::HostLink::Usb);
       }
     }
-    if (decoder.buffered_bytes() && esp_timer_get_time() - last_read > 1000000) {
-      decoder.reset();
-      session.reset();
-    }
+    links.tick(static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
+    ble.tick(static_cast<std::uint64_t>(esp_timer_get_time() / 1000), links);
     d::Snapshot current{};
     const bool storage_ok = authority.snapshot(current);
     mesh.tick(storage_ok ? &current : nullptr,
@@ -191,6 +178,12 @@ extern "C" void app_main() {
       case reaper::ui::Press::Long:
         screen.input(reaper::ui::Input::Home, now_ms);
         break;
+      case reaper::ui::Press::PairHold:
+        ble.hold(now_ms);
+        break;
+      case reaper::ui::Press::ForgetHold:
+        ble.forget(now_ms);
+        break;
       case reaper::ui::Press::None:
         break;
     }
@@ -199,6 +192,9 @@ extern "C" void app_main() {
     if (storage_ok)
       screen.settings(current.settings.screen.timeout * 1000ull, current.settings.screen.wake);
     screen.inbox(inbox.latest(), now_ms);
+    const auto ble_status = ble.status(now_ms);
+    if (ble_status.notice != reaper::ui::BleNotice::None)
+      screen.attention(now_ms);
     screen.tick(now_ms);
     if (now >= next_display) {
       // At most ten frames a second; show() skips frames that did not change.
@@ -237,9 +233,11 @@ extern "C" void app_main() {
           status.rows[i].position = peer->position.source != 0;
           status.row_count = i + 1;
         }
-        status.usb = !healthy                                               ? "USB BLOCKED"
-                     : session.synchronized() && now - last_reply < 8000000 ? "USB READY"
-                                                                            : "USB IDLE";
+        status.ble = ble_status;
+        status.usb = !healthy                                ? "USB BLOCKED"
+                     : links.ready(d::HostLink::Usb, now_ms) ? "USB READY"
+                     : links.ready(d::HostLink::Ble, now_ms) ? "BLE READY"
+                                                             : "USB IDLE";
         status.storage_ok = healthy;
         status.revision = snapshot.revision;
         status.mode = mode_name(snapshot.settings.radio.mode);
@@ -254,4 +252,11 @@ extern "C" void app_main() {
     }
     vTaskDelay(1);  // Yield even under continuous malformed input; keep the idle watchdog healthy.
   }
+}
+
+extern "C" void app_main() {
+  constexpr std::uint32_t kStackBytes = 24576;
+  if (xTaskCreatePinnedToCore(run, "reaper", kStackBytes, nullptr, uxTaskPriorityGet(nullptr),
+                              nullptr, xPortGetCoreID()) != pdPASS)
+    halt();
 }

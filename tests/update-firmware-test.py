@@ -172,7 +172,7 @@ class UpdateTests(unittest.TestCase):
     def test_partition_change_rejected_even_with_new_checksums(self):
         data = bytearray(partition_table())
         struct.pack_into("<I", data, 8, 0x6000)
-        data[112:128] = hashlib.md5(data[:96]).digest()
+        data[144:160] = hashlib.md5(data[:128]).digest()
         self.artifact(0x8000, data)
         with self.assertRaisesRegex(ValueError, "boundaries"):
             self.validate()

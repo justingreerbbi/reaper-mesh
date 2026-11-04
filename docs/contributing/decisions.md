@@ -332,6 +332,21 @@ Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [persistence](../reference/persistence.md#channel-ids-record-6),
 [Channel encryption](../guides/encryption.md#rme2-envelope).
 
+### D47. Bluetooth link with physical-access pairing
+Nov 4 · **Confirmed**. Owner request, so a mobile app can act as an agent. Bluetooth carries the
+same framed bytes as USB, because a phone cannot use USB and no agent or plugin can add a transport
+to the device (D41). There is no radio protocol, USB schema or settings record change. The owner
+requires that a device is never open to random connections: creating a connection needs physical
+access. Owner choices: a 5-second hold on the main button opens pairing and a 15-second hold forgets
+all paired devices; Bluetooth stays off until the first pairing and then accepts paired phones only,
+with no off switch for now; a paired phone has the same access as USB. Passkey on the device screen
+with LE Secure Connections only; at most four paired devices. One host owns the session at a time,
+and the newest hello wins. Boards without screens are not built yet; the planned route is a USB
+command that opens the window and shows the passkey in the agent. Rotating private addresses are not
+implemented, so the fixed random address can be recognized over time. The firmware now runs in its
+own task, because Bluetooth reserves early memory on the classic ESP32 and the startup task could not
+get a 24 KB stack. See [Bluetooth link](../reference/bluetooth.md).
+
 ### D46. Transmit power levels
 Nov 4 · **Confirmed**. Owner request. Transmit power is low, medium or high instead of a dBm number,
 because a person choosing power needs the choice and not the radio's scale. Low is the radio's

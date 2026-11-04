@@ -1,5 +1,5 @@
 /** Real serial bytes for explicitly invoked physical checks; never auto-replays work. */
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { Connection } from '../packages/agent-core/connection.ts';
 import { SerialAdapter, type SerialPortLike } from '../packages/agent-core/serial.ts';
 export async function openBoard(python: string, port: string) {
@@ -28,9 +28,27 @@ finally:s.close()
     ],
     { stdio: ['pipe', 'pipe', 'pipe'] },
   );
+  return attach(child, port);
+}
+/** The same bytes over Bluetooth through tools/ble-bridge.py, which pairs before it reports ready. */
+export async function openBleBoard(python: string, findSeconds: number) {
+  const child = spawn(
+    python,
+    ['-u', 'tools/ble-bridge.py', '--find-seconds', String(findSeconds)],
+    { stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+  return attach(child, 'Bluetooth', /^ready$/m);
+}
+async function attach(child: ChildProcessWithoutNullStreams, label: string, ready?: RegExp) {
   let error = '';
-  child.stderr.on('data', bytes => {
-    error = (error + bytes.toString()).slice(-2048);
+  // Pairing waits on a person, so it must finish before the session's five-second deadlines start.
+  const opened = new Promise<void>((resolve, reject) => {
+    if (!ready) resolve();
+    child.stderr.on('data', bytes => {
+      error = (error + bytes.toString()).slice(-2048);
+      if (ready?.test(error)) resolve();
+    });
+    child.on('exit', () => reject(new Error(error || `${label} closed`)));
   });
   const start = performance.now(),
     now = () => Math.floor(performance.now() - start);
@@ -59,7 +77,9 @@ finally:s.close()
         );
       },
     }),
-    async open() {},
+    async open() {
+      await opened;
+    },
     async close() {
       if (child.exitCode !== null || child.signalCode !== null) return;
       const exited = new Promise<void>(resolve => child.once('exit', () => resolve()));
@@ -73,7 +93,7 @@ finally:s.close()
     const until = now() + 8000;
     while (connection.sync.state !== 'ready') {
       if (now() > until || ['disconnected', 'incompatible'].includes(connection.sync.state))
-        throw new Error(error || connection.error || `Cannot synchronize ${port}`);
+        throw new Error(error || connection.error || `Cannot synchronize ${label}`);
       await new Promise(resolve => setTimeout(resolve, 25));
     }
   } catch (error) {

@@ -9,16 +9,18 @@ inline constexpr unsigned kWidth = 128, kHeight = 64;
 // SSD1306 page order: byte (y / 8) * 128 + x holds 8 vertical pixels, least significant on top.
 using Frame = std::array<std::uint8_t, kWidth * kHeight / 8>;
 
-enum class Press { None, Single, Double, Long };
-// Debounces a raw button level and reports single, double and long presses.
+enum class Press { None, Single, Double, Long, PairHold, ForgetHold };
+// Debounces a raw button level and reports single, double and long presses, then the two longer
+// Bluetooth holds as the same press continues (D47).
 // A single press is reported once the double-press window has passed.
 class ButtonGestures {
  public:
-  static constexpr std::uint64_t kDebounceMs = 30, kDoubleMs = 300, kLongMs = 1000;
+  static constexpr std::uint64_t kDebounceMs = 30, kDoubleMs = 300, kLongMs = 1000,
+                                 kPairHoldMs = 5000, kForgetHoldMs = 15000;
   Press sample(bool pressed, std::uint64_t now);
 
  private:
-  bool raw_ = false, stable_ = false, long_sent_ = false;
+  bool raw_ = false, stable_ = false, long_sent_ = false, pair_sent_ = false, forget_sent_ = false;
   std::uint64_t raw_since_ = 0, down_at_ = 0, released_at_ = 0;
   unsigned clicks_ = 0;
 };
@@ -38,6 +40,8 @@ class Screen {
   // Any input during startup skips to the main page. With the screen off, any input wakes it
   // on the main page. With it on: Toggle turns it off, NextPage cycles, Home returns to Main.
   void input(Input, std::uint64_t now);
+  // Something the user must see now: skips startup and keeps the screen on, leaving the page.
+  void attention(std::uint64_t now);
   void tick(std::uint64_t now);
   // Device screen settings. With `wake`, a new message turns the screen on at the main page,
   // or restarts the timeout when it is already on.
@@ -67,8 +71,17 @@ struct NodeRow {
   std::uint32_t age_s = 0;
   bool position = false;
 };
+// Bluetooth pairing state, drawn over every page while it is not None.
+enum class BleNotice { None, Open, Passkey, Full, Paired, Failed, Forgotten, Unavailable };
+struct BleStatus {
+  BleNotice notice = BleNotice::None;
+  const char* name = "";      // advertised name while pairing is open
+  std::uint32_t passkey = 0;  // shown only on this screen, never sent over any link
+  std::uint32_t seconds = 0;  // left in the pairing window
+};
 // Values shown on the pages. Strings must stay valid while render() runs.
 struct Status {
+  BleStatus ble{};
   const char* name = "";      // configured device label; the node ID is shown when empty
   const char* node = "";      // node ID
   const char* version = "";   // short firmware version, for example "v0.1.0"
