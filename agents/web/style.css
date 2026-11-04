@@ -1835,3 +1835,46 @@ form.manage-body > label:first-child {
     padding: 24px;
   }
 }
+
+/* Placement must override Leaflet grab and marker cursors. */
+.leaflet-container.is-placing,
+.leaflet-container.is-placing .leaflet-interactive,
+.leaflet-container.is-placing .leaflet-marker-icon {
+  cursor: crosshair;
+}
+
+.tracker-pane.map-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  width: 100%;
+  height: 100dvh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.tracker-pane.map-expanded .map-pane {
+  flex: 1;
+  min-height: 50vh;
+}
+.tracker-pane.map-expanded #map-side-panel {
+  max-height: 28vh;
+  overflow: auto;
+}
+.annotation-pin {
+  border-radius: 9px;
+  border-width: 1px;
+}
+.annotation-pin span {
+  display: grid;
+  place-items: center;
+}
+.annotation-pin svg {
+  width: 21px;
+  height: 21px;
+}
+.node-pin {
+  border-radius: 50%;
+  border-width: 2px;
+}

@@ -147,8 +147,15 @@ export function renderMap() {
       detail: `Heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago · fixed`,
     });
   }
-  element('map-empty').hidden = points.length > 0;
-  text('map-caption', points.length ? `${points.length} plotted` : 'No shared positions');
+  element('map-empty').hidden = points.length > 0 || mapWorkspace.hasItems;
+  text(
+    'map-caption',
+    points.length
+      ? `${points.length} device positions`
+      : mapWorkspace.hasItems
+        ? 'Saved map items'
+        : 'No shared positions',
+  );
   fieldMap.setPoints(points);
   fieldMap.select(selectedNode || undefined);
 }

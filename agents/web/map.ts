@@ -18,7 +18,20 @@ export class FieldMap {
   #annotations: L.LayerGroup;
   #annotationSignature = '';
   #annotationBounds: L.LatLng[] = [];
-  onLocation?: (latitude: number, longitude: number) => void;
+  #drawing = false;
+  #dragStart?: L.LatLng;
+  #preview?: L.Rectangle;
+  #suppressClick = false;
+  onRectangle?: (start: L.LatLng, end: L.LatLng) => void;
+  setDrawing(active: boolean) {
+    this.#drawing = active;
+    this.#dragStart = undefined;
+    this.#preview?.remove();
+    this.#preview = undefined;
+    if (active) this.map.dragging.disable();
+    else this.map.dragging.enable();
+  }
+  onLocation?: (latitude: number, longitude: number, context: boolean) => void;
   onAnnotation?: (id: string, context: boolean) => void;
   #selected?: string;
   #signature = '';
@@ -44,11 +57,45 @@ export class FieldMap {
     });
     this.#layer = L.layerGroup().addTo(this.map);
     this.#annotations = L.layerGroup().addTo(this.map);
+    this.map.on('mousedown', (event: L.LeafletMouseEvent) => {
+      if (!this.#drawing || event.originalEvent.button !== 0) return;
+      this.#dragStart = event.latlng;
+    });
+    this.map.on('mousemove', (event: L.LeafletMouseEvent) => {
+      if (!this.#dragStart) return;
+      const bounds = L.latLngBounds(this.#dragStart, event.latlng);
+      if (this.#preview) this.#preview.setBounds(bounds);
+      else
+        this.#preview = L.rectangle(bounds, {
+          color: '#71c99a',
+          weight: 2,
+          interactive: false,
+        }).addTo(this.map);
+    });
+    this.map.on('mouseup', (event: L.LeafletMouseEvent) => {
+      const start = this.#dragStart;
+      this.#dragStart = undefined;
+      this.#preview?.remove();
+      this.#preview = undefined;
+      if (
+        !start ||
+        this.map
+          .latLngToContainerPoint(start)
+          .distanceTo(this.map.latLngToContainerPoint(event.latlng)) < 5
+      )
+        return;
+      this.#suppressClick = true;
+      setTimeout(() => {
+        this.#suppressClick = false;
+      }, 0);
+      this.onRectangle?.(start, event.latlng);
+    });
     this.map.on('contextmenu', (event: L.LeafletMouseEvent) => {
-      this.onLocation?.(event.latlng.lat, event.latlng.lng);
+      this.onLocation?.(event.latlng.lat, event.latlng.lng, true);
     });
     this.map.on('click', (event: L.LeafletMouseEvent) => {
-      this.onLocation?.(event.latlng.lat, event.latlng.lng);
+      if (this.#suppressClick) return;
+      this.onLocation?.(event.latlng.lat, event.latlng.lng, false);
       this.select(undefined);
       this.onSelect?.(undefined);
     });
@@ -161,22 +208,13 @@ export class FieldMap {
         this.#annotationBounds.push(se);
         layer = L.rectangle(L.latLngBounds(nw, se), style);
       } else {
-        const symbols: Record<string, string> = {
-          pin: '●',
-          flag: '⚑',
-          camp: '▲',
-          hazard: '!',
-          medical: '+',
-          observation: '◎',
-          search: '▧',
-        };
         layer = L.marker(nw, {
           keyboard: true,
           title: item.name,
           alt: item.name,
           icon: L.divIcon({
             className: 'annotation-pin',
-            html: `<span style="color:${item.color}">${symbols[icon] ?? '●'}</span>`,
+            html: `<span style="color:${item.color}">${mapSymbol(icon)}</span>`,
             iconSize: [30, 30],
             iconAnchor: [15, 15],
           }),
@@ -211,7 +249,10 @@ export class FieldMap {
   fit(points?: L.LatLngExpression[]) {
     const targets =
       points ??
-      [...this.#markers.values()].map(marker => marker.getLatLng()).concat(this.#annotationBounds);
+      (this.map.hasLayer(this.#layer)
+        ? [...this.#markers.values()].map(marker => marker.getLatLng())
+        : []
+      ).concat(this.map.hasLayer(this.#annotations) ? this.#annotationBounds : []);
     if (!targets.length) return;
     if (targets.length === 1) {
       this.map.setView(targets[0], Math.max(this.map.getZoom(), 12));
@@ -239,4 +280,18 @@ function tooltip(point: MapPoint) {
   const node = document.createElement('span');
   node.textContent = `${point.name} · ${point.detail}`;
   return node;
+}
+
+function mapSymbol(icon: string) {
+  const paths: Record<string, string> = {
+    pin: '<circle cx="12" cy="10" r="3"/><path d="M12 22s8-7 8-12a8 8 0 0 0-16 0c0 5 8 12 8 12Z"/>',
+    flag: '<path d="M5 22V3h14l-3 5 3 5H5"/>',
+    camp: '<path d="m2 21 10-18 10 18H2Zm6 0 4-8 4 8M9 3l3 5 3-5"/>',
+    hazard: '<path d="m12 3 10 18H2L12 3Zm0 6v5m0 3v1"/>',
+    medical: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/>',
+    observation:
+      '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+    search: '<circle cx="10" cy="10" r="7"/><path d="m15 15 7 7"/>',
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[icon] ?? paths.pin}</svg>`;
 }

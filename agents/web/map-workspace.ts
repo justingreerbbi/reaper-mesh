@@ -178,11 +178,25 @@ export class MapWorkspace {
     } catch (e) {
       this.#error = `Map storage unavailable: ${String(e)}. Saved data was not changed.`;
     }
-    this.map.onLocation = (lat, lng) => this.#location(lat, lng);
+    this.map.onLocation = (lat, lng, context) => this.#location(lat, lng, context);
     this.map.onAnnotation = (key, context) => {
       const selected = this.#displayItems().find(x => x.key === key);
       if (selected) this.#detail(selected.item, selected.sharedKey, selected.payload, context);
     };
+    this.map.onRectangle = (start, end) => {
+      if (this.#tool !== 'rectangle') return;
+      this.#corner = undefined;
+      this.#location(start.lat, start.lng);
+      this.#location(end.lat, end.lng);
+    };
+    const fullscreen = button('Full screen', () => {
+      const active = tracker.classList.toggle('map-expanded');
+      fullscreen.textContent = active ? 'Exit full screen' : 'Full screen';
+      fullscreen.setAttribute('aria-pressed', String(active));
+      this.map.invalidate();
+    });
+    fullscreen.setAttribute('aria-pressed', 'false');
+    tracker.querySelector('.tracker-heading')!.append(fullscreen);
     $('map-add-point').onclick = () => this.#setTool('point');
     $('map-add-area').onclick = () => this.#setTool('rectangle');
     $('map-cancel-tool').onclick = () => this.#setTool();
@@ -227,7 +241,10 @@ export class MapWorkspace {
       }
     };
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') this.#setTool();
+      if (e.key === 'Escape') {
+        this.#setTool();
+        if (tracker.classList.contains('map-expanded')) fullscreen.click();
+      }
     });
   }
   #run(action: () => void) {
@@ -247,17 +264,19 @@ export class MapWorkspace {
   }
   #setTool(tool?: 'point' | 'rectangle') {
     this.#tool = tool;
+    this.map.setDrawing(tool === 'rectangle');
     this.#corner = undefined;
-    this.map.map.getContainer().style.cursor = tool ? 'crosshair' : '';
+    this.map.map.getContainer().classList.toggle('is-placing', !!tool);
     $('map-cancel-tool').hidden = !tool;
     $('map-tool-hint').textContent =
       tool === 'rectangle'
-        ? 'Click two opposite corners to draw a rectangle. Escape cancels.'
+        ? 'Drag to draw a rectangle, or click two opposite corners. Escape cancels.'
         : tool
           ? 'Click the map to place your point. Escape cancels.'
-          : 'Click the map to add a point, or use the tools above.';
+          : 'Use Add point or Draw area to start. Right-click the map for location actions.';
   }
-  #location(lat: number, lng: number) {
+  #location(lat: number, lng: number, context = false) {
+    if (!this.#tool && !context) return;
     if (!this.#store || this.host.stopped() || document.querySelector('dialog[open]')) return;
     const point = [
       Math.round((Math.max(-90, Math.min(90, lat)) + 90) * 1e7),
@@ -590,6 +609,9 @@ export class MapWorkspace {
       }
     };
     $<HTMLDialogElement>('plugin-settings-dialog').showModal();
+  }
+  get hasItems() {
+    return this.#displayItems().length > 0;
   }
   get messageVersion() {
     return JSON.stringify(this.#store?.state.shared ?? []) + this.host.writable();

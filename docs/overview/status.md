@@ -49,6 +49,12 @@ shared fixed position, and its screen was left at a 10 s timeout with wake on.
 | Web portal | Overview dashboard, separate messaging and map workspaces, shared app-wide theme for messaging, map tools, settings and recovery pages, optional PIN, local wipe, JSON plugins | Earlier portal versions checked in native Brave over USB; replacement styles checked at 1920 × 1080 and phone sizes, including simulator saves and all settings sections | USB and hardware QA of the redesigned shell; sharing and plugin flows; known channel and map problems in the roadmap's [Planned after qualification](roadmap.md#planned-after-qualification) |
 | Firmware updates | Manifest-validating ROM updater that preserves NVS | Repeated installs on both boards | Interrupted flash, rollback, signed releases |
 
+Map cleanup on November 4 adds explicit creation, a placement crosshair, visible-layer fit,
+rectangle drag drawing with preview, consistent SVG symbols and full-screen mode. Host
+checks pass. In-app browser QA verified full-screen mode, rectangle drag and local save;
+touch drawing and physical-device workflows remain unqualified.
+See the [map cleanup evidence](changelog.md#november-4-map-navigation-and-placement-cleanup).
+
 ## Next qualification work
 
 New portal features are paused (November 3) until these pass; see the

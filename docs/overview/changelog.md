@@ -33,6 +33,21 @@ still deliver, not that they reach the stated dBm. No range test, and at bench d
 getting through says little about the difference between levels. The boost checkbox has not been
 clicked in a browser, because the simulator has no boost.
 
+## November 4: map navigation and placement cleanup
+
+Ordinary map clicks now clear device selection without opening the location dialog.
+Add point and Draw area explicitly start placement; right-click retains the location
+menu. Placement uses a crosshair over Leaflet layers and markers. Fit includes only
+visible device and annotation layers. The web portal guide describes these interactions.
+
+Verification: strict TypeScript, generated-schema/vendor checks, 289 host tests and the
+web build pass with `npm run check`. Browser interaction and hardware behavior were
+not verified for this change. Follow-up work implements rectangle drag drawing with a live preview, SVG map symbols,
+circular device badges and full-screen mode. In-app browser QA verified full-screen mode,
+dragging into a populated rectangle editor and saving a local rectangle. Device refresh
+now preserves the saved-item map state instead of restoring the empty overlay. Touch and
+physical-device workflows remain unqualified.
+
 ## November 3: remove a channel and reset Public
 
 At the owner's request, Settings → Channels can remove a channel from the device. Public is
