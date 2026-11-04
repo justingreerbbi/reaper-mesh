@@ -225,6 +225,23 @@ try {
   }
   note({ check: 'channel survives reset', slots: SLOTS });
   await direct(opened[0], opened[1], channel, 'after reset plaintext direct');
+  // Removing the channel from the T-Beam makes it a non-member again, without touching the others.
+  await save(opened[1], {
+    ...opened[1].connection.sync.config!,
+    radio: withChannel(opened[1].connection.sync.config!.radio!, SLOTS[1], '', 0),
+  });
+  assert.ok(!channelList(opened[1].connection.sync.config!.radio!).some(c => c.id === channel));
+  const removed = await outcome(
+    opened[1],
+    opened[1].adapter.sendMessage('Reaper after removal', 'broadcast', channel),
+  );
+  assert.equal(removed.state, 'rejected');
+  const afterRemoval = `Reaper after removal ${crypto.randomUUID()}`;
+  await outcome(opened[0], opened[0].adapter.sendMessage(afterRemoval, 'broadcast', channel));
+  await sleep(8000);
+  assert.ok(!opened[1].connection.inbox.history.some(item => item.text === afterRemoval));
+  await direct(opened[0], opened[1], 0, 'Public after removal');
+  note({ check: 'removed channel', sends: removed.state, heardBy: 'nobody', others: 'unchanged' });
   await writeFile(
     'build/channel-smoke.json',
     JSON.stringify({ time: new Date().toISOString(), results, relayQualified: false }, null, 2) +

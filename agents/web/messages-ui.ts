@@ -358,9 +358,23 @@ export function renderMessages() {
         text: m.text.startsWith(MAP_PREFIX) ? 'Shared map item' : m.text,
       };
     });
-  const unread = messageState?.unread(mode.value, connection.inbox.history) ?? [];
+  const names = deviceChannels({
+    channels: connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
+    channelIds: connection.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
+  });
+  // A channel removed from the device leaves the list and the counts. Its history stays saved
+  // and returns on rejoining. While disconnected the table is unknown, so everything shows.
+  const onDevice = (id: number) =>
+    !connection.sync.config?.radio || names.some(item => item.id === id);
+  const unread = (messageState?.unread(mode.value, connection.inbox.history) ?? []).filter(m =>
+    onDevice(m.channel),
+  );
   const totalUnread = sources.reduce(
-    (n, source) => n + (messageState?.unread(source.source, source.messages).length ?? 0),
+    (n, source) =>
+      n +
+      (source.source === mode.value
+        ? unread.length
+        : (messageState?.unread(source.source, source.messages).length ?? 0)),
     0,
   );
   document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh`;
@@ -382,10 +396,6 @@ export function renderMessages() {
     encryptedRequired = encryption?.isRequired(selectedChannel) ?? false;
   const maxBytes = encryptedRequired ? 1024 - ENCRYPTED_HEADER_BYTES - ENCRYPTED_TAG_BYTES : 1024;
   text('message-bytes', `${bytes} / ${maxBytes} bytes`);
-  const names = deviceChannels({
-    channels: connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
-    channelIds: connection.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
-  });
   if (channel.dataset.names !== JSON.stringify(names)) {
     const selected = channel.value;
     channel.replaceChildren();
@@ -395,6 +405,10 @@ export function renderMessages() {
       channel.add(new Option(`Channel ${Number(selected).toString(16)}`, selected));
     channel.value = selected;
     channel.dataset.names = JSON.stringify(names);
+  }
+  if (!onDevice(selectedChannel)) {
+    chooseConversation('broadcast', 0);
+    return;
   }
   const key = conversationKey(destination.value, selectedChannel);
   const sendBlockReason = connection.messaging.sendBlockReason;
@@ -433,13 +447,9 @@ export function renderMessages() {
   const visibleThread = (row: { key: string; destination: string; channel: number }) =>
     !messageState?.hidden(uiScope, row.key) ||
     !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
-  const rows = conversations(
-    lastDevice,
-    names,
-    connection.discovery.nodes,
-    history,
-    incoming,
-  ).filter(visibleThread);
+  const rows = conversations(lastDevice, names, connection.discovery.nodes, history, incoming)
+    .filter(visibleThread)
+    .filter(row => onDevice(row.channel));
   if (
     !rows.some(row => row.key === key) &&
     destination.value.trim() &&
@@ -458,6 +468,7 @@ export function renderMessages() {
     if (
       savedKey.startsWith(scope + ':') &&
       draft &&
+      onDevice(target.channel) &&
       !rows.some(row => row.key === conversationKey(target.destination, target.channel))
     )
       rows.push({

@@ -282,6 +282,20 @@ export class EncryptionVault {
     }
     return { epoch, keyId: record.keyId };
   }
+  /** Deletes the channel's keys and requirement from this browser: back to unencrypted. */
+  reset(channel: number) {
+    validateChannel(channel);
+    this.#assertUnlocked();
+    const prior = this.#keys;
+    this.#keys = prior.filter(key => key.channel !== channel);
+    try {
+      this.#save();
+      this.#setPolicy(channel, false);
+    } catch (error) {
+      this.#keys = prior;
+      throw error;
+    }
+  }
   setRequired(channel: number, required: boolean) {
     validateChannel(channel);
     if (required && !this.#current(channel))

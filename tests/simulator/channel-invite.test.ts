@@ -85,3 +85,21 @@ test('an encrypted invite carries the key so another agent decrypts on the same 
   assert.equal(left.encrypt('x'.repeat(limit), channel, 'node-01', 'broadcast').length, 1024);
   assert.throws(() => left.encrypt('x'.repeat(limit + 1), channel, 'node-01', 'broadcast'));
 });
+
+test('resetting a channel deletes its keys and requirement and leaves other channels alone', () => {
+  const vault = new EncryptionVault(new MemoryStorage());
+  vault.generate(0);
+  vault.generate(0); // a rotated key: every epoch goes
+  vault.generate(0x9c41e2a7);
+  const saved = vault.encrypt('old', 0, 'node-0000001122334455', 'broadcast');
+  vault.reset(0);
+  assert.equal(vault.hasKey(0), false);
+  assert.equal(vault.isRequired(0), false);
+  assert.equal(vault.hasKey(0x9c41e2a7), true);
+  assert.equal(vault.isRequired(0x9c41e2a7), true);
+  assert.equal(vault.decrypt(saved, 0, 'node-0000001122334455', 'broadcast').state, 'key-needed');
+  assert.deepEqual(
+    [...vault.encrypt('plain', 0, 'node-0000001122334455', 'broadcast')],
+    [...new TextEncoder().encode('plain')],
+  );
+});

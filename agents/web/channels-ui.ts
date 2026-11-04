@@ -24,6 +24,9 @@ import {
 import { element, text } from './dom.ts';
 
 let editingChannel = 0;
+// Saves in progress, so their "…" status is replaced once the device's table shows the result.
+let saving: { slot: number; name: string } | undefined;
+let removing: { id: number; name: string } | undefined;
 export const editingChannelSlot = () => editingChannel;
 
 function radioConfig() {
@@ -65,6 +68,7 @@ export function editChannel(slot: number) {
     element<HTMLTextAreaElement>('channel-invite-output').value = '';
   }
   editingChannel = slot;
+  saving = removing = undefined;
   const channel = table().find(item => item.slot === slot);
   text('channel-editor-title', channel?.name ?? 'Create channel');
   element<HTMLInputElement>('channel-name').value = channel?.name ?? '';
@@ -80,6 +84,7 @@ export function editChannel(slot: number) {
       : 'Up to 8 letters, numbers, underscores or hyphens.',
   );
   text('channel-editor-status', channel && slot ? `Channel ID ${formatChannelId(channel.id)}` : '');
+  text('channel-remove-status', '');
   element('channel-invite').hidden = !channel || slot === 0;
   renderEncryption();
   const links = element('managed-channels');
@@ -98,13 +103,43 @@ export function editChannel(slot: number) {
   }
 }
 
+function settleStatus() {
+  if (current().pending) return;
+  if (saving) {
+    const channel = table().find(item => item.slot === saving!.slot);
+    text('channel-editor-status', channel ? `Channel ID ${formatChannelId(channel.id)}` : '');
+    if (channel?.name === saving.name) {
+      text('channel-editor-title', channel.name);
+      element('channel-invite').hidden = false;
+      saving = undefined;
+    }
+  }
+  if (removing) {
+    const gone = !table().some(item => item.id === removing!.id);
+    text('channel-remove-status', gone ? `${removing.name} was removed.` : '');
+    if (gone) removing = undefined;
+  }
+}
+
 export function renderEncryption() {
+  settleStatus();
   const id = slotId(editingChannel);
   const configured = id !== undefined;
   const tools = document.querySelector<HTMLElement>('.encryption-tools')!;
   tools.hidden = !configured;
   tools.style.display = configured ? '' : 'none';
+  const remove = element<HTMLButtonElement>('channel-remove');
+  remove.hidden = !configured;
   if (!configured) return;
+  // Public is permanent: it can only be reset. Other channels can be removed from the device.
+  const isPublic = editingChannel === 0;
+  remove.textContent = isPublic ? 'Reset Public' : 'Remove channel';
+  const { adapter, pending } = current();
+  remove.disabled = isPublic
+    ? !encryption?.unlocked ||
+      !recovery.writable ||
+      !(encryption.hasKey(id) || encryption.isRequired(id))
+    : !radioConfig() || pending || !!adapter.connection.radioBlockReason;
   const policy = element<HTMLSelectElement>('encryption-policy');
   if (document.activeElement !== policy)
     policy.value = encryption?.isRequired(id) ? 'required' : 'plaintext';
@@ -149,6 +184,7 @@ export function initChannels() {
       if (table().some(channel => channel.name === name && channel.slot !== editingChannel))
         throw Error('Another channel already uses that name.');
       save(withChannel(radio, editingChannel, name, id), 'Saving to device…');
+      saving = { slot: editingChannel, name };
     } catch (e) {
       text('channel-editor-status', e instanceof Error ? e.message : 'Could not save channel.');
     }
@@ -181,7 +217,10 @@ export function initChannels() {
       element('channel-join-form').hidden = true;
       editChannel(slot);
       if (existing) text('channel-editor-status', `Already joined ${existing.name}.`);
-      else save(withChannel(radio, slot, invite.name, invite.id), `Joining ${invite.name}…`);
+      else {
+        save(withChannel(radio, slot, invite.name, invite.id), `Joining ${invite.name}…`);
+        saving = { slot, name: invite.name };
+      }
       clearError();
     } catch (e) {
       text('channel-join-status', e instanceof Error ? e.message : 'Could not join the channel.');
@@ -205,6 +244,42 @@ export function initChannels() {
       );
     } catch (e) {
       showError(e);
+    }
+  });
+  element('channel-remove').addEventListener('click', () => {
+    try {
+      const channel = table().find(item => item.slot === editingChannel);
+      if (!channel) return;
+      if (channel.slot === 0) {
+        if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
+        if (
+          !confirm(
+            'Reset Public? Its encryption key is deleted from this browser and Public goes back to unencrypted. Encrypted messages already saved on Public can no longer be read.',
+          )
+        )
+          return;
+        encryption.reset(channel.id);
+        element<HTMLSelectElement>('encryption-policy').value = 'plaintext';
+        text('channel-remove-status', 'Public was reset.');
+        render();
+        return;
+      }
+      if (
+        !confirm(
+          `Remove ${channel.name} from this device? Messages still waiting to send are cancelled. Its chat history and key stay in this browser. To rejoin you need an invite, so create one first if no one else can send you one.`,
+        )
+      )
+        return;
+      const { radio } = writable();
+      save(withChannel(radio, channel.slot, '', 0), '');
+      editChannel(0);
+      text('channel-remove-status', `Removing ${channel.name}…`);
+      removing = { id: channel.id, name: channel.name };
+    } catch (e) {
+      text(
+        'channel-remove-status',
+        e instanceof Error ? e.message : 'Could not change the channel.',
+      );
     }
   });
   manage.addEventListener('close', () => {
