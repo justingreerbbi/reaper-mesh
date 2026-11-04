@@ -4,6 +4,13 @@ Since firmware `v0.5.0` (D47), a paired phone or computer can act as an agent ov
 
 ## Security rules
 
+Since `v0.6.1`, a full receive buffer rejects the entire current ATT write with an
+insufficient-resources error, without disconnecting the authenticated client or accepting part
+of that write. A client may retry those same bytes once capacity is available; it must never
+replay an ambiguously accepted message submission. The firmware drains queued notifications
+between input batches and limits each tick to 4,096 input bytes so a busy client cannot starve
+radio/display work. This changes neither pairing security nor the framed protocol.
+
 Creating a connection requires physical access to the device.
 
 - **Off until first paired.** With nothing paired, the Bluetooth stack does not start and the device does not advertise.

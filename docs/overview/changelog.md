@@ -10,6 +10,87 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: Heltec battery and BLE congestion fix (`v0.6.1`)
+
+At the owner's direction, implemented and installed `heltec-reaper-mesh-v0.6.1`. The missing
+battery indicator now shows calibrated battery-rail voltage and an outline battery icon;
+the owner confirms both are visible. The ADC driver handles both V3 gate polarities, polls
+at most every two seconds, and shows `?` on failed or implausible readings. Unlike the
+T-Beam, Heltec hardware provides neither a fuel-gauge percentage nor a USB-present input.
+The display reference documents this hardware difference rather than inventing those states.
+Both board builds use the shared screen, settings, messaging, discovery and BLE implementations.
+The Debug page adds the processor's reset reason to help distinguish panic, watchdog and power resets.
+
+Fixed a concrete BLE disconnect path: a full input buffer previously set a flag that terminated
+the connection as an authentication failure on the next tick. A rejected ATT write now leaves
+the connection open and accepts no bytes from that write. Notifications drain between input
+batches, and per-tick input work is bounded so a continuously writing client cannot starve the
+radio or screen. Security requirements are unchanged. This fixes congestion handling; it does
+not establish the cause of the owner's startup-logo reboot report.
+
+Validation: `npm ci --ignore-scripts`, `npm run check` (316 tests), standalone CTest (91 tests),
+and both ESP-IDF board builds pass. New host tests cover atomic rejection/retry after buffer
+saturation, bounded work and reply draining under continuous input, both ADC polarities,
+polling and read failures, unavailable calibration, invalid voltages and voltage/unknown icon
+rendering. Host tests do not qualify the physical BLE controller or phone behavior.
+
+Installed the local development build on base commit `68cb40e` with uncommitted changes using
+the manifest-validating, NVS-preserving updater. ROM hashes verified all three images; application
+SHA-256 is `85f97b1620338e0fca7e1d90b8747efa6c0db289fe128bcc354229a792195828`.
+Receipt: ignored `build/heltec-v3/flash-result.json`. No settings, pairing records, partition
+boundaries or fixtures were erased or changed. The T-Beam remains on installed `v0.6.0`.
+
+After install, the Heltec reports `v0.6.1`, configuration revision 77, with its low-power mesh
+policy and channels intact. Four alternating direct RF deliveries pass: 40 and 1,024 bytes
+in each direction against the T-Beam, with destination ACK and exact inbox readback. Both boot
+identities remain unchanged during messaging; Heltec free heap stays at 133,968 bytes and its
+stack minimum is 15,540 unused bytes. Evidence: ignored
+`build/heltec-receive-diagnostic-v0.6.1.json`. Phone BLE after install, meter accuracy,
+battery-only power and extended soak remain unverified.
+
+## November 4: Heltec BLE disconnect investigation
+
+The owner reports BLE disconnecting on the Heltec after a send followed by a receive, with
+the screen waking and a suspected reboot. The owner subsequently clarified that the logo
+appeared on receipt. Code review confirms only screen initialization enters the startup logo
+stage; normal incoming-message wake opens the main page. This supports a reboot, but does not
+identify its cause. The T-Beam is reported unaffected. The connected
+Heltec (`34:b7:da:62:2d:34`, `/dev/cu.usbserial-0001`) passed the pinned esptool's
+`verify_flash` comparison of its application at `0x10000` against the recorded clean-commit
+`0268691` `heltec-reaper-mesh-v0.6.0` binary (SHA-256
+`824028d30ecdaff3669f549fb2265dd737ed489fad5511375b1ce8b3253ebdc7`). This verifies the actual
+application bytes, independently of its reported version. No flash write or storage erase was
+performed. The comparison resets the board.
+
+Review confirms the Heltec deliberately returns unknown battery state and therefore shows no
+battery indicator. Wake on incoming messages is implemented independently of reboot. Neither
+observation alone proves a crash. Passive UART capture was started for an owner reproduction;
+opening the port produced the expected ROM startup with `rst:0x1 (POWERON)`. That initial reset
+is not evidence of the reported messaging failure. No cause or fix is established yet, and
+phone BLE messaging remains unqualified. The T-Beam was not connected by USB for the initial
+check. A subsequent ten-minute passive capture was started after another reported failure;
+at inspection it contained only the reset caused by opening the port, not the reported event.
+
+Validation: `npm ci --ignore-scripts` and `npm run check` pass (309 tests, strict TypeScript,
+generated-schema/vendor checks, compiler-backed host tests and the web build). No firmware,
+protocol or fixture changes were made.
+
+USB inspection and a local-delivery stress check on the physical Heltec subsequently passed
+20 messages (ten 40-byte and ten 1,024-byte bodies), each uploaded, locally delivered and read
+back exactly. This replaces entries in the eight-message inbox more than twice and reuses
+outgoing message records. The boot identity remained unchanged, free heap stayed at 134,892
+bytes, and the task stack high-water mark ended at 15,276 unused bytes. Configuration revision
+77 and the existing low-power mesh policy were unchanged. Evidence is in the ignored
+`build/heltec-local-diagnostic.json`. This tests queue/inbox handling over USB, not BLE or radio
+delivery. All 16 targeted inbox, message-queue and mesh host tests also pass with UBSan. The
+two-board radio diagnostic initially could not start because Brave held the T-Beam serial
+port; after reconnection and disconnecting the portal, ten alternating radio messages passed.
+The eleventh, a Heltec-to-T-Beam 1,024-byte message, transmitted but expired without destination
+ACK or inbox publication. Both boards remained responsive with unchanged boot identities and
+free heap; no spontaneous reset or panic appeared in captured UART bytes. This is a separate
+unresolved RF delivery failure, not evidence of a reboot or a successful 20-message RF test.
+Evidence: ignored `build/heltec-receive-diagnostic.json` and `build/diagnostic-uart-*.bin`.
+
 ## November 4: web portal follows the mobile app
 
 At the owner's request (D49), the portal now looks like the Reaper Mesh mobile app and supports what it does. It has the app's palette, rail navigation and Comms, Map, Nodes and Device tabs, a connect screen, rejoining on load and reconnecting after a lost link, and brevity phrases. Channels can be created encrypted, shared as a QR code, and joined by camera, image or pasted code. The map adds the crosshair, measuring, two-corner areas, MGRS readout, basemaps and browser location. A device's position can follow this browser. Heard nodes are kept across reconnects. There is no firmware, wire format or fixture change.

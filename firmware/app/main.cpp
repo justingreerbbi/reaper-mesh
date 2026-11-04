@@ -123,6 +123,7 @@ static void run(void*) {
   static BoardInput buttons;
   buttons.begin();
   static BoardPower power;
+  const auto reset_reason = static_cast<unsigned>(esp_reset_reason());
   static reaper::ui::ButtonGestures gestures;
   static reaper::ui::Screen screen;
   static reaper::ui::Frame frame;
@@ -213,6 +214,8 @@ static void run(void*) {
         status.radio = radio_state(radio_info);
         const auto battery = power.read(now_ms);
         status.battery = battery.percent;
+        status.battery_mv = battery.millivolts;
+        status.reset_reason = reset_reason;
         status.external = battery.external;
         status.rx = radio_info.received;
         status.tx = radio_info.transmitted;

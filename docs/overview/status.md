@@ -22,10 +22,10 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 
 | Board | Reported version | Built from | Port |
 | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.6.0` | Clean commit `0268691`, November 4 | `/dev/cu.usbserial-0001` |
+| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.6.1` | Local development build on `68cb40e` with uncommitted battery/BLE fixes, November 4; hashes in the install receipt | `/dev/cu.usbserial-0001` |
 | LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.6.0` | Clean commit `0268691`, November 4 | `/dev/cu.wchusbserial57700003341` |
 
-Both antennas are owner-confirmed. On November 4 the Heltec read high power and the T-Beam low power. The last recorded owner policies were: both boards in mesh mode; Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
+Both antennas are owner-confirmed. The latest November 4 diagnostic read both boards at low power in mesh mode, with relay on; revisions were Heltec 77 and T-Beam 64, unchanged by the diagnostic and Heltec install. Earlier on November 4 the Heltec read high power and the T-Beam low power. The last recorded owner discovery policies were: Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
 position source none and sharing off. Always read the current settings from the device rather
 than assuming these. On November 3 the Heltec read beacon/respond on, a 60-second interval and a
 shared fixed position, and its screen was left at a 10 s timeout with wake on.
@@ -37,7 +37,7 @@ shared fixed position, and its screen was left at a 10 s timeout with wake on.
 | Area | Implemented | Verified on hardware | Not yet verified |
 | --- | --- | --- | --- |
 | USB and configuration | Versioned handshake, capability gates, compare-and-set revisions, atomic NVS storage, startup retries, query-only recovery | Native browser saves and reconnects; lost reply, duplicate and reset recovery | Power cut, arbitrary cable removal, long soak |
-| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut; screen timeout and wake-on-message set from the portal; T-Beam battery percent and plugged-in indicator; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and 30 s timeout; battery percent with a battery fitted; bolt and `USB` when plugged in with no battery. Screen settings saved, read back and kept across a reboot over USB on both boards. Owner confirmed on the Heltec: a 10 s timeout and wake on a message from the T-Beam | The portal's Screen page in a native browser; Heltec startup, pages and gestures; induced I2C faults; LED not built yet |
+| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut; screen timeout and wake-on-message set from the portal; T-Beam battery percent and plugged-in indicator; Heltec calibrated battery-rail voltage and icon; reset reason on Debug in `v0.6.1`; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and 30 s timeout; battery percent with a battery fitted; bolt and `USB` when plugged in with no battery. Screen settings saved, read back and kept across a reboot over USB on both boards. Owner confirmed on the Heltec: a 10 s timeout and wake on a message from the T-Beam; battery icon and voltage visible after the `v0.6.1` install | Heltec voltage accuracy against a meter and battery-only behavior; the portal's Screen page in a native browser; Heltec page gestures; induced I2C faults; LED not built yet |
 | Messages | 1,024-byte UTF-8 messages, bounded queue, explicit outcomes, inbox, browser journal | Bidirectional direct delivery with destination ACK between the two boards | Extended loss and latency; field use |
 | Mesh relay | Bounded managed-flooding core with hop limits and duplicate suppression | Host topology and fault tests only | **Any real relay**: needs a third board |
 | Radio | Pinned Semtech SX1262 driver, first-party SX1276 driver, shared airtime budget, DMA SPI; low, medium and high power with T-Beam boost in `v0.4.0` | Probe, receive, 7-fragment transmit, direct two-board delivery at every power level and with T-Beam boost; setting kept across a reset | Range, coexistence, measured spectrum and output power; the portal's power control in a native browser (clicked against the simulator) |
@@ -69,9 +69,9 @@ New portal features are paused (November 3) until these pass; see the
 
 ## Automated checks
 
-`npm run check` passes all 309 tests on macOS as of November 4 (strict TypeScript,
+`npm run check` passes all 316 tests on macOS as of November 4 (strict TypeScript,
 generated-schema and vendor checks, compiler-backed host tests and the web build). The
-standalone firmware CTest suite passes 84 tests. CI runs the host checks, the CTest
+standalone firmware CTest suite passes 91 tests. Both board target builds pass. CI runs the host checks, the CTest
 suite, both firmware target builds and shell script lint; see
 [Development and CI](../contributing/development.md).
 
@@ -85,6 +85,18 @@ suite, both firmware target builds and shell script lint; see
 - Signed releases, automatic rollback and a published support policy.
 
 ## Hardware observations to keep in mind
+
+The owner reports Heltec-only BLE disconnects after sending and receiving messages on
+November 4. The owner clarified that the startup logo appeared on receipt, which points to a
+reboot: normal message wake does not restart the logo sequence. The connected Heltec's application flash
+matches the recorded `v0.6.0` binary by digest, so an older application under the same version
+has been ruled out for the original report. `v0.6.1` is now installed with a fix for forced
+BLE disconnection on receive-buffer congestion and more frequent reply draining. The original
+logo/reboot cause remains unconfirmed, and phone BLE messaging after this fix is not yet verified.
+The owner confirms the new battery icon and measured voltage are visible. See the
+[fix and install evidence](changelog.md#november-4-heltec-battery-and-ble-congestion-fix-v061).
+Twenty physical Heltec local deliveries over USB, including maximum-size messages and inbox
+replacement, passed without reboot or heap loss. That check does not qualify BLE or RF reception.
 
 These were each seen once and recovered. They are not failures to hide, and they are inputs to
 future soak and interruption testing.

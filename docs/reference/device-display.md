@@ -48,7 +48,7 @@ The USB link and radio start at the same time; nothing waits for the screen.
 | --- | --- |
 | Main | Device name (the node ID if no name is set), radio state `RX`, `TX`, `OFF` or `FAULT`, `NEW n` (inbox messages that arrived after the screen last turned off), `NODES n` (nodes heard), and the firmware version in the bottom-right corner. Top right: the battery (see below), when measured. The name is drawn at 2× when it fits beside the battery (10 characters with no battery shown), otherwise at 1× on the battery's line. |
 | Nodes | Up to five heard nodes: name (or node ID), `*` when it shared a position, and last-heard age. |
-| Debug | Node ID, USB state and configuration revision, NVS health, radio mode and transmit power in dBm, RX/TX counters, free heap and minimum stack, uptime. |
+| Debug | Node ID, USB state and configuration revision, NVS health, radio mode and transmit power in dBm, RX/TX counters, free heap and minimum stack, uptime and the ESP-IDF reset reason (`R1` power-on, `R3` software, `R4` panic, `R5`/`R6`/`R7` watchdog, `R9` brownout). |
 
 **Power:** the screen turns off after the configured timeout (30 s by default) counted from
 the last button press. Off means display off and
@@ -84,6 +84,7 @@ measures. Nothing is estimated.
 | --- | --- |
 | Battery, plugged in | Lightning bolt, percent and gauge icon |
 | Battery, not plugged in | Percent and gauge icon |
+| Voltage-only board | Measured battery-rail voltage and outline battery icon; `?` and outline icon if unavailable |
 | Plugged in, no battery | Lightning bolt and `USB` |
 | Not measured | Nothing |
 
@@ -92,7 +93,15 @@ The bolt means plugged in (USB power present), whether or not the battery is cha
 | Board | Source | State |
 | --- | --- | --- |
 | LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 5 VBUS good (plugged in) and bit 3 battery present, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. The percent is shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0`; owner confirmed the percent with a battery and the bolt and `USB` without one |
-| Heltec WiFi LoRa 32 V3 | Battery voltage input, not yet verified on hardware; no USB power sense | Not shown |
+| Heltec WiFi LoRa 32 V3 | Calibrated ADC1 channel 0 (GPIO1), 390 kΩ / 100 kΩ divider gated by GPIO37. Sixteen samples at each control level account for opposite gate polarities on V3.1/V3.2; the divider is disabled between two-second polls. Only 2.5–4.5 V readings are displayed. | Implemented in `v0.6.1`; measured voltage, not an estimated percentage. No USB-sense or battery-presence input: the charger can energize the measured rail even without a battery. Hardware measurement accuracy remains unqualified. |
+
+Heltec pin/divider references: the manufacturer's
+[V3.1 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/HTIT-WB32LA(F)_V3.1_Schematic_Diagram.pdf),
+[V3.2 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/WiFi_LoRa_32_V3.2_Schematic_Diagram.pdf)
+and [V3.2 ADC example](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/examples/ESP32/WiFiLoRa32_battery_read/WiFiLoRa32_battery_read.ino).
+ADC setup, calibration or read failures show `?` rather than a stale or invented value.
+Both boards otherwise use the same screen, settings, message, discovery and BLE code. The
+T-Beam's PMU fuel gauge, USB sensing, extra PWR button and radio boost are hardware-specific.
 
 ## Planned
 

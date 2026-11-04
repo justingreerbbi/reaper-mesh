@@ -332,6 +332,14 @@ int main(int argc, char** argv) {
     status.battery = 100;
     render(s, status, full);
     CHECK(clamped == full);
+    status.battery = -1;
+    status.battery_mv = 4067;
+    Frame voltage{}, unknown{};
+    render(s, status, voltage);
+    CHECK(lit(voltage, 127, 7) && !lit(voltage, 120, 7));
+    status.battery_mv = -1;
+    render(s, status, unknown);
+    CHECK(lit(unknown, 127, 7) && unknown != voltage);
   } else if (scenario == "preview") {
     Screen s;
     Frame f{};

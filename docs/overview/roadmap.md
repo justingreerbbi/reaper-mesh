@@ -87,5 +87,5 @@ Board-local features only (D41). Design and rules: [device screen and buttons](.
 2. Check step 1 on the Heltec V3.
 3. **Built (November 3):** screen settings stored on the device and set from the portal's Screen tab: timeout and optional wake on a new message. There is no settings page on the device. Settings round trip and reboot persistence verified over USB on both boards; the owner confirmed a 10 s timeout and wake on message on the Heltec.
 4. LED indication for TX/RX and new messages.
-5. **Built for the T-Beam (November 3):** measured battery percent and a plugged-in indicator in the top right of the main page (also shown with no battery), shown only when known. The Heltec shows nothing until its battery voltage input is verified.
+5. **Built:** T-Beam measured battery percent and a plugged-in indicator; Heltec `v0.6.1` adds a calibrated battery-rail voltage and battery icon. The Heltec has no fuel gauge or USB-sense input, so it shows voltage rather than inventing percent or plugged-in state. Measurement accuracy still needs hardware qualification.
 6. Processor sleep modes for real battery savings, without missing radio traffic.

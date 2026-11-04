@@ -189,10 +189,10 @@ constexpr std::uint8_t kBolt[7] = {0x02, 0x04, 0x08, 0x1f, 0x02, 0x04, 0x08};
 // Top-right power, on the same line as a 1x name and centered beside a 2x one: a bolt while
 // plugged in, then the battery percent and a gauge icon when measured, or "USB" with no battery.
 // Returns its left edge, or the frame width when there is nothing to show.
-unsigned power(Frame& f, int percent, bool external) {
+unsigned power(Frame& f, int percent, bool external, int millivolts) {
   constexpr unsigned y0 = 4;
   unsigned left = kWidth;
-  if (percent >= 0) {
+  if (percent >= 0 || millivolts != 0) {
     constexpr unsigned x0 = kWidth - 13;  // 11x7 body plus a 2-pixel terminal
     for (unsigned x = x0; x < x0 + 11; ++x) {
       pixel(f, x, y0);
@@ -206,12 +206,17 @@ unsigned power(Frame& f, int percent, bool external) {
       pixel(f, x0 + 11, y0 + y);
       pixel(f, x0 + 12, y0 + y);
     }
-    const unsigned value = percent > 100 ? 100u : static_cast<unsigned>(percent);
+    const unsigned value = percent < 0 ? 0u : percent > 100 ? 100u : static_cast<unsigned>(percent);
     for (unsigned x = 0; x < (value * 7 + 50) / 100; ++x)
       for (unsigned y = 2; y < 5; ++y)
         pixel(f, x0 + 2 + x, y0 + y);
     char label[8];
-    std::snprintf(label, sizeof(label), "%u%%", value);
+    if (percent >= 0)
+      std::snprintf(label, sizeof(label), "%u%%", value);
+    else if (millivolts > 0 && millivolts <= 4500)
+      std::snprintf(label, sizeof(label), "%d.%02dV", millivolts / 1000, millivolts % 1000 / 10);
+    else
+      std::snprintf(label, sizeof(label), "?");
     left = x0 - 1 - glyphs(label) * kCell;
     text(f, left, y0, label);
   } else if (external) {
@@ -229,7 +234,7 @@ unsigned power(Frame& f, int percent, bool external) {
 }
 void main_page(Frame& f, const Status& s) {
   const char* name = *s.name ? s.name : s.node;
-  const unsigned room = power(f, s.battery, s.external);
+  const unsigned room = power(f, s.battery, s.external, s.battery_mv);
   if (glyphs(name) * kCell * 2 <= room)
     text(f, 0, 0, name, 2);
   else
@@ -281,9 +286,9 @@ void debug_page(Frame& f, const Status& s) {
                 static_cast<unsigned long>(s.stack / 1024));
   text(f, 0, 47, buffer);
   const auto up = s.uptime_s;
-  std::snprintf(buffer, sizeof(buffer), "UP %luh %02lum %02lus",
+  std::snprintf(buffer, sizeof(buffer), "UP %luh %02lum %02lus R%u",
                 static_cast<unsigned long>(up / 3600), static_cast<unsigned long>(up / 60 % 60),
-                static_cast<unsigned long>(up % 60));
+                static_cast<unsigned long>(up % 60), s.reset_reason);
   text(f, 0, 56, buffer);
 }
 void ble_page(Frame& f, const BleStatus& s) {

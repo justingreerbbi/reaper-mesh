@@ -1,4 +1,5 @@
 #include "ble_link.hpp"
+#include "ble_io.hpp"
 #include "reaper/pairing.hpp"
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
@@ -40,7 +41,7 @@ StreamBufferHandle_t input = nullptr, output = nullptr;
 std::atomic<std::uint16_t> connection{BLE_HS_CONN_HANDLE_NONE};
 std::atomic<std::uint16_t> att_mtu{BLE_ATT_MTU_DFLT};
 std::atomic<bool> synced{false}, trusted{false}, subscribed{false};
-std::atomic<bool> connected_event{false}, closed_event{false}, overflow_event{false};
+std::atomic<bool> connected_event{false}, closed_event{false};
 std::atomic<bool> paired_event{false}, failed_event{false};
 std::atomic<bool> window_open{false};
 std::atomic<int> shown_passkey{-1};
@@ -206,11 +207,15 @@ int on_access(std::uint16_t handle, std::uint16_t, ble_gatt_access_ctxt* context
   std::uint16_t size = 0;
   if (ble_hs_mbuf_to_flat(context->om, bytes.data(), bytes.size(), &size) != 0)
     return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-  if (xStreamBufferSpacesAvailable(input) < size) {
-    overflow_event = true;
+  if (!reaper::ble::accept(
+          bytes.data(), size, [] { return xStreamBufferSpacesAvailable(input); },
+          [](const std::uint8_t* data, std::size_t count) {
+            return xStreamBufferSend(input, data, count, 0);
+          })) {
+    // Reject this complete ATT write without consuming any of it. The peer can retry;
+    // congestion is not an authentication failure and must not tear down the link.
     return BLE_ATT_ERR_INSUFFICIENT_RES;
   }
-  xStreamBufferSend(input, bytes.data(), size, 0);
   return 0;
 }
 ble_gatt_chr_def characteristics[4]{};
@@ -395,7 +400,6 @@ void BleLink::tick(std::uint64_t now, d::HostLinks& links) {
     if (shown_passkey.exchange(-1) >= 0)
       window.failed(now);
     window_open = window.open();
-    overflow_event = false;
     xStreamBufferReset(input);
     xStreamBufferReset(output);
     pending_size = 0;
@@ -403,17 +407,16 @@ void BleLink::tick(std::uint64_t now, d::HostLinks& links) {
   }
   const auto handle = connection.load();
   if (handle != BLE_HS_CONN_HANDLE_NONE) {
-    if (overflow_event.exchange(false) ||
-        (!trusted && now - connected_at > window.connection_deadline()))
+    if (!trusted && now - connected_at > window.connection_deadline())
       refuse(handle);
-    std::array<std::uint8_t, 256> bytes;
-    for (;;) {
-      const auto size = xStreamBufferReceive(input, bytes.data(), bytes.size(), 0);
-      if (!size)
-        break;
-      links.feed(d::HostLink::Ble, bytes.data(), size, now);
-    }
-    pump_output();
+    reaper::ble::drain(
+        [](std::uint8_t* data, std::size_t capacity) {
+          return xStreamBufferReceive(input, data, capacity, 0);
+        },
+        [&](const std::uint8_t* data, std::size_t size) {
+          links.feed(d::HostLink::Ble, data, size, now);
+        },
+        pump_output);
   }
   advertise();
 }

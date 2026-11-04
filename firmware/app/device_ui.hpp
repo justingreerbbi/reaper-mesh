@@ -82,9 +82,11 @@ struct BleStatus {
 // Values shown on the pages. Strings must stay valid while render() runs.
 struct Status {
   BleStatus ble{};
-  const char* name = "";      // configured device label; the node ID is shown when empty
-  const char* node = "";      // node ID
-  const char* version = "";   // short firmware version, for example "v0.1.0"
+  const char* name = "";     // configured device label; the node ID is shown when empty
+  const char* node = "";     // node ID
+  const char* version = "";  // short firmware version, for example "v0.1.0"
+  int battery_mv = 0;        // Voltage-only board: -1 unavailable, positive measured mV.
+  unsigned reset_reason = 0;
   const char* radio = "OFF";  // RX, TX, OFF or FAULT
   std::uint32_t rx = 0, tx = 0, nodes = 0;
   std::uint32_t unread = 0;  // filled in by render() from the Screen

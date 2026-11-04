@@ -5,6 +5,7 @@
 struct Battery {
   int percent = -1;       // 0-100; negative when unknown or no battery
   bool external = false;  // USB power present
+  int millivolts = 0;     // Voltage-only board: positive measured rail, -1 unavailable; 0 unused.
 };
 class BoardPower {
  public:
