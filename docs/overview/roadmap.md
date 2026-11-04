@@ -35,7 +35,7 @@ Owner-reported problems, recorded November 3. Portal feature work stays paused u
 
 **Map workspace.** The map tools feel unfinished from end to end and need one coherent pass rather than separate fixes:
 
-- **Fixed November 4:** ordinary clicks no longer start creation; use Add point / Draw area or the right-click location menu. Browser interaction QA remains pending.
+- **Fixed November 4:** ordinary clicks no longer start creation; use Add point / Draw area or the right-click location menu.
 - **Implemented November 4:** placement crosshair, consistent SVG item symbols and device markers, rectangle drag drawing with a live preview, and full-screen map mode with an Exit action and Escape support.
 - Browser QA verified full-screen mode and drag → populated rectangle editor → local save. Touch drawing and physical-device workflows remain unqualified.
 

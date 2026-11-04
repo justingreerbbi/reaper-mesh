@@ -25,11 +25,14 @@ export class FieldMap {
   onRectangle?: (start: L.LatLng, end: L.LatLng) => void;
   setDrawing(active: boolean) {
     this.#drawing = active;
+    this.#clearDrag();
+    if (active) this.map.dragging.disable();
+    else this.map.dragging.enable();
+  }
+  #clearDrag() {
     this.#dragStart = undefined;
     this.#preview?.remove();
     this.#preview = undefined;
-    if (active) this.map.dragging.disable();
-    else this.map.dragging.enable();
   }
   onLocation?: (latitude: number, longitude: number, context: boolean) => void;
   onAnnotation?: (id: string, context: boolean) => void;
@@ -60,6 +63,10 @@ export class FieldMap {
     this.map.on('mousedown', (event: L.LeafletMouseEvent) => {
       if (!this.#drawing || event.originalEvent.button !== 0) return;
       this.#dragStart = event.latlng;
+      // Leaflet's own drag handling, off while drawing, is what normally stops text selection.
+      event.originalEvent.preventDefault();
+      // A release outside the map never reaches the map's own mouseup.
+      document.addEventListener('mouseup', () => this.#clearDrag(), { once: true });
     });
     this.map.on('mousemove', (event: L.LeafletMouseEvent) => {
       if (!this.#dragStart) return;
@@ -74,9 +81,7 @@ export class FieldMap {
     });
     this.map.on('mouseup', (event: L.LeafletMouseEvent) => {
       const start = this.#dragStart;
-      this.#dragStart = undefined;
-      this.#preview?.remove();
-      this.#preview = undefined;
+      this.#clearDrag();
       if (
         !start ||
         this.map

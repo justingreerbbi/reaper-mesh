@@ -151,7 +151,7 @@ export function renderMap() {
   text(
     'map-caption',
     points.length
-      ? `${points.length} device positions`
+      ? `${points.length} device ${points.length === 1 ? 'position' : 'positions'}`
       : mapWorkspace.hasItems
         ? 'Saved map items'
         : 'No shared positions',
