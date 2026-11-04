@@ -1836,16 +1836,20 @@ form.manage-body > label:first-child {
   }
 }
 
-/* Placement must override Leaflet grab and marker cursors. */
-.leaflet-container.is-placing,
+/* Placement must override Leaflet's grab cursor. */
+.leaflet-container.is-placing {
+  cursor: crosshair;
+}
+/* While placing, existing items let clicks and drags through to the map underneath. */
 .leaflet-container.is-placing .leaflet-interactive,
 .leaflet-container.is-placing .leaflet-marker-icon {
-  cursor: crosshair;
+  pointer-events: none;
 }
 
 .tracker-pane.map-expanded {
   position: fixed;
   inset: 0;
+  margin: 0;
   z-index: 2000;
   width: 100%;
   height: 100dvh;

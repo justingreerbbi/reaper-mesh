@@ -241,7 +241,8 @@ export class MapWorkspace {
       }
     };
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
+      // With a dialog open, Escape belongs to the dialog.
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) {
         this.#setTool();
         if (tracker.classList.contains('map-expanded')) fullscreen.click();
       }

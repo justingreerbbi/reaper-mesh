@@ -40,13 +40,21 @@ Add point and Draw area explicitly start placement; right-click retains the loca
 menu. Placement uses a crosshair over Leaflet layers and markers. Fit includes only
 visible device and annotation layers. The web portal guide describes these interactions.
 
-Verification: strict TypeScript, generated-schema/vendor checks, 289 host tests and the
-web build pass with `npm run check`. Browser interaction and hardware behavior were
-not verified for this change. Follow-up work implements rectangle drag drawing with a live preview, SVG map symbols,
-circular device badges and full-screen mode. In-app browser QA verified full-screen mode,
-dragging into a populated rectangle editor and saving a local rectangle. Device refresh
-now preserves the saved-item map state instead of restoring the empty overlay. Touch and
-physical-device workflows remain unqualified.
+Follow-up work implements rectangle drag drawing with a live preview, SVG map symbols,
+circular device badges and full-screen mode. Device refresh now preserves the saved-item
+map state instead of restoring the empty overlay.
+
+Review with real mouse input then found and fixed: placing a point or area on top of an
+existing item opened that item instead (a drag inside an area opened two dialogs); a drag
+released outside the map left its preview following the cursor; drawing selected nearby page
+text; Escape in a dialog also left
+full screen; and the full-screen pane kept its 20 px margin, which pushed the zoom control
+past the window edge.
+
+Verification: `npm run check` (289 host tests, none of which exercise map interactions) and
+`npm run format:check` pass. In-app browser checks with mouse input cover each fix above,
+drag and two-click drawing, and local save. Touch and physical-device workflows remain
+unqualified.
 
 ## November 3: remove a channel and reset Public
 
