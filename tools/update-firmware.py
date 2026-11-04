@@ -120,7 +120,13 @@ def validate(path, allow_dirty=False):
     require(
         (manifest.get("usb_protocol"), manifest.get("config_schema")) == (1, 1)
         and (manifest.get("record_schema"), manifest.get("read_record_schemas"))
-        in [(2, [1, 2]), (3, [1, 2, 3]), (4, [1, 2, 3, 4]), (5, [1, 2, 3, 4, 5])],
+        in [
+            (2, [1, 2]),
+            (3, [1, 2, 3]),
+            (4, [1, 2, 3, 4]),
+            (5, [1, 2, 3, 4, 5]),
+            (6, [1, 2, 3, 4, 5, 6]),
+        ],
         "unsupported configuration compatibility",
     )
     records = manifest.get("artifacts")

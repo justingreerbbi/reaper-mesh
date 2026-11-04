@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
   body.fill('x');
   if (scenario == "line" || scenario == "loss" || scenario == "asymmetric" ||
       scenario == "broadcast" || scenario == "hops") {
-    m::Mesh a(1, true, 1, scenario == "hops" ? 0 : 3), b(2, true), c(3, true);
+    m::Mesh a(1, true, {}, scenario == "hops" ? 0 : 3), b(2, true), c(3, true);
     m::Mesh* nodes[] = {&a, &b, &c};
     const bool broadcast = scenario == "broadcast";
     CHECK(a.enqueue(key(), broadcast ? m::kBroadcast : 3, 0, body.data(), body.size(), 0));
@@ -106,22 +106,32 @@ int main(int argc, char** argv) {
         CHECK(a.outgoing()[0].state == m::SendState::Acknowledged);
     }
   } else if (scenario == "encrypted") {
-    std::array<std::uint8_t, 74> envelope{};
+    // RME2 on a random-style channel ID (D45): the ID is carried in the header and envelope.
+    const std::uint32_t channel = 0x1a2b3c4d;
+    std::array<std::uint8_t, 77> envelope{};
     envelope[0] = 'R';
     envelope[1] = 'M';
     envelope[2] = 'E';
-    envelope[3] = 1;
+    envelope[3] = 2;
     envelope[4] = 1;
-    envelope[5] = 1;
-    envelope[6] = 0x42;
-    envelope[14] = 1;
-    m::Mesh sender(1, false, 2), receiver(2, false, 2);
+    for (unsigned i = 0; i < 4; ++i)
+      envelope[5 + i] = static_cast<std::uint8_t>(channel >> (8 * i));
+    envelope[9] = 0x42;
+    envelope[17] = 1;
+    m::ChannelSet members{};
+    CHECK(members.add(channel));
+    m::Mesh sender(1, false, members), receiver(2, false, members), outsider(3, false);
     auto identity = key();
-    CHECK(sender.enqueue(identity, 2, 1, envelope.data(), envelope.size(), 0));
+    CHECK(!sender.enqueue(identity, 2, 0x1a2b3c4e, envelope.data(), envelope.size(), 0));
+    auto rme1 = envelope;
+    rme1[3] = 1;
+    CHECK(!sender.enqueue(identity, 2, channel, rme1.data(), rme1.size(), 0));
+    CHECK(sender.enqueue(identity, 2, channel, envelope.data(), envelope.size(), 0));
     m::Packet packet{};
     CHECK(sender.next_tx(0, packet));
-    CHECK(packet.bytes[0] == 'R' && packet.bytes[2] == 'E');
+    CHECK(packet.channel == channel && packet.bytes[0] == 'R' && packet.bytes[2] == 'E');
     auto bytes = wire(packet);
+    CHECK(!outsider.receive(bytes.data(), bytes.size(), 1));
     CHECK(receiver.receive(bytes.data(), bytes.size(), 1));
     sender.complete_tx(true, 2);
     const auto& received = receiver.incoming()[0];

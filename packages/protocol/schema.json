@@ -36,7 +36,8 @@
       "discoveryVersion": "u32?",
       "nodeCapacity": "u32?",
       "locationVersion": "u32?",
-      "screenVersion": "u32?"
+      "screenVersion": "u32?",
+      "channelIdVersion": "u32?"
     }
   },
   "sync": {
@@ -70,7 +71,8 @@
       "latitude": "u32?",
       "longitude": "u32?",
       "screenTimeout": "u32?",
-      "screenWake": "u32?"
+      "screenWake": "u32?",
+      "channelIds": "channelIds?"
     }
   },
   "event": {
@@ -95,7 +97,8 @@
       "latitude": "u32?",
       "longitude": "u32?",
       "screenTimeout": "u32?",
-      "screenWake": "u32?"
+      "screenWake": "u32?",
+      "channelIds": "channelIds?"
     }
   },
   "ping": {
@@ -135,7 +138,8 @@
       "latitude": "u32?",
       "longitude": "u32?",
       "screenTimeout": "u32?",
-      "screenWake": "u32?"
+      "screenWake": "u32?",
+      "channelIds": "channelIds?"
     }
   },
   "result": {

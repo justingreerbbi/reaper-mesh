@@ -116,6 +116,16 @@ bool valid(Kind kind, const FieldValue& value) {
     }
     return separators == 7;
   }
+  if (kind == Kind::ChannelIds) {
+    // Eight 8-digit lowercase hex IDs separated by '|'; meaning is checked by the device.
+    if (size != 71)
+      return false;
+    for (std::size_t i = 0; i < size; ++i)
+      if (i % 9 == 8 ? p[i] != '|'
+                     : !((p[i] >= '0' && p[i] <= '9') || (p[i] >= 'a' && p[i] <= 'f')))
+        return false;
+    return true;
+  }
   if (kind == Kind::Hex) {
     if (!size || size > 64 || size % 2)
       return false;

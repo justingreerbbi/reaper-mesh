@@ -15,7 +15,7 @@ Order of work:
 5. **Core v1 protocol review.** Using the test results, define the core to freeze: the application payload type for data the firmware carries without understanding (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
 6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
 
-The core v1 review in step 5 also decides how channels are identified on air (Q11, D45), so it must happen before the radio header freezes.
+Channel identity was settled early, ahead of the core v1 review, by owner decision (D45).
 
 | Phase | Outcome | Included features | Status |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ Owner-reported problems, recorded November 3. Portal feature work stays paused u
 
 **Channels**
 
-- **Join a channel out of order.** A node cannot join an existing channel unless it uses the same slot number as everyone else, so adding a node later can mean reconfiguring devices. Options and a recommendation are in D45; the on-air part is decided in the core v1 review (step 5).
+- **Join a channel out of order: built (November 3, firmware `v0.3.0`).** Channels have on-air IDs and the portal shares them with invites (D45). Verified between the two boards; the portal's Join and Invite buttons still need a native browser check.
 - **Remove a channel.** The portal can create and rename channels but cannot remove one. The device already accepts an empty slot, so this is likely portal-only: clear the slot's name, then deal with what depends on it (queued messages fail with `radio-config-changed`, the channel's local keys and encryption policy, and its conversation history).
 
 **Map workspace.** The map tools feel unfinished from end to end and need one coherent pass rather than separate fixes:

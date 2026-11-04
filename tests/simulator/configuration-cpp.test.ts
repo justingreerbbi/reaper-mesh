@@ -27,6 +27,7 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_device/include',
+    '-Ifirmware/components/reaper_mesh/include',
     'firmware/components/reaper_protocol/protocol.cpp',
     'firmware/components/reaper_device/configuration.cpp',
     'firmware/tests/configuration_test.cpp',

@@ -1,4 +1,9 @@
 /** Explicit physical check of the real TS Connection/SerialAdapter over a Python serial byte bridge. */
+import {
+  DEFAULT_CHANNEL_IDS,
+  DEFAULT_CHANNELS,
+  withChannel,
+} from '../packages/protocol/radio-config.ts';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { FrameDecoder } from '../packages/protocol/framing.ts';
@@ -307,12 +312,17 @@ for (let run = 0; run < 3; run++) {
       };
       await save({
         ...original,
+        // Camp in slot 1 with ID 1, the ID the message below is sent on.
         radio: {
-          ...original.radio,
+          ...withChannel(
+            { ...original.radio!, channels: DEFAULT_CHANNELS, channelIds: DEFAULT_CHANNEL_IDS },
+            1,
+            'Camp',
+            1,
+          ),
           mode: 'off',
           power: 1,
           relay: true,
-          channels: 'Public|Camp||||||',
         },
       });
       assert.equal(agent.sync.config?.radio?.power, 1);

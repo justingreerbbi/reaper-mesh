@@ -30,8 +30,8 @@ void Mesh::quiesce() {
 bool Mesh::enqueue(const MessageKey& key, std::uint64_t destination, std::uint32_t channel,
                    const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   tick(now);
-  if (!node_ || node_ == kBroadcast || key.origin != node_ || destination == node_ || channel > 7 ||
-      !(channels_ & (1u << channel)) || !valid_message_payload(bytes, size, channel))
+  if (!node_ || node_ == kBroadcast || key.origin != node_ || destination == node_ ||
+      !channels_.contains(channel) || !valid_message_payload(bytes, size, channel))
     return false;
   Packet p{};
   p.key = key;
@@ -127,7 +127,7 @@ bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t no
   tick(now);
   Packet p{};
   if (!node_ || node_ == kBroadcast || !decode_packet(bytes, size, p) ||
-      !(channels_ & (1u << p.channel)))
+      !channels_.contains(p.channel))
     return false;
   if (p.kind != PacketKind::Data && p.kind != PacketKind::Ack)
     return false;

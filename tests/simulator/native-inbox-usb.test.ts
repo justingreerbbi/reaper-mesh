@@ -7,6 +7,11 @@ import { join } from 'node:path';
 import { Connection } from '../../packages/agent-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { encodeMessage, decodeMessage, type Message } from '../../packages/protocol/messages.ts';
+import {
+  DEFAULT_CHANNEL_IDS,
+  channelList,
+  withChannel,
+} from '../../packages/protocol/radio-config.ts';
 
 const directory = mkdtempSync(join(tmpdir(), 'reaper-inbox-usb-'));
 const binary = join(directory, 'device-bridge');
@@ -361,4 +366,88 @@ test('screen settings cross TS/native USB, persist with the revision and reject 
   agent.drain();
   agent.receive(session, frames[3], 1);
   assert.deepEqual(agent.sync.config?.screen, { timeout: 60, wake: true });
+});
+
+test('a joined channel ID crosses TS/native USB, persists and gates native message admission', () => {
+  const hello: Message = {
+    type: 'hello',
+    link: 'link-A',
+    minVersion: 1,
+    maxVersion: 1,
+    owner: 'agent-A',
+  };
+  const run = (requests: Message[]) => {
+    const lines = execFileSync(binary, ['messages'], {
+      input: requests.map(message => hex(wire(message))).join('\n') + '\n',
+      encoding: 'utf8',
+      timeout: 10000,
+    })
+      .trim()
+      .split('\n');
+    const writes = lines.pop();
+    const frames = lines.map(line => Uint8Array.from(Buffer.from(line, 'hex')));
+    const responses: Message[] = [];
+    for (const frame of frames)
+      new FrameDecoder().feed(frame, payload => responses.push(decodeMessage(payload)));
+    return { frames, responses, writes };
+  };
+  const first = run([hello, { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 }]);
+  const welcome = first.responses[0];
+  assert.ok(welcome.type === 'welcome' && welcome.channelIdVersion === 1);
+  assert.ok(welcome.type === 'welcome' && (welcome.features ?? 0) & 1024);
+  const snapshot = first.responses[1];
+  assert.ok(snapshot.type === 'snapshot' && snapshot.channelIds === DEFAULT_CHANNEL_IDS);
+
+  // The actual agent joins a channel by its ID in a free slot (here slot 3, not slot 1).
+  const agent = new Connection('agent-A');
+  const session = agent.open('link-A', 0);
+  agent.drain();
+  for (const frame of first.frames) agent.receive(session, frame, 0);
+  agent.drain();
+  assert.equal(agent.supportsChannelIds, true);
+  const joined = withChannel(agent.sync.config!.radio!, 3, 'Ridge', 0x9c41e2a7);
+  agent.configure({ ...agent.sync.config!, radio: joined }, 1);
+  const sent: Message[] = [];
+  for (const bytes of agent.drain())
+    new FrameDecoder().feed(bytes, payload => sent.push(decodeMessage(payload)));
+  const configure = sent[0];
+  assert.ok(configure.type === 'configure' && configure.channelIds === joined.channelIds);
+
+  const submit = (id: string, channel: number): Message => ({
+    type: 'submit',
+    link: 'link-A',
+    boot: 'boot-A',
+    id,
+    channel,
+    destination: 'broadcast',
+    part: 0,
+    count: 1,
+    data: Buffer.from('ridge').toString('hex'),
+  });
+  const second = run([
+    hello,
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
+    configure,
+    { type: 'sync', link: 'link-A', boot: 'boot-A', request: 2 },
+    submit('agent-A:2', 0x9c41e2a7),
+    submit('agent-A:3', 0x9c41e2a8),
+  ]);
+  assert.equal(second.writes, 'writes=1');
+  assert.equal(second.responses[2].type === 'result' && second.responses[2].outcome, 'committed');
+  const saved = second.responses[3];
+  assert.ok(
+    saved.type === 'snapshot' &&
+      saved.channels === 'Public|||Ridge||||' &&
+      saved.channelIds === joined.channelIds,
+  );
+  const accepted = second.responses[4],
+    refused = second.responses[5];
+  assert.ok(accepted.type === 'messageStatus' && accepted.state !== 'rejected');
+  assert.ok(refused.type === 'messageStatus' && refused.state === 'rejected');
+  agent.receive(session, second.frames[2], 2);
+  agent.receive(session, second.frames[3], 2);
+  assert.deepEqual(channelList(agent.sync.config!.radio!), [
+    { slot: 0, id: 0, name: 'Public' },
+    { slot: 3, id: 0x9c41e2a7, name: 'Ridge' },
+  ]);
 });

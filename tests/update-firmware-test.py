@@ -139,6 +139,14 @@ class UpdateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.validate()
 
+    def test_channel_id_record_compatibility(self):
+        self.manifest["record_schema"] = 6
+        self.manifest["read_record_schemas"] = [1, 2, 3, 4, 5, 6]
+        self.validate()
+        self.manifest["read_record_schemas"] = [1, 2, 3, 4, 5]
+        with self.assertRaises(ValueError):
+            self.validate()
+
     def test_screen_record_compatibility(self):
         self.manifest["record_schema"] = 5
         self.manifest["read_record_schemas"] = [1, 2, 3, 4, 5]

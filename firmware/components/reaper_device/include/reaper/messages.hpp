@@ -1,5 +1,6 @@
 #pragma once
 #include "reaper/configuration.hpp"
+#include "reaper/radio_packet.hpp"
 #include <cstdint>
 namespace reaper::device {
 enum class MessageState { Receiving, Queued, Transmitted, Acknowledged, Failed, Rejected, Unknown };
@@ -30,7 +31,7 @@ class MessageQueue {
                         const std::uint8_t* bytes, std::size_t size, std::uint64_t now);
   MessageReceipt query(const Text<75>& id) const;
   void tick(std::uint64_t now);
-  void channels(std::uint8_t enabled) { channels_ = enabled; }
+  void channels(const mesh::ChannelSet& enabled) { channels_ = enabled; }
   void quiesce();
   bool fail(const Text<64>& message_id, const char* reason);
   bool local_accept(const Text<64>& message_id);
@@ -47,7 +48,7 @@ class MessageQueue {
   Text<64> boot_{};
   std::array<MessageRecord, kCapacity> records_{};
   std::array<Owner, 8> owners_{};
-  std::uint8_t channels_ = 1;
+  mesh::ChannelSet channels_{};
   std::uint32_t counter_ = 0;
   std::size_t next_ = 0;
 };

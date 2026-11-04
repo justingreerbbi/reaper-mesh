@@ -1,6 +1,10 @@
 // Conversations, the message thread, drafts, local deletion and unread state.
 import { MAP_PREFIX } from '../../packages/protocol/map-item.ts';
-import { DEFAULT_CHANNELS } from '../../packages/protocol/radio-config.ts';
+import {
+  DEFAULT_CHANNEL_IDS,
+  DEFAULT_CHANNELS,
+  channelList as deviceChannels,
+} from '../../packages/protocol/radio-config.ts';
 import {
   ENCRYPTED_HEADER_BYTES,
   ENCRYPTED_TAG_BYTES,
@@ -13,6 +17,7 @@ import {
   conversationKey,
   canonicalNode,
   ConversationDrafts,
+  channelLabel,
   deliveryLabel,
   type Outgoing,
 } from './conversations.ts';
@@ -377,14 +382,18 @@ export function renderMessages() {
     encryptedRequired = encryption?.isRequired(selectedChannel) ?? false;
   const maxBytes = encryptedRequired ? 1024 - ENCRYPTED_HEADER_BYTES - ENCRYPTED_TAG_BYTES : 1024;
   text('message-bytes', `${bytes} / ${maxBytes} bytes`);
-  const names = (connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
+  const names = deviceChannels({
+    channels: connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
+    channelIds: connection.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
+  });
   if (channel.dataset.names !== JSON.stringify(names)) {
     const selected = channel.value;
     channel.replaceChildren();
-    names.forEach((name, slot) => {
-      if (name) channel.add(new Option(name, String(slot)));
-    });
-    if ([...channel.options].some(o => o.value === selected)) channel.value = selected;
+    for (const { id, name } of names) channel.add(new Option(name, String(id)));
+    // Keep a conversation on a channel this device no longer has, so its history stays readable.
+    if (![...channel.options].some(o => o.value === selected))
+      channel.add(new Option(`Channel ${Number(selected).toString(16)}`, selected));
+    channel.value = selected;
     channel.dataset.names = JSON.stringify(names);
   }
   const key = conversationKey(destination.value, selectedChannel);
@@ -519,7 +528,9 @@ export function renderMessages() {
     const visible = rows.filter(
       row =>
         (conversationFilter === 'all' || row.kind === conversationFilter) &&
-        `${row.name} ${row.destination} ${names[row.channel] ?? ''}`.toLowerCase().includes(filter),
+        `${row.name} ${row.destination} ${channelLabel(names, row.channel)}`
+          .toLowerCase()
+          .includes(filter),
     );
     const hasChannels = visible.some(row => row.kind === 'channel'),
       hasDirect = visible.some(row => row.kind === 'direct');
@@ -551,7 +562,7 @@ export function renderMessages() {
       const preview = document.createElement('span');
       preview.textContent =
         row.kind === 'direct'
-          ? `${names[row.channel] || `Channel ${row.channel}`} · ${row.preview}`
+          ? `${channelLabel(names, row.channel)} · ${row.preview}`
           : row.preview;
       content.append(name, preview);
       const badge = document.createElement('span');

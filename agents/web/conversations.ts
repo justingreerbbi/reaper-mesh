@@ -106,9 +106,14 @@ export function deliveryLabel(m: Outgoing) {
     )[m.state] ?? 'Unknown'
   );
 }
+/** A channel the device uses: its on-air ID (D45) and local name. */
+export type ChannelName = Readonly<{ id: number; name: string }>;
+export function channelLabel(channels: readonly ChannelName[], id: number) {
+  return channels.find(channel => channel.id === id)?.name ?? `Channel ${id.toString(16)}`;
+}
 export function conversations(
   device: string | undefined,
-  channels: string[],
+  channels: readonly ChannelName[],
   peers: readonly { node: string; name: string }[],
   outgoing: readonly Outgoing[],
   incoming: readonly Incoming[],
@@ -120,7 +125,7 @@ export function conversations(
     const kind = destination === 'broadcast' ? 'channel' : 'direct';
     const name =
       kind === 'channel'
-        ? channels[channel] || `Channel ${channel}`
+        ? channelLabel(channels, channel)
         : canonicalNode(destination) === canonicalNode(device ?? '')
           ? 'This device'
           : peers.find(p => canonicalNode(p.node) === canonicalNode(destination))?.name ||
@@ -137,9 +142,7 @@ export function conversations(
         (kind === 'channel' ? 'No channel traffic yet' : 'Start a conversation'),
     });
   };
-  channels.forEach((name, channel) => {
-    if (name) add('broadcast', channel);
-  });
+  for (const channel of channels) add('broadcast', channel.id);
   for (const m of outgoing) if (m.device === device) add(m.destination, m.channel);
   for (const m of incoming)
     if (m.device === device && m.destination && m.destination !== 'broadcast')

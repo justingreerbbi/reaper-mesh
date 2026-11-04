@@ -2,6 +2,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import {
   ENCRYPTED_HEADER_BYTES,
   ENCRYPTED_MAGIC,
+  ENCRYPTED_OFFSETS,
   ENCRYPTED_SUITE_XCHACHA20_POLY1305,
   MAX_MESSAGE_BYTES,
   parseEncryptedHeader,
@@ -70,16 +71,17 @@ function contextBytes(channel: number, sender: string, destination: string) {
 }
 function aad(header: Uint8Array, channel: number, sender: string, destination: string) {
   return concat(
-    header.subarray(0, 18),
-    header.subarray(42, 58),
+    header.subarray(0, ENCRYPTED_OFFSETS.nonce),
+    header.subarray(ENCRYPTED_OFFSETS.messageId, ENCRYPTED_HEADER_BYTES),
     contextBytes(channel, sender, destination),
   );
 }
 function validateChannel(channel: number) {
-  if (!Number.isInteger(channel) || channel < 0 || channel > 7) throw new Error('invalid channel');
+  if (!Number.isInteger(channel) || channel < 0 || channel >= 0xffffffff)
+    throw new Error('invalid channel');
 }
 
-/** Agent-only channel key vault. The device sees only the opaque RME1 envelope. */
+/** Agent-only channel key vault, keyed by channel ID. The device sees only the RME2 envelope. */
 export class EncryptionVault {
   #storage: Pick<Storage, 'getItem' | 'setItem'>;
   #writable: () => boolean;
@@ -115,7 +117,7 @@ export class EncryptionVault {
           parsed.version !== 1 ||
           !Array.isArray(parsed.required) ||
           parsed.required.some(
-            (n: unknown) => !Number.isInteger(n) || Number(n) < 0 || Number(n) > 7,
+            (n: unknown) => !Number.isInteger(n) || Number(n) < 0 || Number(n) >= 0xffffffff,
           )
         )
           throw new Error();
@@ -364,13 +366,14 @@ export class EncryptionVault {
       );
     const header = new Uint8Array(ENCRYPTED_HEADER_BYTES);
     header.set(ENCRYPTED_MAGIC, 0);
-    header[4] = ENCRYPTED_SUITE_XCHACHA20_POLY1305;
-    header[5] = channel;
-    header.set(fromHex(key.keyId), 6);
-    new DataView(header.buffer).setUint32(14, key.epoch, true);
+    const at = ENCRYPTED_OFFSETS;
+    header[at.suite] = ENCRYPTED_SUITE_XCHACHA20_POLY1305;
+    new DataView(header.buffer).setUint32(at.channel, channel, true);
+    header.set(fromHex(key.keyId), at.keyId);
+    new DataView(header.buffer).setUint32(at.epoch, key.epoch, true);
     const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-    header.set(nonce, 18);
-    header.set(sodium.randombytes_buf(16), 42);
+    header.set(nonce, at.nonce);
+    header.set(sodium.randombytes_buf(16), at.messageId);
     const cipher = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
       bytes,
       aad(header, channel, sender, destination),
@@ -489,7 +492,7 @@ export class EncryptionVault {
       !key ||
       !Number.isInteger(key.channel) ||
       key.channel < 0 ||
-      key.channel > 7 ||
+      key.channel >= 0xffffffff ||
       !Number.isInteger(key.epoch) ||
       key.epoch < 1 ||
       key.epoch > 0xffffffff ||

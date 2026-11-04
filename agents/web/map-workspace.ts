@@ -19,7 +19,7 @@ import { MapStore, type SharedPayload } from './map-store.ts';
 import type { FieldMap } from './map.ts';
 import type { ReceivedMessage } from '../../packages/agent-core/inbox.ts';
 type Context = {
-  channels: string[];
+  channels: readonly { id: number; name: string }[];
   ready: boolean;
   device?: string;
   source: string;
@@ -479,9 +479,7 @@ export class MapWorkspace {
     const context = this.host.context(),
       select = $<HTMLSelectElement>('map-share-channel');
     select.replaceChildren();
-    context.channels.forEach((name, slot) => {
-      if (name) select.add(new Option(`${slot} · ${name}`, String(slot)));
-    });
+    for (const { id, name } of context.channels) select.add(new Option(name, String(id)));
     $<HTMLInputElement>('map-share-destination').value = 'broadcast';
     $<HTMLSelectElement>('map-share-operation').value = 'put';
     $('map-share-summary').textContent = item.name;

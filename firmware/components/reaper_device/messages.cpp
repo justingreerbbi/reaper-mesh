@@ -114,9 +114,9 @@ MessageReceipt MessageQueue::submit(const Text<64>& owner, const Text<75>& id,
                                     std::uint64_t now) {
   tick(now);
   std::uint32_t seq = 0;
-  if (!sequence(owner, id, seq) || channel > 7 || !(channels_ & (1u << channel)) ||
-      !destination.length || destination.length > 64 || !count || count > 32 || part >= count ||
-      !bytes || !size || size > 32 || (part + 1 < count && size != 32))
+  if (!sequence(owner, id, seq) || !channels_.contains(channel) || !destination.length ||
+      destination.length > 64 || !count || count > 32 || part >= count || !bytes || !size ||
+      size > 32 || (part + 1 < count && size != 32))
     return reject("invalid-message");
   MessageRecord* record = nullptr;
   for (auto& r : records_)

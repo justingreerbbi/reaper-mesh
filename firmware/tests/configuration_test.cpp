@@ -181,6 +181,7 @@ int main(int argc, char** argv) {
     radio.settings.radio.power = 5;
     radio.settings.radio.relay = true;
     radio.settings.radio.channels = text<71>("Public|Camp|Team|||||");
+    radio.settings.radio.channel_ids = {0, 1, 2};  // slot numbers as IDs need no record 6
     CHECK(authority.apply(radio).outcome == d::Outcome::Committed && store.data[2] == 2);
     CHECK(authority.apply(radio).outcome == d::Outcome::Committed && store.writes == 2);
     d::Configuration restarted(store, text<64>("boot-B"));
@@ -202,9 +203,12 @@ int main(int argc, char** argv) {
     snapshot.settings.label = text<64>(std::string(64, 'x'));
     snapshot.settings.radio.channels =
         text<71>("Public|Channel1|Channel2|Channel3|Channel4|Channel5|Channel6|Channel7");
+    snapshot.settings.radio.channel_ids = {0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0xfffffffe};
     std::array<std::uint8_t, d::kMaxRecord> encoded{};
     std::size_t size = 0;
-    CHECK(d::encode_record(snapshot, encoded.data(), encoded.size(), size) && size == 151);
+    // Random-style IDs force record 6 and every earlier section: the largest possible record.
+    CHECK(d::encode_record(snapshot, encoded.data(), encoded.size(), size) &&
+          size == d::kMaxRecord && encoded[2] == 6);
     for (std::size_t n = 0; n < size; ++n) {
       d::Snapshot out{};
       CHECK(!d::decode_record(encoded.data(), n, out));
@@ -305,6 +309,77 @@ int main(int argc, char** argv) {
     bad.has_discovery = true;
     bad.settings.discovery.interval = 59;
     CHECK(authority.apply(bad).outcome == d::Outcome::Rejected);
+  } else if (scenario == "channels") {
+    // Settings stored before channel IDs: slot k keeps ID k, so upgraded boards still match.
+    auto legacy = command();
+    legacy.has_radio = true;
+    legacy.settings.radio.channels = text<71>("Public|Camp||Team||||");
+    legacy.settings.radio.channel_ids = {0, 1, 0, 3};
+    CHECK(authority.apply(legacy).outcome == d::Outcome::Committed && store.data[2] == 2);
+    d::Configuration upgraded(store, text<64>("boot-B"));
+    CHECK(upgraded.snapshot(snapshot) && snapshot.settings.radio.channel_ids[1] == 1 &&
+          !snapshot.settings.radio.channel_ids[2] && snapshot.settings.radio.channel_ids[3] == 3);
+    // A joined channel keeps its own ID in any free slot; that needs record 6.
+    auto joined = command(2, 1);
+    joined.has_radio = true;
+    joined.settings.radio.channels = text<71>("Public|Camp|Ridge|Team||||");
+    joined.settings.radio.channel_ids = {0, 1, 0x9c41e2a7, 3};
+    CHECK(authority.apply(joined).outcome == d::Outcome::Committed && store.data[2] == 6);
+    d::Configuration rebooted(store, text<64>("boot-C"));
+    CHECK(rebooted.snapshot(snapshot) && snapshot.settings.radio.channel_ids[2] == 0x9c41e2a7);
+    const auto members = d::channel_set(snapshot.settings.radio);
+    CHECK(members.count == 4 && members.contains(0) && members.contains(1) &&
+          members.contains(0x9c41e2a7) && members.contains(3) && !members.contains(2));
+    for (std::size_t n = 0; n < store.size; ++n)
+      CHECK(!d::decode_record(store.data.data(), n, snapshot));
+    // Inconsistent tables are rejected without writing.
+    const auto writes = store.writes;
+    std::uint32_t sequence = 3;
+    const auto rejected = [&](const char* names, std::array<std::uint32_t, 8> ids) {
+      auto bad = command(sequence++, 2);
+      bad.has_radio = true;
+      bad.settings.radio.channels = text<71>(names);
+      bad.settings.radio.channel_ids = ids;
+      return authority.apply(bad).outcome == d::Outcome::Rejected;
+    };
+    CHECK(rejected("Public|Camp|Ridge|Team||||", {0, 1, 1, 3}));  // duplicate ID
+    CHECK(rejected("Public|Camp|Ridge|Team||||", {0, 1, 0, 3}));  // named without ID
+    CHECK(rejected("Public|Camp||Team||||", {0, 1, 5, 3}));       // empty slot with ID
+    CHECK(rejected("Public|Camp||||||", {7, 1}));                 // Public is always 0
+    CHECK(rejected("Public|Camp||||||", {0, 0xffffffff}));        // reserved
+    CHECK(store.writes == writes);
+    // Over USB the IDs travel as one field and are required with the other radio fields.
+    p::Message message{};
+    message.type = p::MessageType::Configure;
+    const auto put = [&](std::size_t index, const std::string& value) {
+      message.fields[index].present = true;
+      message.fields[index].length = value.size();
+      std::memcpy(message.fields[index].text.data(), value.data(), value.size());
+    };
+    put(p::kConfigureLink, "link-A");
+    put(p::kConfigureBoot, "boot-A");
+    put(p::kConfigureId, "agent-A:9");
+    put(p::kConfigureRegion, "US");
+    put(p::kConfigureLabel, "ids");
+    message.fields[p::kConfigureExpectedRevision].present = true;
+    put(p::kConfigureRadioMode, "off");
+    message.fields[p::kConfigureTxPower].present = true;
+    message.fields[p::kConfigureRelay].present = true;
+    put(p::kConfigureChannels, "Public|Ridge||||||");
+    put(p::kConfigurePreset, "US915_LAB1");
+    d::Command parsed{};
+    CHECK(!d::decode_command(message, parsed));
+    const std::string ids =
+        "00000000|9c41e2a7|00000000|00000000|00000000|00000000|00000000|00000000";
+    put(p::kConfigureChannelIds, ids);
+    CHECK(d::decode_command(message, parsed) && parsed.settings.radio.channel_ids[1] == 0x9c41e2a7);
+    p::FieldValue formatted{};
+    d::format_channel_ids(formatted, parsed.settings.radio);
+    CHECK(std::string(reinterpret_cast<const char*>(formatted.text.data()), formatted.length) ==
+          ids);
+    put(p::kConfigureChannelIds,
+        "00000000|9C41E2A7|00000000|00000000|00000000|00000000|00000000|00000000");
+    CHECK(!d::decode_command(message, parsed));
   } else if (scenario == "screen") {
     // Default screen settings keep the earlier record format.
     CHECK(authority.apply(command()).outcome == d::Outcome::Committed && store.data[2] == 1);

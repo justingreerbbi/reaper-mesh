@@ -129,7 +129,7 @@ export class Messaging {
         device = recovery.id(item.device);
       const status = recovery.string(item.state);
       validateField('messageState', status);
-      if (channel > 7 || identity.sequence > counter || entries.has(identity.id))
+      if (channel === 0xffffffff || identity.sequence > counter || entries.has(identity.id))
         throw new Error('invalid recovery message sequence/channel');
       const messageId = item.messageId !== undefined ? recovery.id(item.messageId) : undefined;
       const reason = item.reason !== undefined ? recovery.id(item.reason) : undefined;
@@ -188,6 +188,8 @@ export class Messaging {
   ): Upload {
     this.#time(now);
     const context = this.sync.mutationContext();
+    if (!Number.isInteger(channel) || channel < 0 || channel >= 0xffffffff)
+      throw new Error('invalid channel');
     const payload = payloadHex === undefined ? undefined : fromHex(payloadHex);
     const chunks = payload ? payloadChunksUnchecked(payload) : messageChunks(text);
     if (this.sendBlockReason) throw new Error(this.sendBlockReason);

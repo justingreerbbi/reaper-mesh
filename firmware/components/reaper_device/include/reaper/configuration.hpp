@@ -1,5 +1,6 @@
 #pragma once
 #include "reaper/protocol.hpp"
+#include "reaper/radio_packet.hpp"
 
 namespace reaper::device {
 template <std::size_t N>
@@ -24,11 +25,26 @@ struct RadioSettings {
   bool relay = false;
   std::uint8_t profile = 1;
   Text<71> channels{};
+  // On-air channel ID per slot (D45): Public is 0, a named slot has a unique ID, an empty slot 0.
+  std::array<std::uint32_t, 8> channel_ids{};
   RadioSettings() {
     const std::uint8_t names[] = "Public|||||||";
     channels.assign(names, sizeof(names) - 1);
   }
 };
+// Slot k of settings stored before channel IDs keeps talking on ID k, so upgraded boards still
+// share their existing channels.
+std::array<std::uint32_t, 8> legacy_channel_ids(const Text<71>& names);
+bool valid_channel_ids(const RadioSettings&);
+inline mesh::ChannelSet channel_set(const RadioSettings& radio) {
+  mesh::ChannelSet set{};
+  for (std::size_t slot = 1; slot < radio.channel_ids.size(); ++slot)
+    if (radio.channel_ids[slot])
+      set.add(radio.channel_ids[slot]);
+  return set;
+}
+// Writes the slot IDs as the protocol's channelIds text: eight 8-digit hex IDs joined by '|'.
+void format_channel_ids(protocol::FieldValue&, const RadioSettings&);
 struct DiscoverySettings {
   bool beacon = false, respond = false;
   std::uint32_t interval = 300;
@@ -83,7 +99,7 @@ struct Result {
 };
 enum class ReadStatus { Missing, Loaded, Failed };
 enum class CommitStatus { Committed, NotCommitted, Indeterminate };
-inline constexpr std::size_t kMaxRecord = 171;
+inline constexpr std::size_t kMaxRecord = 203;
 
 // Implementations must retain the prior complete record or the next complete record.
 // Committed means durably accepted; NotCommitted guarantees no change. Any ambiguous

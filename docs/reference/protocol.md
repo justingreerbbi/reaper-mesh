@@ -213,3 +213,17 @@ readable and its screen settings are left alone. They are board-local: no radio 
 changes. The 28 earlier fixtures are unchanged; three fixtures (welcome, configure, snapshot)
 are appended. Storage is record 5 ([persistence](persistence.md#screen-settings-record-5)). Screen
 behavior is in [device screen and buttons](device-display.md#screen-settings).
+
+## Channel IDs v1 (D45)
+
+Welcome appends `channelIdVersion` 1 (tag 27) with feature bit 10 (1024). Configure, snapshot and
+event append `channelIds`, a new field kind: eight 8-digit lowercase hex IDs joined by `|` (71
+bytes). It belongs to the radio group, so a radio configure carries it with the other radio
+fields. Message `channel` fields (submit, inbox items) now carry the channel ID rather than a slot
+number; the radio header's existing 4-byte channel field carries it on air, so the packet layout
+is unchanged. Encrypted payloads use the RME2 envelope ([Channel encryption](../guides/encryption.md#rme2-envelope)).
+This is a breaking change approved by the owner before core v1 (D42): earlier firmware drops
+packets whose channel ID is above 7 and rejects RME2, so both boards are updated together. The
+31 earlier fixtures are unchanged; three (welcome, configure, snapshot) are appended. Rules,
+reserved IDs and invites are in [radio configuration](radio-configuration.md#channel-ids);
+storage is [record 6](persistence.md#channel-ids-record-6).

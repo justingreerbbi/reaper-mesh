@@ -28,6 +28,7 @@ execFileSync(
     '-Ifirmware/app',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_device/include',
+    '-Ifirmware/components/reaper_mesh/include',
     'firmware/app/nvs_storage.cpp',
     'firmware/tests/nvs_storage_test.cpp',
     '-o',

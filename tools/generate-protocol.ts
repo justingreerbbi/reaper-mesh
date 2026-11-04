@@ -15,6 +15,7 @@ const kinds = [
   'radioMode',
   'channels',
   'version',
+  'channelIds',
 ];
 const tags = new Set<number>();
 for (const [name, message] of Object.entries(schema)) {

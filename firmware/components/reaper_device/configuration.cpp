@@ -11,7 +11,47 @@ bool equal(const Text<N>& a, const Text<N>& b) {
 }
 bool equal(const RadioSettings& a, const RadioSettings& b) {
   return a.mode == b.mode && a.power == b.power && a.relay == b.relay && a.profile == b.profile &&
-         equal(a.channels, b.channels);
+         equal(a.channels, b.channels) && a.channel_ids == b.channel_ids;
+}
+// Which of the eight slots have a name; false for every slot if the text is malformed.
+std::array<bool, 8> named_slots(const Text<71>& names) {
+  std::array<bool, 8> named{};
+  std::size_t slot = 0;
+  for (std::size_t i = 0; i < names.length && i < names.bytes.size(); ++i) {
+    if (names.bytes[i] == '|') {
+      if (++slot >= named.size())
+        return {};
+    } else
+      named[slot] = true;
+  }
+  return slot == named.size() - 1 ? named : std::array<bool, 8>{};
+}
+constexpr char kHex[] = "0123456789abcdef";
+void format_ids(protocol::FieldValue& field, const std::array<std::uint32_t, 8>& ids) {
+  field.present = true;
+  field.length = 71;
+  for (std::size_t slot = 0; slot < ids.size(); ++slot) {
+    for (unsigned digit = 0; digit < 8; ++digit)
+      field.text[slot * 9 + digit] = kHex[(ids[slot] >> (28 - 4 * digit)) & 15];
+    if (slot + 1 < ids.size())
+      field.text[slot * 9 + 8] = '|';
+  }
+}
+bool parse_ids(const protocol::FieldValue& field, std::array<std::uint32_t, 8>& ids) {
+  if (!field.present || field.length != 71)
+    return false;
+  for (std::size_t slot = 0; slot < ids.size(); ++slot) {
+    std::uint32_t id = 0;
+    for (unsigned digit = 0; digit < 8; ++digit) {
+      const auto c = field.text[slot * 9 + digit];
+      const int value = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
+      if (value < 0)
+        return false;
+      id = (id << 4) | static_cast<std::uint32_t>(value);
+    }
+    ids[slot] = id;
+  }
+  return true;
 }
 bool equal(const Settings& a, const Settings& b) {
   return same_screen(a.screen, b.screen) && same_position(a.position, b.position) &&
@@ -46,9 +86,38 @@ void literal(protocol::FieldValue& field, const char* value) {
   field.length = std::strlen(value);
   std::memcpy(field.text.data(), value, field.length);
 }
+}  // namespace
+
+std::array<std::uint32_t, 8> legacy_channel_ids(const Text<71>& names) {
+  std::array<std::uint32_t, 8> ids{};
+  const auto named = named_slots(names);
+  for (std::uint32_t slot = 1; slot < ids.size(); ++slot)
+    ids[slot] = named[slot] ? slot : 0;
+  return ids;
+}
+bool valid_channel_ids(const RadioSettings& radio) {
+  const auto named = named_slots(radio.channels);
+  if (!named[0] || radio.channel_ids[0] != 0)
+    return false;
+  for (std::size_t slot = 1; slot < named.size(); ++slot) {
+    const auto id = radio.channel_ids[slot];
+    if (named[slot] != (id != 0) || id == mesh::ChannelSet::kNoChannel)
+      return false;
+    for (std::size_t other = 1; other < slot; ++other)
+      if (id && radio.channel_ids[other] == id)
+        return false;
+  }
+  return true;
+}
+void format_channel_ids(protocol::FieldValue& field, const RadioSettings& radio) {
+  format_ids(field, radio.channel_ids);
+}
+
+namespace {
 bool valid(const Command& command) {
   if (command.settings.label.length > 64 || command.id.length > 75 || !identity(command.boot) ||
-      static_cast<unsigned>(command.settings.region) > 2)
+      static_cast<unsigned>(command.settings.region) > 2 ||
+      !valid_channel_ids(command.settings.radio))
     return false;
   if (static_cast<unsigned>(command.settings.radio.mode) > 2 || command.settings.radio.power > 10 ||
       command.settings.radio.profile != 1 ||
@@ -78,6 +147,7 @@ bool valid(const Command& command) {
     number(message.fields[protocol::kConfigureTxPower], command.settings.radio.power);
     number(message.fields[protocol::kConfigureRelay], command.settings.radio.relay ? 1 : 0);
     text(message.fields[protocol::kConfigureChannels], command.settings.radio.channels);
+    format_ids(message.fields[protocol::kConfigureChannelIds], command.settings.radio.channel_ids);
     literal(message.fields[protocol::kConfigurePreset], "US915_LAB1");
   }
   std::array<std::uint8_t, protocol::kMaxPayload> scratch{};
@@ -129,20 +199,23 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   if (!output || !settings_valid(snapshot.settings))
     return false;
   const auto& discovery = snapshot.settings.discovery;
-  const bool screen = !same_screen(snapshot.settings.screen, ScreenSettings{});
+  // Record 6 appends the slot channel IDs; IDs that match the slot numbers need no record 6.
+  const bool ids =
+      snapshot.settings.radio.channel_ids != legacy_channel_ids(snapshot.settings.radio.channels);
+  const bool screen = ids || !same_screen(snapshot.settings.screen, ScreenSettings{});
   const bool position = screen || !same_position(snapshot.settings.position, PositionSettings{});
   const bool presence =
       position || discovery.beacon || discovery.respond || discovery.interval != 300;
   const bool extended = presence || !equal(snapshot.settings.radio, RadioSettings{});
   const auto length = 13 + snapshot.settings.label.length +
                       (extended ? 5 + snapshot.settings.radio.channels.length : 0) +
-                      (presence ? 5 : 0) + (position ? 10 : 0) + (screen ? 5 : 0);
-  const std::size_t tail = screen ? 5 : 0;
+                      (presence ? 5 : 0) + (position ? 10 : 0) + (screen ? 5 : 0) + (ids ? 32 : 0);
+  const std::size_t id_bytes = ids ? 32 : 0, tail = (screen ? 5 : 0) + id_bytes;
   if (capacity < length)
     return false;
   output[0] = 'R';
   output[1] = 'C';
-  output[2] = screen ? 5 : position ? 4 : presence ? 3 : extended ? 2 : 1;
+  output[2] = ids ? 6 : screen ? 5 : position ? 4 : presence ? 3 : extended ? 2 : 1;
   write32(output + 3, snapshot.revision);
   output[7] = static_cast<std::uint8_t>(snapshot.settings.region);
   output[8] = static_cast<std::uint8_t>(snapshot.settings.label.length);
@@ -171,10 +244,13 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
     write32(extra + 6, p.longitude);
   }
   if (screen) {
-    auto* extra = output + length - 9;
+    auto* extra = output + length - 9 - id_bytes;
     write32(extra, snapshot.settings.screen.timeout);
     extra[4] = snapshot.settings.screen.wake;
   }
+  if (ids)
+    for (std::size_t slot = 0; slot < 8; ++slot)
+      write32(output + length - 36 + 4 * slot, snapshot.settings.radio.channel_ids[slot]);
   write32(output + length - 4, protocol::crc32(output, length - 4));
   size = length;
   return true;
@@ -182,12 +258,12 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
 
 bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output) {
   if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' ||
-      (data[2] < 1 || data[2] > 5) || data[7] > 2 || data[8] > 64 ||
+      (data[2] < 1 || data[2] > 6) || data[7] > 2 || data[8] > 64 ||
       (data[2] == 1 && size != std::size_t(data[8]) + 13) ||
       read32(data + size - 4) != protocol::crc32(data, size - 4))
     return false;
   Snapshot next{};
-  const std::size_t tail = data[2] == 5 ? 5 : 0;
+  const std::size_t id_bytes = data[2] == 6 ? 32 : 0, tail = (data[2] >= 5 ? 5 : 0) + id_bytes;
   next.revision = read32(data + 3);
   next.settings.region = static_cast<Region>(data[7]);
   next.settings.label.assign(data + 9, data[8]);
@@ -218,12 +294,17 @@ bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output)
       return false;
     next.settings.position = {bool(extra[0]), extra[1], read32(extra + 2), read32(extra + 6)};
   }
-  if (tail) {
-    const auto* extra = data + size - 9;
+  if (data[2] >= 5) {
+    const auto* extra = data + size - 9 - id_bytes;
     if (extra[4] > 1)
       return false;
     next.settings.screen = {read32(extra), extra[4] != 0};
   }
+  if (id_bytes)
+    for (std::size_t slot = 0; slot < 8; ++slot)
+      next.settings.radio.channel_ids[slot] = read32(data + size - 36 + 4 * slot);
+  else
+    next.settings.radio.channel_ids = legacy_channel_ids(next.settings.radio.channels);
   if (!settings_valid(next.settings))
     return false;
   output = next;
@@ -254,7 +335,7 @@ bool decode_command(const protocol::Message& message, Command& output) {
   bool any = false, all = true;
   for (auto index :
        {protocol::kConfigureRadioMode, protocol::kConfigureTxPower, protocol::kConfigureRelay,
-        protocol::kConfigureChannels, protocol::kConfigurePreset}) {
+        protocol::kConfigureChannels, protocol::kConfigureChannelIds, protocol::kConfigurePreset}) {
     any = any || message.fields[index].present;
     all = all && message.fields[index].present;
   }
@@ -274,6 +355,8 @@ bool decode_command(const protocol::Message& message, Command& output) {
     const auto& names = message.fields[protocol::kConfigureChannels];
     const auto& preset = message.fields[protocol::kConfigurePreset];
     if (!next.settings.radio.channels.assign(names.text.data(), names.length) ||
+        !parse_ids(message.fields[protocol::kConfigureChannelIds],
+                   next.settings.radio.channel_ids) ||
         preset.length != 10 || std::memcmp(preset.text.data(), "US915_LAB1", 10))
       return false;
   }

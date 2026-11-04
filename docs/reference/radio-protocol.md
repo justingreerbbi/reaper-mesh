@@ -11,7 +11,7 @@ SX1262 payload cap is below its 255-byte maximum: 54-byte framing plus at most 1
 | 0 | 2 | Magic 52 4d |
 | 2 | 1 | Radio protocol 1 |
 | 3 | 1 | Kind 1 data / 2 destination ACK |
-| 4 | 4 | Logical channel ID (0–7 for this draft) |
+| 4 | 4 | Channel ID; any value except `ffffffff`. Public and discovery traffic use 0 ([channel IDs](radio-configuration.md#channel-ids)) |
 | 8 | 8 | Original sender node ID; nonzero, not broadcast |
 | 16 | 8 | Original destination ID, or all-ones broadcast |
 | 24 | 16 | Original sender boot nonce |

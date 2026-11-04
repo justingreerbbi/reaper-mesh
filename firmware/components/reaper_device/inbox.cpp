@@ -22,7 +22,7 @@ bool equal(const Text<64>& a, const Text<64>& b) {
 }  // namespace
 bool Inbox::append(const Text<64>& origin, const Text<64>& id, const Text<64>& destination,
                    std::uint32_t channel, const std::uint8_t* bytes, std::size_t size) {
-  if (!identity(origin) || !identity(id) || !identity(destination) || channel > 7 ||
+  if (!identity(origin) || !identity(id) || !identity(destination) ||
       !mesh::valid_message_payload(bytes, size, channel))
     return false;
   for (const auto& item : items_)

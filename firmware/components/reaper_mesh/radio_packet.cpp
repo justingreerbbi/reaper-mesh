@@ -22,19 +22,22 @@ PositionReport position_report(const Packet& p) {
           static_cast<std::uint32_t>(read(extra + 5, 4)),
           static_cast<std::uint32_t>(read(extra + 9, 4))};
 }
+// RME2 envelope: magic, version 2, suite 1, channel ID (LE32), key ID (8), epoch (LE32), nonce
+// (24), message ID (16), then ciphertext and a 16-byte tag. Devices check framing only.
 bool encrypted_payload(const std::uint8_t* bytes, std::size_t size, std::uint32_t channel) {
-  if (!bytes || size < 74 || size > kMaxMessageBytes || bytes[0] != 'R' || bytes[1] != 'M' ||
-      bytes[2] != 'E' || bytes[3] != 1 || bytes[4] != 1 || bytes[5] != channel || channel > 7)
+  if (!bytes || size < 77 || size > kMaxMessageBytes || bytes[0] != 'R' || bytes[1] != 'M' ||
+      bytes[2] != 'E' || bytes[3] != 2 || bytes[4] != 1 || read(bytes + 5, 4) != channel)
     return false;
   bool key_id = false;
-  for (std::size_t i = 6; i < 14; ++i)
+  for (std::size_t i = 9; i < 17; ++i)
     key_id = key_id || bytes[i];
-  return key_id && read(bytes + 14, 4) != 0;
+  return key_id && read(bytes + 17, 4) != 0;
 }
 bool valid_message_payload(const std::uint8_t* bytes, std::size_t size, std::uint32_t channel) {
   if (!bytes || !size || size > kMaxMessageBytes)
     return false;
-  if (size >= 4 && bytes[0] == 'R' && bytes[1] == 'M' && bytes[2] == 'E' && bytes[3] == 1)
+  // Any envelope version is routed here, so an RME1 envelope is rejected, not taken as text.
+  if (size >= 4 && bytes[0] == 'R' && bytes[1] == 'M' && bytes[2] == 'E' && bytes[3] < 32)
     return encrypted_payload(bytes, size, channel);
   return protocol::valid_message_text(bytes, size);
 }
@@ -43,7 +46,7 @@ bool valid_packet(const Packet& p) {
   for (auto byte : p.key.boot)
     nonce = nonce || byte != 0;
   if (!p.key.origin || p.key.origin == kBroadcast || !p.destination || !p.key.sequence || !nonce ||
-      p.hops > 7 || p.channel > 7)
+      p.hops > 7 || p.channel == ChannelSet::kNoChannel)
     return false;
   if (p.kind == PacketKind::Ack)
     return p.destination != kBroadcast && !p.count && !p.index && !p.total && !p.size;
