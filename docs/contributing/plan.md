@@ -50,8 +50,9 @@ TLV; see [Decisions](decisions.md) for the open question of TLV versus Protocol 
 public release.
 
 Desktop USB uses Web Serial in a supported Chromium browser, with explicit port selection and a
-secure context (HTTPS or localhost). Do not promise all browsers or mobile USB. Keep the
-transport interface suitable for BLE later without implementing BLE now.
+secure context (HTTPS or localhost). Do not promise all browsers or mobile USB. The
+same framed protocol also runs over a [Bluetooth link](../reference/bluetooth.md) for mobile agents
+(D47).
 
 ## Regional profiles: US first, EU later
 

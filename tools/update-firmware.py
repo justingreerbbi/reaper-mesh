@@ -25,6 +25,7 @@ PARTITIONS = [
     (1, 2, 0x9000, 0x5000, b"reaper_nvs"),
     (1, 1, 0xF000, 0x1000, b"phy_init"),
     (0, 0, 0x10000, 0x200000, b"factory"),
+    (1, 2, 0x210000, 0x8000, b"nvs"),
 ]
 
 

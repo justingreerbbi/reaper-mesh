@@ -51,6 +51,7 @@ Read-only USB inspection on November 1, 2026 found:
 | Secure boot / flash encryption | Both disabled |
 | Display | 0.96″ 128×64 SSD1306 OLED |
 | NVS partition | offset `0x9000`, size `0x5000` |
+| Bluetooth key partition | offset `0x210000`, size `0x8000` |
 | RF band | **Owner-reported US/915 MHz**, not electronically verified |
 
 > [!IMPORTANT]

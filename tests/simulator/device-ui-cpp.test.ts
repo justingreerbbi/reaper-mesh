@@ -38,6 +38,7 @@ for (const [scenario, description] of Object.entries({
   unread: 'counts messages that arrived since the screen last turned off',
   settings: 'applies the stored timeout and wakes on a new message when enabled',
   render: 'draws every page within the frame, deterministically, for odd input',
+  ble: 'draws the pairing page over any page and wakes the screen for it',
   battery: 'draws the battery and plugged-in indicator top right and keeps the name clear',
 })) {
   test(`device screen ${description}`, () => {

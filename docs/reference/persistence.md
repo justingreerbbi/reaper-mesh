@@ -36,7 +36,7 @@ Next implement the ESP-IDF app and NVS backend, with UART-only communications an
 
 ## ESP-IDF backend
 
-The app initializes only reaper_nvs, opens namespace reaper, and commits a single configuration blob. Missing keys yield initial state; initialization, size, read, and record failures fail closed. Set/commit errors are indeterminate. There is no erase/reformat fallback. Fake NVS API tests cover missing, read, set, commit, and initialization failures; they do not qualify real flash crash safety. See ../guides/first-flash.md for the preserved NVS range and hardware gate.
+The device settings path initializes only reaper_nvs, opens namespace reaper, and commits a single configuration blob. Missing keys yield initial state; initialization, size, read, and record failures fail closed. Set/commit errors are indeterminate. There is no erase/reformat fallback. The separate `nvs` partition holds only [Bluetooth](bluetooth.md) keys, address and calibration, and may be reset. Fake NVS API tests cover missing, read, set, commit, and initialization failures; they do not qualify real flash crash safety. See ../guides/first-flash.md for the preserved NVS range and hardware gate.
 
 ## Radio settings record extension
 

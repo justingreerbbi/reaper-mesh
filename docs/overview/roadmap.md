@@ -6,6 +6,8 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 
 **Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
 
+**Bluetooth (owner direction, November 4):** firmware support for a mobile agent is being built ahead of qualification (D47). It adds a link, not a radio change, so it does not affect the tests below. The mobile app itself is a separate project and does not start until the owner says so.
+
 Order of work:
 
 1. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
@@ -68,7 +70,7 @@ Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry,
 
 Phase 3 uses the implemented agent-side group-key profile described in [Channel encryption](../guides/encryption.md). Acceptance includes tamper/replay rejection, wrong keys, rotation, unsupported peers, explicit no-downgrade behavior, RACE recovery, both target builds and two-board checks. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
 
-EU transmit support, BLE/mobile/native agents, additional boards, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
+EU transmit support, mobile/native agents, additional boards, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
 
 ## Phase 3 delivery order
 

@@ -10,6 +10,29 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: Bluetooth link (`v0.5.0`, in development)
+
+At the owner's request (D47), the firmware gains a [Bluetooth link](../reference/bluetooth.md) for a
+future mobile agent. A 5-second button hold opens pairing, a passkey shows on the device screen, and
+only bonded, authenticated phones can reach the protocol. The radio protocol, USB schema and stored
+settings are unchanged. Both partition tables add an `nvs` partition after the application for
+Bluetooth keys, and the updater now expects it. The first T-Beam build hung at startup: Bluetooth
+reserves about 56 KB of early memory, which left no block big enough for the 24 KB main stack. The
+firmware now runs in its own task. Images are about 530 KB of the 2 MB partition.
+
+During that diagnosis a temporary logging image was written with its bootloader at offset 0 instead
+of `0x1000` on the T-Beam, so it did not boot until rewritten at the correct offset. Settings at
+`0x9000` were not touched, and the board read back label `T-Beam` in mesh mode afterward.
+
+Evidence: `npm run check` (290 tests) and the firmware CTest suite (83 tests) pass, covering link
+routing, the pairing window, trust rules, passkey range, button holds and the pairing screen. The
+T-Beam runs `v0.5.0` from an uncommitted build with USB working, 121 KB of heap free with the
+Bluetooth stack not started and about 9 KB of the 24 KB stack used.
+
+Not checked: no Bluetooth traffic has run on any board, because this session's host process has no
+Bluetooth permission on the Mac. Host tests do not qualify pairing or radio coexistence. The Heltec
+has the build but not the flash.
+
 ## November 4: transmit power levels (`v0.4.0`)
 
 At the owner's request (D46), transmit power is low, medium or high instead of a dBm number, with

@@ -30,7 +30,7 @@ The proposed image writes only:
 | 0x8000 | `build/heltec-v3/partition_table/partition-table.bin` |
 | 0x10000 | `build/heltec-v3/reaper_mesh_usb.bin` |
 
-The prototype is a single factory application with a 2 MB partition. It has no application rollback/OTA updater. The new NVS partition uses offset 0x9000 and size 0x5000, matching this unit's original NVS extent observed in the partial read. The runtime uses its own `reaper` namespace. No NVS image, whole-chip erase, or data-partition erase is part of this first-flash command. Existing incompatible/full NVS must fail closed; any destructive storage recovery would require a separate explicit decision.
+The prototype is a single factory application with a 2 MB partition. It has no application rollback/OTA updater. A separate `nvs` partition at 0x210000 holds [Bluetooth](../reference/bluetooth.md) keys. The new NVS partition uses offset 0x9000 and size 0x5000, matching this unit's original NVS extent observed in the partial read. The runtime uses its own `reaper` namespace. No NVS image, whole-chip erase, or data-partition erase is part of this first-flash command. Existing incompatible/full NVS must fail closed; any destructive storage recovery would require a separate explicit decision.
 
 ## Preservation and recovery decision
 

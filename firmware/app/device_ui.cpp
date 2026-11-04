@@ -286,6 +286,46 @@ void debug_page(Frame& f, const Status& s) {
                 static_cast<unsigned long>(up % 60));
   text(f, 0, 56, buffer);
 }
+void ble_page(Frame& f, const BleStatus& s) {
+  text(f, 0, 0, "BLUETOOTH");
+  line(f, 9);
+  char buffer[24];
+  switch (s.notice) {
+    case BleNotice::Open:
+      centered(f, 16, "Pairing open");
+      centered(f, 30, s.name);
+      std::snprintf(buffer, sizeof(buffer), "Closes in %lus",
+                    static_cast<unsigned long>(s.seconds));
+      centered(f, 48, buffer);
+      break;
+    case BleNotice::Passkey:
+      centered(f, 14, "Enter on phone");
+      std::snprintf(buffer, sizeof(buffer), "%03lu %03lu",
+                    static_cast<unsigned long>(s.passkey / 1000 % 1000),
+                    static_cast<unsigned long>(s.passkey % 1000));
+      centered(f, 30, buffer, 2);
+      centered(f, 54, s.name);
+      break;
+    case BleNotice::Full:
+      centered(f, 22, "Pairing list full");
+      centered(f, 38, "Hold 15 s to forget");
+      break;
+    case BleNotice::Paired:
+      centered(f, 30, "Paired");
+      break;
+    case BleNotice::Failed:
+      centered(f, 22, "Pairing failed");
+      centered(f, 38, "Hold 5 s to retry");
+      break;
+    case BleNotice::Forgotten:
+      centered(f, 22, "All paired devices");
+      centered(f, 38, "forgotten");
+      break;
+    default:
+      centered(f, 30, "Not available");
+      break;
+  }
+}
 }  // namespace
 
 Press ButtonGestures::sample(bool pressed, std::uint64_t now) {
@@ -297,7 +337,7 @@ Press ButtonGestures::sample(bool pressed, std::uint64_t now) {
     stable_ = raw_;
     if (stable_) {
       down_at_ = now;
-      long_sent_ = false;
+      long_sent_ = pair_sent_ = forget_sent_ = false;
     } else if (!long_sent_) {
       released_at_ = now;
       if (++clicks_ == 2) {
@@ -310,6 +350,14 @@ Press ButtonGestures::sample(bool pressed, std::uint64_t now) {
     long_sent_ = true;
     clicks_ = 0;
     return Press::Long;
+  }
+  if (stable_ && !pair_sent_ && now - down_at_ >= kPairHoldMs) {
+    pair_sent_ = true;
+    return Press::PairHold;
+  }
+  if (stable_ && !forget_sent_ && now - down_at_ >= kForgetHoldMs) {
+    forget_sent_ = true;
+    return Press::ForgetHold;
   }
   if (!stable_ && clicks_ == 1 && now - released_at_ >= kDoubleMs) {
     clicks_ = 0;
@@ -351,6 +399,11 @@ void Screen::input(Input in, std::uint64_t now) {
   else
     page_ = Page::Main;
 }
+void Screen::attention(std::uint64_t now) {
+  stage_ = Stage::Running;
+  on_ = true;
+  active_ = now;
+}
 void Screen::tick(std::uint64_t now) {
   if (stage_ == Stage::Icon && now - started_ >= kIconMs)
     stage_ = Stage::Title;
@@ -387,6 +440,10 @@ void render(const Screen& screen, const Status& status, Frame& frame) {
     centered(frame, 10, "REAPER", 2);
     centered(frame, 30, "MESH", 2);
     centered(frame, 54, status.version);
+    return;
+  }
+  if (status.ble.notice != BleNotice::None) {
+    ble_page(frame, status.ble);
     return;
   }
   Status shown = status;
