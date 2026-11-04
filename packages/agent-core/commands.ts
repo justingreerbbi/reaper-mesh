@@ -6,10 +6,12 @@ import {
 } from '../protocol/discovery-config.ts';
 import { encodeMessage, validateField } from '../protocol/messages.ts';
 import {
+  DEFAULT_TX_LEVEL,
   legacyChannelIds,
   radioFields,
   validRadio,
   type RadioConfig,
+  type TxLevel,
 } from '../protocol/radio-config.ts';
 import { screenFields, validScreen, type ScreenConfig } from '../protocol/screen-config.ts';
 import * as recovery from './recovery-data.ts';
@@ -96,7 +98,9 @@ export class Commands {
         if (typeof r.relay !== 'boolean') throw new Error('invalid recovery relay');
         radio = {
           mode: recovery.string(r.mode) as RadioConfig['mode'],
-          power: recovery.u32(r.power),
+          // Commands saved before power levels held a dBm value instead.
+          level: r.level === undefined ? DEFAULT_TX_LEVEL : (recovery.string(r.level) as TxLevel),
+          boost: r.boost === true,
           relay: r.relay,
           channels: recovery.string(r.channels),
           // Commands saved before channel IDs used slot numbers as IDs (D45).

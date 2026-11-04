@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Synchronizer } from '../../packages/agent-core/sync.ts';
+import { Commands } from '../../packages/agent-core/commands.ts';
 import { Connection } from '../../packages/agent-core/connection.ts';
 import { FrameDecoder, encodeFrame } from '../../packages/protocol/framing.ts';
 import { encodeMessage, decodeMessage, type Message } from '../../packages/protocol/messages.ts';
@@ -16,7 +17,7 @@ import {
   type RadioConfig,
 } from '../../packages/protocol/radio-config.ts';
 import { deviceCapabilities } from './capabilities.ts';
-function ready(supported = true, channelIds = true) {
+function ready(supported = true, channelIds = true, boost = 0) {
   const connection = new Connection('agent-A');
   const generation = connection.open('link-A', 0);
   connection.drain();
@@ -31,7 +32,7 @@ function ready(supported = true, channelIds = true) {
     maxVersion: 1,
     ...deviceCapabilities,
     ...(supported ? { features: 31, radioSchema: 1, maxChannels: 8 } : {}),
-    ...(supported && channelIds ? { features: 31 | 1024, channelIdVersion: 1 } : {}),
+    ...(supported && channelIds ? { features: 31 | 1024 | 2048 | boost, channelIdVersion: 1 } : {}),
   });
   connection.drain();
   receive({
@@ -44,7 +45,8 @@ function ready(supported = true, channelIds = true) {
     region: 'US',
     label: 'node',
     radioMode: 'off',
-    txPower: 0,
+    txLevel: 1,
+    txBoost: 0,
     relay: 0,
     channels: channelIds ? DEFAULT_CHANNELS : 'Public|Camp||||||',
     ...(channelIds ? { channelIds: DEFAULT_CHANNEL_IDS } : {}),
@@ -61,7 +63,8 @@ function ready(supported = true, channelIds = true) {
 }
 const radio: RadioConfig = {
   mode: 'receive',
-  power: 5,
+  level: 'high',
+  boost: false,
   relay: true,
   channels: 'Public|Camp||||||',
   channelIds: '00000000|9c41e2a7|00000000|00000000|00000000|00000000|00000000|00000000',
@@ -85,11 +88,12 @@ test('radio settings preserve nested immutable snapshots and retry bodies', () =
   assert.ok(Object.isFrozen(connection.sync.config?.radio));
   const draft = { ...radio };
   const id = connection.configure({ region: 'US', label: 'node', radio: draft }, 0);
-  draft.power = 10;
+  draft.level = 'low';
   const packet = drain()[0];
   assert.equal(packet.type, 'configure');
   if (packet.type === 'configure') {
-    assert.equal(packet.txPower, 5);
+    assert.equal(packet.txLevel, 2);
+    assert.equal(packet.txBoost, 0);
     assert.equal(packet.channels, 'Public|Camp||||||');
     assert.equal(packet.channelIds, radio.channelIds);
   }
@@ -97,11 +101,84 @@ test('radio settings preserve nested immutable snapshots and retry bodies', () =
   assert.deepEqual(drain(), [packet]);
   assert.equal(id, 'agent-A:1');
 });
+test('power is low, medium or high, and boost needs a board that has it', () => {
+  const plain = ready().connection;
+  assert.equal(plain.supportsTxLevels, true);
+  assert.equal(plain.supportsTxBoost, false);
+  assert.equal(plain.sync.config?.radio?.level, 'medium');
+  assert.equal(plain.sync.config?.radio?.boost, false);
+  assert.throws(
+    () => plain.configure({ region: 'US', label: 'node', radio: { ...radio, boost: true } }, 0),
+    /no transmit boost/,
+  );
+  const { connection, drain } = ready(true, true, 4096);
+  assert.equal(connection.supportsTxBoost, true);
+  connection.configure({ region: 'US', label: 'node', radio: { ...radio, boost: true } }, 0);
+  const packet = drain()[0];
+  assert.ok(packet.type === 'configure' && packet.txLevel === 2 && packet.txBoost === 1);
+});
+
+test('commands saved with a dBm power are restored as medium without boost', () => {
+  const { connection } = ready();
+  connection.configure({ region: 'US', label: 'node', radio }, 0);
+  const state = JSON.parse(JSON.stringify(connection.commands.exportState()));
+  const saved = state.entries[0].command.config.radio;
+  delete saved.level;
+  delete saved.boost;
+  saved.power = 5;
+  const restored = new Commands(new Synchronizer(), 'agent-A');
+  restored.restoreState(state);
+  const entry = restored.history[0].command.config.radio;
+  assert.equal(entry?.level, 'medium');
+  assert.equal(entry?.boost, false);
+});
+
+test('firmware with dBm power is read as medium and its radio settings cannot be changed', () => {
+  const connection = new Connection('agent-A');
+  const generation = connection.open('link-A', 0);
+  connection.drain();
+  const receive = (message: Message) =>
+    connection.receive(generation, encodeFrame(encodeMessage(message)), 0);
+  receive({
+    type: 'welcome',
+    link: 'link-A',
+    boot: 'boot-A',
+    device: 'device-A',
+    minVersion: 1,
+    maxVersion: 1,
+    ...deviceCapabilities,
+    features: 31 | 1024,
+    radioSchema: 1,
+    maxChannels: 8,
+    channelIdVersion: 1,
+  });
+  connection.drain();
+  receive({
+    type: 'snapshot',
+    link: 'link-A',
+    boot: 'boot-A',
+    request: connection.sync.snapshotRequest,
+    sequence: 0,
+    revision: 0,
+    region: 'US',
+    label: 'node',
+    radioMode: 'mesh',
+    txLevel: 10, // 10 dBm from older firmware
+    relay: 0,
+    channels: DEFAULT_CHANNELS,
+    channelIds: DEFAULT_CHANNEL_IDS,
+    preset: 'US915_LAB1',
+  });
+  assert.equal(connection.sync.config?.radio?.level, 'medium');
+  assert.match(connection.radioBlockReason ?? '', /update the device firmware/);
+  assert.throws(() => connection.configure({ region: 'US', label: 'node', radio }, 0));
+});
+
 test('regional, power and channel bounds are enforced consistently before sending', () => {
   const { connection } = ready();
   for (const changed of [
-    { ...radio, power: 11 },
-    { ...radio, power: -1 },
+    { ...radio, level: 'max' as RadioConfig['level'] },
+    { ...radio, boost: 1 as unknown as boolean },
     { ...radio, channels: 'Public|NameTooLong||||||' },
     { ...radio, channels: 'Secret|||||||' },
     { ...radio, channelIds: DEFAULT_CHANNEL_IDS }, // named slot without an ID
@@ -128,7 +205,7 @@ test('buffered radio events keep their original nested policy during snapshot re
     revision: 1,
     config: { region: 'US', label: 'node', radio: mutable },
   });
-  mutable.power = 10;
+  mutable.level = 'low';
   sync.snapshot({
     session,
     boot: 'boot-A',
@@ -137,7 +214,7 @@ test('buffered radio events keep their original nested policy during snapshot re
     revision: 0,
     config: { region: 'US', label: 'initial' },
   });
-  assert.equal(sync.config?.radio?.power, 5);
+  assert.equal(sync.config?.radio?.level, 'high');
   assert.ok(Object.isFrozen(sync.config?.radio));
 });
 

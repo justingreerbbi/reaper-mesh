@@ -5,7 +5,14 @@ namespace reaper::radio {
 class Sx1276 {
  public:
   explicit Sx1276(Bus& bus) : bus_(bus) {}
-  bool configure(std::uint8_t power, bool receive, bool transmit);
+  // PA_BOOST pin: +2 to +17 dBm. Boost is the high-power mode, about 3 dB more at every level, up
+  // to +20 dBm. The datasheet limits it to 1% duty cycle, which the airtime budget also enforces.
+  static constexpr bool kHasBoost = true;
+  static constexpr int dbm(mesh::TxLevel level, bool boost = false) {
+    return mesh::tx_level_dbm(level, 2, 17) + (boost ? 3 : 0);
+  }
+  static_assert(20 <= mesh::kUs915Lab1.max_power_dbm);
+  bool configure(mesh::TxLevel level, bool boost, bool receive, bool transmit);
   void stop();
   Start transmit(const std::uint8_t*, std::size_t, std::uint64_t now);
   Event poll(std::uint64_t now);

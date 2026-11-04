@@ -21,9 +21,9 @@ bool Radio::listen() {
   return check(sx126x_set_lora_pkt_params(&bus_, &params)) &&
          check(sx126x_set_rx_with_timeout_in_rtc_step(&bus_, SX126X_RX_CONTINUOUS));
 }
-bool Radio::configure(std::uint8_t power, bool receive, bool transmit) {
+bool Radio::configure(mesh::TxLevel level, bool boost, bool receive, bool transmit) {
   healthy_ = receive_ = allow_tx_ = transmitting_ = false;
-  if (power > mesh::kUs915Lab1.max_power_dbm) {
+  if (boost || level > mesh::TxLevel::High) {
     stop();
     return false;
   }
@@ -56,7 +56,7 @@ bool Radio::configure(std::uint8_t power, bool receive, bool transmit) {
       !check(sx126x_set_buffer_base_address(&bus_, 0, 0)) ||
       !check(sx126x_set_pa_cfg(&bus_, &pa)) || !check(sx126x_cfg_tx_clamp(&bus_)) ||
       !check(sx126x_set_ocp_value(&bus_, 0x38)) ||
-      !check(sx126x_set_tx_params(&bus_, power, SX126X_RAMP_200_US)) ||
+      !check(sx126x_set_tx_params(&bus_, dbm(level), SX126X_RAMP_200_US)) ||
       !check(sx126x_set_lora_mod_params(&bus_, &modulation)) ||
       !check(sx126x_set_lora_pkt_params(&bus_, &params)) ||
       !check(sx126x_set_lora_sync_word(&bus_, 0x52)) ||

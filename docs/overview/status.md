@@ -1,6 +1,6 @@
 # Current status
 
-Last updated: November 3, 2026.
+Last updated: November 4, 2026.
 
 This page is the single source for **what is implemented and verified right now**. When the
 state changes, edit this page in place rather than appending to it. Dated test evidence belongs
@@ -25,6 +25,8 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 | Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.3.0` | Clean commit `f1ad4ed`, November 3 | `/dev/cu.usbserial-0001` |
 | LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.3.0` | Clean commit `f1ad4ed`, November 3 | `/dev/cu.wchusbserial57700003341` |
 
+The source is at `v0.4.0` (transmit power levels, D46); these boards have not been updated to it.
+
 Both antennas are owner-confirmed. The last recorded owner policies were: both boards in mesh
 mode at 2 dBm; Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
 position source none and sharing off. Always read the current settings from the device rather
@@ -41,8 +43,8 @@ shared fixed position, and its screen was left at a 10 s timeout with wake on.
 | Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut; screen timeout and wake-on-message set from the portal; T-Beam battery percent and plugged-in indicator; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and 30 s timeout; battery percent with a battery fitted; bolt and `USB` when plugged in with no battery. Screen settings saved, read back and kept across a reboot over USB on both boards. Owner confirmed on the Heltec: a 10 s timeout and wake on a message from the T-Beam | The portal Screen tab in a native browser; Heltec startup, pages and gestures; induced I2C faults; LED not built yet |
 | Messages | 1,024-byte UTF-8 messages, bounded queue, explicit outcomes, inbox, browser journal | Bidirectional direct delivery with destination ACK between the two boards | Extended loss and latency; field use |
 | Mesh relay | Bounded managed-flooding core with hop limits and duplicate suppression | Host topology and fault tests only | **Any real relay**: needs a third board |
-| Radio | Pinned Semtech SX1262 driver, first-party SX1276 driver, shared airtime budget, DMA SPI | Probe, receive, 7-fragment transmit, direct two-board delivery | Range, coexistence, measured spectrum and power |
-| Channels and settings | Eight channel slots identified on air by 32-bit channel IDs, `RMCH1` invites to join in any free slot, power, mode, relay flag, record migration (record 6) | Two boards on `v0.3.0`: existing channels kept after upgrade; a non-member neither shows nor can send on a channel; joined by invite in different slots (4 and 7) with direct, broadcast and encrypted messages; channel table survives reset; a removed channel can no longer be sent on or received | Join, Invite, Remove and Reset buttons in a native browser over USB (clicked against the simulator); relay on a channel ID; interference measurements |
+| Radio | Pinned Semtech SX1262 driver, first-party SX1276 driver, shared airtime budget, DMA SPI; low, medium and high power with T-Beam boost in `v0.4.0` | Probe, receive, 7-fragment transmit, direct two-board delivery at 2 dBm | Power levels and boost on hardware (host tests only), range, coexistence, measured spectrum and power |
+| Channels and settings | Eight channel slots identified on air by 32-bit channel IDs, `RMCH1` invites to join in any free slot, power level and boost, mode, relay flag, record migration (record 7) | Two boards on `v0.3.0`: existing channels kept after upgrade; a non-member neither shows nor can send on a channel; joined by invite in different slots (4 and 7) with direct, broadcast and encrypted messages; channel table survives reset; a removed channel can no longer be sent on or received | Join, Invite, Remove and Reset buttons in a native browser over USB (clicked against the simulator); relay on a channel ID; interference measurements |
 | Discovery | Beacons, manual requests, rate-limited replies, node snapshots; all off by default | Two-board discovery, opt-out silence, periodic beacon | Native browser QA of the controls |
 | Fixed position | Saved coordinates, opt-in sharing, versioned reports | Two-board coordinate exchange, privacy switch, reboot persistence | Native browser QA of the controls |
 | Encryption | Agent-side XChaCha20-Poly1305 group keys per channel ID; devices carry RME2 ciphertext only | Encrypted direct messages in both directions, RME2 on a random-ID channel with the key from an invite | Reconnect or reboot during upload, key rotation over radio, relay, security review |
@@ -63,9 +65,9 @@ New portal features are paused (November 3) until these pass; see the
 
 ## Automated checks
 
-`npm run check` passes all 276 tests on macOS as of November 3 (strict TypeScript,
+`npm run check` passes all 289 tests on macOS as of November 4 (strict TypeScript,
 generated-schema and vendor checks, compiler-backed host tests and the web build). The
-standalone firmware CTest suite passes 75 tests. CI runs the host checks, the CTest
+standalone firmware CTest suite passes 78 tests. CI runs the host checks, the CTest
 suite, both firmware target builds and shell script lint; see
 [Development and CI](../contributing/development.md).
 

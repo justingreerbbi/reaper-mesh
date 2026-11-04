@@ -1131,6 +1131,9 @@ form.manage-body > label:first-child {
   line-height: 1.6;
   margin: 24px 0 10px;
 }
+.check[hidden] {
+  display: none;
+}
 .check input {
   margin: 2px 0 0;
 }

@@ -42,6 +42,7 @@ execFileSync(
 );
 for (const [scenario, description] of Object.entries({
   sync: 'requires synchronization and returns authoritative snapshots',
+  boost: 'advertises power levels, and refuses boost on a board without it',
   identity: 'rejects stale links, wrong boot, wrong owner and unsupported region',
   reconnect: 'retains receipts across reconnect for query-only recovery',
   storage: 'emits unknown then a storage error without serving stale snapshots',

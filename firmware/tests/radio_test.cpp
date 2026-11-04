@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
   r::Radio radio(bus);
   auto bytes = packet();
   if (scenario == "receive") {
-    CHECK(radio.configure(0, true, false));
+    CHECK(radio.configure(m::TxLevel::Low, false, true, false));
     CHECK(bus.resets == 1 && radio.healthy() && bus.has(0x82));
     CHECK(radio.transmit(bytes.data(), bytes.size(), 0) == r::Start::Rejected && !bus.has(0x83));
     bus.incoming = bytes;
@@ -102,7 +102,9 @@ int main(int argc, char** argv) {
     bus.irq = SX126X_IRQ_RX_DONE;
     CHECK(!radio.poll(3).received);
   } else if (scenario == "tx") {
-    CHECK(radio.configure(10, true, true));
+    CHECK(radio.configure(m::TxLevel::Medium, false, true, true));
+    CHECK(r::Radio::dbm(m::TxLevel::Low) == -9 && r::Radio::dbm(m::TxLevel::Medium) == 7 &&
+          r::Radio::dbm(m::TxLevel::High) == 22);
     CHECK(!bus.has(0x83));
     CHECK(radio.transmit(bytes.data(), bytes.size(), 0) == r::Start::Started &&
           radio.transmitting());
@@ -127,9 +129,13 @@ int main(int argc, char** argv) {
     const sx126x_mod_params_lora_t mod{SX126X_LORA_SF7, SX126X_LORA_BW_500, SX126X_LORA_CR_4_5, 0};
     CHECK(sx126x_get_lora_time_on_air_in_ms(&params, &mod) == (m::airtime_us(214) + 999) / 1000);
   } else if (scenario == "faults") {
-    CHECK(!radio.configure(11, true, true) && bus.off_called && !bus.has(0x83));
+    CHECK(!radio.configure(static_cast<m::TxLevel>(3), false, true, true) && bus.off_called &&
+          !bus.has(0x83));
     bus.off_called = false;
-    CHECK(radio.configure(0, true, true));
+    // This board has no boost mode.
+    CHECK(!radio.configure(m::TxLevel::High, true, true, true) && bus.off_called && !bus.has(0x83));
+    bus.off_called = false;
+    CHECK(radio.configure(m::TxLevel::Low, false, true, true));
     CHECK(radio.transmit(bytes.data(), bytes.size(), 0) == r::Start::Started);
     bus.fail = true;
     auto event = radio.poll(1);
@@ -138,7 +144,8 @@ int main(int argc, char** argv) {
     Bus broken;
     broken.errors = SX126X_ERRORS_PLL_CALIBRATION;
     r::Radio bad(broken);
-    CHECK(!bad.configure(0, true, false) && broken.off_called && !broken.has(0x83));
+    CHECK(!bad.configure(m::TxLevel::Low, false, true, false) && broken.off_called &&
+          !broken.has(0x83));
   } else
     return 3;
   std::cout << "ok " << scenario << '\n';

@@ -29,9 +29,9 @@ bool same(const p::FieldValue& field, const Text<N>& text) {
          std::memcmp(field.text.data(), text.bytes.data(), text.length) == 0;
 }
 bool radio_changed(const Settings& a, const Settings& b) {
-  return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.power != b.radio.power ||
-         a.radio.relay != b.radio.relay || a.radio.profile != b.radio.profile ||
-         a.radio.channels.length != b.radio.channels.length ||
+  return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.level != b.radio.level ||
+         a.radio.boost != b.radio.boost || a.radio.relay != b.radio.relay ||
+         a.radio.profile != b.radio.profile || a.radio.channels.length != b.radio.channels.length ||
          a.radio.channels.bytes != b.radio.channels.bytes ||
          a.radio.channel_ids != b.radio.channel_ids;
 }
@@ -108,7 +108,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeConfigSchema], 1);
     number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) |
                                                   (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0) | 512 |
-                                                  1024);
+                                                  1024 | 2048 |
+                                                  (radio_ && radio_->tx_boost ? 4096 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -352,7 +353,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     literal(reply.fields[p::kSnapshotRadioMode], radio.mode == RadioMode::Off       ? "off"
                                                  : radio.mode == RadioMode::Receive ? "receive"
                                                                                     : "mesh");
-    number(reply.fields[p::kSnapshotTxPower], radio.power);
+    number(reply.fields[p::kSnapshotTxLevel], static_cast<unsigned>(radio.level));
+    number(reply.fields[p::kSnapshotTxBoost], radio.boost ? 1 : 0);
     number(reply.fields[p::kSnapshotRelay], radio.relay ? 1 : 0);
     set(reply.fields[p::kSnapshotChannels], radio.channels);
     format_channel_ids(reply.fields[p::kSnapshotChannelIds], radio);
@@ -386,7 +388,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
                       id.bytes[owner_.length] == ':' &&
                       std::memcmp(id.bytes.data(), owner_.bytes.data(), owner_.length) == 0;
     if (synchronized_ && admitted_ && owns && decode_command(request, command) &&
-        (!command.has_position || discovery_) && command.settings.region != Region::Eu) {
+        (!command.has_position || discovery_) && command.settings.region != Region::Eu &&
+        (!command.has_radio || !command.settings.radio.boost || (radio_ && radio_->tx_boost))) {
       result = authority_.apply(command);
       Snapshot current{};
       if (messages_ && result.outcome == Outcome::Committed && authority_.snapshot(current)) {

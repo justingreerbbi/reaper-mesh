@@ -7,6 +7,11 @@
 #include "reaper/mesh.hpp"
 class MeshService {
  public:
+#ifdef REAPER_TBEAM_V12
+  using Driver = reaper::radio::Sx1276;
+#else
+  using Driver = reaper::radio::Radio;
+#endif
   MeshService(reaper::device::MessageQueue&, reaper::device::Inbox&, reaper::device::RadioInfo&,
               reaper::device::Text<64> device, std::array<std::uint8_t, 16> boot,
               std::uint64_t node, bool antenna_verified = false);
@@ -23,11 +28,7 @@ class MeshService {
   std::uint64_t node_;
   const bool antenna_verified_;
   RadioBus bus_{};
-#ifdef REAPER_TBEAM_V12
-  reaper::radio::Sx1276 radio_;
-#else
-  reaper::radio::Radio radio_;
-#endif
+  Driver radio_;
   reaper::mesh::Mesh mesh_;
   reaper::device::Discovery discovery_;
   bool control_ = false;

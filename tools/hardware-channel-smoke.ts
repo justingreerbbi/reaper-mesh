@@ -105,7 +105,7 @@ async function direct(sender: Board, receiver: Board, channel: number, label: st
 try {
   opened.push(await open(heltecPort), await open(tbeamPort));
   for (const [index, board] of opened.entries()) {
-    assert.match(board.connection.capabilities?.firmware ?? '', /-reaper-mesh-v0\.3\./);
+    assert.match(board.connection.capabilities?.firmware ?? '', /-reaper-mesh-v0\.[34]\./);
     assert.equal(board.connection.supportsChannelIds, true);
     originals[index] = board.connection.sync.config!;
     assert.equal(originals[index].radio?.mode, 'mesh');

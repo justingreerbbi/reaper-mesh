@@ -55,6 +55,8 @@ const scenarios = {
   discovery: 'persists discovery atomically and preserves it for legacy writes',
   screen: 'persists screen settings in record 5, preserves them for other writes and fails closed',
   radio: 'migrates radio settings, preserves them for legacy writes and enforces regional disable',
+  levels:
+    'keeps Medium in earlier records, loads their dBm as Medium and stores other levels in record 7',
   wire: 'validated framed USB commands reach configuration without exposing partial decodes',
 };
 for (const [scenario, description] of Object.entries(scenarios)) {

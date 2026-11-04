@@ -11,8 +11,9 @@ void literal(d::Text<N>& text, const char* value) {
   text.assign(reinterpret_cast<const std::uint8_t*>(value), std::strlen(value));
 }
 bool changed(const d::Settings& a, const d::Settings& b) {
-  return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.power != b.radio.power ||
-         a.radio.relay != b.radio.relay || a.radio.channels.bytes != b.radio.channels.bytes ||
+  return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.level != b.radio.level ||
+         a.radio.boost != b.radio.boost || a.radio.relay != b.radio.relay ||
+         a.radio.channels.bytes != b.radio.channels.bytes ||
          a.radio.channel_ids != b.radio.channel_ids;
 }
 std::uint64_t destination(const d::Text<64>& text) {
@@ -102,9 +103,10 @@ MeshService::MeshService(d::MessageQueue& messages, d::Inbox& inbox, d::RadioInf
       discovery_(node, boot) {
   literal(info_.state, "off");
   literal(info_.reason, "radio-off");
+  info_.tx_boost = Driver::kHasBoost;
 }
 void MeshService::begin() {
-  info_.probe = bus_.begin() && radio_.configure(0, false, false);
+  info_.probe = bus_.begin() && radio_.configure(m::TxLevel::Low, false, false, false);
   radio_.stop();
   if (!info_.probe) {
     char reason[64]{};
@@ -166,7 +168,7 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     const bool receive =
         settings_.region == d::Region::Us && settings_.radio.mode != d::RadioMode::Off;
     if (receive && info_.probe)
-      radio_.configure(settings_.radio.power, true,
+      radio_.configure(settings_.radio.level, settings_.radio.boost, true,
                        settings_.radio.mode == d::RadioMode::Mesh && antenna_verified_);
   }
   if (!info_.probe) {

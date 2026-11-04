@@ -395,8 +395,10 @@ test('a joined channel ID crosses TS/native USB, persists and gates native messa
   const welcome = first.responses[0];
   assert.ok(welcome.type === 'welcome' && welcome.channelIdVersion === 1);
   assert.ok(welcome.type === 'welcome' && (welcome.features ?? 0) & 1024);
+  assert.ok(welcome.type === 'welcome' && (welcome.features ?? 0) & 2048);
   const snapshot = first.responses[1];
   assert.ok(snapshot.type === 'snapshot' && snapshot.channelIds === DEFAULT_CHANNEL_IDS);
+  assert.ok(snapshot.type === 'snapshot' && snapshot.txLevel === 1 && snapshot.txBoost === 0);
 
   // The actual agent joins a channel by its ID in a free slot (here slot 3, not slot 1).
   const agent = new Connection('agent-A');
@@ -405,6 +407,9 @@ test('a joined channel ID crosses TS/native USB, persists and gates native messa
   for (const frame of first.frames) agent.receive(session, frame, 0);
   agent.drain();
   assert.equal(agent.supportsChannelIds, true);
+  assert.equal(agent.supportsTxLevels, true);
+  assert.equal(agent.supportsTxBoost, false);
+  assert.equal(agent.sync.config!.radio!.level, 'medium');
   const joined = withChannel(agent.sync.config!.radio!, 3, 'Ridge', 0x9c41e2a7);
   agent.configure({ ...agent.sync.config!, radio: joined }, 1);
   const sent: Message[] = [];

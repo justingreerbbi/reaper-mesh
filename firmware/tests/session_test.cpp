@@ -102,6 +102,37 @@ int main(int argc, char** argv) {
     CHECK(session.handle(configure(), reply) && is(reply.fields[p::kResultOutcome], "committed"));
     CHECK(session.handle(sync(), reply) && reply.fields[p::kSnapshotRevision].number == 1);
     CHECK(is(reply.fields[p::kSnapshotLabel], "native session"));
+  } else if (scenario == "boost") {
+    // Features report levels always, and boost only for a board that has it.
+    CHECK(reply.fields[p::kWelcomeFeatures].number & 2048);
+    CHECK(!(reply.fields[p::kWelcomeFeatures].number & 4096));
+    CHECK(session.handle(sync(), reply) && reply.fields[p::kSnapshotTxLevel].number == 1 &&
+          reply.fields[p::kSnapshotTxBoost].number == 0);
+    const auto radio = [](const char* id, std::uint32_t boost) {
+      auto request = configure("link-A", id);
+      set(request.fields[p::kConfigureRadioMode], "off");
+      num(request.fields[p::kConfigureTxLevel], 2);
+      num(request.fields[p::kConfigureTxBoost], boost);
+      num(request.fields[p::kConfigureRelay], 0);
+      set(request.fields[p::kConfigureChannels], "Public|||||||");
+      set(request.fields[p::kConfigureChannelIds],
+          "00000000|00000000|00000000|00000000|00000000|00000000|00000000|00000000");
+      set(request.fields[p::kConfigurePreset], "US915_LAB1");
+      return request;
+    };
+    CHECK(session.handle(radio("agent-A:1", 1), reply) &&
+          is(reply.fields[p::kResultOutcome], "rejected") && store.writes == 0);
+    Store boosted_store;
+    d::Configuration boosted_authority(boosted_store, text<64>("boot-A"));
+    d::RadioInfo info{};
+    info.tx_boost = true;
+    d::Session boosted(boosted_authority, text<64>("device-A"), text<64>("boot-A"), nullptr, &info);
+    CHECK(boosted.handle(hello(), reply) && (reply.fields[p::kWelcomeFeatures].number & 4096));
+    CHECK(boosted.handle(sync(), reply));
+    CHECK(boosted.handle(radio("agent-A:1", 1), reply) &&
+          is(reply.fields[p::kResultOutcome], "committed"));
+    CHECK(boosted.handle(sync(), reply) && reply.fields[p::kSnapshotTxLevel].number == 2 &&
+          reply.fields[p::kSnapshotTxBoost].number == 1);
   } else if (scenario == "identity") {
     CHECK(!session.handle(sync("old-link"), reply));
     CHECK(!session.handle(sync("link-A", "old-boot"), reply));

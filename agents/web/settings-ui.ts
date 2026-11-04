@@ -102,6 +102,7 @@ export function renderRadio() {
   const controls: (HTMLInputElement | HTMLSelectElement)[] = [
     element('radio-mode'),
     element('radio-power'),
+    element('radio-boost'),
     element('radio-relay'),
   ];
   const ready = sync.state === 'ready';
@@ -110,9 +111,11 @@ export function renderRadio() {
     const radio = sync.config!.radio!;
     radioBase = context;
     element<HTMLSelectElement>('radio-mode').value = radio.mode;
-    element<HTMLInputElement>('radio-power').value = String(radio.power);
+    element<HTMLSelectElement>('radio-power').value = radio.level;
+    element<HTMLInputElement>('radio-boost').checked = radio.boost;
     element<HTMLInputElement>('radio-relay').checked = radio.relay;
   }
+  element('radio-boost-row').hidden = !connection.supportsTxBoost;
   const channelNames = (sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
   const list = element('managed-channels');
   const signature = JSON.stringify(channelNames);
@@ -350,7 +353,10 @@ export function initSettings() {
       const currentConfig = model.adapter.connection.sync.config!;
       const radio: RadioConfig = {
         mode: element<HTMLSelectElement>('radio-mode').value as RadioConfig['mode'],
-        power: Number(element<HTMLInputElement>('radio-power').value),
+        level: element<HTMLSelectElement>('radio-power').value as RadioConfig['level'],
+        boost:
+          model.adapter.connection.supportsTxBoost &&
+          element<HTMLInputElement>('radio-boost').checked,
         relay: element<HTMLInputElement>('radio-relay').checked,
         // Channels are edited in the Channels tab; keep the device's current table here.
         channels: currentConfig.radio!.channels,
@@ -358,7 +364,7 @@ export function initSettings() {
         preset: 'US915_LAB1',
       };
       if (!validRadio(radio, currentConfig.region))
-        throw new Error('Use the US region and a power of 0–10 dBm.');
+        throw new Error('Use the US region to turn the radio on.');
       model.adapter.configure({ ...currentConfig, radio });
       radioDirty = false;
       clearError();

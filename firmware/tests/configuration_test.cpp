@@ -178,25 +178,26 @@ int main(int argc, char** argv) {
     auto radio = command(2, 1);
     radio.has_radio = true;
     radio.settings.radio.mode = d::RadioMode::Receive;
-    radio.settings.radio.power = 5;
+    radio.settings.radio.level = reaper::mesh::TxLevel::Medium;
     radio.settings.radio.relay = true;
     radio.settings.radio.channels = text<71>("Public|Camp|Team|||||");
     radio.settings.radio.channel_ids = {0, 1, 2};  // slot numbers as IDs need no record 6
     CHECK(authority.apply(radio).outcome == d::Outcome::Committed && store.data[2] == 2);
     CHECK(authority.apply(radio).outcome == d::Outcome::Committed && store.writes == 2);
     d::Configuration restarted(store, text<64>("boot-B"));
-    CHECK(restarted.snapshot(snapshot) && snapshot.settings.radio.power == 5 &&
-          snapshot.settings.radio.relay);
+    CHECK(restarted.snapshot(snapshot) &&
+          snapshot.settings.radio.level == reaper::mesh::TxLevel::Medium &&
+          !snapshot.settings.radio.boost && snapshot.settings.radio.relay);
     CHECK(authority.apply(command(3, 2, "legacy-label")).outcome == d::Outcome::Committed);
     CHECK(authority.snapshot(snapshot) && snapshot.settings.radio.mode == d::RadioMode::Receive);
     auto disable = command(4, 3);
     disable.settings.region = d::Region::Unset;
     CHECK(authority.apply(disable).outcome == d::Outcome::Committed);
     CHECK(authority.snapshot(snapshot) && snapshot.settings.radio.mode == d::RadioMode::Off &&
-          snapshot.settings.radio.power == 5);
+          snapshot.settings.radio.level == reaper::mesh::TxLevel::Medium);
     auto invalid = command(5, 4);
     invalid.has_radio = true;
-    invalid.settings.radio.power = 11;
+    invalid.settings.radio.level = static_cast<reaper::mesh::TxLevel>(3);
     CHECK(authority.apply(invalid).outcome == d::Outcome::Rejected);
     // Maximal extended record is bounded and rejects every incomplete prefix.
     snapshot.settings.region = d::Region::Us;
@@ -213,6 +214,59 @@ int main(int argc, char** argv) {
       d::Snapshot out{};
       CHECK(!d::decode_record(encoded.data(), n, out));
     }
+  } else if (scenario == "levels") {
+    namespace mesh = reaper::mesh;
+    // Medium without boost is the default and keeps the earlier record formats.
+    CHECK(d::RadioSettings{}.level == mesh::TxLevel::Medium && !d::RadioSettings{}.boost);
+    d::Snapshot sample{};
+    sample.settings.region = d::Region::Us;
+    sample.settings.label = text<64>("tx");
+    sample.settings.radio.relay = true;
+    std::array<std::uint8_t, d::kMaxRecord> encoded{};
+    std::size_t size = 0;
+    CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) && encoded[2] == 2);
+    // A record from before levels holds dBm in this byte. It loads as Medium without boost.
+    const std::size_t power_byte = 9 + 2 + 1;
+    const auto reseal = [&](std::uint8_t value) {
+      encoded[power_byte] = value;
+      const auto crc = p::crc32(encoded.data(), size - 4);
+      for (unsigned i = 0; i < 4; ++i)
+        encoded[size - 4 + i] = static_cast<std::uint8_t>(crc >> (8 * i));
+    };
+    d::Snapshot loaded{};
+    reseal(10);
+    CHECK(d::decode_record(encoded.data(), size, loaded) &&
+          loaded.settings.radio.level == mesh::TxLevel::Medium && !loaded.settings.radio.boost);
+    reseal(11);
+    CHECK(!d::decode_record(encoded.data(), size, loaded));
+    // Every other choice needs record 7 and survives a reload.
+    for (const auto level : {mesh::TxLevel::Low, mesh::TxLevel::Medium, mesh::TxLevel::High})
+      for (const bool boost : {false, true}) {
+        if (level == mesh::TxLevel::Medium && !boost)
+          continue;
+        sample.settings.radio.level = level;
+        sample.settings.radio.boost = boost;
+        CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) && encoded[2] == 7);
+        CHECK(d::decode_record(encoded.data(), size, loaded) &&
+              loaded.settings.radio.level == level && loaded.settings.radio.boost == boost);
+      }
+    // Record 7 refuses a level that does not exist.
+    reseal(3);
+    CHECK(!d::decode_record(encoded.data(), size, loaded));
+    reseal(0x83);
+    CHECK(!d::decode_record(encoded.data(), size, loaded));
+    // The largest record is no larger than before.
+    sample.settings.label = text<64>(std::string(64, 'x'));
+    sample.settings.radio.channels =
+        text<71>("Public|Channel1|Channel2|Channel3|Channel4|Channel5|Channel6|Channel7");
+    sample.settings.radio.channel_ids = {0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0xfffffffe};
+    CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) && size == d::kMaxRecord &&
+          encoded[2] == 7);
+    // A level or boost value outside the range fails the configure message.
+    auto invalid = command();
+    invalid.has_radio = true;
+    invalid.settings.radio.level = static_cast<mesh::TxLevel>(3);
+    CHECK(authority.apply(invalid).outcome == d::Outcome::Rejected);
   } else if (scenario == "validation") {
     CHECK(!authority.admit(text<64>("bad:owner")));
     auto bad = command();
@@ -363,7 +417,8 @@ int main(int argc, char** argv) {
     put(p::kConfigureLabel, "ids");
     message.fields[p::kConfigureExpectedRevision].present = true;
     put(p::kConfigureRadioMode, "off");
-    message.fields[p::kConfigureTxPower].present = true;
+    message.fields[p::kConfigureTxLevel].present = true;
+    message.fields[p::kConfigureTxBoost].present = true;
     message.fields[p::kConfigureRelay].present = true;
     put(p::kConfigureChannels, "Public|Ridge||||||");
     put(p::kConfigurePreset, "US915_LAB1");

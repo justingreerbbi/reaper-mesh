@@ -10,6 +10,20 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: transmit power levels (`v0.4.0`)
+
+At the owner's request (D46), transmit power is low, medium or high instead of a dBm number, with
+medium the default. The Heltec uses −9, +7 and +22 dBm. The T-Beam uses +2, +10 and +17 dBm, and an
+optional boost, off by default, raises those to +5, +13 and +20 dBm. Settings → Radio has the new
+control, and shows boost only on a board that has it. USB replaces `txPower` with `txLevel` and adds
+`txBoost` (feature bits 11 and 12), and storage adds record 7. Stored dBm values load as medium.
+Existing message fixtures keep their exact bytes with the field renamed; two fixtures were appended.
+
+Host tests only so far: `npm run check` and the firmware CTest suite pass, with new tests for the
+register values, records, refusal of boost on the Heltec and restoring older saved commands.
+`tools/hardware-power-smoke.ts` was added for the two-board check and has not been run. Output power
+has not been measured. Nothing above qualifies these levels on hardware.
+
 ## November 3: remove a channel and reset Public
 
 At the owner's request, Settings → Channels can remove a channel from the device. Public is

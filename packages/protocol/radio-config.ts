@@ -1,6 +1,12 @@
+/** Wire values are the index: 0 low, 1 medium, 2 high. dBm per level depends on the board. */
+export const TX_LEVELS = ['low', 'medium', 'high'] as const;
+export type TxLevel = (typeof TX_LEVELS)[number];
+export const DEFAULT_TX_LEVEL: TxLevel = 'medium';
+
 export type RadioConfig = Readonly<{
   mode: 'off' | 'receive' | 'mesh';
-  power: number;
+  level: TxLevel;
+  boost: boolean;
   relay: boolean;
   channels: string;
   channelIds: string;
@@ -84,7 +90,8 @@ export function radioFields(radio?: RadioConfig) {
   if (!radio) return {};
   return {
     radioMode: radio.mode,
-    txPower: radio.power,
+    txLevel: TX_LEVELS.indexOf(radio.level),
+    txBoost: radio.boost ? 1 : 0,
     relay: radio.relay ? 1 : 0,
     channels: radio.channels,
     channelIds: radio.channelIds,
@@ -94,9 +101,8 @@ export function radioFields(radio?: RadioConfig) {
 export function validRadio(radio: RadioConfig, region: string) {
   return (
     ['off', 'receive', 'mesh'].includes(radio.mode) &&
-    Number.isInteger(radio.power) &&
-    radio.power >= 0 &&
-    radio.power <= 10 &&
+    TX_LEVELS.includes(radio.level) &&
+    typeof radio.boost === 'boolean' &&
     typeof radio.relay === 'boolean' &&
     radio.preset === 'US915_LAB1' &&
     validChannels(radio.channels, radio.channelIds) &&

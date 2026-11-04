@@ -243,7 +243,8 @@ extern "C" void app_main() {
         status.storage_ok = healthy;
         status.revision = snapshot.revision;
         status.mode = mode_name(snapshot.settings.radio.mode);
-        status.power_dbm = snapshot.settings.radio.power;
+        status.power_dbm =
+            MeshService::Driver::dbm(snapshot.settings.radio.level, snapshot.settings.radio.boost);
         status.heap = radio_info.heap_free;
         status.stack = radio_info.stack_free;
         status.uptime_s = now_ms / 1000;

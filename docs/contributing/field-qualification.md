@@ -12,7 +12,7 @@ load connected.
 ## What the radio settings mean for testing
 
 `US915_LAB1` is a lab preset tuned for speed, not range: 915 MHz, 500 kHz bandwidth, spreading
-factor 7, coding rate 4/5, at most 10 dBm (the T-Beam's minimum is 2 dBm). Range results
+factor 7, coding rate 4/5, at low, medium or high power ([levels per board](../reference/radio-configuration.md#transmit-power)). Range results
 describe this preset only. A long-range preset would be a separate radio protocol decision.
 
 The firmware's airtime budget refills at 1% per second with a one-second burst. Using the
@@ -40,7 +40,7 @@ On a bench, all three boards hear each other, so messages go direct and the rela
 never exercised. The test therefore needs a topology where A and C are out of range of each
 other but both are in range of B. Ways to get there, simplest first:
 
-1. Lowest transmit power on all boards, with A and C in separate rooms or floors and B
+1. Low transmit power on all boards, with A and C in separate rooms or floors and B
    between them.
 2. Attenuators on A and C, or A and C in shielded enclosures.
 3. Outdoors, with A and C far enough apart (see the range test).

@@ -66,3 +66,13 @@ board upgraded from earlier firmware keeps using on air. Settings whose IDs equa
 writing the earlier applicable format; a channel with any other ID needs record 6. A table that
 breaks the [channel ID rules](radio-configuration.md#channel-ids) fails closed without erasing.
 Firmware that reads only records 1–5 fails closed on a record 6 after a downgrade.
+
+## Transmit power levels record 7
+
+Record 7 (`v0.4.0`, D46) has the same layout and size as record 6, and changes the meaning of the
+radio power byte: bits 0–6 are the level (0 low, 1 medium, 2 high) and bit 7 is boost. In records
+1–6 that byte holds dBm, which is checked and then ignored: those records load as medium with boost
+off, so a board upgraded from earlier firmware moves to medium. Medium without boost keeps writing
+the earlier applicable format; any other choice writes record 7. Readers accept records 1–7, and a
+level above 2 fails closed without erasing. Firmware that reads only records 1–6 fails closed on a
+record 7 after a downgrade.

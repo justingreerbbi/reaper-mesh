@@ -21,7 +21,13 @@ struct Event {
 class Radio {
  public:
   explicit Radio(Bus& bus) : bus_(bus) {}
-  bool configure(std::uint8_t power, bool receive, bool transmit);
+  // SX1262 high-power PA: -9 to +22 dBm, with no boost mode.
+  static constexpr bool kHasBoost = false;
+  static constexpr int dbm(mesh::TxLevel level, bool = false) {
+    return mesh::tx_level_dbm(level, -9, 22);
+  }
+  static_assert(22 <= mesh::kUs915Lab1.max_power_dbm);
+  bool configure(mesh::TxLevel level, bool boost, bool receive, bool transmit);
   void stop();
   Start transmit(const std::uint8_t*, std::size_t, std::uint64_t now_ms);
   Event poll(std::uint64_t now_ms);
