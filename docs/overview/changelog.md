@@ -10,6 +10,10 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: mobile app guide
+
+[Connect a mobile app](../guides/mobile-apps.md) documents how a mobile app pairs with and talks to a device (D48). Documentation only. Nothing has run on a phone.
+
 ## November 4: Bluetooth in the web portal (`v0.6.0`, in development)
 
 At the owner's request (D47), the portal can connect over Web Bluetooth (Device, then USB or Bluetooth

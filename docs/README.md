@@ -39,6 +39,7 @@ you want to do.
 | Document | What it covers |
 | --- | --- |
 | [Protocol](reference/protocol.md) | USB framing, typed payloads, negotiation, and the synchronization contract |
+| [Connect a mobile app](guides/mobile-apps.md) | How a mobile app pairs with and talks to a device |
 | [Bluetooth link](reference/bluetooth.md) | Pairing rules, GATT service, and the client sequence for mobile agents |
 | [Radio protocol](reference/radio-protocol.md) | The over-the-air datagram, routing, and resource bounds |
 | [Radio configuration](reference/radio-configuration.md) | Modes, channels, transmit power, and the regional profile |
