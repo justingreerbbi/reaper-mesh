@@ -1,11 +1,9 @@
-// Settings dialog: navigation, radio, position, discovery, screen and recovery.
+// Device settings pages: radio, position (including following this browser), discovery, screen,
+// Bluetooth pairing and storage, plus settling the commands they send.
 import { degrees, coordinate } from '../../packages/protocol/position-config.ts';
-import {
-  DEFAULT_CHANNELS,
-  validRadio,
-  type RadioConfig,
-} from '../../packages/protocol/radio-config.ts';
+import { validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { SerialAdapter } from '../../packages/agent-core/serial.ts';
+import type { Config } from '../../packages/agent-core/sync.ts';
 import { chooseBleDevice, pairBleDevice } from '../../packages/agent-core/ble.ts';
 import { ConfigModel } from './model.ts';
 import {
@@ -14,52 +12,47 @@ import {
   bluetoothProblem,
   clearError,
   current,
-  manage,
   mode,
   models,
   openLink,
+  preferences,
   recovery,
   render,
   setError,
+  setPreference,
   showError,
+  writableConfig,
 } from './app-state.ts';
 import { element, text } from './dom.ts';
-import { editChannel, editingChannelSlot } from './channels-ui.ts';
 import { invalidateThread } from './messages-ui.ts';
-import { selectNode, selectedNodeId } from './map-ui.ts';
+import { formatAgo } from './geo.ts';
+import { isShowing, onPageChange } from './nav.ts';
+import { confirmSheet, downloadBlob, setNotice } from './ui.ts';
+import {
+  MAX_ACCURACY_METERS,
+  POSITION_SENT_KEY,
+  shouldSendPosition,
+  type Fix,
+} from './position-feed.ts';
+import { onLocalAppStop } from './access-ui.ts';
 
 const queried = new Set<string>();
 let positionDirty = false,
   positionBase = '';
 let discoveryDirty = false,
-  discoveryBase = '',
-  nodeSignature = '';
+  discoveryBase = '';
 let screenDirty = false,
   screenBase = '';
 let radioDirty = false;
 let radioBase = '';
 
-export function setManage(panel: string) {
-  manage.querySelector<HTMLElement>('.manage-body')!.scrollTop = 0;
-  if (panel === 'channels') editChannel(0);
-  for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
-    const active = tab.dataset.manage === panel;
-    tab.classList.toggle('is-active', active);
-    if (active) tab.setAttribute('aria-current', 'page');
-    else tab.removeAttribute('aria-current');
-  }
-  for (const section of document.querySelectorAll<HTMLElement>('[data-manage-panel]')) {
-    const active = section.dataset.managePanel === panel;
-    section.classList.toggle('is-active', active);
-    section.hidden = !active;
-  }
-}
+export type SaveOutcome = 'committed' | 'conflict' | 'rejected' | 'unknown';
+const waiting = new Map<string, (outcome: SaveOutcome) => void>();
 
-export function openManage(panel = 'device') {
-  setManage(panel);
-  if (!manage.open) manage.showModal();
-  const tab = manage.querySelector<HTMLButtonElement>(`[data-manage="${panel}"]`);
-  tab?.focus();
+/** Saves settings, and resolves with what the device did once the outcome is known. */
+export function saveConfig(model: ConfigModel, config: Config) {
+  const id = model.adapter.configure(config);
+  return new Promise<SaveOutcome>(resolve => waiting.set(id, resolve));
 }
 
 /**
@@ -70,12 +63,18 @@ export function openManage(panel = 'device') {
  */
 export function settleCommands(model: ConfigModel, ready: boolean) {
   const { connection } = model.adapter;
+  const finish = (id: string, outcome: SaveOutcome, message?: string) => {
+    const wait = waiting.get(id);
+    waiting.delete(id);
+    if (wait) wait(outcome);
+    else if (message) setError(message);
+  };
   for (const entry of model.history) {
     const { outcome, result } = connection.commands.status(entry.id);
     if (outcome === 'pending') continue;
     if (outcome !== 'unknown' || result) {
       model.forget(entry.id);
-      if (outcome !== 'committed') setError(settledMessage[outcome]);
+      finish(entry.id, outcome, outcome === 'committed' ? undefined : settledMessage[outcome]);
       continue;
     }
     const attempt = `${entry.id}:${connection.sync.session}`;
@@ -84,11 +83,25 @@ export function settleCommands(model: ConfigModel, ready: boolean) {
     try {
       if (!model.adapter.recover(entry.id)) {
         model.forget(entry.id);
-        setError(settledMessage.unknown);
+        finish(entry.id, 'unknown', settledMessage.unknown);
       }
     } catch {
       // Another device, or firmware without result queries: keep it for the original device.
     }
+  }
+  if (!ready) return;
+  // One read-only message query per pass, so recovery can't flood the link. It never resends.
+  for (const entry of connection.messaging.history) {
+    const attempt = `${entry.id}:${connection.sync.session}`;
+    if (entry.state !== 'unknown' || entry.device !== connection.device || queried.has(attempt))
+      continue;
+    queried.add(attempt);
+    try {
+      model.adapter.recoverMessage(entry.id);
+    } catch {
+      // Stays unknown, which the thread shows.
+    }
+    break;
   }
 }
 
@@ -98,6 +111,17 @@ const settledMessage = {
   unknown:
     'A settings change may not have applied before the device restarted. The settings shown are what the device reports.',
 };
+
+/** Keeps a value the device has that this portal doesn't offer selectable, not silently replaced. */
+function keepCustomOption(select: HTMLSelectElement, value: string, label: string) {
+  select.querySelector('option[data-custom]')?.remove();
+  if (![...select.options].some(option => option.value === value)) {
+    const option = new Option(label, value);
+    option.dataset.custom = '';
+    select.add(option);
+  }
+  select.value = value;
+}
 
 export function renderRadio() {
   const model = current();
@@ -119,55 +143,142 @@ export function renderRadio() {
     element<HTMLSelectElement>('radio-power').value = radio.level;
     element<HTMLInputElement>('radio-boost').checked = radio.boost;
     element<HTMLInputElement>('radio-relay').checked = radio.relay;
+    text('radio-preset', radio.preset);
   }
   element('radio-boost-row').hidden = !connection.supportsTxBoost;
-  const channelNames = (sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
-  const list = element('managed-channels');
-  const signature = JSON.stringify(channelNames);
-  if (list.dataset.signature !== signature) {
-    list.dataset.signature = signature;
-    list.replaceChildren();
-    channelNames.forEach((name, slot) => {
-      if (!name) return;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = name;
-      button.dataset.slot = String(slot);
-      button.classList.toggle('is-active', slot === editingChannelSlot());
-      button.setAttribute('aria-current', slot === editingChannelSlot() ? 'page' : 'false');
-      button.addEventListener('click', () => editChannel(slot));
-      list.append(button);
-    });
-  }
-  element<HTMLButtonElement>('create-channel').disabled =
-    !supported || model.pending || channelNames.filter(Boolean).length >= 8;
-  text(
-    'channels-status',
-    !supported
-      ? 'Connect a device to manage channels.'
-      : `${channelNames.filter(Boolean).length} of 8 channels in use`,
-  );
-  element<HTMLButtonElement>('channel-name-save').disabled =
-    !supported || model.pending || editingChannelSlot() === 0;
   const stale = radioDirty && radioBase !== context;
-  text(
+  setNotice(
     'radio-support',
     !ready
-      ? 'Connect and synchronize to configure radio settings.'
+      ? 'Connect a device to configure its radio.'
       : (connection.radioBlockReason ??
           (stale
-            ? 'Device state changed. Load its latest radio settings before saving.'
-            : connection.radioInfo
-              ? `Radio ${connection.radioInfo.state} · ${connection.radioInfo.reason}`
-              : 'Settings are synchronized. Waiting for live radio status.')),
+            ? "The device's settings changed while you were editing. Discard to load the latest."
+            : sync.config?.region !== 'US'
+              ? 'The radio can only run with the region set to US. Change it in General.'
+              : undefined)),
+    'warn',
   );
   for (const control of controls) control.disabled = !supported || model.pending;
+  element<HTMLSelectElement>('radio-mode').disabled =
+    !supported || model.pending || sync.config?.region !== 'US';
   element<HTMLButtonElement>('radio-save').disabled =
     !supported || !radioDirty || stale || model.pending || model.history.length >= 32;
-  element<HTMLButtonElement>('radio-reset').disabled = !supported || model.pending;
+  element<HTMLButtonElement>('radio-reset').disabled = !supported || model.pending || !radioDirty;
+}
+
+// ---- Position, including following this browser's location ----
+
+let fix: Fix | undefined;
+let watchId: number | undefined;
+let lastSentAt = 0;
+let lastPosition = '';
+try {
+  lastSentAt = Number(localStorage.getItem(POSITION_SENT_KEY)) || 0;
+} catch {
+  // Starts from zero: the worst case is one early update.
+}
+function recordPositionChange() {
+  lastSentAt = Date.now();
+  try {
+    localStorage.setItem(POSITION_SENT_KEY, String(lastSentAt));
+  } catch {
+    // Only matters across a reload.
+  }
+}
+function stopWatching() {
+  if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+  watchId = undefined;
+  fix = undefined;
+}
+
+function browserFix() {
+  return new Promise<GeolocationPosition>((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('This browser has no location access.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, error => reject(new Error(error.message)), {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 10000,
+    });
+  });
+}
+
+/** Writes the browser's location to the device when the rules allow it. */
+function publishPosition() {
+  const model = current();
+  const { connection } = model.adapter;
+  const { sync } = connection;
+  const following = preferences.positionMode === 'browser';
+  const ready = sync.state === 'ready';
+  if (following && ready && watchId === undefined && navigator.geolocation)
+    watchId = navigator.geolocation.watchPosition(
+      position => {
+        // A fix worse than this could put the device somewhere it isn't.
+        if (position.coords.accuracy > MAX_ACCURACY_METERS) return;
+        fix = {
+          lngLat: [position.coords.longitude, position.coords.latitude],
+          at: Date.now(),
+        };
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 10000 },
+    );
+  if ((!following || !ready) && watchId !== undefined) stopWatching();
+
+  // Any position change restarts the device's beacon timer, whoever made it.
+  const saved = sync.config?.position;
+  const signature = saved
+    ? `${saved.source}:${saved.share}:${saved.latitude}:${saved.longitude}`
+    : '';
+  if (ready && signature !== lastPosition) {
+    if (lastPosition) recordPositionChange();
+    lastPosition = signature;
+  }
+
+  if (
+    !following ||
+    !ready ||
+    positionDirty ||
+    connection.writeBlockReason ||
+    !connection.supportsPosition ||
+    model.pending ||
+    // The re-sync after a save would interrupt an upload, and a change cancels discovery.
+    connection.messaging.history.some(m => m.state === 'receiving') ||
+    connection.discovery.last?.state === 'collecting'
+  )
+    return;
+  if (
+    !shouldSendPosition({
+      fix,
+      now: Date.now(),
+      lastSentAt,
+      saved,
+      intervalSeconds: sync.config?.discovery?.interval,
+    })
+  )
+    return;
+  const [longitude, latitude] = fix!.lngLat;
+  try {
+    model.adapter.configure({
+      ...writableConfig(connection),
+      position: {
+        share: true,
+        source: 1,
+        latitude: Math.round((latitude + 90) * 1e7),
+        longitude: Math.round((longitude + 180) * 1e7),
+      },
+    });
+    recordPositionChange();
+  } catch {
+    // Tries again on a later pass.
+  }
 }
 
 export function renderPosition() {
+  publishPosition();
   const model = current(),
     connection = model.adapter.connection,
     { sync } = connection;
@@ -175,30 +286,54 @@ export function renderPosition() {
   const writable = ready && !connection.writeBlockReason && !!sync.config?.position;
   const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
   const position = sync.config?.position;
+  const select = element<HTMLSelectElement>('position-mode');
   if (!positionDirty && position) {
-    element<HTMLSelectElement>('position-source').value = String(position.source);
+    select.value =
+      preferences.positionMode === 'browser' ? 'browser' : position.source === 1 ? 'fixed' : 'off';
     element<HTMLInputElement>('position-share').checked = position.share;
     element<HTMLInputElement>('position-latitude').value = degrees(position.latitude, 90);
     element<HTMLInputElement>('position-longitude').value = degrees(position.longitude, 180);
     positionBase = context;
   }
+  const chosen = select.value;
   const stale = positionDirty && positionBase !== context;
-  text(
+  setNotice(
     'position-support',
     !connection.supportsPosition
-      ? 'Connect to firmware with fixed-position support.'
+      ? "This firmware doesn't support saved positions."
       : stale
-        ? 'Device state changed. Load the latest position settings.'
-        : (connection.writeBlockReason ??
-          (position?.share && position.source === 1
-            ? 'Fixed-position sharing enabled.'
-            : 'No coordinates will be sent with the current settings.')),
+        ? "The device's settings changed while you were editing. Discard to load the latest."
+        : (connection.writeBlockReason ?? undefined),
+    'warn',
   );
-  for (const id of ['position-source', 'position-share', 'position-latitude', 'position-longitude'])
+  element('position-browser').hidden = chosen !== 'browser';
+  element('fixed-position-fields').hidden = chosen !== 'fixed';
+  element('position-warning').hidden = chosen === 'off';
+  text(
+    'position-last-sent',
+    preferences.positionMode === 'browser' && lastSentAt
+      ? `Last sent to the device ${formatAgo(lastSentAt)}.`
+      : '',
+  );
+  const discovery = sync.config?.discovery;
+  element('position-beacon-off').hidden = !discovery || discovery.beacon;
+  text(
+    'position-beacon-slow',
+    discovery?.beacon && discovery.interval > 60
+      ? `Announcing every ${Math.round(discovery.interval / 60)} min. Set Discovery to 1 min for the closest tracking.`
+      : '',
+  );
+  for (const id of [
+    'position-mode',
+    'position-share',
+    'position-latitude',
+    'position-longitude',
+    'position-fill',
+  ])
     element<HTMLInputElement>(id).disabled = !writable || model.pending;
   element<HTMLButtonElement>('position-save').disabled =
     !writable || !positionDirty || stale || model.pending;
-  element<HTMLButtonElement>('position-reset').disabled = !ready;
+  element<HTMLButtonElement>('position-reset').disabled = !ready || !positionDirty;
 }
 
 export function renderScreen() {
@@ -211,32 +346,25 @@ export function renderScreen() {
   const context = `${mode.value}:${connection.device}:${sync.boot}:${sync.revision}`;
   const select = element<HTMLSelectElement>('screen-timeout');
   if (!screenDirty && screen) {
-    // Keep a device value set outside this portal selectable instead of silently replacing it.
-    const value = String(screen.timeout);
-    select.querySelector('option[data-custom]')?.remove();
-    if (![...select.options].some(option => option.value === value)) {
-      const option = new Option(`${screen.timeout} seconds`, value);
-      option.dataset.custom = '';
-      select.add(option);
-    }
-    select.value = value;
+    keepCustomOption(select, String(screen.timeout), `${screen.timeout} s`);
     element<HTMLInputElement>('screen-wake').checked = screen.wake;
     screenBase = context;
   }
   const stale = screenDirty && screenBase !== context;
-  text(
+  setNotice(
     'screen-support',
     !connection.supportsScreen
-      ? 'Connect to firmware with screen settings support.'
+      ? "This firmware doesn't support screen settings."
       : stale
-        ? 'Device state changed. Load the latest screen settings.'
-        : (connection.writeBlockReason ?? ''),
+        ? "The device's settings changed while you were editing. Discard to load the latest."
+        : (connection.writeBlockReason ?? undefined),
+    'warn',
   );
   for (const id of ['screen-timeout', 'screen-wake'])
     element<HTMLInputElement>(id).disabled = !writable || model.pending;
   element<HTMLButtonElement>('screen-save').disabled =
     !writable || !screenDirty || stale || model.pending;
-  element<HTMLButtonElement>('screen-reset').disabled = !ready;
+  element<HTMLButtonElement>('screen-reset').disabled = !ready || !screenDirty;
 }
 
 const PAIRING_MESSAGES: Record<string, string> = {
@@ -254,20 +382,19 @@ export function renderBluetooth() {
     ready = connection.sync.state === 'ready';
   const usb = mode.value === 'demo' || openLink.transport === 'usb';
   const can = ready && usb && connection.supportsPairing;
-  const showing =
-    manage.open && !manage.querySelector<HTMLElement>('[data-manage-panel="bluetooth"]')!.hidden;
-  // Stops polling, and forgets any passkey in memory, when the panel is closed.
-  if (ready) connection.watchPairing(can && showing);
+  // Stops polling, and forgets any passkey in memory, when the page is closed.
+  if (ready) connection.watchPairing(can && isShowing('bluetooth'));
   const pairing = can ? connection.pairing : undefined;
-  text(
+  setNotice(
     'pairing-support',
     !ready
       ? 'Connect over USB to start pairing here.'
       : !usb
         ? 'Connected over Bluetooth. Pairing another device needs USB or the device button.'
         : !connection.supportsPairing
-          ? 'Update this device’s firmware to start pairing here.'
-          : '',
+          ? "Update this device's firmware to start pairing here."
+          : undefined,
+    'warn',
   );
   const message = pairing ? PAIRING_MESSAGES[pairing.state] : undefined;
   element('pairing-state').hidden = !message;
@@ -298,7 +425,7 @@ async function pairThisBrowser() {
     await pairBleDevice(await chooseBleDevice(bluetooth!));
     text(
       'pairing-browser-status',
-      'This browser is paired. Disconnect USB, choose Bluetooth and connect.',
+      'This browser is paired. Disconnect USB, then connect over Bluetooth.',
     );
   } catch (error) {
     text('pairing-browser-status', `Not paired: ${bluetoothProblem(error)}`);
@@ -320,98 +447,45 @@ export function renderDiscovery() {
   if (!discoveryDirty && settings) {
     element<HTMLInputElement>('beacon-enabled').checked = settings.beacon;
     element<HTMLInputElement>('respond-enabled').checked = settings.respond;
-    element<HTMLInputElement>('beacon-interval').value = String(settings.interval);
+    keepCustomOption(
+      element<HTMLSelectElement>('beacon-interval'),
+      String(settings.interval),
+      `${settings.interval} s`,
+    );
     discoveryBase = context;
   }
   const stale = discoveryDirty && discoveryBase !== context;
-  const support = !supported
-    ? 'Connect to firmware with discovery support.'
-    : stale
-      ? 'Device state changed. Load the latest discovery settings.'
-      : (connection.writeBlockReason ?? 'Beacons and responses are separate, opt-in settings.');
-  text('discovery-support', support);
-  text(
+  setNotice(
     'discovery-panel-support',
     !supported
-      ? 'Connect a device with discovery support to change these settings.'
+      ? "This firmware doesn't support discovery."
       : stale
-        ? 'The device changed. Discard changes to load its latest settings.'
-        : (connection.writeBlockReason ??
-          'Choose how nearby devices can find this device. Announcements and replies are independently optional.'),
+        ? "The device's settings changed while you were editing. Discard to load the latest."
+        : (connection.writeBlockReason ?? undefined),
+    'warn',
   );
-  element<HTMLButtonElement>('discover').disabled =
-    !writable ||
-    connection.radioInfo?.reason !== 'ready' ||
-    connection.discovery.last?.state === 'collecting';
-  element<HTMLButtonElement>('discovery-query').disabled = !ready || !connection.discovery.last;
   element<HTMLButtonElement>('discovery-save').disabled =
     !writable || !discoveryDirty || stale || model.pending;
-  element<HTMLButtonElement>('discovery-reset').disabled = !ready;
+  element<HTMLButtonElement>('discovery-reset').disabled = !ready || !discoveryDirty;
   for (const id of ['beacon-enabled', 'respond-enabled', 'beacon-interval'])
     element<HTMLInputElement>(id).disabled = !writable || model.pending;
-  const result = connection.discovery.last;
-  text(
-    'discovery-result',
-    connection.discovery.error ?? (result ? `${result.state} · ${result.replies} replies` : ''),
-  );
-  const nodes = connection.discovery.nodes;
-  element('nodes-empty').hidden = nodes.length > 0;
-  text('node-count', String(nodes.length));
-  const signature =
-    mode.value +
-    ':' +
-    selectedNodeId() +
-    ':' +
-    JSON.stringify(nodes) +
-    ':' +
-    Math.floor(performance.now() / 1000);
-  if (signature === nodeSignature) return;
-  nodeSignature = signature;
-  const list = element('nodes');
-  list.replaceChildren();
-  for (const node of nodes) {
-    const row = document.createElement('li');
-    row.classList.toggle('is-selected', node.node === selectedNodeId());
-    const content = document.createElement('div');
-    const name = document.createElement('strong');
-    const detail = document.createElement('span');
-    name.textContent = node.name || node.node;
-    detail.className = 'mono';
-    detail.textContent = `${node.node} · last heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago`;
-    if (node.position)
-      detail.textContent += ` · fixed ${degrees(node.position.latitude, 90)}, ${degrees(node.position.longitude, 180)}`;
-    else detail.textContent += ' · no position';
-    content.append(name, detail);
-    content.style.cursor = 'pointer';
-    content.addEventListener('click', () => selectNode(node.node, { focusMap: !!node.position }));
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    const message = document.createElement('button');
-    message.textContent = 'Message';
-    message.disabled = sync.state !== 'ready';
-    message.addEventListener('click', () =>
-      selectNode(node.node, { message: true, focusMap: !!node.position }),
-    );
-    actions.append(message);
-    if (node.position) {
-      const locate = document.createElement('button');
-      locate.textContent = 'Locate';
-      locate.addEventListener('click', () => selectNode(node.node, { focusMap: true }));
-      actions.append(locate);
-    }
-    row.append(content, actions);
-    list.append(row);
-  }
 }
 
 export function initSettings() {
-  for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
-    tab.addEventListener('click', () => setManage(tab.dataset.manage!));
-  }
-  for (const button of document.querySelectorAll<HTMLElement>('[data-open-manage]')) {
-    button.addEventListener('click', () => openManage(button.dataset.openManage));
-  }
-  element('open-manage').addEventListener('click', () => openManage('device'));
+  onLocalAppStop(() => {
+    if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+    watchId = undefined;
+  });
+  onPageChange(left => {
+    // A page's unsaved edits don't follow you away from it.
+    if (left === 'radio') radioDirty = false;
+    if (left === 'position') {
+      positionDirty = false;
+      setNotice('position-error', undefined);
+    }
+    if (left === 'discovery') discoveryDirty = false;
+    if (left === 'screen') screenDirty = false;
+  });
   element('radio-form').addEventListener('input', () => {
     radioDirty = true;
     render();
@@ -432,14 +506,14 @@ export function initSettings() {
           model.adapter.connection.supportsTxBoost &&
           element<HTMLInputElement>('radio-boost').checked,
         relay: element<HTMLInputElement>('radio-relay').checked,
-        // Channels are edited in the Channels tab; keep the device's current table here.
+        // Channels are edited on their own page; keep the device's current table here.
         channels: currentConfig.radio!.channels,
         channelIds: currentConfig.radio!.channelIds,
         preset: 'US915_LAB1',
       };
       if (!validRadio(radio, currentConfig.region))
         throw new Error('Use the US region to turn the radio on.');
-      model.adapter.configure({ ...currentConfig, radio });
+      model.adapter.configure({ ...writableConfig(model.adapter.connection), radio });
       radioDirty = false;
       clearError();
       render();
@@ -452,22 +526,19 @@ export function initSettings() {
     render();
   });
   element('recovery-export').addEventListener('click', () => {
-    const url = URL.createObjectURL(
+    downloadBlob(
+      'reaper-mesh-recovery.json',
       new Blob([recovery.exportText()], { type: 'application/json' }),
     );
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'reaper-mesh-recovery.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  element('recovery-reset').addEventListener('click', () => {
-    if (
-      !confirm(
-        'Discard saved USB history and allocate a new agent identity? Unknown device work is not cancelled. Export your history first if you need it. Device owner slots are limited.',
-      )
-    )
-      return;
+  element('recovery-reset').addEventListener('click', async () => {
+    const yes = await confirmSheet({
+      title: 'Reset device history?',
+      body: 'This discards saved history and allocates a new agent identity. Unknown device work is not cancelled. Export your history first if you need it. Device owner slots are limited.',
+      confirm: 'Reset',
+      danger: true,
+    });
+    if (!yes) return;
     try {
       recovery.reset();
       models.usb = new ConfigModel(new SerialAdapter(recovery.connection));
@@ -489,45 +560,72 @@ export function initSettings() {
       revision: connection.sync.revision,
       config: connection.sync.config,
     };
-    const url = URL.createObjectURL(
+    downloadBlob(
+      'reaper-mesh-settings.json',
       new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }),
     );
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'reaper-mesh-settings.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
+
+  const positionSelect = element<HTMLSelectElement>('position-mode');
+  const fillFromBrowser = async () => {
+    setNotice('position-error', undefined);
+    try {
+      const position = await browserFix();
+      element<HTMLInputElement>('position-latitude').value = position.coords.latitude.toFixed(7);
+      element<HTMLInputElement>('position-longitude').value = position.coords.longitude.toFixed(7);
+      positionDirty = true;
+      render();
+      return true;
+    } catch (error) {
+      setNotice('position-error', error instanceof Error ? error.message : String(error), 'bad');
+      return false;
+    }
+  };
   element('position-form').addEventListener('input', () => {
     positionDirty = true;
     render();
   });
+  positionSelect.addEventListener('change', async () => {
+    setNotice('position-error', undefined);
+    if (positionSelect.value === 'browser' && !(await fillFromBrowser())) {
+      positionDirty = false;
+      render();
+    }
+  });
+  element('position-fill').addEventListener('click', () => void fillFromBrowser());
   element('position-reset').addEventListener('click', () => {
     positionDirty = false;
+    setNotice('position-error', undefined);
     render();
   });
   element('position-form').addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const config = current().adapter.connection.sync.config!;
-      const source = element<HTMLSelectElement>('position-source').value;
-      if (source !== '0' && source !== '1') throw new Error('Unsupported position source');
-      current().adapter.configure({
-        ...config,
-        position: {
-          source: source === '1' ? 1 : 0,
-          share: element<HTMLInputElement>('position-share').checked,
-          latitude: coordinate(element<HTMLInputElement>('position-latitude').value, 90),
-          longitude: coordinate(element<HTMLInputElement>('position-longitude').value, 180),
-        },
-      });
+      const { connection } = current().adapter;
+      const chosen = positionSelect.value;
+      const saved = connection.sync.config!.position!;
+      const latitude = element<HTMLInputElement>('position-latitude').value;
+      const longitude = element<HTMLInputElement>('position-longitude').value;
+      const position =
+        chosen === 'off'
+          ? { ...saved, source: 0 as const, share: false }
+          : {
+              source: 1 as const,
+              share: chosen === 'browser' || element<HTMLInputElement>('position-share').checked,
+              latitude: coordinate(latitude, 90),
+              longitude: coordinate(longitude, 180),
+            };
+      current().adapter.configure({ ...writableConfig(connection), position });
+      setPreference('positionMode', chosen === 'browser' ? 'browser' : 'fixed');
       positionDirty = false;
       clearError();
+      setNotice('position-error', undefined);
       render();
     } catch (error) {
-      showError(error);
+      setNotice('position-error', error instanceof Error ? error.message : String(error), 'bad');
     }
   });
+
   element('pairing-start').addEventListener('click', () => {
     try {
       clearError();
@@ -549,9 +647,9 @@ export function initSettings() {
   element('screen-form').addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const config = current().adapter.connection.sync.config!;
+      const { connection } = current().adapter;
       current().adapter.configure({
-        ...config,
+        ...writableConfig(connection),
         screen: {
           timeout: Number(element<HTMLSelectElement>('screen-timeout').value),
           wake: element<HTMLInputElement>('screen-wake').checked,
@@ -575,35 +673,17 @@ export function initSettings() {
   element('discovery-form').addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const config = current().adapter.connection.sync.config!;
+      const { connection } = current().adapter;
       current().adapter.configure({
-        ...config,
+        ...writableConfig(connection),
         discovery: {
           beacon: element<HTMLInputElement>('beacon-enabled').checked,
           respond: element<HTMLInputElement>('respond-enabled').checked,
-          interval: Number(element<HTMLInputElement>('beacon-interval').value),
+          interval: Number(element<HTMLSelectElement>('beacon-interval').value),
         },
       });
       discoveryDirty = false;
       clearError();
-      render();
-    } catch (error) {
-      showError(error);
-    }
-  });
-  element('discover').addEventListener('click', () => {
-    try {
-      current().adapter.discover();
-      clearError();
-      render();
-    } catch (error) {
-      showError(error);
-    }
-  });
-  element('discovery-query').addEventListener('click', () => {
-    try {
-      if (!current().adapter.recoverDiscovery())
-        throw new Error('Previous-boot discovery outcome is unavailable; nothing was resent.');
       render();
     } catch (error) {
       showError(error);

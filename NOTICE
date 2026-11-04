@@ -11,6 +11,9 @@ This product includes third-party software:
 - Leaflet 1.9.4 (BSD-2-Clause), bundled in the web agent build.
 - libsodium.js / libsodium-wrappers-sumo 0.8.4 (ISC License), bundled in the
   web agent build.
+- qrcode-generator 2.0.4 (MIT License), jsQR 1.4.0 (Apache License 2.0), Lucide
+  1.68.0 (ISC License) and mgrs 2.2.0 (MIT License), bundled in the web agent
+  build.
 
 Firmware images are built with Espressif ESP-IDF v5.5.4 (Apache License 2.0)
 and include components under their own licenses. Firmware packages retain the

@@ -26,7 +26,7 @@ Since firmware `v0.6.0`, a USB host can open the window and read the state, usin
 
 `state` is `closed`, `open`, `passkey`, `full`, `paired`, `failed`, `forgotten`, `unavailable` or `refused`. The firmware decides by the link a request arrived on, not by anything the request says: a request over Bluetooth always gets `refused`, with no passkey or name, even from the session's owner. The same answer goes to a USB host that was not admitted. So a paired phone cannot admit another device.
 
-Agents keep this state in memory only and never journal it. The web portal polls once a second while Settings → Bluetooth is showing, and forgets any passkey when the panel closes.
+Agents keep this state in memory only and never journal it. The web portal polls once a second while Device → Bluetooth is showing, and forgets any passkey when the panel closes.
 
 ## GATT service
 

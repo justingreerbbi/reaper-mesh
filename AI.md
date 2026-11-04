@@ -56,7 +56,8 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 - Field qualification comes first: new portal features are paused until three-node relay and
   an outdoor range test pass on hardware (owner direction, November 3). Portal work is limited
   to bug fixes and native QA. See the
-  [field qualification plan](docs/contributing/field-qualification.md).
+  [field qualification plan](docs/contributing/field-qualification.md). The one exception is
+  keeping the portal in step with the mobile app, which the owner directed on November 4 (D49).
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.

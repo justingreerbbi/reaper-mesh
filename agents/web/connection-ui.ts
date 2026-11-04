@@ -1,9 +1,10 @@
-// Device connection controls, the simulator, and device status in Settings.
-import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
+// The connect screen, the session (including rejoining and reconnecting), and General settings.
 import type { SerialPortLike } from '../../packages/agent-core/serial.ts';
-import { BlePort, chooseBleDevice } from '../../packages/agent-core/ble.ts';
+import { BlePort, chooseBleDevice, type BleDevice } from '../../packages/agent-core/ble.ts';
+import type { FieldDevice } from '../../packages/simulator/field-device.ts';
 import type { ConfigModel } from './model.ts';
 import {
+  app,
   bluetooth,
   bluetoothHelp,
   bluetoothProblem,
@@ -14,102 +15,422 @@ import {
   mode,
   models,
   openLink,
+  preferences,
   recovery,
   render,
   showError,
-  transport,
+  writableConfig,
 } from './app-state.ts';
 import { element, text } from './dom.ts';
-import { messagesModeChanged } from './messages-ui.ts';
-import { fieldMap, setPanelOpen, setSelectedNode } from './map-ui.ts';
+import { drawDeviceArt } from './device-art.ts';
+import { messagesModeChanged, setConnectAction } from './messages-ui.ts';
+import { fieldMap, setSelectedNode } from './map-ui.ts';
+import { onLocalAppStop } from './access-ui.ts';
+import { icon, setNotice } from './ui.ts';
+import { formatAgo } from './geo.ts';
+import {
+  forgetDevice,
+  readDevices,
+  rememberDevice,
+  type RememberedDevice,
+} from './remembered-devices.ts';
+
+type UsbPort = SerialPortLike & { getInfo?(): { usbVendorId?: number; usbProductId?: number } };
+type SerialApi = EventTarget & {
+  requestPort(): Promise<UsbPort>;
+  getPorts?(): Promise<UsbPort[]>;
+};
+type BluetoothDevices = { getDevices?(): Promise<(BleDevice & { id?: string })[]> };
+const serial = (navigator as Navigator & { serial?: SerialApi }).serial;
+
+/** A device the user wants to stay connected to, and how to reach it again. */
+type Target =
+  | { kind: 'usb'; port: UsbPort }
+  | { kind: 'ble'; device: BleDevice & { id?: string } }
+  | { kind: 'demo' };
+
+const RECONNECT_DELAYS_MS = [2000, 4000, 8000, 15000, 30000];
 
 const label = element<HTMLInputElement>('label');
 const region = element<HTMLSelectElement>('region');
 const fault = element<HTMLSelectElement>('fault');
 const readOnly = element<HTMLInputElement>('read-only');
-const connect = element<HTMLButtonElement>('connect');
 const save = element<HTMLButtonElement>('save');
 const reset = element<HTMLButtonElement>('reset');
-const serial = (navigator as Navigator & { serial?: { requestPort(): Promise<SerialPortLike> } })
-  .serial;
+const sheet = element<HTMLDialogElement>('connecting-sheet');
+
+let wanted: Target | undefined;
+/** The link has been up at least once, so a lost link stays in the app and reconnects. */
+let everReady = false;
+/** Looking at saved messages and the map with no device. */
+let browsing = false;
 let busy = false;
 let attempt = 0;
-let connected = false;
+let reconnectAttempt = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+let rememberedSignature = '';
+let devicesSignature = '';
+let connectProblem = '';
+
+export type LinkState = 'idle' | 'connecting' | 'negotiating' | 'ready' | 'lost';
+export function linkState(): LinkState {
+  const { adapter } = current();
+  if (adapter.active && adapter.connection.sync.state === 'ready') return 'ready';
+  if (busy) return 'connecting';
+  if (adapter.active) return 'negotiating';
+  return wanted && everReady ? 'lost' : 'idle';
+}
+export const inSession = () => browsing || (!!wanted && everReady);
+export const hasDevice = () => !!wanted;
+
+function modelFor(target: Target): ConfigModel {
+  return target.kind === 'demo' ? models.demo : models.usb;
+}
+
+function useSource(target: Target) {
+  const source = target.kind === 'demo' ? 'demo' : 'usb';
+  if (mode.value !== source) {
+    messagesModeChanged();
+    mode.value = source;
+    setSelectedNode('');
+  }
+  openLink.transport = target.kind === 'ble' ? 'ble' : 'usb';
+}
+
+async function attemptConnect(target: Target, quiet: boolean) {
+  const token = ++attempt;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = undefined;
+  wanted = target;
+  useSource(target);
+  busy = true;
+  connectProblem = '';
+  if (!quiet) clearError();
+  render();
+  const model = modelFor(target);
+  try {
+    let port: SerialPortLike;
+    if (target.kind === 'demo') {
+      demo.readOnly = readOnly.checked;
+      port = demo.createPort();
+    } else if (target.kind === 'ble') port = new BlePort(target.device);
+    else port = target.port;
+    await model.adapter.connect(port, crypto.randomUUID());
+  } catch (error) {
+    if (token === attempt && !everReady) {
+      wanted = undefined;
+      if (!quiet)
+        connectProblem = String(
+          target.kind === 'ble'
+            ? bluetoothProblem(error)
+            : error instanceof Error
+              ? error.message
+              : error,
+        );
+    }
+  } finally {
+    if (token === attempt) {
+      busy = false;
+      render();
+      fieldMap.invalidate();
+    }
+  }
+}
+
+/** USB adapters can come back as a new port object after being unplugged. */
+async function findUsbPort(known?: { usbVendorId?: number; usbProductId?: number }) {
+  const ports = (await serial?.getPorts?.()) ?? [];
+  return ports.find(port => {
+    const info = port.getInfo?.();
+    return (
+      info && info.usbVendorId === known?.usbVendorId && info.usbProductId === known?.usbProductId
+    );
+  });
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer || !wanted) return;
+  const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)];
+  reconnectAttempt++;
+  reconnectTimer = setTimeout(() => void reconnect(), delay);
+}
+
+async function reconnect() {
+  reconnectTimer = undefined;
+  const target = wanted;
+  if (!target || current().adapter.active || busy) return;
+  if (target.kind === 'usb') {
+    const ports = (await serial?.getPorts?.()) ?? [];
+    if (!ports.includes(target.port)) {
+      const replacement = await findUsbPort(target.port.getInfo?.());
+      if (!replacement) return scheduleReconnect();
+      target.port = replacement;
+    }
+  }
+  // Never replays anything: the session only queries outcomes it isn't sure of.
+  await attemptConnect(target, true);
+}
+
+/** Ends the session and returns to the connect screen. */
+export async function endSession() {
+  ++attempt;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = undefined;
+  wanted = undefined;
+  everReady = false;
+  busy = false;
+  browsing = false;
+  reconnectAttempt = 0;
+  rememberedSignature = '';
+  connectProblem = '';
+  clearError();
+  try {
+    await current().adapter.disconnect();
+  } catch (e) {
+    showError(e);
+  }
+  setSelectedNode('');
+  render();
+}
+
+async function connectUsb(known?: RememberedDevice) {
+  try {
+    const port = (known && (await findUsbPort(known))) ?? (await serial!.requestPort());
+    await attemptConnect({ kind: 'usb', port }, false);
+  } catch (error) {
+    // Closing the browser's chooser isn't a problem to report.
+    if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+      connectProblem = error instanceof Error ? error.message : String(error);
+      render();
+    }
+  }
+}
+
+async function connectBluetooth(known?: RememberedDevice) {
+  try {
+    const granted = known?.bluetoothId
+      ? await (bluetooth as unknown as BluetoothDevices).getDevices?.()
+      : undefined;
+    const device =
+      granted?.find(row => row.id === known!.bluetoothId) ??
+      ((await chooseBleDevice(bluetooth!)) as BleDevice & { id?: string });
+    await attemptConnect({ kind: 'ble', device }, false);
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+      connectProblem = bluetoothProblem(error);
+      render();
+    }
+  }
+}
+
+function connectKnown(known: RememberedDevice) {
+  if (known.kind === 'simulated') return void attemptConnect({ kind: 'demo' }, false);
+  if (known.kind === 'bluetooth') return void connectBluetooth(known);
+  void connectUsb(known);
+}
+
+/** Checks for the last device on load. Never prompts, so a first visit arrives at Connect cleanly. */
+export async function connectOnLoad() {
+  if (!preferences.connectOnLoad || !recovery.writable) return;
+  const last = readDevices(localStorage)[0];
+  if (!last) return;
+  if (last.kind === 'simulated') return void attemptConnect({ kind: 'demo' }, true);
+  if (last.kind === 'usb') {
+    const port = await findUsbPort(last);
+    if (port) await attemptConnect({ kind: 'usb', port }, true);
+    return;
+  }
+  const granted = await (bluetooth as unknown as BluetoothDevices | undefined)?.getDevices?.();
+  const device = granted?.find(row => row.id === last.bluetoothId);
+  if (device) await attemptConnect({ kind: 'ble', device }, true);
+}
+
+function rememberCurrent() {
+  const { connection } = current().adapter;
+  if (!wanted || !connection.device) return;
+  const name = connection.sync.config?.label;
+  const signature = `${connection.device}|${name}|${wanted.kind}`;
+  if (signature === rememberedSignature) return;
+  rememberedSignature = signature;
+  const usb = wanted.kind === 'usb' ? wanted.port.getInfo?.() : undefined;
+  try {
+    rememberDevice(localStorage, {
+      id: connection.device,
+      kind: wanted.kind === 'demo' ? 'simulated' : wanted.kind === 'ble' ? 'bluetooth' : 'usb',
+      ...(name ? { label: name } : {}),
+      ...(wanted.kind === 'ble' && wanted.device.id ? { bluetoothId: wanted.device.id } : {}),
+      ...(usb?.usbVendorId !== undefined ? { usbVendorId: usb.usbVendorId } : {}),
+      ...(usb?.usbProductId !== undefined ? { usbProductId: usb.usbProductId } : {}),
+      lastConnectedAt: Date.now(),
+    });
+  } catch {
+    // Only means this device won't be listed next time.
+  }
+}
+
+function deviceTitle(row: RememberedDevice) {
+  return row.label || (row.kind === 'simulated' ? 'Simulated device' : 'Reaper device');
+}
+const KIND_LABELS = { usb: 'USB', bluetooth: 'Bluetooth', simulated: 'Simulated' };
+
+/** Lists remembered devices on the connect screen and in This app. */
+function renderDevices() {
+  const devices = readDevices(localStorage);
+  const signature = JSON.stringify([devices, Math.floor(Date.now() / 60000)]);
+  if (signature === devicesSignature) return;
+  devicesSignature = signature;
+  element('connect-devices-section').hidden = devices.length === 0;
+  element('connect-devices').replaceChildren(
+    ...devices.map(row => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'row-button';
+      button.setAttribute('aria-label', `Connect to ${deviceTitle(row)}`);
+      const textBox = document.createElement('span');
+      textBox.className = 'row-text';
+      const title = document.createElement('strong');
+      title.textContent = deviceTitle(row);
+      const detail = document.createElement('small');
+      detail.textContent = `${KIND_LABELS[row.kind]} · last connected ${formatAgo(row.lastConnectedAt)}`;
+      textBox.append(title, detail);
+      button.append(icon('radio'), textBox);
+      button.addEventListener('click', () => connectKnown(row));
+      return button;
+    }),
+  );
+  const list = element('app-devices');
+  list.replaceChildren(
+    ...devices.map(row => {
+      const wrap = document.createElement('div');
+      wrap.className = 'device-row';
+      const textBox = document.createElement('div');
+      textBox.className = 'grow';
+      const title = document.createElement('div');
+      title.textContent = deviceTitle(row);
+      const detail = document.createElement('small');
+      detail.className = 'muted';
+      detail.textContent = `Last connected ${formatAgo(row.lastConnectedAt)}`;
+      textBox.append(title, detail);
+      const forget = document.createElement('button');
+      forget.type = 'button';
+      forget.className = 'compact';
+      forget.textContent = 'Forget';
+      forget.addEventListener('click', () => {
+        forgetDevice(localStorage, row.id);
+        devicesSignature = '';
+        render();
+      });
+      wrap.append(textBox, forget);
+      return wrap;
+    }),
+  );
+  if (!devices.length) {
+    const none = document.createElement('small');
+    none.className = 'muted';
+    none.textContent = 'None yet.';
+    list.append(none);
+  }
+}
+
+function renderConnectScreen() {
+  const usbMissing = !serial;
+  const bluetoothMissing = !bluetooth;
+  const insecure = !isSecureContext;
+  element<HTMLButtonElement>('connect-usb').disabled = usbMissing || insecure || !recovery.writable;
+  element<HTMLButtonElement>('connect-ble').disabled =
+    bluetoothMissing || insecure || !recovery.writable;
+  setNotice(
+    'connect-support',
+    !recovery.writable
+      ? 'Reaper Mesh is open in another tab. Close that tab and reload to connect here.'
+      : insecure
+        ? 'USB and Bluetooth need HTTPS or localhost.'
+        : usbMissing && bluetoothMissing
+          ? 'This browser has no USB or Bluetooth access. Use Chrome or Edge on a desktop.'
+          : bluetoothMissing
+            ? bluetoothHelp
+            : usbMissing
+              ? 'This browser has no USB access. Use Chrome or Edge on a desktop for USB.'
+              : undefined,
+    'bad',
+  );
+  const { connection } = models[mode.value].adapter;
+  setNotice('connect-error', connectProblem || connection.error, 'bad');
+  drawDeviceArt(element('connect-art'), 'REAPER', 'Waiting', false);
+}
+
+function renderConnectingSheet(state: LinkState) {
+  const show = (state === 'connecting' || state === 'negotiating') && !everReady;
+  if (show && !sheet.open) sheet.showModal();
+  if (!show && sheet.open) sheet.close();
+  if (!show) return;
+  const ble = openLink.transport === 'ble' && mode.value !== 'demo';
+  text(
+    'connecting-title',
+    state === 'negotiating' ? 'Starting session' : ble ? 'Securing the link' : 'Connecting',
+  );
+  text(
+    'connecting-text',
+    state === 'negotiating'
+      ? 'Stay close to your device.'
+      : ble
+        ? 'If your browser asks for a passkey, type the 6 digits shown on the device screen. A paired device skips this.'
+        : 'Opening the port. This can restart the board.',
+  );
+}
 
 export function renderConnection(model: ConfigModel, active: boolean, cleanupError?: string) {
   const { connection } = model.adapter;
   const { sync, capabilities } = connection;
   const ready = sync.state === 'ready';
   const writable = ready && !connection.writeBlockReason;
-  mode.disabled = busy || active;
-  transport.disabled = busy || active;
-  transport.hidden = mode.value === 'demo';
-  const ble = mode.value !== 'demo' && transport.value === 'ble';
-  // One toggle: connect when idle, cancel while opening, disconnect when connected.
-  connected = busy || active;
-  connect.disabled =
-    !connected && mode.value === 'usb' && ((ble ? !bluetooth : !serial) || !isSecureContext);
-  connect.textContent = busy
-    ? 'Cancel'
-    : active
-      ? 'Disconnect'
-      : mode.value === 'demo'
-        ? 'Connect simulator'
-        : ble
-          ? 'Connect Bluetooth'
-          : 'Connect USB';
-  connect.classList.toggle('primary', !connected);
-  text(
-    'support',
-    mode.value === 'demo'
-      ? 'An in-memory device. No USB access or radio traffic.'
-      : !isSecureContext
-        ? `${ble ? 'Bluetooth' : 'USB'} requires HTTPS or localhost.`
-        : ble
-          ? bluetooth
-            ? 'Choose a paired Reaper device, or pair one first in Settings → Bluetooth.'
-            : bluetoothHelp
-          : !serial
-            ? 'Use a desktop browser with Web Serial support.'
-            : 'Choose Heltec (usbserial-0001) or T-Beam (wchusbserial…) in the browser port chooser. One device at a time.',
-  );
-  text(
-    'status',
-    busy ? 'Opening' : sync.state === 'ready' ? (writable ? 'Connected' : 'Read-only') : sync.state,
-  );
-  element('status').dataset.state = sync.state;
-  element('rail-status').dataset.state = busy ? 'opening' : sync.state;
-  text('source-caption', connection.device ? connection.device : 'No device');
-  text('revision', ready ? `REV ${sync.revision}` : 'REV —');
-  text(
+
+  if (wanted && ready) {
+    if (!everReady) {
+      everReady = true;
+      browsing = false;
+    }
+    reconnectAttempt = 0;
+    rememberCurrent();
+  }
+  // Whatever closed the link, the session decides here whether to keep trying.
+  if (wanted && !busy && !active) {
+    if (everReady) scheduleReconnect();
+    else wanted = undefined;
+  }
+  const state = linkState();
+  app.dataset.session = inSession() ? 'in' : 'out';
+  element('rail-status').dataset.tone =
+    state === 'ready' ? 'good' : state === 'lost' ? 'bad' : state === 'idle' ? 'muted' : 'warn';
+  element('link-banner').hidden = !wanted || !everReady || state === 'ready';
+  text('link-banner-text', state === 'lost' ? 'Link lost. Reconnecting' : 'Reconnecting');
+  renderConnectingSheet(state);
+  renderConnectScreen();
+  renderDevices();
+
+  // General settings.
+  setNotice(
     'write-reason',
     ready
-      ? (connection.writeBlockReason ?? 'Settings are synchronized with the device.')
+      ? (connection.writeBlockReason ?? undefined)
       : 'Connect and synchronize to edit settings.',
+    'warn',
   );
-  const note = element('capability-note');
-  if (!ready) {
-    note.hidden = true;
-    text('capability-note', '');
-  } else {
-    const gaps: string[] = [];
+  const gaps: string[] = [];
+  if (ready) {
     if (connection.messageBlockReason) gaps.push('messaging');
     if (connection.radioBlockReason) gaps.push('radio');
     if (!connection.supportsDiscovery) gaps.push('discovery');
     if (!connection.supportsPosition) gaps.push('position');
-    note.hidden = gaps.length === 0;
-    text(
-      'capability-note',
-      gaps.length
-        ? mode.value === 'demo'
-          ? `Simulator identity only — ${gaps.join(', ')} need a USB firmware device.`
-          : `This firmware does not expose: ${gaps.join(', ')}.`
-        : '',
-    );
   }
+  setNotice(
+    'capability-note',
+    gaps.length ? `This firmware does not expose: ${gaps.join(', ')}.` : undefined,
+    'warn',
+  );
   if (document.activeElement !== label && label.value !== model.draft.label)
     label.value = model.draft.label;
-  if (document.activeElement !== region) region.value = model.draft.region;
+  region.value = model.draft.region;
   label.disabled = !writable || model.pending;
   region.disabled = !writable || model.pending;
   for (const option of region.options) {
@@ -118,57 +439,21 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   }
   const bytes = new TextEncoder().encode(model.draft.label).length;
   const max = capabilities?.maxLabelBytes ?? 64;
-  text('byte-count', `${bytes} / ${capabilities ? max : '—'} bytes`);
+  text('byte-count', `Shown to other nodes. ${bytes} of ${max} bytes.`);
   save.disabled = !writable || !model.dirty || model.stale || model.pending || bytes > max;
-  reset.disabled = !ready || model.pending;
+  reset.disabled = !ready || model.pending || !model.dirty;
   element<HTMLButtonElement>('export-settings').disabled = !ready;
   element('draft-warning').hidden = !ready || !model.dirty || !model.stale;
-  text('device', connection.device ?? '—');
-  text('firmware', capabilities?.firmware ?? '—');
-  text('schema', capabilities?.configSchema ?? '—');
-  text(
-    'capacity',
-    capabilities
-      ? `${capabilities.receiptCapacity} receipts / ${capabilities.ownerCapacity} owners`
-      : '—',
-  );
-  text(
-    'admission',
-    capabilities
-      ? capabilities.ownerAdmitted === 1
-        ? 'Admitted'
-        : 'Not admitted · read-only'
-      : '—',
-  );
-  text(
-    'radio-hardware',
-    connection.radioInfo
-      ? `${connection.radioInfo.probe === 1 ? 'Probe OK' : 'Probe failed'} · ${connection.radioInfo.state} · ${connection.radioInfo.reason}`
-      : (connection.radioError ?? 'Waiting for diagnostics'),
-  );
-  text(
-    'radio-packets',
-    connection.radioInfo
-      ? `RX ${connection.radioInfo.received} / TX ${connection.radioInfo.transmitted}`
-      : '—',
-  );
-  text(
-    'resource-status',
-    connection.radioInfo
-      ? `${connection.radioInfo.heapFree} bytes free heap · ${connection.radioInfo.stackFree} bytes minimum free main stack`
-      : (connection.radioError ?? 'Connect to read diagnostics.'),
-  );
-  text(
-    'radio',
-    capabilities
-      ? capabilities.radioVersion === 0
-        ? 'Not implemented'
-        : capabilities.radioVersion
-      : '—',
-  );
-  const message = cleanupError || currentError() || connection.error || '';
+  element('region-warning').hidden =
+    !ready ||
+    model.draft.region === 'US' ||
+    !sync.config?.radio ||
+    sync.config.radio.mode === 'off';
+
+  // A cleanup problem matters only while it holds the port; a lost link is shown by the banner.
+  const message = (active ? cleanupError : '') || currentError();
   text('error', message);
-  element('error').hidden = !message;
+  element('toast').hidden = !message;
   text(
     'recovery-status',
     recovery.connection.recoveryError ??
@@ -177,71 +462,45 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   element<HTMLButtonElement>('recovery-reset').disabled = busy || models.usb.adapter.active;
   element('simulation').hidden = mode.value !== 'demo';
   element<HTMLButtonElement>('reboot').disabled = busy;
+  element<HTMLButtonElement>('sim-drop').disabled = !active;
   readOnly.disabled = active || busy;
 }
 
-/** Opens a connection, unless one is already open or opening. */
-export async function connectDevice() {
-  if (!connected) await open();
-}
-
-async function open() {
-  const token = ++attempt;
-  const model = current();
-  busy = true;
-  clearError();
-  render();
-  try {
-    const ble = mode.value !== 'demo' && transport.value === 'ble';
-    openLink.transport = ble ? 'ble' : 'usb';
-    const port =
-      mode.value === 'demo'
-        ? demo.createPort()
-        : ble
-          ? new BlePort(await chooseBleDevice(bluetooth!))
-          : await serial!.requestPort();
-    if (token !== attempt) return;
-    demo.readOnly = readOnly.checked;
-    await model.adapter.connect(port, crypto.randomUUID());
-  } catch (e) {
-    if (token === attempt) showError(openLink.transport === 'ble' ? bluetoothProblem(e) : e);
-  } finally {
-    if (token === attempt) {
-      busy = false;
-      if (model.adapter.connection.sync.state === 'ready') {
-        setPanelOpen(true);
-      }
-      render();
-      fieldMap.invalidate();
-    }
-  }
-}
-
-async function close() {
-  ++attempt;
-  busy = false;
-  clearError();
-  const model = current();
-  try {
-    await model.adapter.disconnect();
-  } catch (e) {
-    showError(e);
-  }
-  setSelectedNode('');
-  render();
-}
-
 export function initConnection() {
-  connect.addEventListener('click', () => (connected ? close() : open()));
-  transport.addEventListener('change', () => {
+  setConnectAction(() => {
+    browsing = false;
+    render();
+  });
+  element('connect-usb').addEventListener('click', () => void connectUsb());
+  element('connect-ble').addEventListener('click', () => void connectBluetooth());
+  element('connect-sim').addEventListener(
+    'click',
+    () => void attemptConnect({ kind: 'demo' }, false),
+  );
+  element('connect-browse').addEventListener('click', () => {
+    browsing = true;
+    connectProblem = '';
+    render();
+    fieldMap.invalidate();
+  });
+  element('connecting-cancel').addEventListener('click', () => void endSession());
+  sheet.addEventListener('cancel', event => {
+    event.preventDefault();
+    void endSession();
+  });
+  element('link-banner-disconnect').addEventListener('click', () => void endSession());
+  element('toast-close').addEventListener('click', () => {
     clearError();
     render();
   });
-  mode.addEventListener('change', () => {
-    messagesModeChanged();
-    clearError();
-    setSelectedNode('');
-    render();
+  serial?.addEventListener('connect', () => {
+    // Plugged back in: no need to wait out the backoff.
+    if (wanted?.kind === 'usb' && everReady && !current().adapter.active) void reconnect();
+  });
+  onLocalAppStop(() => {
+    ++attempt;
+    clearTimeout(reconnectTimer);
+    wanted = undefined;
   });
   const edit = () => {
     current().edit({ ...current().draft, label: label.value, region: region.value });
@@ -253,8 +512,20 @@ export function initConnection() {
     event.preventDefault();
     try {
       clearError();
-      if (mode.value === 'demo') demo.nextFault = fault.value as SimulatedDevice['nextFault'];
-      current().save();
+      const model = current();
+      if (mode.value === 'demo') demo.nextFault = fault.value as FieldDevice['nextFault'];
+      const base = {
+        ...writableConfig(model.adapter.connection),
+        label: model.draft.label,
+        region: model.draft.region,
+      };
+      // Radio is only allowed in the US profile, so the radio turns off with any other region.
+      model.edit(
+        base.region !== 'US' && base.radio
+          ? { ...base, radio: { ...base.radio, mode: 'off' } }
+          : base,
+      );
+      model.save();
       fault.value = 'none';
       render();
     } catch (e) {
@@ -272,6 +543,10 @@ export function initConnection() {
   });
   element('reboot').addEventListener('click', () => {
     demo.reboot();
+    render();
+  });
+  element('sim-drop').addEventListener('click', () => {
+    demo.drop();
     render();
   });
 }

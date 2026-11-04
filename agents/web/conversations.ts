@@ -106,6 +106,40 @@ export function deliveryLabel(m: Outgoing) {
     )[m.state] ?? 'Unknown'
   );
 }
+/**
+ * Icon, color and wording for a sent message. Transmitted is not delivery, and acknowledged means
+ * the destination device accepted it, not that anyone read it. Same wording as the mobile app.
+ */
+export function deliveryOf(m: Outgoing): {
+  icon: 'pending' | 'sent' | 'done' | 'failed' | 'unknown';
+  tone: 'good' | 'muted' | 'bad' | 'warn';
+  label: string;
+} {
+  if (m.reason === 'local-delivery')
+    return { icon: 'done', tone: 'good', label: 'Delivered locally, no radio transmission' };
+  if (m.state === 'transmitted' && m.destination === 'broadcast')
+    return {
+      icon: 'sent',
+      tone: 'good',
+      label: 'Broadcast sent. Broadcasts have no acknowledgment',
+    };
+  switch (m.state) {
+    case 'receiving':
+      return { icon: 'pending', tone: 'muted', label: 'Sending to device' };
+    case 'queued':
+      return { icon: 'pending', tone: 'muted', label: 'Queued on device' };
+    case 'transmitted':
+      return { icon: 'sent', tone: 'muted', label: 'Transmitted, delivery not confirmed' };
+    case 'acknowledged':
+      return { icon: 'done', tone: 'good', label: 'Delivered to the destination device' };
+    case 'failed':
+      return { icon: 'failed', tone: 'bad', label: `Failed${m.reason ? `: ${m.reason}` : ''}` };
+    case 'rejected':
+      return { icon: 'failed', tone: 'bad', label: `Rejected${m.reason ? `: ${m.reason}` : ''}` };
+    default:
+      return { icon: 'unknown', tone: 'warn', label: 'Outcome unknown. It was not sent again' };
+  }
+}
 /** A channel the device uses: its on-air ID (D45) and local name. */
 export type ChannelName = Readonly<{ id: number; name: string }>;
 export function channelLabel(channels: readonly ChannelName[], id: number) {
@@ -137,9 +171,7 @@ export function conversations(
       channel,
       name,
       kind,
-      preview:
-        messages.at(-1)?.text ??
-        (kind === 'channel' ? 'No channel traffic yet' : 'Start a conversation'),
+      preview: messages.at(-1)?.text ?? (kind === 'channel' ? 'No messages yet' : 'Direct message'),
     });
   };
   for (const channel of channels) add('broadcast', channel.id);

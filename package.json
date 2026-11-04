@@ -26,7 +26,11 @@
     "vite": "8.3.5"
   },
   "dependencies": {
+    "jsqr": "1.4.0",
     "leaflet": "1.9.4",
-    "libsodium-wrappers-sumo": "0.8.4"
+    "libsodium-wrappers-sumo": "0.8.4",
+    "lucide": "1.68.0",
+    "mgrs": "2.2.0",
+    "qrcode-generator": "2.0.4"
   }
 }

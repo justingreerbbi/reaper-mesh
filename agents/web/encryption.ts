@@ -31,6 +31,8 @@ export type Decryption =
       text: string;
     };
 
+export const KEY_BUNDLE_PREFIX = 'RMKEY1.';
+
 function hex(bytes: Uint8Array) {
   return sodium.to_hex(bytes);
 }
@@ -82,6 +84,46 @@ function validateChannel(channel: number) {
 }
 
 /** Agent-only channel key vault, keyed by channel ID. The device sees only the RME2 envelope. */
+/**
+ * Reads a key bundle without saving anything, so a bad one is refused before anything changes.
+ * Throws with a message fit to show the user.
+ */
+export function parseKeyBundle(bundle: string) {
+  if (!bundle.startsWith(KEY_BUNDLE_PREFIX))
+    throw new Error('Key transfer must start with RMKEY1.');
+  let raw: { format?: unknown; channel?: unknown; epoch?: unknown; keyId?: unknown; key?: unknown };
+  try {
+    raw = JSON.parse(
+      textDecoder.decode(
+        sodium.from_base64(
+          bundle.slice(KEY_BUNDLE_PREFIX.length),
+          sodium.base64_variants.URLSAFE_NO_PADDING,
+        ),
+      ),
+    );
+  } catch {
+    throw new Error('Key transfer is invalid.');
+  }
+  if (
+    raw.format !== 'RMKEY1' ||
+    !Number.isInteger(raw.epoch) ||
+    Number(raw.epoch) < 1 ||
+    typeof raw.key !== 'string' ||
+    typeof raw.keyId !== 'string' ||
+    !/^[0-9a-f]{64}$/u.test(raw.key)
+  )
+    throw new Error('Key transfer fields are invalid.');
+  const key = fromHex(raw.key);
+  const intact = hex(sodium.crypto_generichash(8, key, null)) === raw.keyId;
+  sodium.memzero(key);
+  if (!intact) throw new Error('Key transfer integrity check failed.');
+  return {
+    channel: Number.isInteger(raw.channel) ? Number(raw.channel) : undefined,
+    epoch: Number(raw.epoch),
+    keyId: raw.keyId,
+  };
+}
+
 export class EncryptionVault {
   #storage: Pick<Storage, 'getItem' | 'setItem'>;
   #writable: () => boolean;
@@ -147,6 +189,10 @@ export class EncryptionVault {
   }
   hasKey(channel: number) {
     return !!this.#current(channel);
+  }
+  /** The channel's current key generation, which goes up each time its key is rotated. */
+  epoch(channel: number) {
+    return this.#current(channel)?.epoch;
   }
   unlock(passphrase: string, confirmation?: string) {
     if (!this.#writable())

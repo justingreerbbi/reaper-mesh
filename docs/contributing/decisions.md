@@ -332,6 +332,18 @@ Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [persistence](../reference/persistence.md#channel-ids-record-6),
 [Channel encryption](../guides/encryption.md#rme2-envelope).
 
+### D49. Web portal follows the mobile app
+Nov 4 · **Confirmed**. Owner direction: the portal should look like the Reaper Mesh mobile app and support everything it does, including channels and QR creation. This is an owner-directed exception to the pause on new portal features (D37). It adds no firmware, radio or USB change, and no storage or wire format change, so the field qualification plan is unaffected (D41).
+
+- **Same formats.** QR codes carry the existing `RMCH1` invites and `RMKEY1` bundles (D45), so the app and the portal read each other's codes.
+- **Portal features kept.** Search and filters, PIN protection, plugins, recovery tools, renaming a channel and Reset Public have no mobile equivalent and stay.
+- **Mobile features adapted.** Following the phone becomes following this browser, with the same limits. Bluetooth scanning becomes the browser's chooser, and USB stays alongside it.
+- **Not carried over.** Orientation lock has no equivalent in a browser tab. Keeping the screen on is not added, because a desktop browser is not mounted on a rig.
+- **Rejoin on load** is on by default, as on the phone, and can be turned off. Unlike Bluetooth, opening a USB port can restart a board, so this default is one to revisit after use.
+- **New dependencies.** `qrcode-generator`, `jsqr`, `lucide` and `mgrs`, all permissive and with no transitive dependencies. See [third-party notices](third-party-notices.md).
+
+See the [web portal guide](../guides/web-portal.md).
+
 ### D48. Mobile apps are built outside this repository
 Nov 4 · **Confirmed**. Owner direction. This repository holds firmware, the protocol and the web
 portal, and documents how a mobile app connects; it contains no mobile app (D41). See
@@ -385,4 +397,4 @@ Nov 3 · **Confirmed**. Pause new portal features until three-node relay and an 
 test pass on real hardware. Portal work is limited to bug fixes and native QA meanwhile. Relay
 is the product's core promise and has only been simulated; problems found in the field could
 change the radio protocol, which is cheaper before more features depend on it. See the
-[field qualification plan](field-qualification.md).
+[field qualification plan](field-qualification.md). D49 is an owner-directed exception.

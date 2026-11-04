@@ -10,6 +10,16 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: web portal follows the mobile app
+
+At the owner's request (D49), the portal now looks like the Reaper Mesh mobile app and supports what it does. It has the app's palette, rail navigation and Comms, Map, Nodes and Device tabs, a connect screen, rejoining on load and reconnecting after a lost link, and brevity phrases. Channels can be created encrypted, shared as a QR code, and joined by camera, image or pasted code. The map adds the crosshair, measuring, two-corner areas, MGRS readout, basemaps and browser location. A device's position can follow this browser. Heard nodes are kept across reconnects. There is no firmware, wire format or fixture change.
+
+This also fixes a bug: the map store rejected saved shared items whose channel number was above 7, which channel IDs (D45) made common, so accepting an item on such a channel would have broken map storage on the next load.
+
+Evidence: `npm run check` passes (309 tests, 13 of them new). Those include a channel code round-tripped through a QR image with the other side decrypting, and the new simulated device over the real codec. In the in-app browser, against that simulated device only, at 1280 × 800 and 375 × 812 with no console errors: connect, rejoin on reload, send and receive, delivery details, accept a shared map item, measure, draw and share an area, basemaps, discovery, settings saves, create a channel, show its QR code, remove the channel, rejoin it by reading that code from an image, rotate and remove keys, encrypted sending, sending blocked with no key, a dropped link reconnecting, PIN lock and unlock, Day theme, and disconnect.
+
+Not tested: any real board with this interface (USB, Bluetooth or radio), the camera scanner, browser location, and scanning codes between a phone and a browser. The app and portal share code formats, but no code has been scanned from one to the other. The local wipe was not run.
+
 ## November 4: mobile app guide
 
 [Connect a mobile app](../guides/mobile-apps.md) documents how a mobile app pairs with and talks to a device (D48). Documentation only. Nothing has run on a phone.

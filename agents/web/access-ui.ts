@@ -1,18 +1,11 @@
 // App PIN lock, PIN settings and the emergency local data wipe.
 import { clearLocalAppData, WIPE_SIGNAL, RECOVERY_LOCK } from './local-data.ts';
-import {
-  access,
-  app,
-  current,
-  encryption,
-  encryptionError,
-  manage,
-  models,
-  recovery,
-  render,
-} from './app-state.ts';
+import { access, app, encryption, encryptionError, models, recovery, render } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { invalidateThread } from './messages-ui.ts';
+import { endSession } from './connection-ui.ts';
+import { closeSecrets } from './channels-ui.ts';
+import { onPageChange } from './nav.ts';
 
 let localAppStopped = false;
 export const isAppStopped = () => localAppStopped;
@@ -32,7 +25,7 @@ export function renderAccess(active: boolean): boolean {
       if (dialog !== accessDialog) dialog.close();
     element('message-history').replaceChildren();
     invalidateThread();
-    element<HTMLTextAreaElement>('channel-key-transfer').value = '';
+    closeSecrets();
     text(
       'app-unlock-submit',
       access?.setup ? 'Set PIN' : access?.migration ? 'Save PIN' : 'Unlock app',
@@ -153,7 +146,7 @@ export function initAccess() {
   });
   element('locked-disconnect').addEventListener('click', async () => {
     try {
-      await current().adapter.disconnect();
+      await endSession();
     } catch {
       text('access-error', 'Could not disconnect. Try again.');
     } finally {
@@ -195,7 +188,9 @@ export function initAccess() {
       render();
     }
   });
-  manage.addEventListener('close', clearPinFields);
+  onPageChange(left => {
+    if (left === 'app') clearPinFields();
+  });
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-wipe-local]'))
     button.addEventListener('click', () => {
       element<HTMLInputElement>('wipe-confirmation').value = '';

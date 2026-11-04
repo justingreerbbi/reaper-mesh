@@ -18,6 +18,15 @@ The field portal bundles Leaflet 1.9.4 (BSD-2-Clause) for the interactive positi
 
 The web agent bundles libsodium.js (`libsodium-wrappers-sumo` 0.8.4, ISC License) for channel encryption and PIN key derivation. Preserve its copyright and license notice when redistributing the web agent build.
 
+## Web agent QR, icon and coordinate libraries
+
+The web agent bundles four small libraries, each pinned in package-lock.json. Preserve their copyright and license notices when redistributing the web agent build:
+
+- `qrcode-generator` 2.0.4 (MIT License) draws channel QR codes. "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
+- `jsqr` 1.4.0 (Apache License 2.0) reads QR codes from the camera and from images.
+- `lucide` 1.68.0 (ISC License) provides the icons, the same set as the mobile app.
+- `mgrs` 2.2.0 (MIT License) converts coordinates to MGRS.
+
 ## Web tooling
 
 Development tooling is pinned in package-lock.json; preserve applicable notices for any tooling/runtime code actually redistributed.

@@ -18,6 +18,8 @@ import {
 import { MapStore, type SharedPayload } from './map-store.ts';
 import type { FieldMap } from './map.ts';
 import type { ReceivedMessage } from '../../packages/agent-core/inbox.ts';
+import { bearingDegrees, distanceMeters, formatBearing, pathLength, type LngLat } from './geo.ts';
+import { confirmSheet, downloadBlob, icon } from './ui.ts';
 type Context = {
   channels: readonly { id: number; name: string }[];
   ready: boolean;
@@ -35,7 +37,33 @@ type Host = {
   decode(payload: SharedPayload, identity?: string): string | undefined;
   budget(channel: number): number;
   send(text: string, destination: string, channel: number): string;
+  /** Where something can be shared: the conversations on show. */
+  shareTargets(): readonly {
+    key: string;
+    destination: string;
+    channel: number;
+    name: string;
+    kind: 'channel' | 'direct';
+  }[];
+  range(at: LngLat): string | undefined;
+  coordinate(at: LngLat): string;
+  distance(meters: number): string;
+  notify(message: string | undefined): void;
+  selectedItem(): void;
 };
+/** The same swatches as the mobile app. A plugin's own default color is added beside them. */
+export const ITEM_COLORS = ['#b2dda3', '#ebbb5f', '#ff7a6b', '#7fb7ff', '#f4f5f1'];
+const toWire = (lat: number, lng: number) => [
+  Math.round((Math.max(-90, Math.min(90, lat)) + 90) * 1e7),
+  Math.round(((((lng + 180) % 360) + 360) % 360) * 1e7),
+];
+/** A map item's middle, in [longitude, latitude]. */
+function itemCenter(item: MapItem): LngLat {
+  const c = item.coordinates;
+  return item.geometry === 'point'
+    ? [c[1] / 1e7 - 180, c[0] / 1e7 - 90]
+    : [(c[1] + c[3]) / 2e7 - 180, (c[0] + c[2]) / 2e7 - 90];
+}
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 function button(label: string, action: () => void, className = '') {
   const b = document.createElement('button');
@@ -51,12 +79,7 @@ function paragraph(text: string) {
   return p;
 }
 function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(name, new Blob([text], { type: 'application/json' }));
 }
 function inputs(container: HTMLElement, fields: PluginField[], values: Record<string, unknown>) {
   container.replaceChildren();
@@ -101,10 +124,6 @@ function values(container: HTMLElement, fields: PluginField[]) {
   }
   return result;
 }
-/** Clones a <template> from index.html; the map workspace's markup lives there. */
-const fromTemplate = (id: string) =>
-  (document.getElementById(id) as HTMLTemplateElement).content.cloneNode(true);
-
 export class MapWorkspace {
   #store?: MapStore;
   #error = '';
@@ -112,11 +131,13 @@ export class MapWorkspace {
   #seen = new Set<string>();
   #draft?: MapItem;
   #editRevision = 0;
-  #tool?: 'point' | 'rectangle';
-  #corner?: number[];
+  #tool?: 'measure' | 'area';
+  #points: LngLat[] = [];
   #selected?: { item: MapItem; key?: string; payload?: SharedPayload };
+  /** The row whose panel is showing over the map. */
+  #panelKey?: string;
+  #sharing?: MapItem;
   #manifest?: Plugin;
-  #lastSend?: { id: string; source: string };
   private map: FieldMap;
   private host: Host;
   constructor(
@@ -126,53 +147,6 @@ export class MapWorkspace {
   ) {
     this.map = map;
     this.host = host;
-    const tools = document.createElement('section');
-    tools.id = 'map-workspace';
-    tools.setAttribute('aria-label', 'Map tools');
-    tools.append(fromTemplate('map-tools-template'));
-    const tracker = document.querySelector('.tracker-pane')!;
-    const sidebar = document.createElement('div');
-    sidebar.id = 'map-side-panel';
-    const devices = document.createElement('details');
-    devices.id = 'map-devices';
-    devices.open = true;
-    const summary = document.createElement('summary');
-    summary.textContent = 'Nearby devices';
-    summary.append(document.createTextNode(' '), $('node-count'));
-    devices.append(summary);
-    for (const child of [...tracker.children])
-      if (!child.classList.contains('tracker-heading') && !child.classList.contains('map-pane'))
-        devices.append(child);
-    sidebar.append(tools, devices);
-    tracker.append(sidebar);
-    const dialogs = document.createElement('div');
-    dialogs.append(fromTemplate('map-dialogs-template'));
-    document.body.append(dialogs);
-    const nav = document.querySelector('.manage-tabs')!;
-    const pluginTab = button(
-      'Plugins',
-      () => {
-        document.querySelectorAll<HTMLElement>('[data-manage-panel]').forEach(p => {
-          p.hidden = p.dataset.managePanel !== 'plugins';
-          p.classList.toggle('is-active', !p.hidden);
-        });
-        document.querySelectorAll<HTMLElement>('.manage-tab').forEach(t => {
-          t.classList.toggle('is-active', t === pluginTab);
-          if (t === pluginTab) t.setAttribute('aria-current', 'page');
-          else t.removeAttribute('aria-current');
-        });
-        document.querySelector('.manage-body')!.scrollTop = 0;
-      },
-      'manage-tab',
-    );
-    pluginTab.dataset.manage = 'plugins';
-    nav.insertBefore(pluginTab, nav.querySelector('[data-manage="recovery"]'));
-    const panel = document.createElement('section');
-    panel.className = 'manage-panel';
-    panel.dataset.managePanel = 'plugins';
-    panel.hidden = true;
-    panel.append(fromTemplate('plugin-panel-template'));
-    document.querySelector('#manage > .manage-body')!.append(panel);
     try {
       this.#store = new MapStore(storage, () => host.writable());
     } catch (e) {
@@ -181,25 +155,57 @@ export class MapWorkspace {
     this.map.onLocation = (lat, lng, context) => this.#location(lat, lng, context);
     this.map.onAnnotation = (key, context) => {
       const selected = this.#displayItems().find(x => x.key === key);
-      if (selected) this.#detail(selected.item, selected.sharedKey, selected.payload, context);
+      if (!selected) return;
+      if (context) this.#detail(selected.item, selected.sharedKey, selected.payload);
+      else this.#selectRow(key);
     };
     this.map.onRectangle = (start, end) => {
-      if (this.#tool !== 'rectangle') return;
-      this.#corner = undefined;
-      this.#location(start.lat, start.lng);
-      this.#location(end.lat, end.lng);
+      if (this.#tool !== 'area') return;
+      this.#points = [
+        [start.lng, start.lat],
+        [end.lng, end.lat],
+      ];
+      this.#renderTool();
     };
-    const fullscreen = button('Full screen', () => {
-      const active = tracker.classList.toggle('map-expanded');
-      fullscreen.textContent = active ? 'Exit full screen' : 'Full screen';
-      fullscreen.setAttribute('aria-pressed', String(active));
-      this.map.invalidate();
-    });
-    fullscreen.setAttribute('aria-pressed', 'false');
-    tracker.querySelector('.tracker-heading')!.append(fullscreen);
-    $('map-add-point').onclick = () => this.#setTool('point');
-    $('map-add-area').onclick = () => this.#setTool('rectangle');
-    $('map-cancel-tool').onclick = () => this.#setTool();
+    $('map-drop').onclick = () => {
+      const [lng, lat] = this.map.center();
+      this.#setTool();
+      this.#edit(undefined, 'point', toWire(lat, lng));
+    };
+    $('map-measure').onclick = () =>
+      this.#setTool(this.#tool === 'measure' ? undefined : 'measure');
+    $('map-area').onclick = () => this.#setTool(this.#tool === 'area' ? undefined : 'area');
+    $('measure-close').onclick = $('area-close').onclick = () => this.#setTool();
+    $('measure-crosshair').onclick = $('area-crosshair').onclick = () =>
+      this.#addPoint(this.map.center());
+    $('measure-undo').onclick = () => {
+      this.#points = this.#points.slice(0, -1);
+      this.#renderTool();
+    };
+    $('area-save').onclick = () => {
+      const [a, b] = this.#points;
+      const [north, west] = toWire(Math.max(a[1], b[1]), Math.min(a[0], b[0]));
+      const [south, east] = toWire(Math.min(a[1], b[1]), Math.max(a[0], b[0]));
+      this.#setTool();
+      this.#edit(undefined, 'rectangle', [north, west, south, east]);
+    };
+    $('item-close').onclick = () => this.clearSelection();
+    $('item-share').onclick = () => {
+      const row = this.#panelRow();
+      if (row) this.#share(row.item);
+    };
+    $('item-edit').onclick = () => {
+      const row = this.#panelRow();
+      if (row) this.#edit(row.item);
+    };
+    $('item-details').onclick = () => {
+      const row = this.#panelRow();
+      if (row) this.#detail(row.item, row.sharedKey, row.payload);
+    };
+    $('item-hide').onclick = () => {
+      const row = this.#panelRow();
+      if (row?.sharedKey) void this.#hide(row.sharedKey);
+    };
     $('map-show-items').onchange = $('map-show-devices').onchange = () => {
       this.#signature = '';
       this.update();
@@ -212,10 +218,17 @@ export class MapWorkspace {
       if (this.#store) download('reaper-map-workspace.json', this.#store.export());
     };
     $('map-editor-cancel').onclick = () => $<HTMLDialogElement>('map-editor').close();
+    $('map-location-cancel').onclick = () => $<HTMLDialogElement>('map-location').close();
+    $('map-detail-close').onclick = () => $<HTMLDialogElement>('map-detail').close();
+    $('map-share-close').onclick = () => $<HTMLDialogElement>('map-share').close();
+    $('plugin-preview-close').onclick = () => $<HTMLDialogElement>('plugin-preview').close();
+    $('plugin-settings-close').onclick = () =>
+      $<HTMLDialogElement>('plugin-settings-dialog').close();
+    $('map-editor-delete').onclick = () => void this.#deleteDraft();
     $('map-type').onchange = () => {
       const t = this.#types().find(t => t.id === $<HTMLSelectElement>('map-type').value);
       if (t) {
-        $<HTMLInputElement>('map-color').value = t.defaultColor;
+        if (!t.id.startsWith('core/')) this.#setColor(t.defaultColor);
         inputs($('map-custom-fields'), t.fields, {});
       }
     };
@@ -223,11 +236,7 @@ export class MapWorkspace {
       event.preventDefault();
       this.#save();
     };
-    $('map-share-form').onsubmit = event => {
-      event.preventDefault();
-      this.#send();
-    };
-    $('map-share-channel').onchange = $('map-share-operation').onchange = () => this.#budget();
+    $('map-share-operation').onchange = () => this.#budget();
     $('plugin-file').onchange = () => void this.#import();
     $('plugin-install-confirm').onclick = () => {
       try {
@@ -242,10 +251,7 @@ export class MapWorkspace {
     };
     document.addEventListener('keydown', e => {
       // With a dialog open, Escape belongs to the dialog.
-      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) {
-        this.#setTool();
-        if (tracker.classList.contains('map-expanded')) fullscreen.click();
-      }
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) this.#setTool();
     });
   }
   #run(action: () => void) {
@@ -263,58 +269,160 @@ export class MapWorkspace {
   #types() {
     return availableTypes(this.#store?.state.plugins ?? []);
   }
-  #setTool(tool?: 'point' | 'rectangle') {
+  get toolActive() {
+    return !!this.#tool;
+  }
+  #setTool(tool?: 'measure' | 'area') {
     this.#tool = tool;
-    this.map.setDrawing(tool === 'rectangle');
-    this.#corner = undefined;
+    this.#points = [];
+    if (tool) this.clearSelection();
+    this.map.setDrawing(tool === 'area');
     this.map.map.getContainer().classList.toggle('is-placing', !!tool);
-    $('map-cancel-tool').hidden = !tool;
-    $('map-tool-hint').textContent =
-      tool === 'rectangle'
-        ? 'Drag to draw a rectangle, or click two opposite corners. Escape cancels.'
-        : tool
-          ? 'Click the map to place your point. Escape cancels.'
-          : 'Use Add point or Draw area to start. Right-click the map for location actions.';
+    $('map-measure').classList.toggle('is-active', tool === 'measure');
+    $('map-area').classList.toggle('is-active', tool === 'area');
+    this.#renderTool();
+  }
+  #addPoint(point: LngLat) {
+    // A third corner replaces the older of the two, so an area can be adjusted before saving.
+    this.#points =
+      this.#tool === 'area' && this.#points.length >= 2
+        ? [this.#points[1], point]
+        : [...this.#points, point];
+    this.#renderTool();
+  }
+  #renderTool() {
+    const tool = this.#tool,
+      points = this.#points;
+    $('map-measure-panel').hidden = tool !== 'measure';
+    $('map-area-panel').hidden = tool !== 'area';
+    this.map.setTool(points, tool === 'measure' ? 'line' : tool === 'area' ? 'area' : 'none');
+    if (tool === 'measure') {
+      const last = points.at(-1),
+        prior = points.at(-2);
+      $('measure-total').textContent =
+        points.length > 1 ? this.host.distance(pathLength(points)) : 'Click points to measure';
+      $('measure-leg').textContent =
+        last && prior
+          ? `Last leg ${this.host.distance(distanceMeters(prior, last))} · ${formatBearing(
+              bearingDegrees(prior, last),
+            )}`
+          : '';
+      $<HTMLButtonElement>('measure-undo').disabled = !points.length;
+    }
+    if (tool === 'area') {
+      $('area-state').textContent =
+        points.length < 2 ? `Set corner ${points.length + 1} of 2, or drag` : 'Area ready';
+      $<HTMLButtonElement>('area-save').disabled = points.length < 2;
+    }
   }
   #location(lat: number, lng: number, context = false) {
-    if (!this.#tool && !context) return;
+    if (this.#tool && !context) {
+      this.#addPoint([lng, lat]);
+      return;
+    }
+    if (!context) {
+      this.clearSelection();
+      return;
+    }
     if (!this.#store || this.host.stopped() || document.querySelector('dialog[open]')) return;
-    const point = [
-      Math.round((Math.max(-90, Math.min(90, lat)) + 90) * 1e7),
-      Math.round(((((lng + 180) % 360) + 360) % 360) * 1e7),
-    ];
-    if (this.#tool === 'point') {
+    const point = toWire(lat, lng);
+    $('map-location-coordinates').textContent = this.host.coordinate([lng, lat]);
+    $('map-location-point').onclick = () => {
+      $<HTMLDialogElement>('map-location').close();
       this.#setTool();
       this.#edit(undefined, 'point', point);
-    } else if (this.#tool === 'rectangle') {
-      if (!this.#corner) {
-        this.#corner = point;
-        $('map-tool-hint').textContent = 'Now click the opposite corner.';
-      } else {
-        const a = this.#corner;
-        this.#setTool();
-        this.#edit(undefined, 'rectangle', [
-          Math.max(a[0], point[0]),
-          Math.min(a[1], point[1]),
-          Math.min(a[0], point[0]),
-          Math.max(a[1], point[1]),
-        ]);
-      }
-    } else {
-      $('map-location-coordinates').textContent =
-        `${(point[0] / 1e7 - 90).toFixed(7)}, ${(point[1] / 1e7 - 180).toFixed(7)}`;
-      $('map-location-point').onclick = () => {
-        $<HTMLDialogElement>('map-location').close();
-        this.#edit(undefined, 'point', point);
-      };
-      $('map-location-area').onclick = () => {
-        $<HTMLDialogElement>('map-location').close();
-        this.#setTool('rectangle');
-        this.#corner = point;
-        $('map-tool-hint').textContent = 'Now click the opposite corner.';
-      };
-      $<HTMLDialogElement>('map-location').showModal();
-    }
+    };
+    $('map-location-area').onclick = () => {
+      $<HTMLDialogElement>('map-location').close();
+      this.#setTool('area');
+      this.#addPoint([lng, lat]);
+    };
+    $<HTMLDialogElement>('map-location').showModal();
+  }
+  clearSelection() {
+    this.#panelKey = undefined;
+    this.map.selectAnnotation(undefined);
+    $('selected-item').hidden = true;
+  }
+  #panelRow() {
+    return this.#displayItems().find(row => row.key === this.#panelKey);
+  }
+  #selectRow(key: string) {
+    this.#panelKey = key;
+    this.map.selectAnnotation(key);
+    this.host.selectedItem();
+    this.#renderPanel();
+  }
+  #renderPanel() {
+    const row = this.#panelRow();
+    const panel = $('selected-item');
+    panel.hidden = !row;
+    if (!row) return;
+    const center = itemCenter(row.item);
+    $('item-name').textContent = row.item.name;
+    $('item-detail').textContent = [
+      row.sharedKey ? 'Shared' : '',
+      row.item.note,
+      this.host.range(center) ?? this.host.coordinate(center),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    $('item-share').hidden = !!row.sharedKey;
+    $('item-edit').hidden = !!row.sharedKey;
+    $('item-hide').hidden = !row.sharedKey;
+  }
+  async #hide(key: string) {
+    const yes = await confirmSheet({
+      title: 'Remove from this map?',
+      body: "The original sender keeps it. An older copy can't bring it back.",
+      confirm: 'Remove',
+      danger: true,
+    });
+    if (!yes) return;
+    this.#run(() => {
+      this.#store!.hide(key);
+      this.clearSelection();
+      const detail = $<HTMLDialogElement>('map-detail');
+      if (detail.open) detail.close();
+    });
+  }
+  async #deleteDraft() {
+    const draft = this.#draft;
+    if (!draft) return;
+    const yes = await confirmSheet({
+      title: 'Delete this map item?',
+      body: 'Shared copies on other devices remain.',
+      confirm: 'Delete',
+      danger: true,
+    });
+    if (!yes) return;
+    this.#run(() => {
+      this.#store!.remove(draft.id);
+      this.clearSelection();
+      const editor = $<HTMLDialogElement>('map-editor');
+      if (editor.open) editor.close();
+    });
+  }
+  #setColor(color: string) {
+    $<HTMLInputElement>('map-color').value = color;
+    const options = ITEM_COLORS.includes(color.toLowerCase())
+      ? ITEM_COLORS
+      : [...ITEM_COLORS, color];
+    $('map-colors').replaceChildren(
+      ...options.map(option => {
+        const swatch = document.createElement('button');
+        const selected = option.toLowerCase() === color.toLowerCase();
+        swatch.type = 'button';
+        swatch.style.backgroundColor = option;
+        swatch.classList.toggle('is-active', selected);
+        swatch.setAttribute('role', 'radio');
+        swatch.setAttribute('aria-checked', String(selected));
+        swatch.setAttribute('aria-label', `Color ${option}`);
+        if (selected) swatch.append(icon('check'));
+        swatch.onclick = () => this.#setColor(option);
+        return swatch;
+      }),
+    );
   }
   #edit(item?: MapItem, geometry: MapItem['geometry'] = 'point', coordinates: number[] = []) {
     const types = this.#types().filter(t => t.geometry === (item?.geometry ?? geometry));
@@ -326,7 +434,7 @@ export class MapWorkspace {
           geometry,
           type: types[0].id,
           name: '',
-          color: types[0].defaultColor,
+          color: geometry === 'rectangle' ? ITEM_COLORS[1] : ITEM_COLORS[0],
           note: '',
           coordinates,
           metadata: {},
@@ -340,7 +448,9 @@ export class MapWorkspace {
       select.add(new Option(`Unavailable type · ${d.type}`, d.type));
     select.value = d.type;
     $<HTMLInputElement>('map-name').value = d.name;
-    $<HTMLInputElement>('map-color').value = d.color;
+    this.#setColor(d.color);
+    $('map-editor-delete').hidden = !item;
+    $('map-type-field').hidden = select.options.length < 2;
     $<HTMLInputElement>('map-note').value = d.note;
     for (const [i, id] of ['map-lat', 'map-lng', 'map-south', 'map-east'].entries())
       $<HTMLInputElement>(id).value = (
@@ -355,8 +465,8 @@ export class MapWorkspace {
     $('map-editor-title').textContent = item
       ? 'Edit map item'
       : geometry === 'point'
-        ? 'Add point'
-        : 'Add rectangle';
+        ? 'New point'
+        : 'New area';
     $<HTMLDialogElement>('map-editor').showModal();
   }
   #save() {
@@ -385,8 +495,9 @@ export class MapWorkspace {
       $<HTMLDialogElement>('map-editor').close();
       this.#signature = '';
       this.update();
+      this.#selectRow('local:' + item.id);
     } catch (e) {
-      $('map-editor-error').textContent = String(e);
+      $('map-editor-error').textContent = e instanceof Error ? e.message : String(e);
     }
   }
   #decoded(payload: SharedPayload): MapOperation | undefined {
@@ -410,9 +521,7 @@ export class MapWorkspace {
       }
     return rows;
   }
-  #detail(item: MapItem, key?: string, payload?: SharedPayload, context = false) {
-    $('map-detail').classList.toggle('context-actions', context);
-    $('map-detail-body').hidden = context;
+  #detail(item: MapItem, key?: string, payload?: SharedPayload) {
     this.#selected = { item, key, payload };
     $('map-detail-title').textContent = item.name;
     const body = $('map-detail-body');
@@ -421,9 +530,7 @@ export class MapWorkspace {
         `${item.geometry} · ${this.#types().find(t => t.id === item.type)?.name ?? item.type + ' (plugin unavailable)'}`,
       ),
       paragraph(item.note),
-      paragraph(
-        item.coordinates.map((v, i) => (v / 1e7 - (i % 2 ? 180 : 90)).toFixed(7)).join(', '),
-      ),
+      paragraph(this.host.coordinate(itemCenter(item))),
     );
     if (payload?.ciphertext)
       body.append(
@@ -456,13 +563,11 @@ export class MapWorkspace {
           'primary',
         ),
         button(
-          'Delete locally',
+          'Delete',
           () => {
-            if (confirm('Delete this local map item? Shared copies on other agents remain.'))
-              this.#run(() => {
-                this.#store!.remove(item.id);
-                $<HTMLDialogElement>('map-detail').close();
-              });
+            $<HTMLDialogElement>('map-detail').close();
+            this.#draft = item;
+            void this.#deleteDraft();
           },
           'danger',
         ),
@@ -477,13 +582,7 @@ export class MapWorkspace {
             this.#edit(copy);
           }),
         ),
-        button('Remove from my map', () => {
-          if (confirm('Remove this accepted item from your map? The original sender keeps it.'))
-            this.#run(() => {
-              this.#store!.hide(key);
-              $<HTMLDialogElement>('map-detail').close();
-            });
-        }),
+        button('Remove from my map', () => void this.#hide(key)),
       );
     }
     actions.append(
@@ -494,21 +593,31 @@ export class MapWorkspace {
     );
     $<HTMLDialogElement>('map-detail').showModal();
   }
+  /** Sharing always asks where to send: there is no preselected channel. */
   #share(item: MapItem) {
-    this.#selected = { item };
-    const context = this.host.context(),
-      select = $<HTMLSelectElement>('map-share-channel');
-    select.replaceChildren();
-    for (const { id, name } of context.channels) select.add(new Option(name, String(id)));
-    $<HTMLInputElement>('map-share-destination').value = 'broadcast';
+    this.#sharing = item;
+    $('map-share-title').textContent = `Share ${item.name}`;
     $<HTMLSelectElement>('map-share-operation').value = 'put';
-    $('map-share-summary').textContent = item.name;
     $('map-share-error').textContent = '';
+    const context = this.host.context();
+    const blocked = !context.ready || !!context.block;
+    const list = $('map-share-list');
+    list.replaceChildren(
+      ...this.host.shareTargets().map(row => {
+        const target = document.createElement('button');
+        target.type = 'button';
+        target.disabled = blocked;
+        target.setAttribute('aria-label', `Share to ${row.name}`);
+        target.append(icon(row.kind === 'channel' ? 'hash' : 'user'), row.name);
+        target.onclick = () => this.#send(row);
+        return target;
+      }),
+    );
     this.#budget();
     $<HTMLDialogElement>('map-share').showModal();
   }
   #outgoing(): MapOperation {
-    const item = structuredClone(this.#selected!.item),
+    const item = structuredClone(this.#sharing!),
       type = this.#types().find(t => t.id === item.type);
     // Only explicitly shared plugin fields leave this agent. Unknown metadata is preserved for fallback copies.
     item.metadata = type
@@ -526,35 +635,31 @@ export class MapWorkspace {
   }
   #budget() {
     try {
-      const channel = Number($<HTMLSelectElement>('map-share-channel').value),
-        wire = encodeMap(this.#outgoing(), this.host.budget(channel)),
+      const wire = encodeMap(this.#outgoing()),
         context = this.host.context();
-      $('map-share-budget').textContent =
-        `${new TextEncoder().encode(wire).length} / ${this.host.budget(channel)} bytes · ${context.block ?? (context.ready ? 'Device ACK does not mean the recipient accepted the map item.' : 'Connect a device to share.')}`;
-      $<HTMLButtonElement>('map-share-send').disabled = !context.ready || !!context.block;
+      $('map-share-budget').textContent = `${new TextEncoder().encode(wire).length} bytes. ${
+        context.block ??
+        (context.ready
+          ? "A device's acknowledgment doesn't mean the recipient added it to their map."
+          : 'Connect a device to share.')
+      }`;
     } catch (e) {
-      $('map-share-budget').textContent = String(e);
-      $<HTMLButtonElement>('map-share-send').disabled = true;
+      $('map-share-budget').textContent = e instanceof Error ? e.message : String(e);
     }
   }
-  #send() {
+  #send(row: { destination: string; channel: number; name: string }) {
     try {
-      const op = this.#outgoing(),
-        channel = Number($<HTMLSelectElement>('map-share-channel').value),
-        destination = $<HTMLInputElement>('map-share-destination').value.trim();
-      if (!/^(broadcast|node-[0-9a-f]{16})$/.test(destination))
-        throw Error('Use broadcast or a canonical node-016hex ID.');
-      const wire = encodeMap(op, this.host.budget(channel));
-      const local = { ...this.#selected!.item, revision: op.item.revision };
+      const op = this.#outgoing();
+      const wire = encodeMap(op, this.host.budget(row.channel));
+      const local = { ...this.#sharing!, revision: op.item.revision };
       this.#store!.save(local);
-      this.#selected = { item: local }; // Never strip local-only fields from saved data.
-      const id = this.host.send(wire, destination, channel);
-      this.#lastSend = { id, source: this.host.context().source };
+      this.host.send(wire, row.destination, row.channel);
       $<HTMLDialogElement>('map-share').close();
+      this.host.notify(`Sent to ${row.name}. Delivery shows in Comms.`);
       this.#signature = '';
       this.update();
     } catch (e) {
-      $('map-share-error').textContent = String(e);
+      $('map-share-error').textContent = e instanceof Error ? e.message : String(e);
     }
   }
   async #import() {
@@ -630,7 +735,7 @@ export class MapWorkspace {
     const card = document.createElement('article');
     card.className = 'map-message-card';
     const title = document.createElement('strong');
-    title.textContent = op.item.name;
+    title.textContent = op.operation === 'withdraw' ? `Removed: ${op.item.name}` : op.item.name;
     const type = this.#types().find(t => t.id === op!.item.type);
     const swatch = document.createElement('span');
     swatch.className = 'map-message-swatch';
@@ -641,12 +746,9 @@ export class MapWorkspace {
     heading.append(swatch, title);
     card.append(
       heading,
-      paragraph(
-        `${op.operation === 'withdraw' ? 'Removal request · ' : ''}${op.item.geometry === 'point' ? 'Point' : 'Rectangle'} · ${type?.name ?? op.item.type}`,
-      ),
       paragraph(op.item.note),
       paragraph(
-        op.item.coordinates.map((v, i) => (v / 1e7 - (i % 2 ? 180 : 90)).toFixed(7)).join(', '),
+        `${op.item.geometry === 'point' ? 'Point' : 'Area'} · ${this.host.coordinate(itemCenter(op.item))}`,
       ),
     );
     for (const [key, value] of Object.entries(op.item.metadata))
@@ -660,43 +762,56 @@ export class MapWorkspace {
         ? this.#decoded(record.accepted)?.item.revision
         : undefined;
       const state = mapMessageAction(op, record, acceptedRevision);
-      const action = button(
-        state.label,
-        () => {
-          try {
-            if (!this.#store)
-              throw Error('Map storage is unavailable. Your saved data was preserved.');
-            this.#store.receive(op!, payload);
-            const current = this.#store.state.shared.find(row => row.key === key);
-            if (!current?.pending || current.highest !== op!.item.revision)
-              throw Error('This item has changed. Review its latest message.');
-            const pending = this.#decoded(current.pending);
-            if (!pending || encodeMap(pending) !== encodeMap(op!))
-              throw Error('Conflicting map revision; nothing was applied.');
-            this.#store.decide(key, op!.item.revision, true, op!);
-            this.#signature = '';
-            this.update();
-            document.dispatchEvent(new Event('map-message-change'));
-          } catch (error) {
-            feedback.textContent = String(error);
-          }
-        },
-        'primary',
-      );
-      action.disabled = !state.actionable || !this.#store || !this.host.writable();
+      const actions = document.createElement('div');
+      actions.className = 'map-message-actions';
       const feedback = paragraph('');
       feedback.setAttribute('role', 'status');
-      card.append(action, feedback);
-      if (acceptedRevision === op.item.revision && op.operation === 'put')
-        card.append(
-          button('View on map', () => {
-            this.host.openMap?.();
-            this.map.focusAnnotation(op!.item);
-          }),
-        );
-      if (state.actionable && !this.host.writable())
-        feedback.textContent = 'This browser tab cannot save map changes.';
-    } else card.append(paragraph('Shared by you · recipient acceptance is not reported.'));
+      const decide = (accept: boolean) => {
+        try {
+          if (!this.#store)
+            throw Error('Map storage is unavailable. Your saved data was preserved.');
+          this.#store.receive(op!, payload);
+          const current = this.#store.state.shared.find(row => row.key === key);
+          if (!current?.pending || current.highest !== op!.item.revision)
+            throw Error('This item has changed. Review its latest message.');
+          const pending = this.#decoded(current.pending);
+          if (!pending || encodeMap(pending) !== encodeMap(op!))
+            throw Error('Conflicting map revision; nothing was applied.');
+          this.#store.decide(key, op!.item.revision, accept, op!);
+          this.#signature = '';
+          this.update();
+          document.dispatchEvent(new Event('map-message-change'));
+        } catch (error) {
+          feedback.textContent = error instanceof Error ? error.message : String(error);
+        }
+      };
+      if (state.actionable) {
+        const writable = !!this.#store && this.host.writable();
+        const add = button(state.label, () => decide(true), 'accent compact');
+        add.disabled = !writable;
+        const dismiss = button('Dismiss', () => decide(false), 'compact');
+        dismiss.disabled = !writable;
+        actions.append(add, dismiss);
+        if (!writable) feedback.textContent = 'This browser tab cannot save map changes.';
+      } else {
+        const status = document.createElement('small');
+        status.textContent = state.label;
+        actions.append(status);
+        if (acceptedRevision === op.item.revision && op.operation === 'put')
+          actions.append(
+            button(
+              'View on map',
+              () => {
+                this.host.openMap?.();
+                this.map.map.invalidateSize();
+                this.map.focusAnnotation(op!.item);
+              },
+              'compact',
+            ),
+          );
+      }
+      card.append(actions, feedback);
+    } else card.append(paragraph('Shared by you. Whether they add it is not reported.'));
     return card;
   }
   update() {
@@ -730,23 +845,10 @@ export class MapWorkspace {
         }
       }
     if ($<HTMLDialogElement>('map-share').open) this.#budget();
-    if (this.#lastSend) {
-      const sent =
-        context.source === this.#lastSend.source
-          ? context.sent.find(x => x.id === this.#lastSend!.id)
-          : undefined;
-      $('map-share-state').textContent = sent
-        ? `Last share: ${sent.state}${sent.reason ? ' · ' + sent.reason : ''} · recipient acceptance is not reported`
-        : 'Last share belongs to another connection source or has left recovery history.';
-    }
+    this.#renderPanel();
     const state = this.#store?.state,
       rows = this.#displayItems(),
       filter = $<HTMLInputElement>('map-item-search').value.toLowerCase();
-    if (rows.length) {
-      $('map-empty').hidden = true;
-      $('map-caption').textContent =
-        `${rows.length} map ${rows.length === 1 ? 'item' : 'items'} · device positions shown separately`;
-    }
     const signature = JSON.stringify([state, rows, filter, this.#error, this.host.writable()]);
     if (signature === this.#signature) return;
     this.#signature = signature;
@@ -754,12 +856,9 @@ export class MapWorkspace {
     $('map-workspace-error').hidden = !this.#error;
     this.map.setAnnotations(
       rows.map(row => ({
-        ...row,
-        label: row.sharedKey ? 'Accepted shared item' : 'Local item',
+        key: row.key,
+        item: row.item,
         icon: this.#types().find(t => t.id === row.item.type)?.icon ?? 'pin',
-        showLabel:
-          this.#store?.state.plugins.find(p => row.item.type.startsWith(p.manifest.id + '/'))
-            ?.settings['show-labels'] === true,
       })),
       $<HTMLInputElement>('map-show-items').checked,
       $<HTMLInputElement>('map-show-devices').checked,
@@ -772,26 +871,30 @@ export class MapWorkspace {
       const wrap = document.createElement('div');
       wrap.className = 'map-list-row';
       wrap.append(
-        button(`${row.item.name} · ${row.sharedKey ? 'shared' : 'local'}`, () =>
-          this.#detail(row.item, row.sharedKey, row.payload),
+        button(
+          `${row.item.name}${row.sharedKey ? ' · shared' : ''}`,
+          () => {
+            this.map.focusAnnotation(row.item);
+            this.#selectRow(row.key);
+            $('map-items-panel').hidden = true;
+            $('map-items').classList.remove('is-active');
+          },
+          'compact',
         ),
-        button('Locate', () => this.map.focusAnnotation(row.item)),
       );
       list.append(wrap);
     }
     if (!list.childElementCount)
       list.append(
         paragraph(
-          filter
-            ? 'No matching map items.'
-            : 'No saved items. Add a point or draw an area on the map.',
+          filter ? 'No matching map items.' : 'No saved items. Drop a point or draw an area.',
         ),
       );
     const plugins = $('plugin-list');
     plugins.replaceChildren();
     for (const p of state?.plugins ?? []) {
       const card = document.createElement('article');
-      card.className = 'shared-map-card';
+      card.className = 'card plugin-card';
       card.append(
         paragraph(
           `${p.manifest.name} · ${p.manifest.version} · ${p.enabled ? 'Enabled' : 'Disabled'}`,
@@ -804,9 +907,14 @@ export class MapWorkspace {
         button('Export', () =>
           download(p.manifest.id + '.json', JSON.stringify(p.manifest, null, 2)),
         ),
-        button('Uninstall', () => {
-          if (confirm(`Uninstall ${p.manifest.name}? Existing map items are preserved.`))
-            this.#run(() => this.#store!.plugin(p.manifest.id, 'remove'));
+        button('Uninstall', async () => {
+          const yes = await confirmSheet({
+            title: `Uninstall ${p.manifest.name}?`,
+            body: 'Existing map items are preserved.',
+            confirm: 'Uninstall',
+            danger: true,
+          });
+          if (yes) this.#run(() => this.#store!.plugin(p.manifest.id, 'remove'));
         }),
       );
       plugins.append(card);

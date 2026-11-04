@@ -67,7 +67,7 @@ firmware/              Embedded C++ components and board applications (heltec-v3
 agents/web/            Desktop browser agent (field portal), USB first
 packages/protocol/     Shared schemas, generated bindings, compatibility fixtures
 packages/agent-core/   Transport-independent connection and message state
-packages/simulator/    Simulated devices for tests and the portal's Simulator mode
+packages/simulator/    Simulated devices for tests and the portal's simulated device
 examples/              Working examples, organized by the component they target
                        (for example examples/agents/web/plugins/; see examples/README.md)
 tools/                 Build, flash, release tooling and explicitly invoked hardware checks

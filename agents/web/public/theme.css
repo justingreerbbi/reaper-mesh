@@ -1,73 +1,130 @@
-/* Reaper workspace design system. Shared by the app and standalone recovery pages. */
+/* Reaper Mesh design tokens, shared with the mobile app. Used by the app and standalone pages. */
 :root {
   color-scheme: dark;
-  --bg: #101217;
-  --panel: #191c23;
-  --raised: #222630;
-  --hover: #2b303c;
-  --line: #323744;
-  --line-strong: #535e74;
-  --text: #edf0f7;
-  --muted: #a4adbf;
-  --accent: #a8bdff;
-  --accent-hover: #c1ceff;
-  --accent-ink: #162343;
-  --selected: #28334e;
-  --selected-line: #526ba3;
-  --success: #a3d9bd;
-  --warning: #e8c58b;
-  --warning-bg: #302a20;
-  --danger: #f3b0b6;
-  --danger-bg: #37252e;
-  --radius: 10px;
-  --radius-lg: 16px;
-  --shadow: 0 24px 80px #0006;
+  --background: #050505;
+  --surface: #141513;
+  --surface-raised: #1f201d;
+  --border: #2b2c28;
+  --text: #f4f5f1;
+  --text-muted: #a9aba3;
+  --text-faint: #73756e;
+  --accent: #b2dda3;
+  --accent-mid: #789b68;
+  --accent-deep: #27591a;
+  --on-accent: #0b1408;
+  --primary: #f4f5f1;
+  --on-primary: #050505;
+  --bubble-out: #27591a;
+  --on-bubble-out: #eaf5e4;
+  --bubble-in: #1f201d;
+  --good: #b2dda3;
+  --warn: #ebbb5f;
+  --bad: #ff7a6b;
+  --on-bad: #050505;
+  --tick-off: #34352f;
+  --overlay: rgb(5 5 5 / 86%);
+  --map-overlay: rgb(20 21 19 / 92%);
+  --art-body-top: #3a3b37;
+  --art-body-bottom: #161714;
+  --art-edge: #50524b;
+  --art-metal-top: #8c8e86;
+  --art-metal-bottom: #3c3d39;
+  --art-bezel: #0d0e0c;
+  --art-knob: #1f201d;
+  --art-shadow: #000;
+  --radius-card: 22px;
+  --radius-control: 18px;
+  --touch: 48px;
+  --touch-compact: 40px;
   --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
   color: var(--text);
-  background: var(--bg);
+  background: var(--background);
+}
+/* Day follows the same palette's light screens, and is easier to read in direct sun. */
+:root[data-theme='day'] {
+  color-scheme: light;
+  --background: #e9e9e6;
+  --surface: #fff;
+  --surface-raised: #f1f1ee;
+  --border: #d5d5d5;
+  --text: #050505;
+  --text-muted: #4f4f4f;
+  --text-faint: #7a7a7a;
+  --accent: #27591a;
+  --accent-mid: #789b68;
+  --accent-deep: #b2dda3;
+  --on-accent: #fff;
+  --primary: #050505;
+  --on-primary: #fff;
+  --bubble-out: #27591a;
+  --on-bubble-out: #fff;
+  --bubble-in: #fff;
+  --good: #27591a;
+  --warn: #8a5a00;
+  --bad: #b3261e;
+  --on-bad: #fff;
+  --tick-off: #d5d5d5;
+  --overlay: rgb(233 233 230 / 90%);
+  --map-overlay: rgb(255 255 255 / 94%);
+  --art-body-top: #fff;
+  --art-body-bottom: #c4c4c4;
+  --art-edge: #b4b4b4;
+  --art-metal-top: #8a8a8a;
+  --art-metal-bottom: #4a4a4a;
+  --art-bezel: #1a1a18;
+  --art-knob: #3a3a38;
+  --art-shadow: #a9a9a9;
+}
+/* Gloved fingers on a moving rig: nothing tappable gets small on a touch screen. */
+@media (pointer: coarse) {
+  :root {
+    --touch: 56px;
+    --touch-compact: 48px;
+  }
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
+  background: var(--background);
 }
 button,
 input,
 select,
 textarea {
   font: inherit;
+  color: inherit;
 }
+/* The reference's pill action: quiet by default, solid for the main action. */
 button,
 .button-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 9px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--raised);
+  gap: 10px;
+  min-height: var(--touch);
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-raised);
   color: var(--text);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 550;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
+  transition: opacity 0.12s;
 }
 button:hover:enabled,
 .button-link:hover {
-  background: var(--hover);
-  border-color: var(--line-strong);
+  opacity: 0.8;
+}
+button:active:enabled {
+  opacity: 0.65;
 }
 button:disabled {
   opacity: 0.45;
@@ -75,46 +132,57 @@ button:disabled {
 }
 button.primary,
 .button-link {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: transparent;
+  background: var(--primary);
+  color: var(--on-primary);
 }
-button.primary:hover:enabled,
-.button-link:hover {
-  background: var(--accent-hover);
+button.accent {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 button.danger {
-  background: var(--danger-bg);
-  color: var(--danger);
-  border-color: var(--danger);
+  background: var(--bad);
+  color: var(--on-bad);
 }
-button.danger:hover:enabled {
-  background: var(--danger);
-  color: var(--bg);
+button.compact {
+  min-height: var(--touch-compact);
+  padding: 0 16px;
+  font-size: 14px;
 }
-button.ghost {
-  background: transparent;
+button.round {
+  width: var(--touch);
+  min-width: var(--touch);
+  padding: 0;
+  flex-shrink: 0;
+}
+button.round.compact {
+  width: var(--touch-compact);
+  min-width: var(--touch-compact);
+}
+button.round.is-active {
+  background: var(--primary);
+  color: var(--on-primary);
 }
 :is(button, input, select, textarea, a, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 4px;
+  outline-offset: 2px;
 }
 input,
 select,
 textarea {
   width: 100%;
   min-width: 0;
-  min-height: 46px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--bg);
+  min-height: var(--touch);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
   color: var(--text);
-  padding: 11px 14px;
+  padding: 10px 16px;
+  font-size: 16px;
 }
 input::placeholder,
 textarea::placeholder {
-  color: var(--muted);
-  opacity: 0.8;
+  color: var(--text-faint);
+  opacity: 1;
 }
 input:disabled,
 select:disabled,
@@ -124,55 +192,75 @@ textarea:disabled {
 }
 textarea {
   resize: vertical;
-  line-height: 1.65;
 }
-/* One chevron for every dropdown, drawn in theme colors instead of the browser's arrow. */
 select {
   appearance: none;
   cursor: pointer;
   padding-right: 40px;
-  /* Stroke matches --muted; data URIs cannot read custom properties. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1.5 5 5 5-5' fill='none' stroke='%23a4adbf' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1.5 5 5 5-5' fill='none' stroke='%23a9aba3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-position: right 15px center;
   background-size: 12px 8px;
   background-repeat: no-repeat;
 }
-select:hover:enabled {
-  border-color: var(--muted);
-}
 select option {
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
 }
+/* A switch, in place of a checkbox. */
 input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  min-height: 18px;
-  accent-color: var(--accent);
+  appearance: none;
+  position: relative;
   flex-shrink: 0;
+  width: 52px;
+  min-width: 52px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--tick-off);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f4f5f1;
+  transition: transform 0.15s;
+}
+input[type='checkbox']:checked {
+  background: var(--accent-mid);
+}
+input[type='checkbox']:checked::after {
+  transform: translateX(20px);
 }
 input[type='color'] {
-  width: 80px;
-  padding: 6px;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 4px;
+  border-radius: 50%;
+  cursor: pointer;
 }
 input[type='file'] {
-  padding: 9px;
-  font-size: 12px;
+  font-size: 14px;
+  padding: 10px 14px;
 }
 input::file-selector-button {
   border: 0;
-  border-radius: 6px;
-  padding: 7px 10px;
-  background: var(--raised);
-  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
   margin-right: 10px;
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
 }
 label {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
-  margin: 22px 0 8px;
 }
 p {
   margin: 0;
@@ -181,19 +269,16 @@ h1,
 h2,
 h3 {
   margin: 0;
-  font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 h1 {
-  font-size: 30px;
-  letter-spacing: -0.8px;
+  font-size: 22px;
+  font-weight: 600;
 }
-h2 {
-  font-size: 20px;
-  letter-spacing: -0.3px;
-}
+h2,
 h3 {
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 600;
 }
 a {
   color: var(--accent);
@@ -204,21 +289,20 @@ summary {
   gap: 10px;
   list-style: none;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 550;
-  padding: 14px 0;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 500;
 }
 summary::-webkit-details-marker {
   display: none;
 }
-/* The same chevron as dropdowns: points right when closed, down when open. */
 summary::before {
   content: '';
   flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--muted);
-  border-bottom: 1.5px solid var(--muted);
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
   transform: rotate(-45deg);
   transition: transform 0.15s;
 }
@@ -227,33 +311,23 @@ details[open] > summary::before {
 }
 small,
 .small {
-  font-size: 12px;
-  line-height: 1.7;
+  font-size: 13px;
 }
 .muted {
-  color: var(--muted);
+  color: var(--text-muted);
+}
+.faint {
+  color: var(--text-faint);
 }
 .mono {
-  font: 12px/1.7 var(--mono);
-  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
   overflow-wrap: anywhere;
-}
-.eyebrow {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.6px;
-  color: var(--muted);
 }
 .ui-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 .sr-only {
   position: absolute;
@@ -270,33 +344,27 @@ small,
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: 16px;
 }
 .session-page main {
-  width: min(100%, 560px);
-  padding: 40px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  width: min(100%, 520px);
+  padding: 32px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.session-page .eyebrow {
+  color: var(--text-muted);
+  font-size: 13px;
 }
 .session-page h1 {
-  margin: 20px 0;
+  margin: 16px 0;
 }
 .session-page p {
-  color: var(--muted);
-  margin: 16px 0;
+  color: var(--text-muted);
+  margin: 12px 0;
 }
 .session-page a {
   margin-top: 16px;
-}
-@media (max-width: 600px) {
-  .session-page {
-    padding: 16px;
-  }
-  .session-page main {
-    padding: 24px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,

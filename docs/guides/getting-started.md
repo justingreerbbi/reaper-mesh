@@ -45,18 +45,18 @@ loopback only; nothing is deployed or published.
 
 ## 4. Try it with the simulator
 
-In the portal, choose **Simulator** and connect. The simulator speaks the exact same framed,
-typed protocol and serial adapter as a real board, but only models in-memory configuration and
-request retention — no radio, no flash durability.
+In the portal, select **Use simulated device**. It speaks the exact same framed, typed protocol
+and serial adapter as a real board, with channels, messages, nodes and positions, but only models
+protocol replies: no radio, no flash durability.
 
 Walk through a recovery scenario to see the honesty guarantees in action:
 
-1. Open **Settings → Device**, change the device label, and **Save**. The revision advances.
-2. Under **Settings → Storage**, set **Next save** to **Disconnect after commit**, edit the
-   label, and save. The connection closes and the change's outcome becomes **unknown**.
-3. Reconnect. The app queries the device for the outcome *without* resending the change.
-4. Repeat step 2, then **Reboot simulated device** before reconnecting. The receipt is gone,
-   so the app says the change may not have applied and shows the device's settings.
+1. Open **Device → General**, change the device name, and **Save**. The revision advances.
+2. Under **Device → Storage**, set **Next save** to **Disconnect after commit**, change the name,
+   and save. The link drops and the change's outcome becomes **unknown**.
+3. The portal reconnects and queries the device for the outcome *without* resending the change.
+4. Repeat step 2, then **Reboot simulated device**. The receipt is gone, so the app says the
+   change may not have applied and shows the device's settings.
 5. **Lose result and change event** suppresses all replies for the next command (including its
    retries); after the bounded retry window it becomes **unknown**, and the app queries it.
 6. **Read-only on next connect** demonstrates capability-based mutation blocking.

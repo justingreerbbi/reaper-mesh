@@ -7,38 +7,82 @@ export type MapPoint = Readonly<{
   latitude: number;
   longitude: number;
   kind: 'self' | 'peer';
+  stale?: boolean;
   detail: string;
 }>;
 
-/** Leaflet map for shared/fixed positions. Missing coordinates are never plotted. */
+const esri = (name: string) =>
+  `https://server.arcgisonline.com/ArcGIS/rest/services/${name}/MapServer/tile/{z}/{y}/{x}`;
+
+/** The same Esri services as the mobile app. Tiles may fail offline; nothing else depends on them. */
+export const BASEMAPS = [
+  {
+    id: 'dark',
+    label: 'Dark',
+    tiles: esri('Canvas/World_Dark_Gray_Base'),
+    maxZoom: 16,
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+  },
+  {
+    id: 'topo',
+    label: 'Topo',
+    tiles: esri('World_Topo_Map'),
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri',
+  },
+  {
+    id: 'imagery',
+    label: 'Satellite',
+    tiles: esri('World_Imagery'),
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+  },
+] as const;
+
+function tag(kind: string, shape: string, label: string, size: number) {
+  return L.divIcon({
+    className: kind,
+    html: `<div class="map-tag">${shape}<div class="map-tag-label">${escapeHtml(label)}</div></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+const nodeIcon = (point: MapPoint) =>
+  tag(
+    `node-marker node-marker--${point.kind}${point.stale ? ' node-marker--stale' : ''}`,
+    '<div class="node-dot"></div>',
+    point.kind === 'self' ? 'This device' : point.name,
+    22,
+  );
+
+/** Leaflet map for positions and items. Missing coordinates are never plotted. */
 export class FieldMap {
   readonly map: L.Map;
   readonly #layer: L.LayerGroup;
-  #markers = new Map<string, L.Marker>();
+  #markers = new Map<string, { marker: L.Marker; look: string }>();
   #annotations: L.LayerGroup;
+  #annotationMarkers = new Map<string, L.Marker>();
   #annotationSignature = '';
   #annotationBounds: L.LatLng[] = [];
+  #tiles: L.TileLayer | undefined;
+  #basemap = '';
+  #tool: L.LayerGroup;
+  #me: L.Marker | undefined;
   #drawing = false;
   #dragStart?: L.LatLng;
   #preview?: L.Rectangle;
   #suppressClick = false;
+  #framed = 0;
+  /** The user has moved the map themselves, so it stops framing things on its own. */
+  #userMoved = false;
+  #selected?: string;
+  #selectedItem?: string;
+  #signature = '';
   onRectangle?: (start: L.LatLng, end: L.LatLng) => void;
-  setDrawing(active: boolean) {
-    this.#drawing = active;
-    this.#clearDrag();
-    if (active) this.map.dragging.disable();
-    else this.map.dragging.enable();
-  }
-  #clearDrag() {
-    this.#dragStart = undefined;
-    this.#preview?.remove();
-    this.#preview = undefined;
-  }
   onLocation?: (latitude: number, longitude: number, context: boolean) => void;
   onAnnotation?: (id: string, context: boolean) => void;
-  #selected?: string;
-  #signature = '';
   onSelect?: (id: string | undefined) => void;
+  onMove?: () => void;
 
   constructor(container: HTMLElement) {
     this.map = L.map(container, {
@@ -46,20 +90,17 @@ export class FieldMap {
       attributionControl: true,
       worldCopyJump: true,
     }).setView([39.8283, -98.5795], 4);
-    L.control.zoom({ position: 'topright' }).addTo(this.map);
-    const tiles = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      {
-        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-        maxZoom: 16,
-      },
-    ).addTo(this.map);
-    tiles.on('tileerror', () => {
-      const status = document.getElementById('tile-status');
-      if (status) status.hidden = false;
-    });
+    L.control.scale({ position: 'bottomleft' }).addTo(this.map);
+    this.setBasemap('dark');
     this.#layer = L.layerGroup().addTo(this.map);
     this.#annotations = L.layerGroup().addTo(this.map);
+    this.#tool = L.layerGroup().addTo(this.map);
+    this.map.on('move', () => this.onMove?.());
+    this.map.on('dragstart', () => {
+      this.#userMoved = true;
+    });
+    container.addEventListener('wheel', () => (this.#userMoved = true), { passive: true });
+    container.addEventListener('touchstart', () => (this.#userMoved = true), { passive: true });
     this.map.on('mousedown', (event: L.LeafletMouseEvent) => {
       if (!this.#drawing || event.originalEvent.button !== 0) return;
       this.#dragStart = event.latlng;
@@ -74,7 +115,7 @@ export class FieldMap {
       if (this.#preview) this.#preview.setBounds(bounds);
       else
         this.#preview = L.rectangle(bounds, {
-          color: '#71c99a',
+          color: '#ebbb5f',
           weight: 2,
           interactive: false,
         }).addTo(this.map);
@@ -106,37 +147,132 @@ export class FieldMap {
     });
   }
 
+  setBasemap(id: string) {
+    if (id === this.#basemap) return;
+    this.#basemap = id;
+    const basemap = BASEMAPS.find(row => row.id === id) ?? BASEMAPS[0];
+    this.#tiles?.remove();
+    this.map.setMaxZoom(basemap.maxZoom + 3);
+    this.#tiles = L.tileLayer(basemap.tiles, {
+      attribution: basemap.attribution,
+      maxNativeZoom: basemap.maxZoom,
+      maxZoom: basemap.maxZoom + 3,
+    }).addTo(this.map);
+    this.#tiles.on('tileerror', () => {
+      const status = document.getElementById('tile-status');
+      if (status) status.hidden = false;
+    });
+    this.#tiles.on('tileload', () => {
+      const status = document.getElementById('tile-status');
+      if (status) status.hidden = true;
+    });
+  }
+
+  /** Dragging draws while placing with a mouse. A finger still needs to be able to pan. */
+  setDrawing(active: boolean) {
+    this.#drawing = active && matchMedia('(pointer: fine)').matches;
+    this.#clearDrag();
+    if (this.#drawing) this.map.dragging.disable();
+    else this.map.dragging.enable();
+  }
+  #clearDrag() {
+    this.#dragStart = undefined;
+    this.#preview?.remove();
+    this.#preview = undefined;
+  }
+
+  center(): [number, number] {
+    const center = this.map.getCenter();
+    return [center.wrap().lng, center.lat];
+  }
+  zoom(delta: number) {
+    this.map.setZoom(this.map.getZoom() + delta);
+  }
+  flyTo(longitude: number, latitude: number, zoom = 14) {
+    this.#userMoved = true;
+    this.map.setView([latitude, longitude], Math.max(this.map.getZoom(), zoom));
+  }
+
   invalidate() {
     requestAnimationFrame(() => this.map.invalidateSize());
   }
 
   select(id: string | undefined) {
     this.#selected = id;
-    for (const [key, marker] of this.#markers) {
-      const el = marker.getElement();
-      if (el) el.classList.toggle('is-selected', key === id);
-    }
+    for (const [key, { marker }] of this.#markers)
+      marker.getElement()?.classList.toggle('is-selected', key === id);
+  }
+  selectAnnotation(key: string | undefined) {
+    this.#selectedItem = key;
+    for (const [id, marker] of this.#annotationMarkers)
+      marker.getElement()?.classList.toggle('is-selected', id === key);
   }
 
   focus(id: string) {
-    const marker = this.#markers.get(id);
-    if (!marker) return;
+    const entry = this.#markers.get(id);
+    if (!entry) return;
     this.select(id);
-    this.map.panTo(marker.getLatLng(), { animate: true });
+    this.#userMoved = true;
+    this.map.setView(entry.marker.getLatLng(), Math.max(this.map.getZoom(), 14));
+  }
+
+  /** Draws the measure line or area preview, in [longitude, latitude]. */
+  setTool(points: readonly (readonly [number, number])[], shape: 'none' | 'line' | 'area') {
+    this.#tool.clearLayers();
+    const latLngs = points.map(([lng, lat]) => L.latLng(lat, lng));
+    for (const latLng of latLngs)
+      L.marker(latLng, {
+        interactive: false,
+        icon: L.divIcon({
+          className: 'tool-marker',
+          html: '<div class="tool-point"></div>',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        }),
+      }).addTo(this.#tool);
+    if (shape === 'line' && latLngs.length > 1)
+      L.polyline(latLngs, {
+        color: '#ebbb5f',
+        weight: 3,
+        dashArray: '6 5',
+        interactive: false,
+      }).addTo(this.#tool);
+    if (shape === 'area' && latLngs.length === 2)
+      L.rectangle(L.latLngBounds(latLngs[0], latLngs[1]), {
+        color: '#ebbb5f',
+        fillColor: '#ebbb5f',
+        fillOpacity: 0.18,
+        weight: 2,
+        interactive: false,
+      }).addTo(this.#tool);
+  }
+
+  setMe(position: readonly [number, number] | undefined) {
+    if (!position) {
+      this.#me?.remove();
+      this.#me = undefined;
+      return;
+    }
+    const latLng = L.latLng(position[1], position[0]);
+    if (this.#me) this.#me.setLatLng(latLng);
+    else
+      this.#me = L.marker(latLng, {
+        interactive: false,
+        icon: tag('node-marker node-marker--me', '<div class="node-dot"></div>', 'You', 22),
+      }).addTo(this.map);
   }
 
   setPoints(points: readonly MapPoint[]) {
     const signature = points
       .map(
         point =>
-          `${point.id}:${point.latitude}:${point.longitude}:${point.name}:${point.kind}:${point.detail}:${this.#selected}`,
+          `${point.id}:${point.latitude}:${point.longitude}:${point.name}:${point.kind}:${point.stale}:${point.detail}`,
       )
       .join('|');
     if (signature === this.#signature) return;
-    const previous = this.#signature;
     this.#signature = signature;
     const keep = new Set(points.map(point => point.id));
-    for (const [id, marker] of this.#markers) {
+    for (const [id, { marker }] of this.#markers) {
       if (!keep.has(id)) {
         this.#layer.removeLayer(marker);
         this.#markers.delete(id);
@@ -144,15 +280,11 @@ export class FieldMap {
     }
     for (const point of points) {
       const latLng: L.LatLngExpression = [point.latitude, point.longitude];
-      let marker = this.#markers.get(point.id);
-      if (!marker) {
-        marker = L.marker(latLng, {
-          icon: L.divIcon({
-            className: `node-marker node-marker--${point.kind}`,
-            html: `<button type="button" class="node-pin" aria-label="${escapeAttr(point.name)}"><span>${escapeAttr(initials(point.name))}</span></button>`,
-            iconSize: [36, 36],
-            iconAnchor: [18, 18],
-          }),
+      const look = `${point.kind}:${point.stale}:${point.name}`;
+      const entry = this.#markers.get(point.id);
+      if (!entry) {
+        const marker = L.marker(latLng, {
+          icon: nodeIcon(point),
           keyboard: true,
           title: point.name,
           alt: point.name,
@@ -162,34 +294,22 @@ export class FieldMap {
           this.select(point.id);
           this.onSelect?.(point.id);
         });
-        marker.bindTooltip(tooltip(point), { direction: 'top', offset: [0, -14], opacity: 0.95 });
         marker.addTo(this.#layer);
-        this.#markers.set(point.id, marker);
+        this.#markers.set(point.id, { marker, look });
       } else {
-        marker.setLatLng(latLng);
-        if (marker.options.title !== point.name) {
-          marker.options.title = point.name;
-          marker.setIcon(
-            L.divIcon({
-              className: `node-marker node-marker--${point.kind}`,
-              html: `<button type="button" class="node-pin" aria-label="${escapeAttr(point.name)}"><span>${escapeAttr(initials(point.name))}</span></button>`,
-              iconSize: [36, 36],
-              iconAnchor: [18, 18],
-            }),
-          );
+        entry.marker.setLatLng(latLng);
+        if (entry.look !== look) {
+          entry.look = look;
+          entry.marker.options.title = point.name;
+          entry.marker.setIcon(nodeIcon(point));
         }
-        marker.setTooltipContent(tooltip(point));
       }
     }
     this.select(this.#selected);
-    if (!previous && points.length)
-      this.fit(points.map(point => L.latLng(point.latitude, point.longitude)));
-    else if (points.length === 1 && !previous)
-      this.map.setView([points[0].latitude, points[0].longitude], 12);
   }
 
   setAnnotations(
-    items: { key: string; item: MapItem; label: string; icon: string; showLabel?: boolean }[],
+    items: { key: string; item: MapItem; icon: string }[],
     showItems: boolean,
     showDevices: boolean,
   ) {
@@ -201,48 +321,54 @@ export class FieldMap {
     if (signature === this.#annotationSignature) return;
     this.#annotationSignature = signature;
     this.#annotations.clearLayers();
+    this.#annotationMarkers.clear();
     this.#annotationBounds = [];
-    for (const { key, item, label, icon, showLabel } of items) {
+    for (const { key, item, icon } of items) {
       const c = item.coordinates,
         nw = L.latLng(c[0] / 1e7 - 90, c[1] / 1e7 - 180);
       this.#annotationBounds.push(nw);
-      const style = { color: item.color, fillColor: item.color, fillOpacity: 0.18, weight: 2 };
-      let layer: L.Path | L.Marker;
+      let at = nw;
       if (item.geometry === 'rectangle') {
         const se = L.latLng(c[2] / 1e7 - 90, c[3] / 1e7 - 180);
         this.#annotationBounds.push(se);
-        layer = L.rectangle(L.latLngBounds(nw, se), style);
-      } else {
-        layer = L.marker(nw, {
-          keyboard: true,
-          title: item.name,
-          alt: item.name,
-          icon: L.divIcon({
-            className: 'annotation-pin',
-            html: `<span style="color:${item.color}">${mapSymbol(icon)}</span>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-          }),
-        });
+        const bounds = L.latLngBounds(nw, se);
+        at = bounds.getCenter();
+        L.rectangle(bounds, {
+          color: item.color,
+          fillColor: item.color,
+          fillOpacity: 0.18,
+          weight: 2,
+          interactive: false,
+        }).addTo(this.#annotations);
       }
-      const tip = document.createElement('span');
-      tip.textContent = `${item.name} · ${label}`;
-      layer.bindTooltip(tip, { permanent: showLabel });
-      layer.on('click', (event: L.LeafletMouseEvent) => {
+      const shape =
+        icon === 'pin' || icon === 'search'
+          ? `<div class="item-diamond" style="background:${item.color}"></div>`
+          : `<div class="item-symbol" style="color:${item.color}">${mapSymbol(icon)}</div>`;
+      const marker = L.marker(at, {
+        keyboard: true,
+        title: item.name,
+        alt: item.name,
+        icon: tag('annotation-pin', shape, item.name, 22),
+      });
+      marker.on('click', (event: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(event);
         this.onAnnotation?.(key, false);
       });
-      layer.on('contextmenu', (event: L.LeafletMouseEvent) => {
+      marker.on('contextmenu', (event: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(event);
         this.onAnnotation?.(key, true);
       });
-      layer.addTo(this.#annotations);
+      marker.addTo(this.#annotations);
+      this.#annotationMarkers.set(key, marker);
     }
+    this.selectAnnotation(this.#selectedItem);
   }
 
   focusAnnotation(item: MapItem) {
     const c = item.coordinates,
       nw: L.LatLngExpression = [c[0] / 1e7 - 90, c[1] / 1e7 - 180];
+    this.#userMoved = true;
     if (item.geometry === 'rectangle')
       this.map.fitBounds(L.latLngBounds(nw, [c[2] / 1e7 - 90, c[3] / 1e7 - 180]), {
         padding: [36, 36],
@@ -251,40 +377,47 @@ export class FieldMap {
     else this.map.setView(nw, Math.max(12, this.map.getZoom()));
   }
 
-  fit(points?: L.LatLngExpression[]) {
-    const targets =
-      points ??
-      (this.map.hasLayer(this.#layer)
-        ? [...this.#markers.values()].map(marker => marker.getLatLng())
+  #targets() {
+    return (
+      this.map.hasLayer(this.#layer)
+        ? [...this.#markers.values()].map(({ marker }) => marker.getLatLng())
         : []
-      ).concat(this.map.hasLayer(this.#annotations) ? this.#annotationBounds : []);
-    if (!targets.length) return;
+    )
+      .concat(this.map.hasLayer(this.#annotations) ? this.#annotationBounds : [])
+      .concat(this.#me ? [this.#me.getLatLng()] : []);
+  }
+
+  /** Frames the team as it appears, until the user moves the map themselves. */
+  frame() {
+    if (this.#userMoved) return;
+    const targets = this.#targets();
+    if (targets.length <= this.#framed) return;
+    this.#framed = targets.length;
+    this.#fitTo(targets);
+  }
+
+  /** Returns false when there's nothing to show. */
+  fit() {
+    const targets = this.#targets();
+    if (!targets.length) return false;
+    this.#fitTo(targets);
+    return true;
+  }
+
+  #fitTo(targets: L.LatLng[]) {
     if (targets.length === 1) {
-      this.map.setView(targets[0], Math.max(this.map.getZoom(), 12));
+      this.map.setView(targets[0], Math.max(this.map.getZoom(), 13));
       return;
     }
-    this.map.fitBounds(L.latLngBounds(targets), { padding: [48, 48], maxZoom: 14 });
+    this.map.fitBounds(L.latLngBounds(targets), { padding: [80, 80], maxZoom: 14 });
   }
 }
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-function escapeAttr(value: string) {
+function escapeHtml(value: string) {
   return value.replace(
     /[&<>"']/g,
     char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
   );
-}
-
-function tooltip(point: MapPoint) {
-  const node = document.createElement('span');
-  node.textContent = `${point.name} · ${point.detail}`;
-  return node;
 }
 
 function mapSymbol(icon: string) {
