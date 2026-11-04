@@ -332,6 +332,11 @@ Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [persistence](../reference/persistence.md#channel-ids-record-6),
 [Channel encryption](../guides/encryption.md#rme2-envelope).
 
+### D48. Mobile apps are built outside this repository
+Nov 4 · **Confirmed**. Owner direction. This repository holds firmware, the protocol and the web
+portal, and documents how a mobile app connects; it contains no mobile app (D41). See
+[Connect a mobile app](../guides/mobile-apps.md).
+
 ### D47. Bluetooth link with physical-access pairing
 Nov 4 · **Confirmed**. Owner request, so a mobile app can act as an agent. Bluetooth carries the
 same framed bytes as USB, because a phone cannot use USB and no agent or plugin can add a transport

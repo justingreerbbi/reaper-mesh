@@ -6,7 +6,7 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 
 **Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
 
-**Bluetooth (owner direction, November 4):** firmware support for a mobile agent is being built ahead of qualification (D47). It adds a link, not a radio change, so it does not affect the tests below. The mobile app itself is a separate project and does not start until the owner says so.
+**Bluetooth (owner direction, November 4):** firmware support for a mobile agent is being built ahead of qualification (D47). It adds a link, not a radio change, so it does not affect the tests below. Mobile apps are built outside this repository (D48).
 
 Order of work:
 

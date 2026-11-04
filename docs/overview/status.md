@@ -81,7 +81,7 @@ suite, both firmware target builds and shell script lint; see
 - More than one device at a time in the browser (needs per-device journaling).
 - Executable portal plugins and integrations such as Weather Radar, ADS-B and APRS (needs a
   plugin isolation decision first).
-- EU transmission, mobile and native agents, other boards. 
+- EU transmission, other boards. No mobile app is in this repository, and iOS and Android are untested (D48). 
 - Signed releases, automatic rollback and a published support policy.
 
 ## Hardware observations to keep in mind
