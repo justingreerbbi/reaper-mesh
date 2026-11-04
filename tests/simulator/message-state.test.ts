@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  channelIdentities,
   MessageState,
   MESSAGE_UI_KEY,
   receivedKey,
@@ -178,4 +179,37 @@ test('message times record first sight, survive reload, and are never invented',
     }),
   );
   assert.throws(() => new MessageState(legacy), /Invalid message UI entry/);
+});
+test('deleting a channel covers its direct messages and leaves other channels alone', () => {
+  const team = 0x9c41e2a7,
+    device = first.device;
+  const outgoing = [
+    { id: 'team-1', device, destination: 'broadcast', channel: team, text: 'a', state: 'queued' },
+    { id: 'public-1', device, destination: 'broadcast', channel: 0, text: 'b', state: 'queued' },
+    {
+      id: 'other-1',
+      device: 'device-B',
+      destination: 'x',
+      channel: team,
+      text: 'c',
+      state: 'failed',
+    },
+  ];
+  const incoming = [
+    { ...first, channel: team, messageId: 'broadcast' },
+    { ...first, channel: team, messageId: 'direct', destination: device },
+    { ...first, channel: 0, messageId: 'public' },
+  ];
+  const found = channelIdentities('usb', device, team, outgoing, incoming);
+  assert.deepEqual(found.outgoing, ['team-1']);
+  assert.equal(found.uploading, false);
+  assert.deepEqual(found.keys, [
+    receivedKey('usb', incoming[0]),
+    receivedKey('usb', incoming[1]),
+    sentKey('usb', device, 'team-1'),
+  ]);
+  assert.equal(
+    channelIdentities('usb', device, team, [{ ...outgoing[0], state: 'receiving' }], []).uploading,
+    true,
+  );
 });

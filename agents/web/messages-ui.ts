@@ -10,8 +10,15 @@ import {
   ENCRYPTED_TAG_BYTES,
 } from '../../packages/protocol/encrypted-message.ts';
 import type { SerialAdapter } from '../../packages/agent-core/serial.ts';
-import { receivedKey, sentKey, messageScope, inConversation } from './message-state.ts';
 import {
+  channelIdentities,
+  receivedKey,
+  sentKey,
+  messageScope,
+  inConversation,
+} from './message-state.ts';
+import {
+  canDeleteConversation,
   conversations,
   threadMessages,
   conversationKey,
@@ -26,6 +33,7 @@ import {
   app,
   clearError,
   current,
+  currentError,
   disposeMessageState,
   encryption,
   encryptionError,
@@ -42,9 +50,10 @@ import {
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { accessDialog, onLocalAppStop } from './access-ui.ts';
-import { mapWorkspace, setSelectedNode } from './map-ui.ts';
+import { channelBlockReason, openChannel, removeChannelFromDevice } from './channels-ui.ts';
+import { mapWorkspace, selectNode, setSelectedNode } from './map-ui.ts';
 import { currentView } from './nav.ts';
-import { icon } from './ui.ts';
+import { confirmSheet, icon } from './ui.ts';
 
 const deleteDialog = element<HTMLDialogElement>('delete-history');
 const linkLost = () => !!document.querySelector('#link-banner:not([hidden])');
@@ -84,6 +93,8 @@ const openDelivery = new Set<string>();
 let armedPhrase: string | undefined;
 let armTimer: ReturnType<typeof setTimeout> | undefined;
 let connectAction = () => {};
+/** The last failed send. It belongs to its conversation, so it goes when another is opened. */
+let sendError = '';
 
 /** Brevity phrases for gloved hands. Tapping arms one; a second tap sends it. */
 const QUICK_PHRASES = ['Copy', 'Moving', 'Holding', 'At rally', 'Need assist', 'All clear'];
@@ -145,7 +156,7 @@ function requestDelete(
     keys,
     outgoing,
     conversation,
-    ...(conversation ? { clearDraft: draftKey } : {}),
+    ...(conversation ? { clearDraft: `${mode.value}:${lastDevice}:${conversation.key}` } : {}),
   };
   text('delete-description', description);
   deleteDialog.showModal();
@@ -206,6 +217,89 @@ function forgetMessages(
   for (const id of outgoing)
     if (connection.messaging.history.some(m => m.id === id)) connection.forgetMessage(id);
 }
+/** Back to the list with Public behind it, instead of opening some other conversation. */
+function leaveConversation() {
+  element<HTMLTextAreaElement>('message-body').value = '';
+  chooseConversation('broadcast', 0);
+  app.classList.remove('has-conversation');
+}
+
+/** Deletes one sent message's record. It may still go out: this only removes it from here. */
+function deleteSent(entry: Outgoing) {
+  try {
+    forgetMessages(
+      current().adapter.connection,
+      mode.value,
+      [sentKey(mode.value, entry.device, entry.id)],
+      [entry.id],
+    );
+    openDelivery.delete(entry.id);
+    messageSignature = '';
+    clearError();
+    render();
+  } catch (e) {
+    showError(e);
+  }
+}
+
+/**
+ * A channel lives on the device, so it is removed there first and nothing changes here unless the
+ * device commits. Its key stays, so it can be rejoined. Its other messages stop waiting to send.
+ */
+async function deleteChannel(row: Conversation) {
+  const connection = current().adapter.connection,
+    source = mode.value,
+    device = lastDevice;
+  if (!messageState || !recovery.writable || !device)
+    throw Error('This tab cannot change message history.');
+  const identities = () =>
+    channelIdentities(
+      source,
+      device,
+      row.channel,
+      connection.messaging.history,
+      connection.inbox.history,
+    );
+  if (identities().uploading) throw Error('Wait for the current upload before deleting.');
+  await removeChannelFromDevice(row.channel);
+  const { keys, outgoing } = identities();
+  forgetMessages(connection, source, keys, outgoing);
+  for (const [savedKey, target] of recentConversations)
+    if (target.channel === row.channel) {
+      drafts.save(savedKey, '');
+      recentConversations.delete(savedKey);
+    }
+  if (Number(element<HTMLSelectElement>('message-channel').value) === row.channel)
+    leaveConversation();
+  messageSignature = '';
+  clearError();
+  render();
+}
+
+function askDelete(row: Conversation) {
+  if (row.kind === 'channel') {
+    const key = encryption?.hasKey(row.channel)
+      ? ' Its key stays in this browser, so you can rejoin later.'
+      : '';
+    void confirmSheet({
+      title: `Delete ${row.name}?`,
+      body: `Removes this channel from your device, which stops any of its messages waiting to send, and deletes its messages from this browser. Other people keep their copies.${key}`,
+      confirm: 'Delete',
+      danger: true,
+      blocked: channelBlockReason(),
+      run: () => deleteChannel(row),
+    });
+    return;
+  }
+  const { keys, outgoing } = threadIdentities(row.destination, row.channel);
+  requestDelete(
+    keys,
+    outgoing,
+    `Deletes the conversation with ${row.name} from this browser only. It comes back if ${row.name} messages you.`,
+    { scope: messageScope(mode.value, lastDevice!), key: row.key },
+  );
+}
+
 export function publicHistoryCount() {
   return threadIdentities('broadcast', 0).keys.filter(key => !messageState?.deleted(key)).length;
 }
@@ -233,6 +327,8 @@ export function hexBytes(value: string) {
 }
 export function chooseConversation(destination: string, channel = 0) {
   const kind = destination === 'broadcast' ? 'channel' : 'direct';
+  if (sendError && currentError() === sendError) clearError();
+  sendError = '';
   if (conversationFilter !== 'all' && conversationFilter !== kind) conversationFilter = kind;
   try {
     if (lastDevice)
@@ -440,7 +536,7 @@ export function renderMessages() {
     channel.dataset.names = JSON.stringify(names);
   }
   if (!onDevice(selectedChannel)) {
-    chooseConversation('broadcast', 0);
+    leaveConversation();
     return;
   }
   const key = conversationKey(destination.value, selectedChannel);
@@ -490,9 +586,20 @@ export function renderMessages() {
         conversationRows.find(row => row.key === key)?.name ?? 'this conversation'
       }`;
   const uiScope = messageScope(mode.value, lastDevice ?? '');
-  const visibleThread = (row: { key: string; destination: string; channel: number }) =>
-    !messageState?.hidden(uiScope, row.key) ||
-    !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
+  const visibleThread = (row: { key: string; destination: string; channel: number }) => {
+    if (!messageState?.hidden(uiScope, row.key)) return true;
+    if (!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length)
+      return false;
+    // Something new arrived, so it's back for good, even if that message is later deleted.
+    if (recovery.writable) {
+      try {
+        messageState.reopen(uiScope, row.key);
+      } catch (e) {
+        setMessageStateError(`Message history: ${String(e)}`);
+      }
+    }
+    return true;
+  };
   nodeCache.use(lastDevice);
   const rows = conversations(lastDevice, names, nodeCache.nodes, history, incoming)
     .filter(visibleThread)
@@ -541,6 +648,11 @@ export function renderMessages() {
   // An SVG element has no `hidden` property, so toggle the attribute.
   element('conversation-lock').toggleAttribute('hidden', !encryptedRequired);
   const isChannel = destination.value === 'broadcast';
+  element('conversation-channel-settings').hidden = !isChannel;
+  element('conversation-show-map').hidden =
+    isChannel ||
+    !nodeCache.nodes.find(n => canonicalNode(n.node) === canonicalNode(destination.value))
+      ?.position;
   text(
     'conversation-subtitle',
     encryptedRequired
@@ -585,7 +697,8 @@ export function renderMessages() {
     filter +
     conversationFilter +
     JSON.stringify(unread) +
-    JSON.stringify(locked);
+    JSON.stringify(locked) +
+    recovery.writable;
   const channelList = element('channel-list'),
     directList = element('direct-list');
   if (channelList.dataset.signature !== listSignature) {
@@ -643,7 +756,20 @@ export function renderMessages() {
         button.append(badge);
       }
       button.addEventListener('click', () => chooseConversation(row.destination, row.channel));
-      list.append(button);
+      const item = document.createElement('div');
+      item.className = 'conversation-item';
+      item.append(button);
+      if (canDeleteConversation(row) && messageState && recovery.writable) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'round compact row-delete';
+        remove.setAttribute('aria-label', `Delete ${row.name}`);
+        remove.title = `Delete ${row.name}`;
+        remove.append(icon('trash-2'));
+        remove.addEventListener('click', () => askDelete(row));
+        item.append(remove);
+      }
+      list.append(item);
     };
     for (const row of visible) renderRow(row, row.kind === 'channel' ? channelList : directList);
   }
@@ -774,6 +900,13 @@ export function renderMessages() {
         });
         detail.append(check);
       }
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'compact';
+      remove.textContent = 'Delete';
+      remove.disabled = entry.state === 'receiving' || !messageState || !recovery.writable;
+      remove.addEventListener('click', () => deleteSent(entry));
+      detail.append(remove);
       row.append(detail);
     }
     thread.append(row);
@@ -782,6 +915,11 @@ export function renderMessages() {
     requestAnimationFrame(() => {
       scroller.scrollTop = scroller.scrollHeight;
     });
+}
+
+function sendFailed(e: unknown) {
+  sendError = e instanceof Error ? e.message : String(e);
+  showError(e);
 }
 
 function sendText(body: string) {
@@ -827,7 +965,7 @@ function renderQuickPhrases(blocked: boolean) {
           sendText(phrase);
           clearError();
         } catch (e) {
-          showError(e);
+          sendFailed(e);
         }
         render();
       });
@@ -837,14 +975,8 @@ function renderQuickPhrases(blocked: boolean) {
 }
 
 export function renderInbox() {
-  const connection = current().adapter.connection;
-  text(
-    'inbox-status',
-    connection.inbox.error ??
-      (connection.inbox.gap
-        ? 'Some older messages were dropped from the device before this browser could read them.'
-        : ''),
-  );
+  // A gap in older messages is reported in Diagnostics, since nothing can be done about it here.
+  text('inbox-status', current().adapter.connection.inbox.error ?? '');
 }
 
 export function initMessages() {
@@ -872,13 +1004,10 @@ export function initMessages() {
       )
         throw Error('Wait for the current upload before deleting.');
       forgetMessages(plan.connection, plan.source, plan.keys, plan.outgoing, plan.conversation);
-      if (plan.conversation) {
-        if (plan.clearDraft) {
-          drafts.save(plan.clearDraft, '');
-          recentConversations.delete(plan.clearDraft);
-        }
-        element<HTMLTextAreaElement>('message-body').value = '';
-        app.classList.remove('has-conversation');
+      if (plan.clearDraft) {
+        drafts.save(plan.clearDraft, '');
+        recentConversations.delete(plan.clearDraft);
+        if (plan.clearDraft === draftKey) leaveConversation();
       }
       messageSignature = '';
       clearError();
@@ -909,10 +1038,10 @@ export function initMessages() {
   options.addEventListener('click', () => {
     const open = options.getAttribute('aria-expanded') !== 'true';
     showMenu(open);
-    if (open) menu.querySelector<HTMLButtonElement>('button:enabled')?.focus();
+    if (open) menu.querySelector<HTMLButtonElement>('button:enabled:not([hidden])')?.focus();
   });
   document.addEventListener('click', event => {
-    if (!menu.hidden && !(event.target as Element).closest('.conversation-menu')) showMenu(false);
+    if (!menu.hidden && !(event.target as Element).closest('.thread-menu')) showMenu(false);
   });
   options.parentElement!.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || menu.hidden) return;
@@ -929,8 +1058,16 @@ export function initMessages() {
     requestDelete(
       keys,
       outgoing,
-      `Clear the ${messages.length} messages in this chat from this browser? The chat stays in your list.`,
+      `Delete the ${messages.length} messages in this conversation from this browser? The conversation stays in your list.`,
     );
+  });
+  element('conversation-channel-settings').addEventListener('click', () => {
+    showMenu(false);
+    openChannel(Number(element<HTMLSelectElement>('message-channel').value));
+  });
+  element('conversation-show-map').addEventListener('click', () => {
+    showMenu(false);
+    selectNode(element<HTMLInputElement>('message-destination').value, { focusMap: true });
   });
   element('jump-new-messages').addEventListener('click', () => {
     const node = element('thread-scroll');
@@ -959,7 +1096,7 @@ export function initMessages() {
       clearError();
       render();
     } catch (e) {
-      showError(e);
+      sendFailed(e);
     }
   });
 }

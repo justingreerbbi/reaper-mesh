@@ -433,6 +433,34 @@ div.toggle-row {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.conversation-item {
+  position: relative;
+}
+.row-delete {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+.conversation-item:hover .row-delete,
+.row-delete:focus-visible {
+  opacity: 1;
+}
+/* Room for the button, so it never covers an unread count or a lock. */
+.conversation-item:hover .conversation-row:has(+ .row-delete),
+.conversation-row:has(+ .row-delete:focus-visible) {
+  padding-right: 58px;
+}
+/* No hover on a touchscreen, so the button stays in view. */
+@media (hover: none) {
+  .row-delete {
+    opacity: 1;
+  }
+  .conversation-row:has(+ .row-delete) {
+    padding-right: 58px;
+  }
+}
 .conversation-row {
   width: 100%;
   justify-content: flex-start;
@@ -523,6 +551,7 @@ div.toggle-row {
   top: calc(100% + 6px);
   right: 0;
   z-index: 20;
+  width: max-content;
   min-width: 200px;
   padding: 6px;
   border-radius: var(--radius-control);
@@ -530,8 +559,11 @@ div.toggle-row {
   box-shadow: 0 16px 48px rgb(0 0 0 / 40%);
 }
 .options-menu button {
+  display: flex;
   width: 100%;
   justify-content: flex-start;
+  gap: 10px;
+  white-space: nowrap;
   min-height: 44px;
   background: transparent;
 }

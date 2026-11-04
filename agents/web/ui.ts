@@ -222,32 +222,57 @@ export function syncSegmented() {
   }
 }
 
-/** The app's own confirmation, in place of the browser's. Resolves true on confirm. */
+/**
+ * The app's own confirmation, in place of the browser's. Resolves true on confirm. With `run`, the
+ * sheet stays up while it works, so a failure shows here and can be tried again. `blocked` says why
+ * it can't go ahead right now.
+ */
 export function confirmSheet(options: {
   title: string;
   body: string;
   confirm: string;
   cancel?: string;
   danger?: boolean;
+  blocked?: string;
+  run?: () => Promise<void>;
 }) {
   const sheet = element<HTMLDialogElement>('confirm-sheet');
   element('confirm-title').textContent = options.title;
   element('confirm-body').textContent = options.body;
   const ok = element<HTMLButtonElement>('confirm-ok');
   const cancel = element<HTMLButtonElement>('confirm-cancel');
-  ok.textContent = options.confirm;
+  const setBusy = (busy: boolean) => {
+    ok.disabled = busy || !!options.blocked;
+    cancel.disabled = busy;
+    ok.textContent = busy ? 'Working…' : options.confirm;
+  };
+  setBusy(false);
   ok.classList.toggle('danger', !!options.danger);
   ok.classList.toggle('primary', !options.danger);
   cancel.textContent = options.cancel ?? 'Keep';
+  setNotice('confirm-notice', options.blocked, 'warn');
   sheet.showModal();
   return new Promise<boolean>(resolve => {
     const finish = (answer: boolean) => {
       ok.onclick = cancel.onclick = null;
-      sheet.onclose = null;
+      sheet.onclose = sheet.oncancel = null;
       if (sheet.open) sheet.close();
       resolve(answer);
     };
-    ok.onclick = () => finish(true);
+    ok.onclick = async () => {
+      if (!options.run) return finish(true);
+      setBusy(true);
+      setNotice('confirm-notice', undefined);
+      sheet.oncancel = event => event.preventDefault();
+      try {
+        await options.run();
+        finish(true);
+      } catch (error) {
+        sheet.oncancel = null;
+        setBusy(false);
+        setNotice('confirm-notice', error instanceof Error ? error.message : String(error), 'bad');
+      }
+    };
     cancel.onclick = () => finish(false);
     sheet.onclose = () => finish(false);
   });

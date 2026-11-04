@@ -337,7 +337,8 @@ Nov 4 · **Confirmed**. Owner direction: the portal should look like the Reaper 
 
 - **Same formats.** QR codes carry the existing `RMCH1` invites and `RMKEY1` bundles (D45), so the app and the portal read each other's codes.
 - **Portal features kept.** Search and filters, PIN protection, plugins, recovery tools, renaming a channel and Reset Public have no mobile equivalent and stay.
-- **Mobile features adapted.** Following the phone becomes following this browser, with the same limits. Bluetooth scanning becomes the browser's chooser, and USB stays alongside it.
+- **Mobile features adapted.** Following the phone becomes following this browser, with the same limits. Bluetooth scanning becomes the browser's chooser, and USB stays alongside it. Swiping a row becomes a trash button, shown on hover or focus for conversations and always on a touchscreen.
+- **Earlier removals reversed.** Following the app brings back deleting a sent message and a conversation, and a way to show a node on the map from its thread, which the portal removed on November 3. The portal keeps its confirmation before deleting all of a conversation's messages, which the app does not ask for.
 - **Not carried over.** Orientation lock has no equivalent in a browser tab. Keeping the screen on is not added, because a desktop browser is not mounted on a rig.
 - **Rejoin on load** is on by default, as on the phone, and can be turned off. Unlike Bluetooth, opening a USB port can restart a board, so this default is one to revisit after use.
 - **New dependencies.** `qrcode-generator`, `jsqr`, `lucide` and `mgrs`, all permissive and with no transitive dependencies. See [third-party notices](third-party-notices.md).

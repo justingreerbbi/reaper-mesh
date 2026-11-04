@@ -3,7 +3,7 @@ import { current, nodeCache, preferences, showError, clearError, render } from '
 import { element, text } from './dom.ts';
 import { STALE_NODE_MS, type CachedNode } from './node-cache.ts';
 import { bearingDegrees, distanceMeters, formatAgo, formatBearing, formatDistance } from './geo.ts';
-import { selectNode, distanceOrigin } from './map-ui.ts';
+import { selectNode, selectedNodeId, setSelectedNode, distanceOrigin } from './map-ui.ts';
 import { icon } from './ui.ts';
 import { lastDeviceId, shortNode } from './messages-ui.ts';
 
@@ -60,7 +60,19 @@ function nodeCard(node: CachedNode, range: string | undefined, now: number) {
   locate.title = locate.getAttribute('aria-label')!;
   locate.append(icon(node.position ? 'map-pin' : 'map-pin-off'));
   locate.addEventListener('click', () => selectNode(node.node, { focusMap: true }));
-  actions.append(message, locate);
+  const title = node.name || `Node ${shortNode(node.node)}`;
+  const forget = document.createElement('button');
+  forget.type = 'button';
+  forget.className = 'round compact';
+  forget.setAttribute('aria-label', `Forget ${title}`);
+  forget.title = 'Forget until heard again';
+  forget.append(icon('trash-2'));
+  forget.addEventListener('click', () => {
+    nodeCache.forget(node.node, current().adapter.connection.discovery.nodes);
+    if (selectedNodeId() === node.node) setSelectedNode('');
+    render();
+  });
+  actions.append(message, locate, forget);
 
   row.append(head, heard, where, actions);
   return row;
@@ -85,6 +97,7 @@ export function renderNodes() {
   text('discover-label', collecting ? 'Listening' : 'Discover');
   discover.hidden = sync.state === 'ready' && !supported;
   element('discovery-query').hidden = !ready || result?.state !== 'unknown';
+  const nodes = nodeCache.nodes;
   text(
     'discovery-result',
     connection.discovery.error ??
@@ -94,14 +107,21 @@ export function renderNodes() {
               ? `: ${result.replies} ${result.replies === 1 ? 'reply' : 'replies'}`
               : ''
           }`
-        : 'A node stays silent unless it is set to reply, so an empty list does not mean nobody is there.'),
+        : nodes.length
+          ? ''
+          : 'A node stays silent unless it is set to reply, so an empty list does not mean nobody is there.'),
   );
   const support = element('discovery-support');
   support.hidden = !(ready && connection.writeBlockReason);
   support.textContent = connection.writeBlockReason ?? '';
 
-  const nodes = nodeCache.nodes;
   element('nodes-empty').hidden = nodes.length > 0;
+  text(
+    'nodes-empty',
+    sync.state === 'ready' && !supported
+      ? 'No nodes heard yet.'
+      : 'No nodes heard yet. Press Discover to ask who is in range.',
+  );
   const now = Date.now();
   const origin = distanceOrigin();
   const ranges = nodes.map(node =>

@@ -31,6 +31,10 @@ export type Conversation = Readonly<{
   preview: string;
   kind: 'channel' | 'direct';
 }>;
+/** Public is on every device for good. Anything else can go. */
+export function canDeleteConversation(row: Pick<Conversation, 'kind' | 'channel'>) {
+  return row.kind !== 'channel' || row.channel !== 0;
+}
 export function canonicalNode(id: string) {
   return /^heltec-[0-9a-f]{12}$/.test(id) ? 'node-0000' + id.slice(7) : id;
 }

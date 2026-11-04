@@ -24,7 +24,7 @@ import {
 import { element, text } from './dom.ts';
 import { preparePublicClear, publicHistoryCount } from './messages-ui.ts';
 import { currentPage, isShowing, onPageChange, openPage, backPage } from './nav.ts';
-import { saveConfig, type SaveOutcome } from './settings-ui.ts';
+import { saveConfig, type SaveOutcome } from './config-save.ts';
 import { confirmSheet, downloadBlob, icon, setNotice } from './ui.ts';
 import { qrPath, qrPixels, readQr } from './qr.ts';
 
@@ -84,6 +84,15 @@ async function commit(next: (radio: RadioConfig) => RadioConfig) {
   }
 }
 
+/** Why a channel can't be removed right now, for asking before trying. */
+export const channelBlockReason = blockedReason;
+
+/** Removes a channel from the device by its ID. Already gone counts, in case a confirmation was lost. */
+export async function removeChannelFromDevice(id: number) {
+  const channel = table().find(row => row.id === id);
+  if (channel) await commit(radio => withChannel(radio, channel.slot, '', 0));
+}
+
 function vault() {
   if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
   return encryption;
@@ -122,6 +131,12 @@ function renderList() {
   const free = channels.length < 8;
   const blocked = blockedReason();
   text('channels-status', `${channels.length} of 8 in use`);
+  text(
+    'channel-new-help',
+    free
+      ? 'Up to 8 letters, digits, - or _.'
+      : 'All 8 channel slots are in use. Remove one to add another.',
+  );
   setNotice('channels-blocked', blocked, 'warn');
   const required = channels.map(channel => !!encryption?.isRequired(channel.id));
   const signature = JSON.stringify([channels, required]);

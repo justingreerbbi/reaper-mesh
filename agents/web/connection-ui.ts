@@ -71,6 +71,10 @@ let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let rememberedSignature = '';
 let devicesSignature = '';
 let connectProblem = '';
+/** The problem the user closed, which stays closed until there is a different one. */
+let dismissedProblem = '';
+/** The browser's Bluetooth chooser is open, which is when the pairing steps are needed. */
+let choosing = false;
 
 export type LinkState = 'idle' | 'connecting' | 'negotiating' | 'ready' | 'lost';
 export function linkState(): LinkState {
@@ -211,15 +215,19 @@ async function connectBluetooth(known?: RememberedDevice) {
     const granted = known?.bluetoothId
       ? await (bluetooth as unknown as BluetoothDevices).getDevices?.()
       : undefined;
-    const device =
-      granted?.find(row => row.id === known!.bluetoothId) ??
-      ((await chooseBleDevice(bluetooth!)) as BleDevice & { id?: string });
+    let device = granted?.find(row => row.id === known!.bluetoothId);
+    if (!device) {
+      choosing = true;
+      render();
+      device = (await chooseBleDevice(bluetooth!)) as BleDevice & { id?: string };
+      choosing = false;
+    }
     await attemptConnect({ kind: 'ble', device }, false);
   } catch (error) {
-    if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+    choosing = false;
+    if (!(error instanceof DOMException && error.name === 'NotFoundError'))
       connectProblem = bluetoothProblem(error);
-      render();
-    }
+    render();
   }
 }
 
@@ -282,6 +290,8 @@ function renderDevices() {
   element('connect-devices-section').hidden = devices.length === 0;
   element('connect-devices').replaceChildren(
     ...devices.map(row => {
+      const wrap = document.createElement('div');
+      wrap.className = 'device-row';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'row-button';
@@ -295,7 +305,19 @@ function renderDevices() {
       textBox.append(title, detail);
       button.append(icon('radio'), textBox);
       button.addEventListener('click', () => connectKnown(row));
-      return button;
+      const forget = document.createElement('button');
+      forget.type = 'button';
+      forget.className = 'round compact';
+      forget.setAttribute('aria-label', `Forget ${deviceTitle(row)}`);
+      forget.title = 'Forget';
+      forget.append(icon('trash-2'));
+      forget.addEventListener('click', () => {
+        forgetDevice(localStorage, row.id);
+        devicesSignature = '';
+        render();
+      });
+      wrap.append(button, forget);
+      return wrap;
     }),
   );
   const list = element('app-devices');
@@ -355,7 +377,12 @@ function renderConnectScreen() {
     'bad',
   );
   const { connection } = models[mode.value].adapter;
-  setNotice('connect-error', connectProblem || connection.error, 'bad');
+  const problem = connectProblem || connection.error || '';
+  if (!problem) dismissedProblem = '';
+  element('connect-error').hidden = !problem || problem === dismissedProblem;
+  text('connect-error-text', problem);
+  // Someone with a device already only needs these while looking for another.
+  element('connect-pairing').hidden = !choosing && readDevices(localStorage).length > 0;
   drawDeviceArt(element('connect-art'), 'REAPER', 'Waiting', false);
 }
 
@@ -482,6 +509,10 @@ export function initConnection() {
     connectProblem = '';
     render();
     fieldMap.invalidate();
+  });
+  element('connect-error-close').addEventListener('click', () => {
+    dismissedProblem = connectProblem || current().adapter.connection.error || '';
+    render();
   });
   element('connecting-cancel').addEventListener('click', () => void endSession());
   sheet.addEventListener('cancel', event => {

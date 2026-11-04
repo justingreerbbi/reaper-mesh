@@ -1,6 +1,7 @@
 // Logic behind the portal's mobile-parity screens: channel codes, QR, geo, position and caches.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import { formatInvite } from '../../agents/web/channel-invite.ts';
 import { parseChannelCode, planJoin, shareCodeFor } from '../../agents/web/channel-codes.ts';
 import { EncryptionVault, parseKeyBundle } from '../../agents/web/encryption.ts';
@@ -17,7 +18,11 @@ import {
 } from '../../agents/web/geo.ts';
 import { qrPath, qrPixels, readQr } from '../../agents/web/qr.ts';
 import { MAX_FIX_AGE_MS, shouldSendPosition } from '../../agents/web/position-feed.ts';
-import { NODE_CACHE_PREFIX, NodeCache } from '../../agents/web/node-cache.ts';
+import {
+  FORGOTTEN_NODES_PREFIX,
+  NODE_CACHE_PREFIX,
+  NodeCache,
+} from '../../agents/web/node-cache.ts';
 import {
   DEFAULT_PREFERENCES,
   PREFERENCES_KEY,
@@ -27,7 +32,10 @@ import {
 import { forgetDevice, readDevices, rememberDevice } from '../../agents/web/remembered-devices.ts';
 import { MapStore, MAP_STORE_KEY } from '../../agents/web/map-store.ts';
 import { encodeMap } from '../../packages/protocol/map-item.ts';
-import { deliveryOf } from '../../agents/web/conversations.ts';
+import { channelList, withChannel } from '../../packages/protocol/radio-config.ts';
+import { canDeleteConversation, deliveryOf } from '../../agents/web/conversations.ts';
+import { saveConfig, settleCommands } from '../../agents/web/config-save.ts';
+import { ConfigModel } from '../../agents/web/model.ts';
 import { SerialAdapter } from '../../packages/agent-core/serial.ts';
 import { FIELD_DEVICE_ID, FieldDevice } from '../../packages/simulator/field-device.ts';
 
@@ -234,6 +242,82 @@ test('heard nodes survive a reconnect, per device, and only age when not heard a
   assert.equal(readOnly.values.size, 0);
 });
 
+test('a forgotten node stays gone until the device hears it again, across reloads', () => {
+  const store = new MemoryStorage();
+  const cache = new NodeCache(store);
+  const alpha = {
+    node: 'node-alpha',
+    name: 'Alpha',
+    peerBoot: 'boot-1',
+    peerSequence: 4,
+    ageMs: 1000,
+  };
+  const bravo = { ...alpha, node: 'node-bravo', name: 'Bravo' };
+  const known = (list: NodeCache) => list.nodes.map(row => row.node);
+  cache.sync('device-a', [alpha, bravo], 5000);
+  cache.forget('node-alpha', [alpha, bravo]);
+  assert.deepEqual(known(cache), ['node-bravo']);
+
+  // The device keeps reporting what it last heard, which must not bring the node back.
+  cache.sync('device-a', [{ ...alpha, ageMs: 9000 }, bravo], 6000);
+  assert.deepEqual(known(cache), ['node-bravo']);
+  const reopened = new NodeCache(store);
+  reopened.sync('device-a', [alpha, bravo], 7000);
+  assert.deepEqual(known(reopened), ['node-bravo']);
+
+  // Another device's list is its own.
+  reopened.sync('device-b', [alpha], 7000);
+  assert.deepEqual(known(reopened), ['node-alpha']);
+
+  // A newer report does bring it back, and nothing is held against it afterward.
+  reopened.sync('device-a', [{ ...alpha, peerSequence: 5, ageMs: 0 }, bravo], 8000);
+  assert.deepEqual(known(reopened).sort(), ['node-alpha', 'node-bravo']);
+  assert.deepEqual(JSON.parse(store.getItem(`${FORGOTTEN_NODES_PREFIX}device-a`)!), {});
+
+  // So does a new boot, even with the same sequence number.
+  reopened.forget('node-alpha', [{ ...alpha, peerSequence: 5 }]);
+  reopened.sync('device-a', [{ ...alpha, peerSequence: 5, peerBoot: 'boot-2' }], 9000);
+  assert.ok(known(reopened).includes('node-alpha'));
+
+  // Dropping out of the device's report releases the hold, so it can return later.
+  reopened.forget('node-bravo', [bravo]);
+  reopened.sync('device-a', [{ ...alpha, peerSequence: 5, peerBoot: 'boot-2' }], 9500);
+  assert.deepEqual(JSON.parse(store.getItem(`${FORGOTTEN_NODES_PREFIX}device-a`)!), {});
+
+  // A damaged record forgets nothing rather than failing, and a read-only tab writes nothing.
+  store.setItem(`${FORGOTTEN_NODES_PREFIX}device-c`, '{nope');
+  const damaged = new NodeCache(store);
+  damaged.sync('device-c', [alpha], 1000);
+  assert.deepEqual(known(damaged), ['node-alpha']);
+  const readOnly = new MemoryStorage();
+  const tab = new NodeCache(readOnly, () => false);
+  tab.sync('device-a', [alpha], 1000);
+  tab.forget('node-alpha', [alpha]);
+  assert.equal(tab.nodes.length, 0);
+  assert.equal(readOnly.values.size, 0);
+});
+
+test('a class the portal looks for around a click exists in its page', () => {
+  // The thread menu closed itself on every click when its wrapper was renamed in the markup alone.
+  const folder = new URL('../../agents/web/', import.meta.url);
+  const page = readFileSync(new URL('index.html', folder), 'utf8');
+  const classes = new Set([...page.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(/\s+/)));
+  const looked = readdirSync(folder)
+    .filter(name => name.endsWith('.ts'))
+    .flatMap(name => [
+      ...readFileSync(new URL(name, folder), 'utf8').matchAll(/closest\('\.([\w-]+)'\)/g),
+    ])
+    .map(match => match[1]);
+  assert.ok(looked.includes('thread-menu'));
+  for (const name of looked) assert.ok(classes.has(name), `no .${name} in index.html`);
+});
+
+test('every conversation can be deleted except Public', () => {
+  assert.equal(canDeleteConversation({ kind: 'channel', channel: 0 }), false);
+  assert.equal(canDeleteConversation({ kind: 'channel', channel: TEAM.id }), true);
+  assert.equal(canDeleteConversation({ kind: 'direct', channel: 0 }), true);
+});
+
 test('preferences fall back per field and round-trip', () => {
   const store = new MemoryStorage();
   assert.deepEqual(readPreferences(store), DEFAULT_PREFERENCES);
@@ -358,4 +442,77 @@ test('the field simulator behaves as a full device over the real codec', async (
     await new Promise(resolve => setTimeout(resolve, 5));
   assert.equal(connection.sync.state, 'ready');
   await adapter.disconnect();
+});
+
+async function connectedModel(device: FieldDevice) {
+  const model = new ConfigModel(new SerialAdapter());
+  await model.adapter.connect(device.createPort(), 'link-1');
+  const { connection } = model.adapter;
+  for (let i = 0; i < 100 && connection.sync.state !== 'ready'; i++)
+    await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(connection.sync.state, 'ready');
+  return model;
+}
+
+/** Runs the app's settling pass until the save finishes, as the render loop does. */
+async function settleSave<T>(model: ConfigModel, saving: Promise<T>) {
+  let done = false;
+  const finished = saving.finally(() => {
+    done = true;
+  });
+  finished.catch(() => {});
+  const { connection } = model.adapter;
+  for (let i = 0; i < 400 && !done; i++) {
+    settleCommands(model, connection.sync.state === 'ready', () => {});
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  assert.ok(done, 'the save never finished');
+  return finished;
+}
+
+test('a settings save finishes only once the new settings are here', async () => {
+  const device = new FieldDevice({ pace: 0, scenario: false });
+  const model = await connectedModel(device);
+  const { connection } = model.adapter;
+  const radio = connection.sync.config!.radio!;
+  const removed = withChannel(radio, 1, '', 0);
+  const saving = saveConfig(model, { ...connection.sync.config!, radio: removed });
+  try {
+    assert.equal(await settleSave(model, saving), 'committed');
+    assert.equal(connection.sync.state, 'ready');
+    assert.deepEqual(
+      channelList(connection.sync.config!.radio!).map(channel => channel.name),
+      ['Public'],
+    );
+    assert.equal(model.history.length, 0);
+  } finally {
+    await model.adapter.disconnect();
+  }
+});
+
+test('a settings save reports a lost link instead of waiting for it to return', async () => {
+  const device = new FieldDevice({ pace: 0, scenario: false });
+  const model = await connectedModel(device);
+  const { connection } = model.adapter;
+  device.nextFault = 'disconnect';
+  const saving = saveConfig(model, { ...connection.sync.config!, label: 'Changed' });
+  assert.equal(await settleSave(model, saving), 'unknown');
+  // The command is kept, so it can still be queried after reconnecting. It is never resent.
+  assert.equal(model.history.length, 1);
+  await model.adapter.disconnect();
+});
+
+test('a save fails rather than waits when the link goes before the new settings arrive', async () => {
+  const device = new FieldDevice({ pace: 0, scenario: false });
+  const model = await connectedModel(device);
+  const { connection } = model.adapter;
+  // The receipt starts a re-sync, and the link drops at that moment.
+  const resynchronize = connection.sync.resynchronize.bind(connection.sync);
+  connection.sync.resynchronize = () => {
+    resynchronize();
+    device.drop();
+  };
+  const saving = saveConfig(model, { ...connection.sync.config!, label: 'Changed' });
+  await assert.rejects(settleSave(model, saving), /disconnected/);
+  await model.adapter.disconnect();
 });

@@ -1,9 +1,8 @@
 // Device settings pages: radio, position (including following this browser), discovery, screen,
-// Bluetooth pairing and storage, plus settling the commands they send.
+// Bluetooth pairing and storage.
 import { degrees, coordinate } from '../../packages/protocol/position-config.ts';
 import { validRadio, type RadioConfig } from '../../packages/protocol/radio-config.ts';
 import { SerialAdapter } from '../../packages/agent-core/serial.ts';
-import type { Config } from '../../packages/agent-core/sync.ts';
 import { chooseBleDevice, pairBleDevice } from '../../packages/agent-core/ble.ts';
 import { ConfigModel } from './model.ts';
 import {
@@ -18,7 +17,6 @@ import {
   preferences,
   recovery,
   render,
-  setError,
   setPreference,
   showError,
   writableConfig,
@@ -36,7 +34,6 @@ import {
 } from './position-feed.ts';
 import { onLocalAppStop } from './access-ui.ts';
 
-const queried = new Set<string>();
 let positionDirty = false,
   positionBase = '';
 let discoveryDirty = false,
@@ -45,72 +42,6 @@ let screenDirty = false,
   screenBase = '';
 let radioDirty = false;
 let radioBase = '';
-
-export type SaveOutcome = 'committed' | 'conflict' | 'rejected' | 'unknown';
-const waiting = new Map<string, (outcome: SaveOutcome) => void>();
-
-/** Saves settings, and resolves with what the device did once the outcome is known. */
-export function saveConfig(model: ConfigModel, config: Config) {
-  const id = model.adapter.configure(config);
-  return new Promise<SaveOutcome>(resolve => waiting.set(id, resolve));
-}
-
-/**
- * Releases settled configuration commands so the agent's bounded history never fills up.
- * A command with an unknown outcome is queried once per connection (never resent). It is
- * released once its result arrives, or once the device has rebooted and its receipt is gone;
- * the device snapshot already shows what actually applied.
- */
-export function settleCommands(model: ConfigModel, ready: boolean) {
-  const { connection } = model.adapter;
-  const finish = (id: string, outcome: SaveOutcome, message?: string) => {
-    const wait = waiting.get(id);
-    waiting.delete(id);
-    if (wait) wait(outcome);
-    else if (message) setError(message);
-  };
-  for (const entry of model.history) {
-    const { outcome, result } = connection.commands.status(entry.id);
-    if (outcome === 'pending') continue;
-    if (outcome !== 'unknown' || result) {
-      model.forget(entry.id);
-      finish(entry.id, outcome, outcome === 'committed' ? undefined : settledMessage[outcome]);
-      continue;
-    }
-    const attempt = `${entry.id}:${connection.sync.session}`;
-    if (!ready || queried.has(attempt)) continue;
-    queried.add(attempt);
-    try {
-      if (!model.adapter.recover(entry.id)) {
-        model.forget(entry.id);
-        finish(entry.id, 'unknown', settledMessage.unknown);
-      }
-    } catch {
-      // Another device, or firmware without result queries: keep it for the original device.
-    }
-  }
-  if (!ready) return;
-  // One read-only message query per pass, so recovery can't flood the link. It never resends.
-  for (const entry of connection.messaging.history) {
-    const attempt = `${entry.id}:${connection.sync.session}`;
-    if (entry.state !== 'unknown' || entry.device !== connection.device || queried.has(attempt))
-      continue;
-    queried.add(attempt);
-    try {
-      model.adapter.recoverMessage(entry.id);
-    } catch {
-      // Stays unknown, which the thread shows.
-    }
-    break;
-  }
-}
-
-const settledMessage = {
-  conflict: 'The device settings changed before your save arrived. The latest settings are shown.',
-  rejected: 'The device rejected the settings change. Nothing was changed.',
-  unknown:
-    'A settings change may not have applied before the device restarted. The settings shown are what the device reports.',
-};
 
 /** Keeps a value the device has that this portal doesn't offer selectable, not silently replaced. */
 function keepCustomOption(select: HTMLSelectElement, value: string, label: string) {

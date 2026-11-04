@@ -37,12 +37,22 @@
         </div>
         <div class="card connect-panel">
           <div id="connect-support" class="notice" data-tone="bad" hidden></div>
-          <div id="connect-error" class="notice" data-tone="bad" hidden></div>
+          <div id="connect-error" class="notice" data-tone="bad" role="alert" hidden>
+            <span id="connect-error-text"></span>
+            <button
+              id="connect-error-close"
+              class="round compact"
+              type="button"
+              aria-label="Dismiss"
+            >
+              <i data-icon="x"></i>
+            </button>
+          </div>
           <div id="connect-devices-section" hidden>
             <p class="list-label">Your devices</p>
             <div id="connect-devices" class="row-list"></div>
           </div>
-          <div class="pairing-steps">
+          <div id="connect-pairing" class="pairing-steps">
             <p class="list-label">Pairing a new device over Bluetooth</p>
             <ol>
               <li>Hold the main button on your device for 5 seconds to open pairing.</li>
@@ -155,8 +165,14 @@
                   <i data-icon="ellipsis-vertical"></i>
                 </button>
                 <div id="conversation-options-menu" class="options-menu" role="menu" hidden>
+                  <button id="conversation-channel-settings" role="menuitem" type="button" hidden>
+                    <i data-icon="settings-2"></i>Channel settings
+                  </button>
+                  <button id="conversation-show-map" role="menuitem" type="button" hidden>
+                    <i data-icon="map-pin"></i>Show on map
+                  </button>
                   <button id="clear-conversation" class="danger-item" role="menuitem" type="button">
-                    Clear chat history
+                    <i data-icon="trash-2"></i>Delete all messages
                   </button>
                 </div>
               </div>
@@ -468,9 +484,7 @@
             </button>
           </header>
           <p id="discovery-support" class="notice" data-tone="warn" hidden></p>
-          <p id="nodes-empty" class="empty">
-            No nodes heard yet. Press Discover to ask who is in range.
-          </p>
+          <p id="nodes-empty" class="empty"></p>
           <ul id="nodes" class="node-grid" aria-label="Nodes heard"></ul>
         </section>
 
@@ -728,7 +742,7 @@
                   </button>
                   <form id="channel-new-form" class="field">
                     <label for="channel-new-name">New channel</label>
-                    <small class="muted">Up to 8 letters, digits, - or _.</small>
+                    <small id="channel-new-help" class="muted"></small>
                     <div class="inline">
                       <input
                         id="channel-new-name"
@@ -1405,6 +1419,7 @@
     <dialog id="confirm-sheet" class="sheet" aria-labelledby="confirm-title">
       <h2 id="confirm-title"></h2>
       <p id="confirm-body" class="muted"></p>
+      <p id="confirm-notice" class="notice" role="alert" hidden></p>
       <div class="sheet-actions">
         <button id="confirm-ok" class="primary grow" type="button">Confirm</button>
         <button id="confirm-cancel" class="grow" type="button" autofocus>Keep</button>

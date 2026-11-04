@@ -9,6 +9,7 @@ import {
   models,
   recovery,
   render,
+  setError,
   setRenderer,
 } from './app-state.ts';
 import {
@@ -25,13 +26,13 @@ import { initMessages, renderInbox, renderMessages } from './messages-ui.ts';
 import { initChannels, renderChannels } from './channels-ui.ts';
 import {
   initSettings,
-  settleCommands,
   renderDiscovery,
   renderPosition,
   renderScreen,
   renderBluetooth,
   renderRadio,
 } from './settings-ui.ts';
+import { settleCommands } from './config-save.ts';
 import { fieldMap, initMap, mapWorkspace, renderMap } from './map-ui.ts';
 import { connectOnLoad, initConnection, renderConnection } from './connection-ui.ts';
 import { initNodes, renderNodes } from './nodes-ui.ts';
@@ -77,7 +78,7 @@ function renderApp() {
   mapWorkspace.update();
   renderMap();
   syncSegmented();
-  settleCommands(model, ready);
+  settleCommands(model, ready, setError);
 }
 
 const timer = setInterval(render, 100);

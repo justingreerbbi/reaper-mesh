@@ -10,6 +10,18 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: web portal catches up with the mobile app's quality-of-life changes
+
+Keeping the portal in step with the mobile app (D49), this ports what the app gained after the portal's redesign, taken from its latest commit and its uncommitted working copy. A sent message, a direct conversation or a channel can now be deleted, Public excepted, and a heard node or a remembered device can be forgotten. A thread's menu links to channel settings and the map. Smaller changes: connection problems can be dismissed, the pairing steps show only when needed, the node count stops saying "of 32" once past it, the New channel field says when all slots are used, the message-gap notice moves from the thread to Diagnostics, and an old error clears on editing a setting or, for a failed send, on opening another conversation. There is no firmware, wire format or fixture change. New local storage is one key per device, `reaper-mesh.nodes-forgotten.v1.*`.
+
+This also fixes two bugs the app had already fixed. A channel change waited for a lost link to return, so it could appear stuck indefinitely. It also finished before the device's new settings arrived, so anything that ran next read the old channel table.
+
+It also fixes a portal bug from the redesign: a thread's three-dot menu closed on the same click that opened it, so it never appeared. The handler for clicks outside the menu still looked for the wrapper's old class name, `conversation-menu`.
+
+Evidence: `npm run check` passes (323 tests, 7 of them new), including a check that classes the portal looks for around a click exist in the page, and saves against the simulated device over the real codec with the link lost at each point. In the in-app browser, against the simulated device only, at 1280 × 800 and 375 × 812 with no console errors: deleting a sent message; deleting a direct conversation, which stayed gone across a reload and returned holding only a new message; deleting a channel with a broadcast and a direct message on it; the device rejecting that, with the sheet staying open, nothing deleted and a retry working; the link dropping during it; the blocked sheet with no link; a rejoined channel with no old history; forgetting a node, which stayed gone across device reports and a reload and returned on a newer report; the thread menu with real mouse and keyboard input (opening it at both sizes, closing it with Esc, an outside click or the dots, and each item); forgetting a device and dismissing a problem on the connect screen; the pairing steps appearing while a stubbed Bluetooth chooser was open and leaving on cancel; and returning to the list on a narrow screen. The pane was hidden during this, so its timing was not assessed.
+
+Not tested: any real board (USB, Bluetooth or radio), or the browser's real Bluetooth chooser. Nothing was compared side by side with a running copy of the app; the port follows its source code and tests.
+
 ## November 4: BLE output recovery and Heltec storage reset (`v0.6.2`)
 
 At the owner's explicit request, addressed the remaining BLE findings and installed

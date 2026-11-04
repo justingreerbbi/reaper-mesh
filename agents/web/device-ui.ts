@@ -1,7 +1,9 @@
 // The Device tab's home page, Diagnostics, and This app.
 import {
   access,
+  clearError,
   current,
+  currentError,
   knownConfig,
   mode,
   nodeCache,
@@ -107,8 +109,12 @@ export function renderDevice() {
   const capacity = c?.nodeCapacity ?? NODE_CAPACITY;
   const nodes = nodeCache.nodes;
   text('stat-nodes', nodes.length);
-  text('stat-nodes-of', `of ${capacity}`);
-  text('stat-nodes-detail', `${nodes.filter(node => node.position).length} with a position`);
+  // This browser remembers more nodes than a device holds, so the count can pass its capacity.
+  text('stat-nodes-of', nodes.length <= capacity ? `of ${capacity}` : '');
+  text(
+    'stat-nodes-detail',
+    `Remembered across channels · ${nodes.filter(node => node.position).length} with a position`,
+  );
   renderMeter(nodes.length, capacity);
   text('stat-traffic', r ? `${r.transmitted} · ${r.received}` : '—');
   text('stat-memory', formatKb(r?.heapFree));
@@ -180,6 +186,12 @@ export function renderDevice() {
 }
 
 export function initDevice() {
+  // Changing something again makes the last save's result old news.
+  document.querySelector('.device-view')!.addEventListener('input', () => {
+    if (!currentError()) return;
+    clearError();
+    render();
+  });
   element('device-disconnect').addEventListener('click', () => void endSession());
   const bind = <K extends 'theme' | 'units' | 'coordinates'>(id: string, key: K) =>
     element(id).addEventListener('change', () =>

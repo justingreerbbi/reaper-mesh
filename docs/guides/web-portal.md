@@ -24,7 +24,7 @@ On a narrow screen, panes take turns: the conversation list, then a thread with 
 
 ## Connecting
 
-The connect screen is the only page until a session is up. **Connect over USB** and **Connect over Bluetooth** open the browser's own chooser. **Your devices** lists devices used before, and selecting one reconnects without the chooser when the browser still has permission. **Use simulated device** needs no hardware, and **Open without a device** shows saved messages and the map.
+The connect screen is the only page until a session is up. **Connect over USB** and **Connect over Bluetooth** open the browser's own chooser. **Your devices** lists devices used before, and selecting one reconnects without the chooser when the browser still has permission. The trash button beside a device forgets it, so it is not rejoined on load. The pairing steps show only with no remembered devices or while the Bluetooth chooser is open. A connection problem can be dismissed, and stays closed until there is a different one. **Use simulated device** needs no hardware, and **Open without a device** shows saved messages and the map.
 
 Once a session has been up, a lost link keeps you in the app. A banner says the link is lost while the portal retries at 2, 4, 8, 15 and 30 seconds, using a new link each time. Plugging a USB adapter back in retries at once. Nothing is resent: unknown outcomes are only queried. **Disconnect** ends the session and returns to the connect screen.
 
@@ -36,6 +36,9 @@ Once a session has been up, a lost link keeps you in the app. A banner says the 
 - There is no separate New message form, so direct messages use channel 0 (Public) and its key, and a node that has not been heard cannot be messaged.
 - Received messages are on the left, with the sender's name in channels, and sent messages on the right. Each shows the time this browser first saw it (the device has no clock) and, for sent messages, a delivery icon. Selecting a sent message shows its status in words. Transmitted is not delivery, and delivered means the destination device accepted it, not that anyone read it.
 - A message with an unknown outcome has a **Check** button, and is also queried once per connection. Checking only reads; it never sends the message again.
+- A sent message's details have **Delete**, which removes it from this browser. It may still go out.
+- The trash button on a conversation row deletes that conversation, after confirmation. It appears on hover or keyboard focus, and always on a touchscreen. A direct conversation leaves the list along with its messages, and comes back if that node messages you or you open it from Nodes or the Map. A channel is removed from your device first, and its messages, including direct messages sent over it, are deleted from this browser only if the device commits. Its key stays, so you can rejoin. Public cannot be deleted. Deleting the open conversation returns you to the list, with Public behind it.
+- The three dots in a thread offer **Channel settings** for a channel, **Show on map** for a node with a position, and **Delete all messages**, which keeps the conversation in the list.
 - **Brevity phrases** (Copy, Moving, Holding, At rally, Need assist, All clear) sit above the message box. The first press arms one and the second sends it. An armed phrase disarms after 3 seconds.
 - An encrypted message that cannot be read says why, and its text is never shown unless it authenticated. If a channel has encrypted traffic and this browser has no key, sending is off so nothing goes out in the clear.
 - The byte count appears only within 200 bytes of the limit. Drafts are kept per conversation in this tab and are not saved across a reload. Enter sends; Shift+Enter adds a line.
@@ -48,7 +51,8 @@ Device → Channels lists each channel with its encryption state.
 - **Scan a channel QR code** reads a code with the camera, from an image file, or pasted as text. The sheet says whether it is encrypted before anything changes. Joining puts the channel in any free slot with the same ID, and refuses a different channel that already uses the name. A key on its own (`RMKEY1`) is added to a channel the device already has, which is how Public's key is shared.
 - A channel's page has **Require encryption**, **Rotate key**, **Remove key from this browser** or **Create a key**, and **Share**. Renaming keeps the channel and affects only this device.
 - **Share** shows the QR code, always dark on white, with a warning when it contains the key. **Download QR code** saves a PNG, **Copy as text** copies the code, and **Share QR code** appears where the browser can share files. Leaving the page clears the code from the screen.
-- **Remove channel from device** empties its slot after confirmation. Messages waiting to send are cancelled (`radio-config-changed`), as with any radio change. It leaves the conversation list and unread counts, and an open conversation on it moves to Public. Its chat history and key stay in this browser and return on rejoining.
+- **Remove channel from device** empties its slot after confirmation. Messages waiting to send are cancelled (`radio-config-changed`), as with any radio change. It leaves the conversation list and unread counts, and an open conversation on it moves to Public, returning a narrow screen to the list. Its chat history and key stay in this browser and return on rejoining. To delete the history as well, delete the channel's conversation in Comms instead.
+- With all 8 slots in use, the New channel field says so.
 - Public is permanent. Every device already has it, so it can only share a key. **Reset Public** deletes its chat and its keys and encryption requirement from this browser.
 
 Codes are the same `RMCH1` invites and `RMKEY1` bundles the mobile app uses, so either can read the other's. See [channel IDs](../reference/radio-configuration.md#channel-ids) (D45) and [Channel encryption](encryption.md). Channel and radio changes need firmware with channel IDs (`v0.3.0`); earlier firmware stays readable.
@@ -82,7 +86,9 @@ The Device tab shows the device with its link state, Radio, Power, Nodes heard, 
 - **Diagnostics, Plugins and Storage:** technical status, JSON plugins, and history export, retry and reset.
 - **This app:** appearance, distance units, coordinate format, Rejoin on load, your devices, PIN protection and erasing local data.
 
-Settings use revision-checked saves. If the device changes while you are editing, saving is blocked until you discard your edits. Nodes keep showing across reconnects, per device, in `reaper-mesh.nodes.v1.*`; a position is only as fresh as its last report.
+Settings use revision-checked saves. If the device changes while you are editing, saving is blocked until you discard your edits. A channel change finishes only once the device has reported its new settings, and a lost link reports that no confirmation arrived rather than waiting for the link to return. Editing a setting clears the error from an earlier save.
+
+Nodes keep showing across reconnects, per device, in `reaper-mesh.nodes.v1.*`; a position is only as fresh as its last report. The trash button on a node in the Nodes tab forgets it. The device keeps reporting what it last heard, so that report is remembered in `reaper-mesh.nodes-forgotten.v1.*` and only a newer one brings the node back. Forgetting a node keeps its messages. The count on the Device tab can pass the device's capacity, since this browser remembers more nodes than a device holds, and then shows no "of 32".
 
 ## Try it without hardware
 
@@ -117,7 +123,7 @@ The composer accepts up to 1024 UTF-8 bytes, less for an encrypted channel. It r
 
 ## Inbox, local testing and diagnostics
 
-The integrated firmware supports local delivery by selecting This device. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The agent reads the inbox with independent bounded cursors, displays retention gaps and keeps received history to 32 entries. Live radio state and RX/TX counters appear on the Device tab; memory and stack headroom are under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
+The integrated firmware supports local delivery by selecting This device. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The agent reads the inbox with independent bounded cursors, reports retention gaps in Diagnostics and keeps received history to 32 entries. Live radio state and RX/TX counters appear on the Device tab; memory and stack headroom are under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
 
 ## Reload recovery
 
@@ -129,9 +135,9 @@ USB identity, monotonic request counters and bounded command/message/inbox histo
 
 ## Message management and unread indicators
 
-The conversation header's three-dot options menu has **Clear chat history**, which removes the conversation's retained messages after confirmation and keeps the channel or direct message in the list; it is unavailable while the chat is empty or uploading. (The earlier Delete chat also hid the conversation, and the Locate device button was removed on November 3; use the map to find a device.) Removal is local to this browser, including other local views of the same received message. It does not cancel queued RF work, change device ACKs, erase a device inbox or remove another user's copy. Clearing also removes sent messages' delivery-query recovery records and frees local upload-history slots. A chat with an active upload cannot be cleared. Received bodies are removed from the local recovery journal; identity-only tombstones suppress device-inbox redownloads. Clearing browser storage removes these tombstones, so retained device messages may return.
+[Comms](#comms) describes what can be deleted. **Delete all messages** asks first and is unavailable while the chat is empty or uploading. Apart from a channel leaving its device, removal is local to this browser, including other local views of the same received message. It does not cancel queued RF work, change device ACKs, erase a device inbox or remove another user's copy. Deleting also removes sent messages' delivery-query recovery records and frees local upload-history slots. A chat or channel with an active upload cannot be deleted, and neither can a message still uploading. Received bodies are removed from the local recovery journal; identity-only tombstones suppress device-inbox redownloads. Clearing browser storage removes these tombstones, so retained device messages may return.
 
-Clearing captures the chat's message identities when confirmation opens; new arrivals during confirmation survive. Single-message delete was removed on November 3. Conversations hidden by the earlier Delete chat stay hidden until new traffic arrives or they are opened explicitly.
+Deleting a conversation or its messages captures their identities when confirmation opens, so new arrivals during confirmation survive. Deleting a channel captures them once the device has committed. A hidden conversation stays hidden until new traffic arrives or it is opened explicitly, and then stays on the list even if that traffic is later deleted.
 
 Unread UI state is separate from delivery state. Unique incoming identities increment inbox-row and navigation badges plus the browser title `(N) Reaper Mesh`. Channel/peer views may show the same incoming message, but the title counts it once. A visible, focused conversation at the bottom marks matching messages read locally; hidden tabs, the deletion dialog, the mobile inbox and reading older messages do not. The new-messages button jumps to the latest messages. Reading sends no read receipt or ACK; there is no mark-all-read action. First installation baselines existing saved history as read; later reloads retain unread state and recognize new messages recovered after reload.
 

@@ -37,6 +37,25 @@ export function inConversation(
         message.destination !== 'broadcast')
   );
 }
+/** Everything a device holds on one channel, including direct messages sent over it. */
+export function channelIdentities(
+  source: string,
+  device: string,
+  channel: number,
+  outgoing: readonly Outgoing[],
+  incoming: readonly Incoming[],
+) {
+  const sent = outgoing.filter(m => m.device === device && m.channel === channel);
+  const received = incoming.filter(m => m.device === device && m.channel === channel);
+  return {
+    keys: [
+      ...received.map(m => receivedKey(source, m)),
+      ...sent.map(m => sentKey(source, device, m.id)),
+    ],
+    outgoing: sent.map(m => m.id),
+    uploading: sent.some(m => m.state === 'receiving'),
+  };
+}
 /** Presentation metadata only. Never writes transport state or emits device commands. */
 export class MessageState {
   #records = new Map<string, Flags>();
