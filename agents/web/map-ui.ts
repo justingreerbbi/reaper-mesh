@@ -1,4 +1,4 @@
-// Map workspace, node selection and navigation between the portal workspaces.
+// The Map tab: positions and floating controls. Map items and tools live in map-workspace.ts.
 import {
   DEFAULT_CHANNEL_IDS,
   DEFAULT_CHANNELS,
@@ -6,19 +6,69 @@ import {
 } from '../../packages/protocol/radio-config.ts';
 import { degrees } from '../../packages/protocol/position-config.ts';
 import { MapWorkspace } from './map-workspace.ts';
-import { FieldMap, type MapPoint } from './map.ts';
+import { BASEMAPS, FieldMap, type MapPoint } from './map.ts';
 import { canonicalNode } from './conversations.ts';
-import { app, current, encryption, encryptionError, mode, recovery, render } from './app-state.ts';
+import {
+  app,
+  current,
+  encryption,
+  encryptionError,
+  knownConfig,
+  mode,
+  nodeCache,
+  preferences,
+  recovery,
+  render,
+  setPreference,
+} from './app-state.ts';
 import { element, text } from './dom.ts';
-import { isAppStopped } from './access-ui.ts';
-import { chooseConversation, hexBytes } from './messages-ui.ts';
-import { openManage } from './settings-ui.ts';
+import { isAppStopped, onLocalAppStop } from './access-ui.ts';
+import {
+  chooseConversation,
+  hexBytes,
+  lastDeviceId,
+  shareTargets,
+  shortNode,
+} from './messages-ui.ts';
+import { STALE_NODE_MS } from './node-cache.ts';
+import {
+  bearingDegrees,
+  distanceMeters,
+  formatAgo,
+  formatBearing,
+  formatCoordinate,
+  formatDistance,
+  fromWire,
+  type LngLat,
+} from './geo.ts';
+import { currentView, onViewChange, setView } from './nav.ts';
+import { setIcon } from './ui.ts';
 
 let selectedNode = '';
+let me: LngLat | undefined;
+let watchId: number | undefined;
 export const selectedNodeId = () => selectedNode;
 export function setSelectedNode(id: string) {
   selectedNode = id;
 }
+
+function devicePosition(): LngLat | undefined {
+  const position = knownConfig()?.position;
+  return position?.source === 1
+    ? [fromWire(position.longitude, 180), fromWire(position.latitude, 90)]
+    : undefined;
+}
+/** Where distances are measured from: this browser if known, otherwise the device's position. */
+export const distanceOrigin = () => me ?? devicePosition();
+export function rangeTo(target: LngLat) {
+  const origin = distanceOrigin();
+  return origin
+    ? `${formatDistance(distanceMeters(origin, target), preferences.units)} · ${formatBearing(
+        bearingDegrees(origin, target),
+      )}`
+    : undefined;
+}
+
 export const fieldMap = new FieldMap(element('map'));
 export const mapWorkspace = new MapWorkspace(fieldMap, {
   openMap: () => setView('map'),
@@ -26,10 +76,11 @@ export const mapWorkspace = new MapWorkspace(fieldMap, {
   stopped: () => isAppStopped() || app.inert,
   context: () => {
     const c = current().adapter.connection;
+    const radio = knownConfig()?.radio;
     return {
       channels: channelList({
-        channels: c.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
-        channelIds: c.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
+        channels: radio?.channels ?? DEFAULT_CHANNELS,
+        channelIds: radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
       }),
       ready: c.sync.state === 'ready',
       device: c.device,
@@ -64,45 +115,37 @@ export const mapWorkspace = new MapWorkspace(fieldMap, {
         )
       : adapter.sendMessage(body, destination, channel);
   },
+  shareTargets: () => {
+    const device = lastDeviceId();
+    return shareTargets().filter(
+      row => canonicalNode(row.destination) !== canonicalNode(device ?? ''),
+    );
+  },
+  range: rangeTo,
+  coordinate: at => formatCoordinate(at, preferences.coordinates),
+  distance: meters => formatDistance(meters, preferences.units),
+  notify: showMessage,
+  selectedItem: () => {
+    selectedNode = '';
+    fieldMap.select(undefined);
+  },
 });
 
-export type Panel = 'device' | 'nodes' | 'messages';
-export function setPanelOpen(_open: boolean) {
-  fieldMap.invalidate();
-}
-export function setView(view: 'overview' | 'map' | Panel) {
-  if (view === 'device') {
-    openManage('device');
-    return;
-  }
-  app.dataset.view = view === 'nodes' ? 'map' : view;
-  text(
-    'workspace-title',
-    app.dataset.view === 'overview'
-      ? 'Overview'
-      : app.dataset.view === 'map'
-        ? 'Map & devices'
-        : 'Messages',
-  );
-  for (const button of document.querySelectorAll<HTMLElement>('.nav-rail [data-view-target]')) {
-    const active = button.dataset.viewTarget === app.dataset.view;
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-current', active ? 'page' : 'false');
-  }
-  fieldMap.invalidate();
-}
-function setDock(panel: Panel) {
-  setView(panel);
+function showMessage(message: string | undefined) {
+  element('map-message').hidden = !message;
+  text('map-message-text', message ?? '');
 }
 
 export function selectNode(id: string, options: { message?: boolean; focusMap?: boolean } = {}) {
   selectedNode = id;
   if (options.message) {
     chooseConversation(id);
-    setView('messages');
+    setView('comms');
     element('message-body').focus();
   } else {
     setView('map');
+    mapWorkspace.clearSelection();
+    fieldMap.map.invalidateSize();
     if (options.focusMap) fieldMap.focus(id);
     else fieldMap.select(id);
   }
@@ -110,76 +153,178 @@ export function selectNode(id: string, options: { message?: boolean; focusMap?: 
 }
 
 export function renderMap() {
-  const selected = current().adapter.connection.discovery.nodes.find(n => n.node === selectedNode);
+  const connection = current().adapter.connection;
+  const device = lastDeviceId();
+  const nodes = nodeCache.nodes;
+  const now = Date.now();
+  const selected = nodes.find(n => n.node === selectedNode);
   element('selected-asset').hidden = !selected;
   if (selected) {
-    text('asset-name', selected.name || selected.node);
+    const at: LngLat | undefined = selected.position
+      ? [selected.position.longitude, selected.position.latitude]
+      : undefined;
+    const range = at && rangeTo(at);
+    text('asset-name', selected.name || `Node ${shortNode(selected.node)}`);
     text(
       'asset-detail',
-      selected.position
-        ? `${selected.node} · fixed ${degrees(selected.position.latitude, 90)}, ${degrees(selected.position.longitude, 180)}`
-        : `${selected.node} · no reported position`,
+      `Reported ${formatAgo(selected.heardAt, now)}${range ? ` · ${range}` : ''}`,
     );
   }
 
-  const connection = current().adapter.connection;
   const points: MapPoint[] = [];
-  const position = connection.sync.config?.position;
-  if (connection.device && position?.source === 1) {
+  const config = knownConfig();
+  const position = config?.position;
+  if (device && position?.source === 1) {
     points.push({
-      id: connection.device,
-      name: connection.sync.config?.label || connection.device,
+      id: device,
+      name: config?.label || device,
       latitude: Number(degrees(position.latitude, 90)),
       longitude: Number(degrees(position.longitude, 180)),
       kind: 'self',
-      detail: position.share ? 'Local fixed · sharing on' : 'Local fixed · not shared over radio',
+      detail: position.share ? 'sharing' : 'not shared',
     });
   }
-  for (const node of connection.discovery.nodes) {
-    if (!node.position || canonicalNode(node.node) === canonicalNode(connection.device ?? ''))
-      continue;
+  for (const node of nodes) {
+    if (!node.position || canonicalNode(node.node) === canonicalNode(device ?? '')) continue;
     points.push({
       id: node.node,
-      name: node.name || node.node,
-      latitude: Number(degrees(node.position.latitude, 90)),
-      longitude: Number(degrees(node.position.longitude, 180)),
+      name: node.name || `Node ${shortNode(node.node)}`,
+      latitude: node.position.latitude,
+      longitude: node.position.longitude,
       kind: 'peer',
-      detail: `Heard ${Math.floor((node.ageMs + Math.max(0, performance.now() - node.receivedAt)) / 1000)}s ago · fixed`,
+      stale: now - node.heardAt > STALE_NODE_MS,
+      detail: String(node.heardAt),
     });
   }
-  element('map-empty').hidden = points.length > 0 || mapWorkspace.hasItems;
-  text(
-    'map-caption',
-    points.length
-      ? `${points.length} device ${points.length === 1 ? 'position' : 'positions'}`
-      : mapWorkspace.hasItems
-        ? 'Saved map items'
-        : 'No shared positions',
-  );
+  element('map-empty').hidden =
+    points.length > 0 ||
+    mapWorkspace.hasItems ||
+    mapWorkspace.toolActive ||
+    (connection.sync.state === 'ready' && nodes.length > 0);
   fieldMap.setPoints(points);
   fieldMap.select(selectedNode || undefined);
+  fieldMap.setBasemap(preferences.basemap);
+  fieldMap.setMe(me);
+  document.querySelector<HTMLElement>('.map-view')!.dataset.basemap = preferences.basemap;
+  for (const button of element('map-basemaps').querySelectorAll<HTMLButtonElement>('button')) {
+    const active = button.dataset.basemap === preferences.basemap;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-checked', String(active));
+  }
+  element('map-locate').classList.toggle('is-active', !!me);
+  renderCoordinate();
+  if (currentView() === 'map') {
+    fieldMap.map.invalidateSize({ animate: false });
+    fieldMap.frame();
+  }
+}
+
+function renderCoordinate() {
+  const value = formatCoordinate(fieldMap.center(), preferences.coordinates);
+  const button = element('map-coordinate');
+  if (button.textContent !== value) button.textContent = value;
+}
+
+function togglePopover(id: string) {
+  const panel = element(id);
+  const open = !!panel.hidden;
+  element('map-layers-panel').hidden = true;
+  element('map-items-panel').hidden = true;
+  panel.hidden = !open;
+  element('map-layers').classList.toggle('is-active', id === 'map-layers-panel' && open);
+  element('map-items').classList.toggle('is-active', id === 'map-items-panel' && open);
+}
+
+function locate() {
+  if (!navigator.geolocation) {
+    showMessage('This browser has no location access.');
+    return;
+  }
+  if (watchId === undefined)
+    watchId = navigator.geolocation.watchPosition(
+      position => {
+        const first = !me;
+        me = [position.coords.longitude, position.coords.latitude];
+        if (first) fieldMap.flyTo(me[0], me[1]);
+        render();
+      },
+      () => {
+        navigator.geolocation.clearWatch(watchId!);
+        watchId = undefined;
+        me = undefined;
+        showMessage('Location permission is off. Allow it in your browser to show your position.');
+        render();
+      },
+      { enableHighAccuracy: true, maximumAge: 10000 },
+    );
+  if (me) fieldMap.flyTo(me[0], me[1]);
+  else showMessage('Waiting for a location fix.');
+}
+
+function setExpanded(expanded: boolean) {
+  app.classList.toggle('map-expanded', expanded);
+  const button = element('map-full');
+  button.setAttribute('aria-pressed', String(expanded));
+  button.setAttribute('aria-label', expanded ? 'Exit full screen' : 'Full screen');
+  button.title = button.getAttribute('aria-label')!;
+  setIcon(button, expanded ? 'minimize' : 'fullscreen');
+  fieldMap.invalidate();
 }
 
 export function initMap() {
   fieldMap.onSelect = id => {
     selectedNode = id ?? '';
+    if (id) mapWorkspace.clearSelection();
     render();
   };
-  for (const button of document.querySelectorAll<HTMLElement>('[data-view-target]')) {
-    button.addEventListener('click', () =>
-      setView(button.dataset.viewTarget as 'overview' | 'map' | Panel),
-    );
-  }
-  for (const tab of document.querySelectorAll<HTMLElement>('.dock-tab')) {
-    tab.addEventListener('click', () => {
-      setDock(tab.dataset.dock as Panel);
-      setPanelOpen(true);
-    });
-  }
-  element('fit-map').addEventListener('click', () => fieldMap.fit());
+  fieldMap.onMove = renderCoordinate;
+  onViewChange(() => {
+    fieldMap.invalidate();
+    if (currentView() !== 'map' && app.classList.contains('map-expanded')) setExpanded(false);
+  });
+  onLocalAppStop(() => {
+    if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+    watchId = undefined;
+  });
+  element('map-basemaps').replaceChildren(
+    ...BASEMAPS.map(row => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = row.label;
+      button.dataset.basemap = row.id;
+      button.setAttribute('role', 'radio');
+      button.addEventListener('click', () => setPreference('basemap', row.id));
+      return button;
+    }),
+  );
+  element('map-zoom-in').addEventListener('click', () => fieldMap.zoom(1));
+  element('map-zoom-out').addEventListener('click', () => fieldMap.zoom(-1));
+  element('map-locate').addEventListener('click', locate);
+  element('map-layers').addEventListener('click', () => togglePopover('map-layers-panel'));
+  element('map-items').addEventListener('click', () => togglePopover('map-items-panel'));
+  element('map-full').addEventListener('click', () =>
+    setExpanded(!app.classList.contains('map-expanded')),
+  );
+  document.addEventListener('keydown', event => {
+    if (
+      event.key === 'Escape' &&
+      !document.querySelector('dialog[open]') &&
+      app.classList.contains('map-expanded')
+    )
+      setExpanded(false);
+  });
+  element('map-coordinate').addEventListener('click', () =>
+    setPreference('coordinates', preferences.coordinates === 'mgrs' ? 'dd' : 'mgrs'),
+  );
+  element('fit-map').addEventListener('click', () => {
+    if (!fieldMap.fit()) showMessage('Nothing to show yet. No node has reported a position.');
+  });
+  element('map-message-close').addEventListener('click', () => showMessage(undefined));
   element('asset-message').addEventListener('click', () => {
     if (selectedNode) selectNode(selectedNode, { message: true });
   });
-  window.addEventListener('resize', () => fieldMap.invalidate());
-  setView('overview');
+  element('asset-close').addEventListener('click', () => {
+    selectedNode = '';
+    render();
+  });
 }

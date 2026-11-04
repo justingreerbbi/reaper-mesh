@@ -70,7 +70,7 @@ export class MapStore {
             payload.origin.length > 64 ||
             !Number.isInteger(payload.channel) ||
             payload.channel < 0 ||
-            payload.channel > 7 ||
+            payload.channel >= 0xffffffff ||
             typeof payload.destination !== 'string' ||
             payload.destination.length > 64 ||
             (typeof payload.text === 'string') === (typeof payload.ciphertext === 'string')

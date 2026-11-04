@@ -10,7 +10,7 @@ A declarative plugin for the web agent (`agents/web/`). It adds:
 ## Try it
 
 1. Run the web agent (`npm run dev:web`) and open it.
-2. Open Settings → Plugins → Install / update JSON and choose `field-survey.json`.
+2. Open Device → Plugins and, under **Install or update from JSON**, choose `field-survey.json`.
 3. Review the definition and confirm.
 4. On the map, add a point and choose the Survey observation type.
 

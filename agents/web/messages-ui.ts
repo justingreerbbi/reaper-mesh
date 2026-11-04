@@ -18,7 +18,8 @@ import {
   canonicalNode,
   ConversationDrafts,
   channelLabel,
-  deliveryLabel,
+  deliveryOf,
+  type Conversation,
   type Outgoing,
 } from './conversations.ts';
 import {
@@ -28,11 +29,12 @@ import {
   disposeMessageState,
   encryption,
   encryptionError,
-  manage,
+  knownConfig,
   messageState,
   messageStateError,
   mode,
   models,
+  nodeCache,
   recovery,
   render,
   setMessageStateError,
@@ -40,10 +42,20 @@ import {
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { accessDialog, onLocalAppStop } from './access-ui.ts';
-import { connectDevice } from './connection-ui.ts';
-import { mapWorkspace, setSelectedNode, setView } from './map-ui.ts';
+import { mapWorkspace, setSelectedNode } from './map-ui.ts';
+import { currentView } from './nav.ts';
+import { icon } from './ui.ts';
 
 const deleteDialog = element<HTMLDialogElement>('delete-history');
+const linkLost = () => !!document.querySelector('#link-banner:not([hidden])');
+/** Grows the message box with what's typed, up to the limit in the stylesheet. */
+function autosizeComposer() {
+  const box = element<HTMLTextAreaElement>('message-body');
+  box.addEventListener('input', () => {
+    box.style.height = 'auto';
+    box.style.height = `${box.scrollHeight}px`;
+  });
+}
 let deletePlan:
   | {
       source: string;
@@ -66,6 +78,38 @@ let lastScope = '';
 const observedOrder = new Map<string, number>();
 let nextOrder = 0;
 let conversationFilter: 'all' | 'channel' | 'direct' = 'all';
+let conversationRows: Conversation[] = [];
+/** Sent messages with their delivery details open. */
+const openDelivery = new Set<string>();
+let armedPhrase: string | undefined;
+let armTimer: ReturnType<typeof setTimeout> | undefined;
+let connectAction = () => {};
+
+/** Brevity phrases for gloved hands. Tapping arms one; a second tap sends it. */
+const QUICK_PHRASES = ['Copy', 'Moving', 'Holding', 'At rally', 'Need assist', 'All clear'];
+const ARM_MS = 3000;
+
+/** Why an encrypted message can't be shown. Its text is never displayed unless it authenticated. */
+const CRYPTO_NOTES: Record<string, string> = {
+  'key-needed': "Encrypted message. This browser doesn't have the key.",
+  invalid: 'Encrypted message that failed its security check. Not shown.',
+  replay: 'Duplicate of an earlier encrypted message. Not shown.',
+  unsupported: "Encrypted in a format this app doesn't support.",
+  'plaintext-rejected': 'Unencrypted message rejected. This channel requires encryption.',
+  locked: 'Encrypted message. Unlock the app to read it.',
+};
+
+export function setConnectAction(action: () => void) {
+  connectAction = action;
+}
+export const lastDeviceId = () => lastDevice;
+/** The conversations on show, for choosing where to share something. */
+export const shareTargets = () => conversationRows;
+export function shortNode(node: string) {
+  const match = /^node-[0-9a-f]{12}([0-9a-f]{4})$/.exec(node);
+  return match ? match[1].toUpperCase() : node;
+}
+const nodeLabel = (name: string | undefined, node: string) => name || `Node ${shortNode(node)}`;
 
 /** Forces the thread to re-render on the next pass. */
 export function invalidateThread() {
@@ -107,74 +151,20 @@ function requestDelete(
   deleteDialog.showModal();
 }
 
-const svgNs = 'http://www.w3.org/2000/svg';
-function icon(className: string, label: string, paths: string[], circles: number[][] = []) {
-  const svg = document.createElementNS(svgNs, 'svg');
-  svg.setAttribute('class', `ui-icon ${className}`);
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', label);
-  const title = document.createElementNS(svgNs, 'title');
-  title.textContent = label;
-  svg.append(title);
-  for (const [cx, cy, r] of circles) {
-    const circle = document.createElementNS(svgNs, 'circle');
-    circle.setAttribute('cx', String(cx));
-    circle.setAttribute('cy', String(cy));
-    circle.setAttribute('r', String(r));
-    svg.append(circle);
-  }
-  for (const d of paths) {
-    const path = document.createElementNS(svgNs, 'path');
-    path.setAttribute('d', d);
-    svg.append(path);
-  }
-  return svg;
-}
-function lockIcon() {
-  return icon('lock-icon', 'Encrypted', ['M8 11V7a4 4 0 0 1 8 0v4', 'M5 11h14v10H5z']);
-}
-/**
- * Delivery as circles, like common messengers: an empty circle while sending, one checked
- * circle once transmitted, two once delivered. The full status stays in the label.
- */
+const DELIVERY_ICONS = {
+  pending: 'circle-dashed',
+  sent: 'circle-check',
+  done: 'check-check',
+  failed: 'circle-alert',
+  unknown: 'circle-help',
+};
 function deliveryIcon(m: Outgoing) {
-  const label = deliveryLabel(m);
-  const delivered = m.state === 'acknowledged' || m.reason === 'local-delivery';
-  const state =
-    m.state === 'failed' || m.state === 'rejected'
-      ? 'failed'
-      : m.state === 'unknown'
-        ? 'unknown'
-        : delivered
-          ? 'delivered'
-          : m.state === 'transmitted'
-            ? 'sent'
-            : 'sending';
-  const svg =
-    state === 'failed'
-      ? icon('delivery-icon', label, ['M12 7.5v5', 'M12 16v.5'], [[12, 12, 8]])
-      : state === 'unknown'
-        ? icon(
-            'delivery-icon',
-            label,
-            ['M10 9.5a2 2 0 1 1 2.5 2c-.4.2-.5.5-.5 1v.5', 'M12 16v.5'],
-            [[12, 12, 8]],
-          )
-        : state === 'delivered'
-          ? icon(
-              'delivery-icon',
-              label,
-              ['m5 12 2 2 3.5-3.5', 'm13.5 12 2 2 3.5-3.5'],
-              [
-                [8, 12, 6],
-                [16.5, 12, 6],
-              ],
-            )
-          : state === 'sent'
-            ? icon('delivery-icon', label, ['m9.5 12 2 2 3.5-3.5'], [[12, 12, 6.5]])
-            : icon('delivery-icon', label, [], [[12, 12, 6.5]]);
-  svg.dataset.state = state;
+  const delivery = deliveryOf(m);
+  const svg = icon(DELIVERY_ICONS[delivery.icon], {
+    label: delivery.label,
+    className: 'delivery-icon',
+  });
+  svg.dataset.tone = delivery.tone;
   return svg;
 }
 function messageTime(at: number) {
@@ -241,21 +231,6 @@ export function hexBytes(value: string) {
   if (!/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('Saved encrypted message is malformed.');
   return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
 }
-function encryptionLabel(state: string | undefined) {
-  return (
-    (
-      {
-        decrypted: 'Encrypted',
-        'key-needed': 'Key needed',
-        invalid: 'Authentication failed',
-        replay: 'Duplicate suppressed',
-        'plaintext-rejected': 'Plaintext rejected',
-        locked: 'App locked',
-        unsupported: 'Unsupported envelope',
-      } as Record<string, string>
-    )[state ?? ''] ?? 'Encrypted'
-  );
-}
 export function chooseConversation(destination: string, channel = 0) {
   const kind = destination === 'broadcast' ? 'channel' : 'direct';
   if (conversationFilter !== 'all' && conversationFilter !== kind) conversationFilter = kind;
@@ -320,10 +295,9 @@ export function renderMessages() {
   const attended =
     document.visibilityState === 'visible' &&
     document.hasFocus() &&
-    !manage.open &&
     !accessDialog.open &&
     !deleteDialog.open &&
-    app.dataset.view === 'messages' &&
+    currentView() === 'comms' &&
     (innerWidth > 720 || app.classList.contains('has-conversation')) &&
     scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
   const sources = (['usb', 'demo'] as const).map(source => ({
@@ -370,8 +344,10 @@ export function renderMessages() {
             : undefined,
         text: result?.text?.startsWith(MAP_PREFIX)
           ? 'Shared map item'
-          : (result?.text ?? 'Encrypted message · app locked'),
-        encryptionState: encryptionLabel(result?.state),
+          : result?.state === 'decrypted'
+            ? result.text
+            : 'Encrypted message',
+        encryptionState: result?.state ?? 'locked',
       };
     });
   const incoming = connection.inbox.history
@@ -394,15 +370,17 @@ export function renderMessages() {
               : undefined,
           text: result?.text?.startsWith(MAP_PREFIX)
             ? 'Shared map item'
-            : (result?.text ?? 'Encrypted message · app locked'),
-          encryptionState: encryptionLabel(result?.state),
+            : result?.state === 'decrypted'
+              ? result.text
+              : 'Encrypted message',
+          encryptionState: result?.state ?? 'locked',
         };
       }
       if (encryption?.isRequired(m.channel))
         return {
           ...m,
-          text: 'Plaintext rejected · channel requires encryption',
-          encryptionState: 'Plaintext rejected',
+          text: 'Unencrypted message rejected',
+          encryptionState: 'plaintext-rejected',
         };
       return {
         ...m,
@@ -410,14 +388,14 @@ export function renderMessages() {
         text: m.text.startsWith(MAP_PREFIX) ? 'Shared map item' : m.text,
       };
     });
+  const knownRadio = knownConfig()?.radio;
   const names = deviceChannels({
-    channels: connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
-    channelIds: connection.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
+    channels: knownRadio?.channels ?? DEFAULT_CHANNELS,
+    channelIds: knownRadio?.channelIds ?? DEFAULT_CHANNEL_IDS,
   });
   // A channel removed from the device leaves the list and the counts. Its history stays saved
-  // and returns on rejoining. While disconnected the table is unknown, so everything shows.
-  const onDevice = (id: number) =>
-    !connection.sync.config?.radio || names.some(item => item.id === id);
+  // and returns on rejoining. With no device yet the table is unknown, so everything shows.
+  const onDevice = (id: number) => !knownRadio || names.some(item => item.id === id);
   const unread = (messageState?.unread(mode.value, connection.inbox.history) ?? []).filter(m =>
     onDevice(m.channel),
   );
@@ -447,7 +425,10 @@ export function renderMessages() {
   const selectedChannel = Number(channel.value),
     encryptedRequired = encryption?.isRequired(selectedChannel) ?? false;
   const maxBytes = encryptedRequired ? 1024 - ENCRYPTED_HEADER_BYTES - ENCRYPTED_TAG_BYTES : 1024;
-  text('message-bytes', `${bytes} / ${maxBytes} bytes`);
+  const count = element('message-bytes');
+  count.hidden = bytes <= maxBytes - 200;
+  count.toggleAttribute('data-over', bytes > maxBytes);
+  count.textContent = String(maxBytes - bytes);
   if (channel.dataset.names !== JSON.stringify(names)) {
     const selected = channel.value;
     channel.replaceChildren();
@@ -463,6 +444,10 @@ export function renderMessages() {
     return;
   }
   const key = conversationKey(destination.value, selectedChannel);
+  // Traffic here is encrypted and there's no key, so sending would go out in the clear.
+  const needsKey =
+    !encryption?.hasKey(selectedChannel) &&
+    connection.inbox.history.some(m => m.channel === selectedChannel && !!m.payloadHex);
   const sendBlockReason = connection.messaging.sendBlockReason;
   const remoteBlocked =
     destination.value !== connection.device &&
@@ -472,36 +457,51 @@ export function renderMessages() {
     'message-support',
     encryptionError ||
       (encryptedRequired && !encryption?.unlocked
-        ? 'Encryption required · unlock the app before sending'
-        : !ready
-          ? 'Connect a device to send'
-          : (connection.messageBlockReason ??
-            (uploading
-              ? 'Uploading message…'
-              : sendBlockReason
-                ? sendBlockReason
-                : remoteBlocked
-                  ? 'Radio unavailable · check Settings → Radio'
-                  : ''))),
+        ? 'Encryption required. Unlock the app before sending.'
+        : needsKey
+          ? "This channel is encrypted and this browser doesn't have the key. Sending is off so nothing goes out in the clear. Scan its QR code in Device, Channels."
+          : !ready
+            ? 'Connect a device to send'
+            : (connection.messageBlockReason ??
+              (uploading
+                ? 'Uploading message…'
+                : sendBlockReason
+                  ? sendBlockReason
+                  : remoteBlocked
+                    ? 'Radio unavailable. Check Device, Radio.'
+                    : ''))),
   );
-  element<HTMLButtonElement>('message-send').disabled =
+  const sendBlocked =
     !ready ||
     !!encryptionError ||
+    needsKey ||
     (encryptedRequired && !encryption?.unlocked) ||
     !!connection.messageBlockReason ||
     uploading ||
     !destination.value.trim() ||
-    !bytes ||
-    bytes > maxBytes ||
     !!sendBlockReason ||
     remoteBlocked;
+  element<HTMLButtonElement>('message-send').disabled = sendBlocked || !bytes || bytes > maxBytes;
+  renderQuickPhrases(sendBlocked);
+  const self = canonicalNode(destination.value) === canonicalNode(lastDevice ?? '');
+  body.placeholder = self
+    ? 'Note to this device'
+    : `${encryptedRequired ? 'Encrypted message to' : 'Message'} ${
+        conversationRows.find(row => row.key === key)?.name ?? 'this conversation'
+      }`;
   const uiScope = messageScope(mode.value, lastDevice ?? '');
   const visibleThread = (row: { key: string; destination: string; channel: number }) =>
     !messageState?.hidden(uiScope, row.key) ||
     !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
-  const rows = conversations(lastDevice, names, connection.discovery.nodes, history, incoming)
+  nodeCache.use(lastDevice);
+  const rows = conversations(lastDevice, names, nodeCache.nodes, history, incoming)
     .filter(visibleThread)
-    .filter(row => onDevice(row.channel));
+    .filter(row => onDevice(row.channel))
+    .map(row =>
+      row.kind === 'direct' && row.name === row.destination
+        ? { ...row, name: nodeLabel(undefined, row.destination) }
+        : row,
+    );
   if (
     !rows.some(row => row.key === key) &&
     destination.value.trim() &&
@@ -535,23 +535,27 @@ export function renderMessages() {
     const draft = drafts.get(`${scope}:${rows[i].key}`);
     if (draft) rows[i] = { ...rows[i], preview: `Draft: ${draft}` };
   }
+  conversationRows = rows;
   const currentRow = rows.find(row => row.key === key);
   text('conversation-title', currentRow?.name ?? (destination.value || 'New conversation'));
   // An SVG element has no `hidden` property, so toggle the attribute.
   element('conversation-lock').toggleAttribute('hidden', !encryptedRequired);
-  text(
-    'conversation-avatar',
-    destination.value === 'broadcast'
-      ? '#'
-      : (currentRow?.name ?? destination.value).slice(0, 2).toUpperCase(),
-  );
-  // Only a direct message titled by name needs a subtitle: its node ID.
-  const title = currentRow?.name ?? destination.value;
+  const isChannel = destination.value === 'broadcast';
   text(
     'conversation-subtitle',
-    destination.value !== 'broadcast' && title !== destination.value ? destination.value : '',
+    encryptedRequired
+      ? 'Encrypted'
+      : isChannel
+        ? 'Channel broadcast'
+        : self
+          ? 'This device'
+          : `Direct, on ${channelLabel(names, selectedChannel)}`,
   );
-  element('conversation-connect').hidden = ready;
+  text(
+    'conversation-empty-text',
+    isChannel ? 'Anything sent on this channel appears here.' : 'Send the first message.',
+  );
+  element('conversation-connect').hidden = ready || linkLost();
   const filter = element<HTMLInputElement>('conversation-search').value.trim().toLowerCase();
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
     const selected = button.dataset.conversationFilter === conversationFilter;
@@ -610,35 +614,34 @@ export function renderMessages() {
     element('conversation-search-empty').hidden = visible.length !== 0;
     const renderRow = (row: (typeof rows)[number], list: HTMLElement) => {
       const button = document.createElement('button');
+      button.type = 'button';
       button.className = 'conversation-row';
       button.classList.toggle('is-selected', row.key === key);
       button.setAttribute('aria-pressed', String(row.key === key));
-      const avatar = document.createElement('span');
-      avatar.className = 'avatar';
-      avatar.textContent = row.kind === 'channel' ? '#' : row.name.slice(0, 2).toUpperCase();
       const content = document.createElement('span');
       content.className = 'conversation-summary';
       const name = document.createElement('strong');
       name.textContent = row.name;
       name.title = row.name;
-      if (encryption?.isRequired(row.channel)) name.append(lockIcon());
       const preview = document.createElement('span');
       preview.textContent =
-        row.kind === 'direct'
+        row.kind === 'direct' && row.channel !== 0
           ? `${channelLabel(names, row.channel)} · ${row.preview}`
           : row.preview;
       content.append(name, preview);
-      const badge = document.createElement('span');
-      badge.className = 'thread-kind';
+      button.append(icon(row.kind === 'channel' ? 'hash' : 'user'), content);
+      if (encryption?.isRequired(row.channel))
+        button.append(icon('lock', { label: 'Encrypted', className: 'row-lock' }));
       const count = lastDevice
         ? unread.filter(m => inConversation(m, lastDevice!, row.destination, row.channel)).length
         : 0;
-      badge.textContent = String(count);
-      badge.hidden = count === 0;
-      badge.classList.toggle('unread-badge', count > 0);
-      if (count)
+      if (count) {
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = String(count);
         badge.setAttribute('aria-label', `${count} unread ${count === 1 ? 'message' : 'messages'}`);
-      button.append(avatar, content, badge);
+        button.append(badge);
+      }
       button.addEventListener('click', () => chooseConversation(row.destination, row.channel));
       list.append(button);
     };
@@ -664,7 +667,13 @@ export function renderMessages() {
   messages.sort(
     (a, b) => observedOrder.get(orderScope + a.key)! - observedOrder.get(orderScope + b.key)!,
   );
-  const signature = scope + key + ready + JSON.stringify(messages) + mapWorkspace.messageVersion;
+  const signature =
+    scope +
+    key +
+    ready +
+    JSON.stringify(messages) +
+    mapWorkspace.messageVersion +
+    [...openDelivery].join();
   element('conversation-empty').hidden = messages.length > 0;
   if (signature === messageSignature) return;
   messageSignature = signature;
@@ -677,16 +686,14 @@ export function renderMessages() {
     if (m.direction === 'incoming' && destination.value === 'broadcast') {
       const sender = document.createElement('span');
       sender.className = 'message-sender';
-      sender.textContent =
-        connection.discovery.nodes.find(n => canonicalNode(n.node) === canonicalNode(m.origin))
-          ?.name || m.origin;
+      sender.textContent = nodeLabel(
+        nodeCache.nodes.find(n => canonicalNode(n.node) === canonicalNode(m.origin))?.name,
+        m.origin,
+      );
       row.append(sender);
     }
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble';
-    const content = document.createElement('p');
-    content.className = 'message-text';
-    content.textContent = m.text;
+    const state = (m.received ?? m.entry)?.encryptionState;
+    const note = state && state !== 'decrypted' ? CRYPTO_NOTES[state] : undefined;
     const mapCard = m.mapWire
       ? mapWorkspace.messageCard(
           m.mapWire,
@@ -702,18 +709,27 @@ export function renderMessages() {
             : undefined,
         )
       : undefined;
-    bubble.append(mapCard ?? content);
+    // A sent message opens its delivery details. A map card has its own buttons, so it stays a div.
+    const entry = m.entry;
+    const bubble = document.createElement(entry && !mapCard ? 'button' : 'div');
+    bubble.className = 'message-bubble';
+    if (bubble instanceof HTMLButtonElement) bubble.type = 'button';
+    if (note) {
+      const line = document.createElement('p');
+      line.className = 'message-note';
+      line.append(icon('lock'), note);
+      bubble.append(line);
+    } else if (mapCard) bubble.append(mapCard);
+    else {
+      const content = document.createElement('p');
+      content.className = 'message-text';
+      content.textContent = m.text;
+      bubble.append(content);
+    }
     const meta = document.createElement('div');
     meta.className = 'message-meta';
-    const encryptionState = (m.received ?? m.entry)?.encryptionState;
-    if (encryptionState === 'Encrypted') meta.append(lockIcon());
-    else if (encryptionState && !m.text.includes(encryptionState)) {
-      // A message that could not be read says why; normal states are icons only.
-      const problem = document.createElement('span');
-      problem.className = 'message-problem';
-      problem.textContent = encryptionState;
-      meta.append(problem);
-    }
+    if (state === 'decrypted')
+      meta.append(icon('lock', { label: 'Encrypted', className: 'meta-lock' }));
     const at = messageState?.time(
       m.received
         ? receivedKey(mode.value, m.received)
@@ -726,8 +742,40 @@ export function renderMessages() {
       time.title = new Date(at).toLocaleString();
       meta.append(time);
     }
-    if (m.entry) meta.append(deliveryIcon(m.entry));
-    row.append(bubble, meta);
+    if (entry) {
+      meta.append(deliveryIcon(entry));
+      (bubble instanceof HTMLButtonElement ? bubble : meta).addEventListener('click', () => {
+        if (openDelivery.has(entry.id)) openDelivery.delete(entry.id);
+        else openDelivery.add(entry.id);
+        renderMessages();
+      });
+    }
+    bubble.append(meta);
+    row.append(bubble);
+    if (entry && openDelivery.has(entry.id)) {
+      const detail = document.createElement('div');
+      detail.className = 'delivery-detail';
+      const label = document.createElement('span');
+      label.textContent = deliveryOf(entry).label;
+      detail.append(label);
+      if (entry.state === 'unknown') {
+        const check = document.createElement('button');
+        check.type = 'button';
+        check.className = 'compact';
+        check.textContent = 'Check';
+        check.disabled = !ready;
+        // This can only read: it asks the device about the message and never sends it again.
+        check.addEventListener('click', () => {
+          try {
+            current().adapter.recoverMessage(entry.id);
+          } catch (e) {
+            showError(e);
+          }
+        });
+        detail.append(check);
+      }
+      row.append(detail);
+    }
     thread.append(row);
   }
   if (stick)
@@ -736,16 +784,71 @@ export function renderMessages() {
     });
 }
 
+function sendText(body: string) {
+  const destination = element<HTMLInputElement>('message-destination').value,
+    channel = Number(element<HTMLSelectElement>('message-channel').value);
+  if (encryptionError) throw new Error(encryptionError);
+  if (encryption?.isRequired(channel))
+    current().adapter.sendMessagePayload(
+      encryption.encrypt(body, channel, current().adapter.connection.device!, destination),
+      destination,
+      channel,
+    );
+  else current().adapter.sendMessage(body, destination, channel);
+}
+
+let phrasesSignature = '';
+function renderQuickPhrases(blocked: boolean) {
+  const signature = `${armedPhrase}|${blocked}`;
+  if (signature === phrasesSignature) return;
+  phrasesSignature = signature;
+  element('quick-phrases').replaceChildren(
+    ...QUICK_PHRASES.map(phrase => {
+      const button = document.createElement('button');
+      const armed = armedPhrase === phrase;
+      button.type = 'button';
+      button.disabled = blocked;
+      button.classList.toggle('is-armed', armed);
+      button.textContent = armed ? 'Tap to send' : phrase;
+      button.setAttribute('aria-label', armed ? `Tap again to send ${phrase}` : phrase);
+      button.addEventListener('click', () => {
+        clearTimeout(armTimer);
+        if (armedPhrase !== phrase) {
+          armedPhrase = phrase;
+          armTimer = setTimeout(() => {
+            armedPhrase = undefined;
+            render();
+          }, ARM_MS);
+          render();
+          return;
+        }
+        armedPhrase = undefined;
+        try {
+          sendText(phrase);
+          clearError();
+        } catch (e) {
+          showError(e);
+        }
+        render();
+      });
+      return button;
+    }),
+  );
+}
+
 export function renderInbox() {
   const connection = current().adapter.connection;
   text(
     'inbox-status',
     connection.inbox.error ??
-      (connection.inbox.gap ? 'Earlier messages are no longer retained on the device.' : ''),
+      (connection.inbox.gap
+        ? 'Some older messages were dropped from the device before this browser could read them.'
+        : ''),
   );
 }
 
 export function initMessages() {
+  autosizeComposer();
   onLocalAppStop(() => {
     disposeMessageState();
     deletePlan = undefined;
@@ -787,7 +890,7 @@ export function initMessages() {
   element('back-conversations').addEventListener('click', () =>
     app.classList.remove('has-conversation'),
   );
-  element('conversation-connect').addEventListener('click', () => void connectDevice());
+  element('conversation-connect').addEventListener('click', () => connectAction());
   element('conversation-search').addEventListener('input', renderMessages);
   document.addEventListener('map-message-change', renderMessages);
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-conversation-filter]')) {
@@ -848,18 +951,9 @@ export function initMessages() {
   });
   element('message-form').addEventListener('submit', event => {
     event.preventDefault();
+    if (element<HTMLButtonElement>('message-send').disabled) return;
     try {
-      const body = element<HTMLTextAreaElement>('message-body').value;
-      const destination = element<HTMLInputElement>('message-destination').value,
-        channel = Number(element<HTMLSelectElement>('message-channel').value);
-      if (encryptionError) throw new Error(encryptionError);
-      if (encryption?.isRequired(channel))
-        current().adapter.sendMessagePayload(
-          encryption.encrypt(body, channel, current().adapter.connection.device!, destination),
-          destination,
-          channel,
-        );
-      else current().adapter.sendMessage(body, destination, channel);
+      sendText(element<HTMLTextAreaElement>('message-body').value);
       element<HTMLTextAreaElement>('message-body').value = '';
       drafts.save(draftKey, '');
       clearError();

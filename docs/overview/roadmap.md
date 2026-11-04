@@ -8,6 +8,8 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 
 **Bluetooth (owner direction, November 4):** firmware support for a mobile agent is being built ahead of qualification (D47). It adds a link, not a radio change, so it does not affect the tests below. Mobile apps are built outside this repository (D48).
 
+**Web portal and mobile app (owner direction, November 4):** the portal now follows the mobile app in look and features, as an exception to the pause on portal features (D49). It changes no firmware or protocol, so it does not affect the tests below. Other new portal features stay paused.
+
 Order of work:
 
 1. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
@@ -33,7 +35,7 @@ Owner-reported problems, recorded November 3. Portal feature work stays paused u
 **Channels**
 
 - **Join a channel out of order: built (November 3, firmware `v0.3.0`).** Channels have on-air IDs and the portal shares them with invites (D45). Verified between the two boards; the portal's Join and Invite buttons still need a native browser check.
-- **Remove a channel: built (November 3).** Settings → Channels has Remove channel, and Reset Public for the permanent Public channel. Portal only; no firmware change.
+- **Remove a channel: built (November 3).** Device → Channels has Remove channel, and Reset Public for the permanent Public channel. Portal only; no firmware change.
 
 **Map workspace.** The map tools feel unfinished from end to end and need one coherent pass rather than separate fixes:
 
@@ -56,9 +58,7 @@ Implement each slice vertically: contract and tests, firmware, shared agent core
 
 ## Phase 2 portal direction
 
-The portal is a dark, technical, messaging-first workspace (owner direction, November 2), superseding the earlier light, map-first design. Use restrained green accents, near-black surfaces, soft gray and white text, restrained corners, clear spacing and legible status. Create original layouts and assets.
-
-Messaging is the primary view: a searchable conversation list (channels and direct messages) and a unified thread. The map is a separate workspace for heard nodes, fixed positions and local or shared map items. Settings are kept apart from daily messaging, with routine setup first and technical maintenance under *Advanced*. On narrow screens, switch between views while preserving drafts and selection.
+The portal follows the mobile app's look and tabs (D49, owner direction, November 4): near-black Night and light Day palettes with green accents, pill controls, and Comms, Map, Nodes and Device tabs. Messaging is the primary view: a searchable conversation list (channels and direct messages) and a unified thread. The map is a full-pane view of heard nodes, positions and local or shared map items. Settings live in the Device tab, apart from daily messaging. On narrow screens, switch between views while preserving drafts and selection.
 
 Show node name plus stable ID, last-heard age, reported location source and age, and honest queued/transmitted/destination-ACK/failed/unknown outcomes. Keep disconnected, stale, unsupported and empty states useful. A missing response is not proof that a node is offline. Map tiles may fail to load; node and message functions must keep working. Do not upload local mesh history to any service.
 

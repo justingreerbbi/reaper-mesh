@@ -2,427 +2,1484 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#101217" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
     <title>Reaper Mesh</title>
+    <script>
+      // Before the first paint, so Day doesn't flash Night while the app loads.
+      try {
+        const saved = JSON.parse(localStorage.getItem('reaper-mesh.preferences.v1') || '{}');
+        if (saved.theme === 'day') document.documentElement.dataset.theme = 'day';
+      } catch {}
+    </script>
     <link rel="stylesheet" href="/theme.css" />
   </head>
   <body>
-    <div class="app" data-view="overview" data-panel="messages">
-      <header class="bar">
-        <a class="brand" href="/" aria-label="Reaper Mesh home">
-          <span class="mark">R/M</span>
-          <span>REAPER<span class="brand-sub">MESH NETWORK</span> </span>
-        </a>
-        <span class="workspace-label"
-          >Workspace <span aria-hidden="true">/</span>
-          <strong id="workspace-title">Overview</strong></span
-        >
-        <div class="bar-status">
-          <span id="rail-status" class="rail-dot" data-state="disconnected"> </span>
-          <span id="status" role="status">Disconnected</span>
-          <span id="source-caption" class="mono">No device</span>
+    <div class="app" data-view="comms" data-session="out">
+      <!-- The only route until a session is up; it returns when the user disconnects. -->
+      <section id="connect-screen" class="connect-screen" aria-label="Connect a device">
+        <div class="connect-hero">
+          <div class="connect-state">
+            <span class="status-dot" data-tone="muted"></span>
+            <small class="muted">Not connected</small>
+          </div>
+          <div id="connect-art" class="device-art"></div>
+          <h1 class="hero-title">No device connected</h1>
+          <p class="muted">Connect to your Reaper device to get started.</p>
+          <div class="connect-actions">
+            <button id="connect-usb" class="primary" type="button">
+              <i data-icon="usb"></i>Connect over USB
+            </button>
+            <button id="connect-ble" type="button">
+              <i data-icon="bluetooth"></i>Connect over Bluetooth
+            </button>
+          </div>
         </div>
-        <div class="bar-connect">
-          <button id="lock-app" type="button" hidden>Lock app</button>
-          <label class="sr-only" for="mode">Connection source</label>
-          <select id="mode">
-            <option value="usb">Device</option>
-            <option value="demo">Simulator</option>
-          </select>
-          <label class="sr-only" for="transport">Device connection</label>
-          <select id="transport">
-            <option value="usb">USB</option>
-            <option value="ble">Bluetooth</option>
-          </select>
-          <button id="connect" class="primary" type="button">Connect USB</button>
+        <div class="card connect-panel">
+          <div id="connect-support" class="notice" data-tone="bad" hidden></div>
+          <div id="connect-error" class="notice" data-tone="bad" hidden></div>
+          <div id="connect-devices-section" hidden>
+            <p class="list-label">Your devices</p>
+            <div id="connect-devices" class="row-list"></div>
+          </div>
+          <div class="pairing-steps">
+            <p class="list-label">Pairing a new device over Bluetooth</p>
+            <ol>
+              <li>Hold the main button on your device for 5 seconds to open pairing.</li>
+              <li>
+                Connect over Bluetooth, then pick the name your device shows, such as Reaper-1A2B.
+              </li>
+              <li>Type the 6-digit passkey from the device screen when your browser asks.</li>
+            </ol>
+            <p class="small faint">Over USB, nothing needs pairing. Choose the port when asked.</p>
+          </div>
+          <div class="connect-more">
+            <button id="connect-sim" type="button">
+              <i data-icon="flask-conical"></i>Use simulated device
+            </button>
+            <button id="connect-browse" type="button">Open without a device</button>
+          </div>
         </div>
-      </header>
-      <p id="support" class="sr-only"></p>
-      <div id="error" class="error" role="alert" hidden></div>
+      </section>
+
+      <nav class="rail" aria-label="Workspace">
+        <button class="rail-item" data-view-target="comms" type="button">
+          <i data-icon="message-square"></i><span>Comms</span>
+          <span id="nav-unread" class="badge rail-badge" hidden></span>
+        </button>
+        <button class="rail-item" data-view-target="map" type="button">
+          <i data-icon="map-pinned"></i><span>Map</span>
+        </button>
+        <button class="rail-item" data-view-target="nodes" type="button">
+          <i data-icon="radio-tower"></i><span>Nodes</span>
+        </button>
+        <button class="rail-item" data-view-target="device" type="button">
+          <i data-icon="cpu"></i><span>Device</span>
+        </button>
+        <span id="rail-status" class="status-dot rail-status" data-tone="muted"></span>
+      </nav>
+
       <main class="stage">
-        <nav class="nav-rail" aria-label="Workspace">
-          <span class="nav-label">WORKSPACE</span>
-          <button class="nav-item is-active" data-view-target="overview" title="Overview">
-            <span aria-hidden="true"
-              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                <rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></span
-            ><span>Overview</span>
-          </button>
-          <button class="nav-item" data-view-target="messages" title="Messages">
-            <span aria-hidden="true"
-              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"
-                />
-                <path d="M7 9h9M7 13h6" /></svg
-            ></span>
-            <span>Messages <span id="nav-unread" class="unread-badge" hidden></span></span>
-          </button>
-          <button class="nav-item" data-view-target="map" title="Map workspace">
-            <span aria-hidden="true"
-              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Z" />
-                <path d="M9 3v16M15 5v16" /></svg
-            ></span>
-            <span>Map &amp; devices</span>
-          </button>
-          <button id="open-manage" class="nav-item nav-settings" title="Device settings">
-            <span aria-hidden="true"
-              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7h16M4 17h16" />
-                <circle cx="9" cy="7" r="3" />
-                <circle cx="15" cy="17" r="3" /></svg
-            ></span>
-            <span>Settings</span>
-          </button>
-        </nav>
-        <section class="overview-pane" aria-labelledby="overview-title">
-          <div class="overview-content">
-            <header class="overview-heading">
-              <h1 id="overview-title">Network overview</h1>
-              <button data-view-target="messages" type="button">
-                Open messages <span aria-hidden="true">↗</span>
+        <section class="comms" aria-label="Comms">
+          <aside class="inbox-pane" aria-label="Conversations">
+            <h1 class="inbox-title">Comms</h1>
+            <label class="sr-only" for="conversation-search">Search conversations</label>
+            <input
+              id="conversation-search"
+              type="search"
+              placeholder="Search name or node ID"
+              autocomplete="off"
+            />
+            <div
+              class="segmented conversation-filters"
+              role="group"
+              aria-label="Filter conversations"
+            >
+              <button type="button" data-conversation-filter="all" aria-pressed="true">
+                All<span id="filter-unread-all" class="filter-unread" hidden></span>
               </button>
-            </header>
-            <div class="overview-metrics" aria-label="Network summary">
-              <article class="metric">
-                <span>Connection</span><strong id="overview-connection">Disconnected</strong
-                ><small id="overview-source">USB device</small>
-              </article>
-              <article class="metric">
-                <span>Heard devices</span><strong id="overview-nodes">—</strong
-                ><small>Last-known observations</small>
-              </article>
-              <article class="metric">
-                <span>Unread messages</span><strong id="overview-unread">—</strong
-                ><small>For the selected device</small>
-              </article>
-              <article class="metric">
-                <span>Saved messages</span><strong id="overview-messages">—</strong
-                ><small>Sent and received locally</small>
-              </article>
+              <button type="button" data-conversation-filter="channel" aria-pressed="false">
+                Channels<span id="filter-unread-channel" class="filter-unread" hidden></span>
+              </button>
+              <button type="button" data-conversation-filter="direct" aria-pressed="false">
+                Direct<span id="filter-unread-direct" class="filter-unread" hidden></span>
+              </button>
             </div>
-            <div class="overview-grid">
-              <article class="overview-card device-card">
-                <header>
-                  <h2>Connected device</h2>
-                  <button type="button" data-settings-target="device">Manage device ↗</button>
-                </header>
-                <div class="device-summary">
-                  <span class="device-symbol" aria-hidden="true"
-                    ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <rect x="6" y="7" width="12" height="14" rx="3" />
-                      <path d="M9 7V3M9 12h6M10 17h4" /></svg
-                  ></span>
-                  <div>
-                    <h3 id="overview-device-name">No device connected</h3>
-                    <p id="overview-device-help">Connect over USB to see your network.</p>
-                  </div>
+            <div
+              id="conversation-results"
+              class="conversation-results"
+              role="region"
+              aria-label="Conversation list"
+              tabindex="0"
+            >
+              <h2 id="channel-list-heading" class="list-label">Channels</h2>
+              <div id="channel-list" class="row-list" aria-labelledby="channel-list-heading"></div>
+              <h2 id="direct-list-heading" class="list-label">Direct messages</h2>
+              <div id="direct-list" class="row-list" aria-labelledby="direct-list-heading"></div>
+              <p id="conversation-search-empty" class="empty" role="status" hidden>
+                No matching conversations.
+              </p>
+            </div>
+          </aside>
+          <section class="thread-pane" aria-label="Selected conversation">
+            <header class="thread-head">
+              <button
+                id="back-conversations"
+                class="round compact stacked-only"
+                type="button"
+                aria-label="Back to conversations"
+              >
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h2 class="thread-title">
+                <span id="conversation-title">Public</span>
+                <i
+                  data-icon="lock"
+                  id="conversation-lock"
+                  class="lock-icon"
+                  aria-label="Encrypted"
+                  hidden
+                ></i>
+              </h2>
+              <small id="conversation-subtitle" class="muted"></small>
+              <div class="thread-menu">
+                <button
+                  id="conversation-options"
+                  class="round compact"
+                  type="button"
+                  aria-label="Conversation options"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="conversation-options-menu"
+                >
+                  <i data-icon="ellipsis-vertical"></i>
+                </button>
+                <div id="conversation-options-menu" class="options-menu" role="menu" hidden>
+                  <button id="clear-conversation" class="danger-item" role="menuitem" type="button">
+                    Clear chat history
+                  </button>
                 </div>
-                <dl class="overview-details">
-                  <div>
-                    <dt>Device ID</dt>
-                    <dd id="overview-device">—</dd>
-                  </div>
-                  <div>
-                    <dt>Firmware</dt>
-                    <dd id="overview-firmware">—</dd>
-                  </div>
-                  <div>
-                    <dt>Radio mode</dt>
-                    <dd id="overview-radio">—</dd>
-                  </div>
-                  <div>
-                    <dt>Position sharing</dt>
-                    <dd id="overview-position">—</dd>
-                  </div>
-                </dl>
-                <p id="overview-support" class="overview-note"></p>
-              </article>
-              <article class="overview-card">
-                <header>
-                  <h2>Last-heard devices</h2>
-                  <button type="button" data-view-target="map">Open map ↗</button>
-                </header>
-                <div id="overview-node-list" class="overview-list"></div>
-                <p class="overview-note">
-                  Discovery observations do not indicate a live connection.
-                </p>
-              </article>
-              <article class="overview-card delivery-card">
-                <header>
-                  <div>
-                    <h2>Recent sends</h2>
-                    <p>Latest outgoing records for this device</p>
-                  </div>
-                  <button type="button" data-view-target="messages">View messages ↗</button>
-                </header>
-                <div id="overview-deliveries" class="overview-list"></div>
-              </article>
-              <article class="overview-card workspace-card">
-                <header><h2>Your workspace</h2></header>
-                <button type="button" data-view-target="messages">
-                  <span
-                    ><strong>Messages</strong><small>Channels and direct conversations</small></span
-                  ><span aria-hidden="true">↗</span>
+              </div>
+            </header>
+            <!-- The open conversation's recipient and channel, chosen from the list or map. -->
+            <input id="message-destination" type="hidden" value="broadcast" />
+            <select id="message-channel" hidden aria-hidden="true" tabindex="-1">
+              <option value="0">Public</option>
+            </select>
+            <p id="inbox-status" class="notice thread-notice" data-tone="warn" role="status"></p>
+            <p
+              id="message-management-status"
+              class="notice thread-notice"
+              data-tone="warn"
+              role="status"
+              hidden
+            ></p>
+            <div id="thread-scroll" class="thread-scroll">
+              <div id="conversation-empty" class="thread-empty">
+                <p class="muted" id="conversation-empty-text">Send the first message.</p>
+                <button id="conversation-connect" class="primary" type="button">
+                  Connect a device
                 </button>
-                <button type="button" data-view-target="map">
-                  <span
-                    ><strong>Map &amp; devices</strong
-                    ><small>Positions, points, and shared areas</small></span
-                  ><span aria-hidden="true">↗</span>
+              </div>
+              <ul
+                id="message-history"
+                class="message-thread"
+                aria-label="Conversation messages"
+                aria-live="polite"
+              ></ul>
+            </div>
+            <button
+              id="jump-new-messages"
+              class="compact new-messages"
+              type="button"
+              hidden
+            ></button>
+            <form id="message-form" class="composer">
+              <p id="message-support" class="composer-note small" data-tone="warn"></p>
+              <div
+                id="quick-phrases"
+                class="quick-phrases"
+                role="group"
+                aria-label="Quick phrases"
+              ></div>
+              <div class="composer-row">
+                <label class="sr-only" for="message-body">Message</label>
+                <textarea
+                  id="message-body"
+                  rows="1"
+                  maxlength="2048"
+                  placeholder="Message"
+                ></textarea>
+                <small id="message-bytes" class="composer-count" hidden></small>
+                <button
+                  id="message-send"
+                  class="round"
+                  type="submit"
+                  aria-label="Send message"
+                  disabled
+                >
+                  <i data-icon="send"></i>
                 </button>
-                <button type="button" data-settings-target="channels">
-                  <span
-                    ><strong>Channels &amp; privacy</strong
-                    ><small>Channel names and message encryption</small></span
-                  ><span aria-hidden="true">↗</span>
-                </button>
-              </article>
+              </div>
+            </form>
+          </section>
+        </section>
+
+        <section class="map-view" aria-label="Map">
+          <div id="map" aria-label="Map canvas"></div>
+          <div class="map-crosshair" aria-hidden="true"><i data-icon="crosshair"></i></div>
+          <div class="map-column map-column-left">
+            <button
+              id="map-drop"
+              class="round filled"
+              type="button"
+              aria-label="Drop a point at the crosshair"
+              title="Drop a point at the crosshair"
+            >
+              <i data-icon="map-pin"></i>
+            </button>
+            <button
+              id="map-measure"
+              class="round filled"
+              type="button"
+              aria-label="Measure"
+              title="Measure"
+            >
+              <i data-icon="ruler"></i>
+            </button>
+            <button
+              id="map-area"
+              class="round filled"
+              type="button"
+              aria-label="Draw an area"
+              title="Draw an area"
+            >
+              <i data-icon="square"></i>
+            </button>
+            <button
+              id="map-layers"
+              class="round filled"
+              type="button"
+              aria-label="Map layers"
+              title="Map layers"
+            >
+              <i data-icon="layers"></i>
+            </button>
+            <button
+              id="map-items"
+              class="round filled"
+              type="button"
+              aria-label="Saved map items"
+              title="Saved map items"
+            >
+              <i data-icon="list"></i>
+            </button>
+          </div>
+          <div class="map-column map-column-right">
+            <button
+              id="map-zoom-in"
+              class="round filled"
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <i data-icon="plus"></i>
+            </button>
+            <button
+              id="map-zoom-out"
+              class="round filled"
+              type="button"
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <i data-icon="minus"></i>
+            </button>
+            <button
+              id="map-locate"
+              class="round filled"
+              type="button"
+              aria-label="Show my position"
+              title="Show my position"
+            >
+              <i data-icon="locate-fixed"></i>
+            </button>
+            <button
+              id="fit-map"
+              class="round filled"
+              type="button"
+              aria-label="Fit everything"
+              title="Fit everything"
+            >
+              <i data-icon="scan"></i>
+            </button>
+            <button
+              id="map-full"
+              class="round filled"
+              type="button"
+              aria-label="Full screen"
+              title="Full screen"
+              aria-pressed="false"
+            >
+              <i data-icon="fullscreen"></i>
+            </button>
+          </div>
+          <button
+            id="map-coordinate"
+            class="map-coordinate"
+            type="button"
+            aria-label="Crosshair coordinate. Select to change format."
+          ></button>
+          <div id="map-layers-panel" class="map-popover" hidden>
+            <div class="segmented" id="map-basemaps" role="radiogroup" aria-label="Basemap"></div>
+            <label class="toggle-row">
+              <span>Map items</span><input id="map-show-items" type="checkbox" checked />
+            </label>
+            <label class="toggle-row">
+              <span>Devices</span><input id="map-show-devices" type="checkbox" checked />
+            </label>
+          </div>
+          <div id="map-items-panel" class="map-popover map-drawer" hidden>
+            <label class="sr-only" for="map-item-search">Search map items</label>
+            <input id="map-item-search" type="search" placeholder="Search map items" />
+            <div id="map-item-list" class="row-list"></div>
+            <button id="map-export" class="compact" type="button">Export map workspace</button>
+            <p class="small faint">
+              Local items are saved in this browser in plaintext. Encrypted received items retain
+              ciphertext. Sharing requires a connected device.
+            </p>
+          </div>
+          <div class="map-bottom">
+            <div id="map-empty" class="map-panel map-note">
+              <div class="panel-text">
+                <strong>No positions yet</strong>
+                <small class="muted">Drop a point, or discover nodes that share a position.</small>
+              </div>
+            </div>
+            <div id="tile-status" class="notice" data-tone="warn" role="status" hidden>
+              Basemap unavailable. Reported positions still work.
+            </div>
+            <div id="map-workspace-error" class="notice" data-tone="bad" role="alert" hidden></div>
+            <div id="map-message" class="notice map-floating" data-tone="warn" role="status" hidden>
+              <span id="map-message-text"></span>
+              <button
+                id="map-message-close"
+                class="round compact"
+                type="button"
+                aria-label="Dismiss"
+              >
+                <i data-icon="x"></i>
+              </button>
+            </div>
+            <div id="map-measure-panel" class="map-panel" hidden>
+              <div class="panel-text">
+                <strong id="measure-total"></strong>
+                <small id="measure-leg" class="muted"></small>
+              </div>
+              <button id="measure-crosshair" class="compact" type="button">Crosshair</button>
+              <button id="measure-undo" class="round compact" type="button" aria-label="Undo">
+                <i data-icon="undo-2"></i>
+              </button>
+              <button
+                id="measure-close"
+                class="round compact"
+                type="button"
+                aria-label="Close measure"
+              >
+                <i data-icon="x"></i>
+              </button>
+            </div>
+            <div id="map-area-panel" class="map-panel" hidden>
+              <div class="panel-text"><strong id="area-state"></strong></div>
+              <button id="area-crosshair" class="compact" type="button">Crosshair</button>
+              <button id="area-save" class="primary compact" type="button">Save</button>
+              <button id="area-close" class="round compact" type="button" aria-label="Close area">
+                <i data-icon="x"></i>
+              </button>
+            </div>
+            <div id="selected-asset" class="map-panel" hidden>
+              <div class="panel-text">
+                <strong id="asset-name"></strong>
+                <small id="asset-detail" class="muted"></small>
+              </div>
+              <button id="asset-message" class="primary compact" type="button">
+                <i data-icon="message-square"></i>Message
+              </button>
+              <button id="asset-close" class="round compact" type="button" aria-label="Close">
+                <i data-icon="x"></i>
+              </button>
+            </div>
+            <div id="selected-item" class="map-panel" hidden>
+              <div class="panel-text">
+                <strong id="item-name"></strong>
+                <small id="item-detail" class="muted"></small>
+              </div>
+              <button
+                id="item-share"
+                class="round compact"
+                type="button"
+                aria-label="Share"
+                title="Share"
+              >
+                <i data-icon="share-2"></i>
+              </button>
+              <button
+                id="item-edit"
+                class="round compact"
+                type="button"
+                aria-label="Edit"
+                title="Edit"
+              >
+                <i data-icon="pencil"></i>
+              </button>
+              <button
+                id="item-hide"
+                class="round compact"
+                type="button"
+                aria-label="Remove from this map"
+                title="Remove from this map"
+              >
+                <i data-icon="trash-2"></i>
+              </button>
+              <button
+                id="item-details"
+                class="round compact"
+                type="button"
+                aria-label="Details"
+                title="Details"
+              >
+                <i data-icon="info"></i>
+              </button>
+              <button id="item-close" class="round compact" type="button" aria-label="Close">
+                <i data-icon="x"></i>
+              </button>
             </div>
           </div>
         </section>
-        <aside class="inbox-pane" aria-label="Conversations">
-          <div class="pane-heading">
-            <h1>Messages</h1>
-          </div>
-          <label class="sr-only" for="conversation-search">Search conversations</label>
-          <input
-            id="conversation-search"
-            class="search"
-            type="search"
-            placeholder="Search name or node ID"
-            autocomplete="off"
-          />
-          <div class="conversation-filters" role="group" aria-label="Filter conversations">
-            <button
-              type="button"
-              data-conversation-filter="all"
-              aria-pressed="true"
-              class="is-active"
-            >
-              All<span id="filter-unread-all" class="filter-unread" hidden></span>
-            </button>
-            <button type="button" data-conversation-filter="channel" aria-pressed="false">
-              Channels<span id="filter-unread-channel" class="filter-unread" hidden></span>
-            </button>
-            <button type="button" data-conversation-filter="direct" aria-pressed="false">
-              Direct<span id="filter-unread-direct" class="filter-unread" hidden></span>
-            </button>
-          </div>
-          <div
-            id="conversation-results"
-            class="conversation-results"
-            role="region"
-            aria-label="Conversation list"
-            tabindex="0"
-          >
-            <h2 id="channel-list-heading" class="list-label">Channels</h2>
-            <div
-              id="channel-list"
-              class="conversation-list channel-list"
-              aria-labelledby="channel-list-heading"
-            ></div>
-            <h2 id="direct-list-heading" class="list-label direct-list-label">Direct messages</h2>
-            <div
-              id="direct-list"
-              class="conversation-list direct-list"
-              aria-labelledby="direct-list-heading"
-            ></div>
-            <p id="conversation-search-empty" class="empty" role="status" hidden>
-              No matching conversations.
-            </p>
-          </div>
-        </aside>
-        <section class="conversation-pane" aria-label="Selected conversation">
-          <header class="conversation-head">
-            <button
-              id="back-conversations"
-              class="mobile-only icon-button"
-              aria-label="Back to conversations"
-            >
-              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m14 6-6 6 6 6" />
-              </svg>
-            </button>
-            <span id="conversation-avatar" class="avatar">#</span>
-            <div class="conversation-title">
-              <h2>
-                <span id="conversation-title">Public</span
-                ><svg
-                  id="conversation-lock"
-                  class="ui-icon lock-icon"
-                  viewBox="0 0 24 24"
-                  role="img"
-                  aria-label="Encrypted channel"
-                  hidden
-                >
-                  <title>Encrypted channel</title>
-                  <rect x="5" y="11" width="14" height="10" rx="2" />
-                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                </svg>
-              </h2>
-              <span id="conversation-subtitle" class="muted small"></span>
+
+        <section class="nodes-view" aria-label="Nodes">
+          <header class="nodes-head">
+            <div class="grow">
+              <h1>Nodes heard</h1>
+              <small id="discovery-result" class="muted" role="status"></small>
             </div>
-            <div class="conversation-menu">
-              <button
-                id="conversation-options"
-                class="icon-button"
-                aria-label="Conversation options"
-                title="Conversation options"
-                aria-haspopup="menu"
-                aria-expanded="false"
-                aria-controls="conversation-options-menu"
-              >
-                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="5" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="12" cy="19" r="1.5" />
-                </svg>
+            <button id="discovery-query" class="compact" type="button" hidden>Check result</button>
+            <button id="discover" class="primary" type="button">
+              <i data-icon="radar"></i><span id="discover-label">Discover</span>
+            </button>
+          </header>
+          <p id="discovery-support" class="notice" data-tone="warn" hidden></p>
+          <p id="nodes-empty" class="empty">
+            No nodes heard yet. Press Discover to ask who is in range.
+          </p>
+          <ul id="nodes" class="node-grid" aria-label="Nodes heard"></ul>
+        </section>
+
+        <section class="device-view" aria-label="Device">
+          <section class="device-page device-home" data-page="home">
+            <div class="card device-hero">
+              <div class="hero-head">
+                <h1 id="device-name" class="grow">No device connected</h1>
+                <span id="device-link-dot" class="status-dot" data-tone="muted"></span>
+                <small id="device-link" class="muted">Not connected</small>
+              </div>
+              <small id="device-identity" class="muted"></small>
+              <div id="device-art" class="device-art"></div>
+              <div class="hero-actions">
+                <button id="device-disconnect" class="compact" type="button">Disconnect</button>
+                <button id="lock-app" class="compact" type="button" hidden>Lock app</button>
+              </div>
+            </div>
+            <div class="device-stats">
+              <p id="device-block" class="notice" data-tone="warn" hidden></p>
+              <div class="stat-row">
+                <article class="card stat">
+                  <small class="muted stat-label"><i data-icon="radio"></i>Radio</small>
+                  <strong id="stat-radio" class="stat-value">—</strong>
+                  <small id="stat-radio-detail" class="faint"></small>
+                </article>
+                <article class="card stat">
+                  <small class="muted stat-label"><i data-icon="waves"></i>Power</small>
+                  <strong id="stat-power" class="stat-value">—</strong>
+                  <small id="stat-power-detail" class="faint"></small>
+                </article>
+              </div>
+              <article class="card stat">
+                <small class="muted stat-label"><i data-icon="users"></i>Nodes heard</small>
+                <div>
+                  <strong id="stat-nodes" class="stat-value">0</strong>
+                  <small id="stat-nodes-of" class="muted"></small>
+                </div>
+                <small id="stat-nodes-detail" class="faint"></small>
+                <div id="stat-nodes-meter" class="tick-meter" role="progressbar"></div>
+              </article>
+              <div class="stat-row">
+                <article class="card stat">
+                  <small class="muted stat-label"><i data-icon="arrow-down-up"></i>TX · RX</small>
+                  <strong id="stat-traffic" class="stat-value">—</strong>
+                  <small class="faint">Packets</small>
+                </article>
+                <article class="card stat">
+                  <small class="muted stat-label"><i data-icon="memory-stick"></i>Memory</small>
+                  <div>
+                    <strong id="stat-memory" class="stat-value">—</strong>
+                    <small class="muted">KB</small>
+                  </div>
+                  <small class="faint">Free</small>
+                </article>
+              </div>
+            </div>
+            <nav class="device-settings" aria-label="Device settings">
+              <button class="setting-row" data-page-target="general" type="button">
+                <span class="setting-icon"><i data-icon="tag"></i></span>
+                <span class="setting-text"
+                  ><span>General</span><small id="row-general" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
               </button>
-              <div id="conversation-options-menu" class="options-menu" role="menu" hidden>
-                <button id="clear-conversation" class="danger-item" role="menuitem">
-                  Clear chat history
+              <button class="setting-row" data-page-target="radio" type="button">
+                <span class="setting-icon"><i data-icon="sliders-horizontal"></i></span>
+                <span class="setting-text"
+                  ><span>Radio</span><small id="row-radio" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="channels" type="button">
+                <span class="setting-icon"><i data-icon="settings-2"></i></span>
+                <span class="setting-text"
+                  ><span>Channels</span><small id="row-channels" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="position" type="button">
+                <span class="setting-icon"><i data-icon="locate-fixed"></i></span>
+                <span class="setting-text"
+                  ><span>Position</span><small id="row-position" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="discovery" type="button">
+                <span class="setting-icon"><i data-icon="radar"></i></span>
+                <span class="setting-text"
+                  ><span>Discovery</span><small id="row-discovery" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="screen" type="button">
+                <span class="setting-icon"><i data-icon="monitor"></i></span>
+                <span class="setting-text"
+                  ><span>Screen</span><small id="row-screen" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="bluetooth" type="button">
+                <span class="setting-icon"><i data-icon="bluetooth"></i></span>
+                <span class="setting-text"
+                  ><span>Bluetooth</span><small class="muted">Pairing</small></span
+                >
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="diagnostics" type="button">
+                <span class="setting-icon"><i data-icon="activity"></i></span>
+                <span class="setting-text"><span>Diagnostics</span></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="plugins" type="button">
+                <span class="setting-icon"><i data-icon="puzzle"></i></span>
+                <span class="setting-text"><span>Plugins</span></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="storage" type="button">
+                <span class="setting-icon"><i data-icon="database"></i></span>
+                <span class="setting-text"><span>Storage</span></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+              <button class="setting-row" data-page-target="app" type="button">
+                <span class="setting-icon"><i data-icon="app-window"></i></span>
+                <span class="setting-text"><span>This app</span></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
+            </nav>
+          </section>
+
+          <section class="device-page" data-page="general" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">General</h1>
+              <button id="reset" class="compact" type="button" disabled>Discard</button>
+              <button id="save" class="primary" type="submit" form="configuration" disabled>
+                Save
+              </button>
+            </header>
+            <div class="page-body">
+              <p id="write-reason" class="notice" data-tone="warn" role="status" hidden></p>
+              <p id="capability-note" class="notice" data-tone="warn" hidden></p>
+              <p id="draft-warning" class="notice" data-tone="warn" hidden>
+                The device's settings changed while you were editing. Discard to load the latest.
+              </p>
+              <form id="configuration" class="card field-card">
+                <div class="field">
+                  <label for="label">Device name</label>
+                  <small id="byte-count" class="muted">Shown to other nodes.</small>
+                  <input
+                    id="label"
+                    type="text"
+                    autocomplete="off"
+                    disabled
+                    placeholder="Name your node"
+                  />
+                </div>
+                <div class="field">
+                  <label for="region">Region</label>
+                  <small class="muted">Sets which radio rules apply.</small>
+                  <select id="region" data-segmented disabled>
+                    <option value="UNSET">Not set</option>
+                    <option value="US">US</option>
+                    <option value="EU">EU</option>
+                  </select>
+                </div>
+                <p id="region-warning" class="notice" data-tone="warn" hidden>
+                  Only the US radio profile is implemented. Saving another region turns the radio
+                  off.
+                </p>
+              </form>
+              <div class="card field-card">
+                <button id="export-settings" class="compact" type="button" disabled>
+                  Export settings
                 </button>
               </div>
             </div>
-          </header>
-          <!-- The open conversation's recipient and channel; conversations are chosen from the list or map. -->
-          <input id="message-destination" type="hidden" value="broadcast" />
-          <select id="message-channel" hidden aria-hidden="true" tabindex="-1">
-            <option value="0">Public</option>
-          </select>
-          <div id="thread-scroll" class="thread-scroll">
-            <div id="conversation-empty" class="thread-empty">
-              <span class="empty-symbol" aria-hidden="true"
-                ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"
-                  />
-                  <path d="M7 9h9M7 13h6" /></svg
-              ></span>
-              <h3>Start a conversation</h3>
-              <p>
-                Connect a device to send messages. Find nearby devices to start a direct
-                conversation.
+          </section>
+
+          <section class="device-page" data-page="radio" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Radio</h1>
+              <button id="radio-reset" class="compact" type="button">Discard</button>
+              <button id="radio-save" class="primary" type="submit" form="radio-form" disabled>
+                Save
+              </button>
+            </header>
+            <div class="page-body">
+              <p id="radio-support" class="notice" data-tone="warn" hidden></p>
+              <form id="radio-form" class="card field-card">
+                <div class="field">
+                  <label for="radio-mode">Mode</label>
+                  <small class="muted">Listen never transmits. Mesh sends and receives.</small>
+                  <select id="radio-mode" data-segmented>
+                    <option value="off">Off</option>
+                    <option value="receive">Listen</option>
+                    <option value="mesh">Mesh</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="radio-power">Transmit power</label>
+                  <small class="muted">Actual power depends on the board.</small>
+                  <select id="radio-power" data-segmented>
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <label class="toggle-row" id="radio-boost-row" hidden>
+                  <span
+                    ><span>Boost</span
+                    ><small class="muted">About 3 dB more. Limited to a 1% duty cycle.</small></span
+                  >
+                  <input id="radio-boost" type="checkbox" />
+                </label>
+                <label class="toggle-row">
+                  <span
+                    ><span>Relay</span
+                    ><small class="muted">Forward other nodes' messages.</small></span
+                  >
+                  <input id="radio-relay" type="checkbox" />
+                </label>
+                <div class="toggle-row">
+                  <span
+                    ><span>Radio profile</span
+                    ><small class="muted">Fixed by the firmware.</small></span
+                  >
+                  <span id="radio-preset" class="muted">US915_LAB1</span>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="channels" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Channels</h1>
+              <small id="channels-status" class="muted"></small>
+            </header>
+            <div class="page-body">
+              <p id="channels-blocked" class="notice" data-tone="warn" hidden></p>
+              <p id="channels-error" class="notice" data-tone="bad" role="alert" hidden></p>
+              <div class="columns">
+                <div id="managed-channels" class="card channel-rows" aria-label="Channels"></div>
+                <div class="card field-card">
+                  <button id="channel-scan-open" class="primary" type="button">
+                    <i data-icon="scan-line"></i>Scan a channel QR code
+                  </button>
+                  <form id="channel-new-form" class="field">
+                    <label for="channel-new-name">New channel</label>
+                    <small class="muted">Up to 8 letters, digits, - or _.</small>
+                    <div class="inline">
+                      <input
+                        id="channel-new-name"
+                        class="grow"
+                        maxlength="8"
+                        autocomplete="off"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        placeholder="Team"
+                      />
+                      <button
+                        id="channel-new-add"
+                        class="round primary"
+                        type="submit"
+                        aria-label="Add channel"
+                        disabled
+                      >
+                        <i data-icon="plus"></i>
+                      </button>
+                    </div>
+                  </form>
+                  <label class="toggle-row">
+                    <span
+                      ><span>Encrypt this channel</span
+                      ><small class="muted"
+                        >Only people you share the key with can read it.</small
+                      ></span
+                    >
+                    <input id="channel-new-encrypt" type="checkbox" checked />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="channel" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 id="channel-title" class="grow">Channel</h1>
+            </header>
+            <div class="page-body">
+              <p id="channel-gone" class="notice" data-tone="warn" hidden>
+                This channel is no longer on the device.
               </p>
-              <button id="conversation-connect" class="primary">Connect device</button>
+              <p id="channel-error" class="notice" data-tone="bad" role="alert" hidden></p>
+              <div id="channel-content" class="columns">
+                <div class="card field-card">
+                  <div class="inline">
+                    <span id="channel-lock-on" class="lock-on"
+                      ><i data-icon="lock" aria-label="Encrypted"></i
+                    ></span>
+                    <span id="channel-lock-off" class="faint"
+                      ><i data-icon="lock-open" aria-label="Not encrypted"></i
+                    ></span>
+                    <h2 id="channel-status" class="grow"></h2>
+                  </div>
+                  <div id="channel-keyed" class="field-stack">
+                    <label class="toggle-row">
+                      <span
+                        ><span>Require encryption</span
+                        ><small class="muted"
+                          >Never send unencrypted here, and reject unencrypted messages.</small
+                        ></span
+                      >
+                      <input id="channel-required" type="checkbox" />
+                    </label>
+                    <button id="channel-rotate" class="compact" type="button">
+                      <i data-icon="refresh-cw"></i>Rotate key
+                    </button>
+                    <button id="channel-forget" class="compact" type="button">
+                      <i data-icon="trash-2"></i>Remove key from this browser
+                    </button>
+                  </div>
+                  <div id="channel-unkeyed" class="field-stack">
+                    <small class="muted"
+                      >Without a key, anyone in range with a Reaper device can read this
+                      channel.</small
+                    >
+                    <button id="channel-create-key" class="primary" type="button">
+                      <i data-icon="lock"></i>Create a key
+                    </button>
+                  </div>
+                  <small class="faint">
+                    Everyone with the key shares it. It can't prove which person sent a message, and
+                    rotating is the only way to remove someone.
+                  </small>
+                </div>
+                <div class="field-stack">
+                  <div class="card field-card">
+                    <h2>Share</h2>
+                    <button id="channel-share-open" class="primary" type="button">
+                      <i data-icon="qr-code"></i><span id="channel-share-label">Share channel</span>
+                    </button>
+                    <small id="channel-share-none" class="muted">
+                      Every device already has Public. Create a key to share one.
+                    </small>
+                  </div>
+                  <form id="channel-name-form" class="card field-card">
+                    <div class="field">
+                      <label for="channel-name">Channel name</label>
+                      <small class="muted"
+                        >Renaming keeps the channel. Only this device sees the new name.</small
+                      >
+                      <div class="inline">
+                        <input
+                          id="channel-name"
+                          class="grow"
+                          maxlength="8"
+                          pattern="[A-Za-z0-9_-]{1,8}"
+                          required
+                          autocomplete="off"
+                        />
+                        <button id="channel-name-save" class="compact" type="submit">Rename</button>
+                      </div>
+                    </div>
+                    <small id="channel-id" class="faint mono"></small>
+                  </form>
+                  <div class="card field-card">
+                    <button id="channel-remove" class="compact" type="button">
+                      <i data-icon="trash-2"></i
+                      ><span id="channel-remove-label">Remove channel from device</span>
+                    </button>
+                    <small id="channel-remove-status" class="muted" role="status"></small>
+                  </div>
+                </div>
+              </div>
             </div>
-            <ul
-              id="message-history"
-              class="message-thread"
-              aria-label="Conversation messages"
-              aria-live="polite"
-            ></ul>
-          </div>
-          <p id="message-management-status" class="management-status" role="status" hidden></p>
-          <div class="thread-status">
-            <button id="jump-new-messages" class="new-messages" hidden></button>
-            <span id="inbox-status"> </span>
-          </div>
-          <form id="message-form" class="compose">
-            <label class="sr-only" for="message-body">Message</label>
-            <textarea
-              id="message-body"
-              rows="1"
-              placeholder="Write a message… Shift + Enter for a new line"
-              maxlength="2048"
-            ></textarea>
-            <div class="compose-bottom">
-              <span id="message-support" class="small muted"> </span>
-              <span id="message-bytes" class="mono">0 / 1024 bytes</span>
-              <button id="message-send" class="primary" type="submit" disabled>Send ↗</button>
+          </section>
+
+          <section class="device-page" data-page="channel-share" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 id="share-title" class="grow">Share</h1>
+            </header>
+            <div class="page-body">
+              <p id="share-none" class="notice" data-tone="warn" hidden>
+                There's nothing to share for this channel.
+              </p>
+              <div id="share-content" class="share-layout">
+                <div id="share-qr" class="qr-frame"></div>
+                <div class="field-stack">
+                  <h2 id="share-heading"></h2>
+                  <p class="muted">
+                    On the other phone or browser, open Device, then Channels, then Scan a channel
+                    QR code.
+                  </p>
+                  <p id="share-warning" class="notice"></p>
+                  <div class="field-stack">
+                    <button id="share-native" class="compact" type="button" hidden>
+                      <i data-icon="share-2"></i>Share QR code
+                    </button>
+                    <button id="share-download" class="compact" type="button">
+                      <i data-icon="image"></i>Download QR code
+                    </button>
+                    <button id="share-copy" class="compact" type="button">
+                      <i data-icon="copy"></i><span id="share-copy-label">Copy as text</span>
+                    </button>
+                  </div>
+                  <small id="share-status" class="muted" role="status"></small>
+                </div>
+              </div>
             </div>
-          </form>
+          </section>
+
+          <section class="device-page" data-page="channel-scan" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Scan a code</h1>
+            </header>
+            <div class="page-body">
+              <p id="scan-error" class="notice" data-tone="bad" role="alert" hidden></p>
+              <div id="scan-done" class="card field-card" hidden>
+                <h2 id="scan-done-text"></h2>
+                <button id="scan-done-close" class="primary" type="button">Done</button>
+              </div>
+              <div id="scan-content" class="share-layout">
+                <div class="scan-frame">
+                  <video id="scan-video" muted playsinline hidden></video>
+                  <div id="scan-idle" class="scan-idle">
+                    <i data-icon="camera"></i>
+                    <button id="scan-start" class="primary compact" type="button">
+                      Start camera
+                    </button>
+                  </div>
+                </div>
+                <div class="field-stack">
+                  <p class="muted">Point the camera at a channel's QR code.</p>
+                  <div class="field">
+                    <label for="scan-image">Or choose an image of a code</label>
+                    <input id="scan-image" type="file" accept="image/*" />
+                  </div>
+                  <form id="scan-paste-form" class="field">
+                    <label for="scan-paste">Or paste a code</label>
+                    <div class="inline">
+                      <input
+                        id="scan-paste"
+                        class="grow"
+                        autocomplete="off"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        placeholder="RMCH1…"
+                      />
+                      <button
+                        id="scan-use"
+                        class="round primary"
+                        type="submit"
+                        aria-label="Use this code"
+                        disabled
+                      >
+                        <i data-icon="plus"></i>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="position" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Position</h1>
+              <button id="position-reset" class="compact" type="button">Discard</button>
+              <button id="position-save" class="primary" type="submit" form="position-form">
+                Save
+              </button>
+            </header>
+            <div class="page-body">
+              <p id="position-support" class="notice" data-tone="warn" role="status" hidden></p>
+              <p id="position-error" class="notice" data-tone="bad" role="alert" hidden></p>
+              <form id="position-form" class="card field-card">
+                <div class="field">
+                  <label for="position-mode">Device location</label>
+                  <small class="muted">What this device reports to other nodes.</small>
+                  <select id="position-mode" data-segmented>
+                    <option value="off">Off</option>
+                    <option value="fixed">Fixed point</option>
+                    <option value="browser">This browser</option>
+                  </select>
+                </div>
+                <div id="position-browser" class="field-stack" hidden>
+                  <small class="muted">
+                    The device announces this browser's location while this page is open, so others
+                    see you move on their map. It updates after you move about 25 m, as often as the
+                    beacon timer allows.
+                  </small>
+                  <small id="position-last-sent" class="muted"></small>
+                  <p id="position-beacon-off" class="notice" data-tone="warn" hidden>
+                    Announcing is off in Discovery, so others won't see updates until they ask. Turn
+                    it on to update their maps.
+                  </p>
+                  <small id="position-beacon-slow" class="faint"></small>
+                  <small class="faint">
+                    Stops when this page closes, and keeps the last location.
+                  </small>
+                </div>
+                <div id="fixed-position-fields" class="field-stack" hidden>
+                  <label class="toggle-row">
+                    <span
+                      ><span>Share position</span
+                      ><small class="muted">Includes this point when announcing.</small></span
+                    >
+                    <input id="position-share" type="checkbox" />
+                  </label>
+                  <div class="field">
+                    <span class="field-label">Saved position</span>
+                    <small class="muted"
+                      >A fixed point on the device. It does not follow you.</small
+                    >
+                    <div class="inline wrap">
+                      <input
+                        id="position-latitude"
+                        class="grow"
+                        type="number"
+                        min="-90"
+                        max="90"
+                        step="0.0000001"
+                        aria-label="Latitude"
+                        placeholder="Latitude"
+                      />
+                      <input
+                        id="position-longitude"
+                        class="grow"
+                        type="number"
+                        min="-180"
+                        max="180"
+                        step="0.0000001"
+                        aria-label="Longitude"
+                        placeholder="Longitude"
+                      />
+                      <button id="position-fill" class="compact" type="button">
+                        <i data-icon="locate-fixed"></i>Fill from browser
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p id="position-warning" class="notice" data-tone="warn" hidden>
+                  Locations go over the radio unencrypted, even on encrypted channels. Anyone in
+                  range can see them, and may keep them after you stop.
+                </p>
+              </form>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="discovery" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Discovery</h1>
+              <button id="discovery-reset" class="compact" type="button">Discard</button>
+              <button id="discovery-save" class="primary" type="submit" form="discovery-form">
+                Save
+              </button>
+            </header>
+            <div class="page-body">
+              <p id="discovery-panel-support" class="notice" data-tone="warn" hidden></p>
+              <form id="discovery-form" class="card field-card">
+                <label class="toggle-row">
+                  <span
+                    ><span>Announce this device</span
+                    ><small class="muted"
+                      >Sends its name on a timer. Unencrypted and anyone can hear it.</small
+                    ></span
+                  >
+                  <input id="beacon-enabled" type="checkbox" />
+                </label>
+                <label class="toggle-row">
+                  <span
+                    ><span>Reply to discovery</span
+                    ><small class="muted"
+                      >Answers when another node asks who is in range.</small
+                    ></span
+                  >
+                  <input id="respond-enabled" type="checkbox" />
+                </label>
+                <div class="field">
+                  <label for="beacon-interval">Announce every</label>
+                  <select id="beacon-interval" data-segmented>
+                    <option value="60">1 min</option>
+                    <option value="300" selected>5 min</option>
+                    <option value="900">15 min</option>
+                    <option value="3600">1 hour</option>
+                  </select>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="screen" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Device screen</h1>
+              <button id="screen-reset" class="compact" type="button">Discard</button>
+              <button id="screen-save" class="primary" type="submit" form="screen-form">
+                Save
+              </button>
+            </header>
+            <div class="page-body">
+              <p id="screen-support" class="notice" data-tone="warn" role="status" hidden></p>
+              <form id="screen-form" class="card field-card">
+                <div class="field">
+                  <label for="screen-timeout">Turn off after</label>
+                  <select id="screen-timeout" data-segmented>
+                    <option value="0">Never</option>
+                    <option value="10">10 s</option>
+                    <option value="30">30 s</option>
+                    <option value="60">1 min</option>
+                    <option value="300">5 min</option>
+                  </select>
+                </div>
+                <label class="toggle-row">
+                  <span
+                    ><span>Wake on message</span
+                    ><small class="muted"
+                      >Lights the device's screen when a message arrives.</small
+                    ></span
+                  >
+                  <input id="screen-wake" type="checkbox" />
+                </label>
+                <small class="faint"
+                  >A button press always wakes it. These settings never change what it sends over
+                  the radio.</small
+                >
+              </form>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="bluetooth" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Bluetooth</h1>
+            </header>
+            <div class="page-body">
+              <p id="pairing-support" class="notice" data-tone="warn" role="status" hidden></p>
+              <div class="card field-card">
+                <p class="muted">
+                  Pair a phone or this browser so it can connect without a cable. Pairing needs
+                  physical access: start it here over USB, or hold the device's main button for 5
+                  seconds. Holding for 15 seconds forgets all paired devices.
+                </p>
+                <div id="pairing-state" role="status" hidden>
+                  <p id="pairing-message"></p>
+                  <p id="pairing-passkey" class="pairing-passkey" hidden></p>
+                  <small id="pairing-detail" class="muted"></small>
+                </div>
+                <div class="inline wrap">
+                  <button id="pairing-start" class="primary" type="button">Start pairing</button>
+                  <button id="pairing-browser" type="button">Pair this browser</button>
+                </div>
+                <small id="pairing-browser-status" class="muted" role="status"></small>
+              </div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="diagnostics" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Diagnostics</h1>
+            </header>
+            <div class="page-body">
+              <div class="columns">
+                <div class="card field-card">
+                  <h2>Device</h2>
+                  <dl id="diagnostics-device" class="facts"></dl>
+                </div>
+                <div class="card field-card">
+                  <h2>Radio now</h2>
+                  <dl id="diagnostics-radio" class="facts"></dl>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="plugins" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Plugins</h1>
+            </header>
+            <div class="page-body">
+              <div class="card field-card">
+                <p class="muted">
+                  Plugins add map types, fields and settings without changing the app. JSON
+                  definitions cannot execute code or send messages. Settings apply to this browser.
+                  Removing a plugin preserves map items.
+                </p>
+                <div class="field">
+                  <label for="plugin-file">Install or update from JSON</label>
+                  <input id="plugin-file" type="file" accept="application/json,.json" />
+                </div>
+              </div>
+              <div id="plugin-list" class="field-stack"></div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="storage" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Storage</h1>
+            </header>
+            <div class="page-body">
+              <div class="card field-card">
+                <p class="muted">
+                  This browser saves message history and pending changes before sending. If a
+                  connection is interrupted, uncertain work stays unknown and is never automatically
+                  resent. Export a backup before resetting history.
+                </p>
+                <p id="recovery-status" role="status"></p>
+                <div class="inline wrap">
+                  <button id="recovery-retry" class="compact" type="button">Retry storage</button>
+                  <button id="recovery-export" class="compact" type="button">Export history</button>
+                  <button id="recovery-reset" class="compact danger" type="button">
+                    Reset device history
+                  </button>
+                </div>
+              </div>
+              <div id="simulation" class="card field-card">
+                <h2>Simulated device</h2>
+                <small class="muted"
+                  >Models protocol replies only, not a radio. Arm one fault, change the device name,
+                  then save.</small
+                >
+                <div class="field">
+                  <label for="fault">Next save</label>
+                  <select id="fault">
+                    <option value="none">Normal connection</option>
+                    <option value="lose-result">Lose result and change event</option>
+                    <option value="disconnect">Disconnect after commit</option>
+                  </select>
+                </div>
+                <label class="toggle-row">
+                  <span>Read-only on next connect</span><input id="read-only" type="checkbox" />
+                </label>
+                <div class="inline wrap">
+                  <button id="sim-drop" class="compact" type="button">Drop the link</button>
+                  <button id="reboot" class="compact" type="button">Reboot simulated device</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="app" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">This app</h1>
+            </header>
+            <div class="page-body">
+              <div class="columns">
+                <div class="card field-card">
+                  <div class="field">
+                    <label for="pref-theme">Appearance</label>
+                    <small class="muted">Night for low light, Day for direct sun.</small>
+                    <select id="pref-theme" data-segmented>
+                      <option value="night">Night</option>
+                      <option value="day">Day</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="pref-units">Distance</label>
+                    <select id="pref-units" data-segmented>
+                      <option value="metric">km · m</option>
+                      <option value="imperial">mi · ft</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="pref-coordinates">Coordinates</label>
+                    <select id="pref-coordinates" data-segmented>
+                      <option value="mgrs">MGRS</option>
+                      <option value="dd">Decimal</option>
+                    </select>
+                  </div>
+                  <label class="toggle-row">
+                    <span
+                      ><span>Rejoin on load</span
+                      ><small class="muted"
+                        >Connect to your last device when this page opens. Opening a USB port can
+                        restart the board.</small
+                      ></span
+                    >
+                    <input id="pref-connect-on-load" type="checkbox" />
+                  </label>
+                </div>
+                <div class="field-stack">
+                  <div class="card field-card">
+                    <h2>Your devices</h2>
+                    <div id="app-devices" class="row-list"></div>
+                    <small class="faint">
+                      Forgetting here doesn't unpair. To pair again, also forget the device in your
+                      computer's Bluetooth settings.
+                    </small>
+                  </div>
+                  <div class="card field-card">
+                    <h2>PIN protection</h2>
+                    <small id="pin-setting-status" class="muted" role="status"></small>
+                    <small class="muted"
+                      >Optional. A PIN protects saved channel keys and locks the app when
+                      connected.</small
+                    >
+                    <form id="pin-settings-form" class="field-stack">
+                      <div id="pin-current-field" class="field" hidden>
+                        <label for="pin-current">Current PIN</label>
+                        <input
+                          id="pin-current"
+                          type="password"
+                          inputmode="numeric"
+                          pattern="[0-9]{4,6}"
+                          maxlength="6"
+                          autocomplete="current-password"
+                        />
+                      </div>
+                      <div id="pin-new-fields" class="inline wrap">
+                        <div class="field grow">
+                          <label for="pin-new">New PIN (4–6 numbers)</label>
+                          <input
+                            id="pin-new"
+                            type="password"
+                            inputmode="numeric"
+                            pattern="[0-9]{4,6}"
+                            minlength="4"
+                            maxlength="6"
+                            autocomplete="new-password"
+                          />
+                        </div>
+                        <div class="field grow">
+                          <label for="pin-new-confirm">Confirm PIN</label>
+                          <input
+                            id="pin-new-confirm"
+                            type="password"
+                            inputmode="numeric"
+                            pattern="[0-9]{4,6}"
+                            minlength="4"
+                            maxlength="6"
+                            autocomplete="new-password"
+                          />
+                        </div>
+                      </div>
+                      <div class="inline wrap">
+                        <button id="pin-enable" class="primary compact" type="submit">
+                          Enable PIN
+                        </button>
+                        <button id="pin-remove" class="compact" type="button" hidden>
+                          Remove PIN protection
+                        </button>
+                      </div>
+                      <small id="pin-settings-result" role="status"></small>
+                    </form>
+                  </div>
+                  <div class="card field-card">
+                    <h2 class="inline">
+                      <span class="lock-on"><i data-icon="shield-check"></i></span>Local data
+                    </h2>
+                    <small class="muted">
+                      Messages, map items, keys and delivery records are stored in this browser.
+                      Without a PIN, keys are saved without a password. Cached map tiles are kept by
+                      the browser.
+                    </small>
+                    <button type="button" class="danger compact" data-wipe-local>
+                      <i data-icon="trash-2"></i>Erase everything in this browser
+                    </button>
+                    <small class="faint">
+                      This doesn't erase the device's inbox, other browsers or phones, or what
+                      others have received. Reconnecting may download messages the device still
+                      holds.
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </section>
-        <aside class="tracker-pane" aria-label="Map workspace">
-          <div class="pane-heading tracker-heading">
-            <h2>Map <span id="node-count" class="count">0</span></h2>
-            <button id="fit-map" title="Fit reported positions">Fit map</button>
-          </div>
-          <div class="map-pane">
-            <div id="map" aria-label="Map canvas"></div>
-            <div class="map-hud">
-              <span id="map-caption" class="hud-chip">No reported positions</span>
-            </div>
-            <div id="map-empty" class="map-empty">
-              <strong>No device positions reported</strong>
-              <span>Add your own point or area, or discover device positions.</span>
-            </div>
-            <div id="tile-status" class="tile-status" role="status" hidden>
-              Basemap unavailable · reported positions still work
-            </div>
-          </div>
-          <div class="asset-toolbar">
-            <h3>Nearby devices</h3>
-            <button id="discover">Find nearby devices</button>
-            <button id="discovery-query" title="Query last discovery result">Check search</button>
-          </div>
-          <p id="discovery-support" class="small muted"></p>
-          <p id="discovery-result" class="small muted" role="status"></p>
-          <div id="selected-asset" class="selected-asset" hidden>
-            <span class="eyebrow">SELECTED DEVICE</span>
-            <strong id="asset-name"> </strong>
-            <span id="asset-detail" class="mono"> </span>
-            <button id="asset-message">Message device</button>
-          </div>
-          <p id="nodes-empty" class="empty">
-            No devices found yet. Connect a device and select Discover.
-          </p>
-          <ul id="nodes" class="node-list" aria-label="Nearby devices"></ul>
-          <div class="tracker-footer mono">LAST-KNOWN POSITIONS · FIXED SOURCE</div>
-        </aside>
       </main>
+
+      <!-- Floats over every tab while the link is down, so a lost link is never mistaken for quiet. -->
+      <div id="link-banner" class="link-banner" role="alert" hidden>
+        <i data-icon="unplug"></i>
+        <span id="link-banner-text">Link lost. Reconnecting</span>
+        <button id="link-banner-disconnect" class="compact" type="button">Disconnect</button>
+      </div>
+      <div id="toast" class="toast" role="alert" hidden>
+        <span id="error"></span>
+        <button id="toast-close" class="round compact" type="button" aria-label="Dismiss">
+          <i data-icon="x"></i>
+        </button>
+      </div>
     </div>
-    <dialog id="wipe-local-dialog" class="access-dialog" aria-labelledby="wipe-title">
-      <h2 id="wipe-title">Wipe this browser’s data?</h2>
-      <p>
+
+    <dialog id="connecting-sheet" class="sheet center-sheet" aria-labelledby="connecting-title">
+      <span class="sheet-icon"><i data-icon="key-round"></i></span>
+      <h2 id="connecting-title">Connecting</h2>
+      <p id="connecting-text" class="muted"></p>
+      <button id="connecting-cancel" type="button">Cancel</button>
+    </dialog>
+
+    <dialog id="confirm-sheet" class="sheet" aria-labelledby="confirm-title">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-body" class="muted"></p>
+      <div class="sheet-actions">
+        <button id="confirm-ok" class="primary grow" type="button">Confirm</button>
+        <button id="confirm-cancel" class="grow" type="button" autofocus>Keep</button>
+      </div>
+    </dialog>
+
+    <dialog id="join-sheet" class="sheet" aria-labelledby="join-title">
+      <h2 id="join-title"></h2>
+      <p id="join-notice" class="notice"></p>
+      <small id="join-detail" class="muted"></small>
+      <div class="sheet-actions">
+        <button id="join-confirm" class="primary grow" type="button">Join</button>
+        <button id="join-cancel" class="grow" type="button">Cancel</button>
+      </div>
+    </dialog>
+
+    <dialog id="wipe-local-dialog" class="sheet" aria-labelledby="wipe-title">
+      <h2 id="wipe-title">Erase everything in this browser?</h2>
+      <p class="muted">
         This permanently removes local keys, PIN, messages and settings. All open Reaper Mesh tabs
         will disconnect. Device memory is unchanged; messages still on a device can return after
         reconnecting.
       </p>
-      <form id="wipe-local-form">
-        <label for="wipe-confirmation">Type WIPE to confirm</label
-        ><input id="wipe-confirmation" autocomplete="off" required pattern="WIPE" />
+      <form id="wipe-local-form" class="field-stack">
+        <div class="field">
+          <label for="wipe-confirmation">Type WIPE to confirm</label>
+          <input
+            id="wipe-confirmation"
+            autocomplete="off"
+            required
+            pattern="WIPE"
+            placeholder="WIPE"
+          />
+        </div>
         <p id="wipe-result" role="alert"></p>
-        <button type="submit" id="wipe-confirm" class="danger" disabled>Wipe local data</button
-        ><button type="button" id="wipe-cancel">Cancel</button>
+        <div class="sheet-actions">
+          <button type="submit" id="wipe-confirm" class="danger grow" disabled>Erase</button>
+          <button type="button" id="wipe-cancel" class="grow">Cancel</button>
+        </div>
       </form>
     </dialog>
+
     <dialog
       id="app-unlock"
-      class="access-dialog"
+      class="sheet"
       aria-labelledby="access-title"
       aria-describedby="access-description"
     >
-      <div class="access-mark" aria-hidden="true">R/M</div>
       <h2 id="access-title">Unlock Reaper Mesh</h2>
-      <p id="access-description">Enter your app PIN.</p>
-      <form id="app-unlock-form">
-        <div id="legacy-access" hidden>
-          <label for="legacy-password">Existing key password</label
-          ><input id="legacy-password" type="password" autocomplete="current-password" />
+      <p id="access-description" class="muted">Enter your app PIN.</p>
+      <form id="app-unlock-form" class="field-stack">
+        <div id="legacy-access" class="field" hidden>
+          <label for="legacy-password">Existing key password</label>
+          <input id="legacy-password" type="password" autocomplete="current-password" />
         </div>
-        <label for="app-pin">PIN</label
-        ><input
-          id="app-pin"
-          type="password"
-          inputmode="numeric"
-          pattern="[0-9]{4,6}"
-          minlength="4"
-          maxlength="6"
-          autocomplete="current-password"
-          required
-          autofocus
-        />
-        <div id="pin-confirmation" hidden>
-          <label for="app-pin-confirm">Confirm PIN</label
-          ><input
+        <div class="field">
+          <label for="app-pin">PIN</label>
+          <input
+            id="app-pin"
+            class="pin-input"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]{4,6}"
+            minlength="4"
+            maxlength="6"
+            autocomplete="current-password"
+            required
+            autofocus
+          />
+        </div>
+        <div id="pin-confirmation" class="field" hidden>
+          <label for="app-pin-confirm">Confirm PIN</label>
+          <input
             id="app-pin-confirm"
+            class="pin-input"
             type="password"
             inputmode="numeric"
             pattern="[0-9]{4,6}"
@@ -434,667 +1491,147 @@
         <p id="access-error" role="alert"></p>
         <button id="app-unlock-submit" type="submit" class="primary">Unlock app</button>
         <button id="locked-disconnect" type="button">Disconnect device</button>
-        <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
+        <button type="button" class="danger" data-wipe-local>Erase local data…</button>
       </form>
     </dialog>
-    <dialog id="manage" class="manage" aria-labelledby="settings-title">
-      <form method="dialog" class="manage-head">
-        <h2 id="settings-title">Settings</h2>
-        <button value="close" type="submit" class="ghost">Close</button>
-      </form>
-      <div class="manage-tabs" aria-label="Settings sections">
-        <button type="button" class="manage-tab is-active" data-manage="device">Device</button>
-        <button type="button" class="manage-tab" data-manage="radio">Radio</button>
-        <button type="button" class="manage-tab" data-manage="channels">Channels</button>
-        <button type="button" class="manage-tab" data-manage="position">Position</button>
-        <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
-        <button type="button" class="manage-tab" data-manage="screen">Screen</button>
-        <button type="button" class="manage-tab" data-manage="bluetooth">Bluetooth</button>
-        <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
-        <button type="button" class="manage-tab" data-manage="recovery">Storage</button>
-        <button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
-      </div>
-      <div class="manage-body">
-        <section
-          class="manage-panel is-active"
-          data-manage-panel="device"
-          aria-labelledby="device-heading"
-        >
-          <div class="section-title">
-            <h2 id="device-heading">Device</h2>
-            <span id="revision" class="mono">REV —</span>
-          </div>
-          <p id="write-reason" class="muted small" role="status">Connect to edit settings.</p>
-          <p id="capability-note" class="muted small" hidden></p>
-          <form id="configuration">
-            <div class="compact-field">
-              <label for="region">Operating region</label>
-              <select id="region" disabled>
-                <option value="UNSET">Not configured</option>
-                <option value="US">United States</option>
-                <option value="EU" disabled>European Union · later</option>
-              </select>
-            </div>
-            <label for="label">Device name</label>
-            <input
-              id="label"
-              type="text"
-              autocomplete="off"
-              disabled
-              placeholder="Name your node"
-            />
-            <div class="field-meta">
-              <span>Name length</span>
-              <span id="byte-count">0 / —</span>
-            </div>
-            <p id="draft-warning" class="warning" hidden>
-              Device state changed while you were editing. Load the latest settings before saving.
-            </p>
-            <div class="actions">
-              <button id="save" type="submit" class="primary" disabled>Save device settings</button>
-              <button id="reset" type="button" disabled>Discard changes</button>
-              <button id="export-settings" type="button" disabled>Export settings</button>
-            </div>
-          </form>
-          <details class="settings-disclosure">
-            <summary>Device information</summary>
-            <dl class="detail-grid compact">
-              <dt>ID</dt>
-              <dd id="device" class="mono">—</dd>
-              <dt>Firmware</dt>
-              <dd id="firmware" class="mono">—</dd>
-              <dt>Radio</dt>
-              <dd id="radio-hardware">—</dd>
-            </dl>
-          </details>
-        </section>
 
-        <section class="manage-panel" data-manage-panel="radio" hidden>
-          <h2>Radio</h2>
-          <p class="small muted">Choose whether this device can receive or send messages.</p>
-          <p id="radio-support" class="muted"></p>
-          <form id="radio-form">
-            <div class="columns">
-              <div>
-                <label for="radio-mode">Radio mode</label>
-                <select id="radio-mode">
-                  <option value="off">Off · no radio traffic</option>
-                  <option value="receive">Receive only · listen without sending</option>
-                  <option value="mesh">Mesh messaging · send and receive</option>
-                </select>
-              </div>
-              <div>
-                <label for="radio-power">Transmit power</label>
-                <select id="radio-power">
-                  <option value="low">Low</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-            </div>
-            <p class="small muted">
-              US 915 lab preset. Transmission also requires the board antenna check.
-            </p>
-            <label class="check" id="radio-boost-row" hidden>
-              <input id="radio-boost" type="checkbox" />Boost transmit power</label
-            >
-            <label class="check">
-              <input id="radio-relay" type="checkbox" />Relay messages for other nodes</label
-            >
-            <div class="actions">
-              <button id="radio-save" class="primary" type="submit" disabled>
-                Save radio settings
-              </button>
-              <button id="radio-reset" type="button">Discard changes</button>
-            </div>
-          </form>
-        </section>
-        <section class="manage-panel" data-manage-panel="channels" hidden>
-          <div class="section-toolbar">
-            <h2>Channels</h2>
-            <div class="actions">
-              <button id="join-channel" type="button">Join channel</button>
-              <button id="create-channel" type="button" class="primary">Create channel</button>
-            </div>
-          </div>
-          <p id="channels-status" role="status" class="small muted"></p>
-          <form id="channel-join-form" class="channel-join" hidden>
-            <label for="channel-invite-input">Channel invite</label>
-            <textarea
-              id="channel-invite-input"
-              rows="3"
-              spellcheck="false"
-              autocomplete="off"
-              placeholder="Paste an RMCH1 invite"
-              required
-            ></textarea>
-            <p id="channel-join-status" role="status" class="small muted"></p>
-            <div class="actions">
-              <button type="submit" class="primary">Join</button>
-              <button id="channel-join-cancel" type="button">Cancel</button>
-            </div>
-          </form>
-          <nav id="managed-channels" class="managed-channels" aria-label="Channel settings"></nav>
-          <section
-            id="channel-editor"
-            class="channel-content"
-            aria-labelledby="channel-editor-title"
-          >
-            <h3 id="channel-editor-title">Public</h3>
-            <form id="channel-name-form">
-              <label for="channel-name">Channel name</label
-              ><input
-                id="channel-name"
-                aria-describedby="channel-name-help"
-                maxlength="8"
-                pattern="[A-Za-z0-9_-]{1,8}"
-                required
-                autocomplete="off"
-              />
-              <p id="channel-name-help" class="small muted">
-                Up to 8 letters, numbers, underscores or hyphens.
-              </p>
-              <button id="channel-name-save" type="submit" class="primary">Save channel</button>
-              <p id="channel-editor-status" role="status" class="small muted"></p>
-            </form>
-            <section id="channel-invite" class="channel-invite" hidden>
-              <h3>Invite</h3>
-              <p class="small muted">
-                Another device joins this channel with the invite, in any free slot.
-              </p>
-              <button id="channel-invite-create" type="button">Create invite</button>
-              <label class="sr-only" for="channel-invite-output">Channel invite</label>
-              <textarea id="channel-invite-output" rows="3" spellcheck="false" readonly></textarea>
-              <p id="channel-invite-status" role="status" class="small muted"></p>
-            </section>
-            <section class="channel-danger">
-              <button id="channel-remove" type="button" class="danger">Remove channel</button>
-              <p id="channel-remove-status" role="status" class="small muted"></p>
-            </section>
-            <section class="encryption-tools" aria-labelledby="encryption-heading">
-              <div class="section-title"><h3 id="encryption-heading">Message privacy</h3></div>
-              <p id="encryption-status" role="status" class="small muted">
-                Messages are plaintext unless a channel key is enabled.
-              </p>
-              <label for="encryption-policy">Messages</label>
-              <select id="encryption-policy" aria-describedby="encryption-status">
-                <option value="plaintext">Unencrypted</option>
-                <option value="required">Encrypted</option>
-              </select>
-              <div class="actions">
-                <button id="channel-key-generate" type="button">Create new key</button>
-                <button id="channel-key-export" type="button">Export key</button>
-              </div>
-              <details class="settings-disclosure key-transfer">
-                <summary>Import a shared channel key</summary>
-                <p class="small muted">
-                  Paste the key bundle supplied by a trusted channel member.
-                </p>
-                <label for="channel-key-transfer">Key transfer bundle · secret</label>
-                <textarea
-                  id="channel-key-transfer"
-                  rows="3"
-                  spellcheck="false"
-                  autocomplete="off"
-                  placeholder="Paste RMKEY1 bundle to import"
-                ></textarea>
-                <div class="actions">
-                  <button id="channel-key-import" type="button">Import key</button>
-                </div>
-              </details>
-              <p class="small warning">
-                Share key bundles only with trusted agents using a private transfer. Anyone with a
-                channel key can read and forge that channel’s messages. Direct routes still use the
-                selected channel key.
-              </p>
-            </section>
-          </section>
-        </section>
-        <section class="manage-panel" data-manage-panel="position" hidden>
-          <h2>Position</h2>
-          <p id="position-support" role="status" class="muted"></p>
-          <p class="small muted">
-            Set a fixed location for this device. Saving a location does not share it; enable
-            sharing below when you want other nodes to see it.
-          </p>
-          <form id="position-form">
-            <label for="position-source">Position source</label>
-            <select id="position-source">
-              <option value="0">None</option>
-              <option value="1">Saved fixed position</option>
-            </select>
-            <div id="fixed-position-fields" class="coordinate-fields">
-              <div>
-                <label for="position-latitude">Latitude</label>
-                <input
-                  id="position-latitude"
-                  type="number"
-                  min="-90"
-                  max="90"
-                  step="0.0000001"
-                  required
-                  value="0"
-                  aria-describedby="latitude-help"
-                />
-                <p id="latitude-help" class="small muted">−90 to 90 degrees</p>
-              </div>
-              <div>
-                <label for="position-longitude">Longitude</label>
-                <input
-                  id="position-longitude"
-                  type="number"
-                  min="-180"
-                  max="180"
-                  step="0.0000001"
-                  required
-                  value="0"
-                  aria-describedby="longitude-help"
-                />
-                <p id="longitude-help" class="small muted">−180 to 180 degrees</p>
-              </div>
-            </div>
-            <label class="check">
-              <input id="position-share" type="checkbox" />Share position over radio</label
-            >
-            <div class="actions">
-              <button id="position-save" class="primary" type="submit">
-                Save position settings
-              </button>
-              <button id="position-reset" type="button">Discard changes</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="manage-panel" data-manage-panel="discovery" hidden>
-          <h2>Discovery</h2>
-          <p id="discovery-panel-support" class="muted small">
-            Choose how other nearby devices can find this device. Both options are off by default.
-          </p>
-          <form id="discovery-form">
-            <label class="check">
-              <input id="beacon-enabled" type="checkbox" />Announce this device periodically</label
-            >
-            <p class="field-help">Let nearby devices discover this node without a request.</p>
-            <label class="check">
-              <input id="respond-enabled" type="checkbox" />Reply when another device
-              searches</label
-            >
-            <p class="field-help">Respond only when a nearby device requests discovery.</p>
-            <label for="beacon-interval">Announcement interval (seconds)</label>
-            <input
-              id="beacon-interval"
-              aria-describedby="interval-help"
-              type="number"
-              min="60"
-              max="3600"
-              value="300"
-            />
-            <p id="interval-help" class="small muted">
-              60–3600 seconds. Applies to periodic announcements.
-            </p>
-            <div class="actions">
-              <button id="discovery-save" class="primary" type="submit">
-                Save discovery settings
-              </button>
-              <button id="discovery-reset" type="button">Discard changes</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="manage-panel" data-manage-panel="screen" hidden>
-          <h2>Screen</h2>
-          <p id="screen-support" role="status" class="muted"></p>
-          <p class="small muted">
-            Control the device's own screen. A button press always wakes it. These settings are
-            stored on the device and never change what it sends over the radio.
-          </p>
-          <form id="screen-form">
-            <label for="screen-timeout">Turn the screen off after</label>
-            <select id="screen-timeout">
-              <option value="10">10 seconds</option>
-              <option value="30">30 seconds</option>
-              <option value="60">1 minute</option>
-              <option value="300">5 minutes</option>
-              <option value="0">Never</option>
-            </select>
-            <label class="check">
-              <input id="screen-wake" type="checkbox" />Wake the screen when a message
-              arrives</label
-            >
-            <p class="field-help">Shows the main page with the new-message count.</p>
-            <div class="actions">
-              <button id="screen-save" class="primary" type="submit">Save screen settings</button>
-              <button id="screen-reset" type="button">Discard changes</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="manage-panel" data-manage-panel="bluetooth" hidden>
-          <h2>Bluetooth</h2>
-          <p id="pairing-support" role="status" class="muted"></p>
-          <p class="small muted">
-            Pair a phone or this browser so it can connect without a cable. Pairing needs physical
-            access: start it here over USB, or hold the device's main button for 5 seconds. Holding
-            for 15 seconds forgets all paired devices.
-          </p>
-          <div id="pairing-state" role="status" hidden>
-            <p id="pairing-message"></p>
-            <p id="pairing-passkey" class="pairing-passkey" hidden></p>
-            <p id="pairing-detail" class="small muted"></p>
-          </div>
-          <div class="actions">
-            <button id="pairing-start" class="primary" type="button">Start pairing</button>
-            <button id="pairing-browser" type="button">Pair this browser</button>
-          </div>
-          <p id="pairing-browser-status" role="status" class="small muted"></p>
-        </section>
-
-        <section class="manage-panel" data-manage-panel="recovery" hidden>
-          <h2>Storage</h2>
-          <p class="small muted">
-            This browser saves message history and pending changes before sending. If a connection
-            is interrupted, uncertain work stays unknown and is never automatically resent. Export a
-            backup before resetting history.
-          </p>
-          <p id="recovery-status" role="status"></p>
-          <div class="actions">
-            <button id="recovery-retry" type="button">Retry storage</button>
-            <button id="recovery-export" type="button">Export history</button>
-            <button id="recovery-reset" class="danger" type="button">Reset USB history</button>
-          </div>
-          <section class="simulation" id="simulation">
-            <div>
-              <p class="eyebrow">Simulation</p>
-              <h3>Interrupted connection</h3>
-              <p class="small muted">Arm one fault, change the label, then save.</p>
-            </div>
-            <div>
-              <label for="fault">Next save</label>
-              <select id="fault">
-                <option value="none">Normal connection</option>
-                <option value="lose-result">Lose result and change event</option>
-                <option value="disconnect">Disconnect after commit</option>
-              </select>
-              <label class="check">
-                <input id="read-only" type="checkbox" />Read-only on next connect</label
-              >
-              <button id="reboot" type="button">Reboot simulated device</button>
-            </div>
-          </section>
-        </section>
-
-        <section
-          class="manage-panel"
-          data-manage-panel="privacy"
-          hidden
-          aria-labelledby="privacy-heading"
-        >
-          <h2 id="privacy-heading">Privacy</h2>
-          <section class="privacy-card">
-            <h3>PIN protection</h3>
-            <p id="pin-setting-status" class="small muted" role="status"></p>
-            <p class="small muted">
-              Optional. A PIN protects saved channel keys and locks the app when connected.
-            </p>
-            <form id="pin-settings-form">
-              <div id="pin-current-field" hidden>
-                <label for="pin-current">Current PIN</label
-                ><input
-                  id="pin-current"
-                  type="password"
-                  inputmode="numeric"
-                  pattern="[0-9]{4,6}"
-                  maxlength="6"
-                  autocomplete="current-password"
-                />
-              </div>
-              <div id="pin-new-fields" class="columns">
-                <div>
-                  <label for="pin-new">New PIN (4–6 numbers)</label
-                  ><input
-                    id="pin-new"
-                    type="password"
-                    inputmode="numeric"
-                    pattern="[0-9]{4,6}"
-                    minlength="4"
-                    maxlength="6"
-                    autocomplete="new-password"
-                  />
-                </div>
-                <div>
-                  <label for="pin-new-confirm">Confirm PIN</label
-                  ><input
-                    id="pin-new-confirm"
-                    type="password"
-                    inputmode="numeric"
-                    pattern="[0-9]{4,6}"
-                    minlength="4"
-                    maxlength="6"
-                    autocomplete="new-password"
-                  />
-                </div>
-              </div>
-              <div class="actions">
-                <button id="pin-enable" class="primary" type="submit">Enable PIN</button
-                ><button id="pin-remove" type="button" hidden>Remove PIN protection</button>
-              </div>
-              <p id="pin-settings-result" class="small" role="status"></p>
-            </form>
-          </section>
-          <section class="privacy-card danger-zone">
-            <h3>Wipe local data</h3>
-            <p class="small muted">
-              Delete this browser’s keys, PIN, settings and message history. Devices and other
-              browsers keep their data.
-            </p>
-            <button type="button" class="danger" data-wipe-local>Wipe local data…</button>
-          </section>
-        </section>
-        <section class="manage-panel" data-manage-panel="details" hidden>
-          <h2>Diagnostics</h2>
-          <p class="small muted">Technical information for troubleshooting this connection.</p>
-          <dl class="detail-grid">
-            <dt>Configuration schema</dt>
-            <dd id="schema">—</dd>
-            <dt>Request history</dt>
-            <dd id="capacity">—</dd>
-            <dt>Owner admission</dt>
-            <dd id="admission">—</dd>
-            <dt>Radio protocol</dt>
-            <dd id="radio">—</dd>
-            <dt>Radio packets</dt>
-            <dd id="radio-packets">—</dd>
-          </dl>
-          <details>
-            <summary>Memory and task diagnostics</summary>
-            <p id="resource-status" class="small muted">Connect to read diagnostics.</p>
-          </details>
-        </section>
-      </div>
-    </dialog>
-
-    <dialog id="delete-history" class="delete-dialog" aria-labelledby="delete-title">
-      <form method="dialog">
+    <dialog id="delete-history" class="sheet" aria-labelledby="delete-title">
+      <form method="dialog" class="field-stack">
         <h2 id="delete-title">Delete from this browser?</h2>
-        <p id="delete-description"></p>
-        <p class="small muted">
-          This does not delete messages on devices or other users’ apps, cancel transmissions, or
+        <p id="delete-description" class="muted"></p>
+        <small class="faint">
+          This does not delete messages on devices or other users' apps, cancel transmissions, or
           change ACKs. Removed sent messages lose delivery-query recovery.
-        </p>
-        <div class="actions">
-          <button value="cancel" type="submit" autofocus>Cancel</button
-          ><button id="confirm-delete" class="danger" value="delete" type="submit">Delete</button>
+        </small>
+        <div class="sheet-actions">
+          <button id="confirm-delete" class="danger grow" value="delete" type="submit">
+            Delete
+          </button>
+          <button value="cancel" class="grow" type="submit" autofocus>Keep</button>
         </div>
       </form>
     </dialog>
 
-    <!-- Map workspace markup, cloned by agents/web/map-workspace.ts. -->
-    <template id="map-tools-template"
-      ><div class="map-toolbar">
-        <button id="map-add-point" type="button">Add point</button
-        ><button id="map-add-area" type="button">Draw area</button
-        ><button id="map-cancel-tool" type="button" hidden>Cancel drawing</button>
+    <dialog id="map-location" class="sheet" aria-labelledby="map-location-title">
+      <h2 id="map-location-title">Add to map</h2>
+      <p id="map-location-coordinates" class="muted mono"></p>
+      <div class="field-stack">
+        <button id="map-location-point" class="primary" type="button">Add point here</button>
+        <button id="map-location-area" type="button">Draw area from here</button>
+        <button id="map-location-cancel" type="button">Cancel</button>
       </div>
-      <p id="map-tool-hint" role="status">
-        Use Add point or Draw area to start. Right-click the map for location actions.
-      </p>
-      <div class="map-layers">
-        <label class="check"><input id="map-show-items" type="checkbox" checked />Map items</label
-        ><label class="check"><input id="map-show-devices" type="checkbox" checked />Devices</label>
+    </dialog>
+
+    <dialog id="map-editor" class="sheet" aria-labelledby="map-editor-title">
+      <div class="sheet-head">
+        <h2 id="map-editor-title" class="grow">Map item</h2>
+        <button id="map-editor-cancel" class="round compact" type="button" aria-label="Close">
+          <i data-icon="x"></i>
+        </button>
       </div>
-      <p id="map-workspace-error" class="warning" role="alert" hidden></p>
-      <p id="map-share-state" role="status"></p>
-      <details open>
-        <summary>Saved map items</summary>
-        <label class="sr-only" for="map-item-search">Search map items</label
-        ><input id="map-item-search" type="search" placeholder="Search map items" />
-        <div id="map-item-list"></div>
-      </details>
-      <button id="map-export" type="button">Export map workspace</button>
-      <p class="small muted">
-        Local items are saved in this browser in plaintext. Encrypted received items retain
-        ciphertext. Sharing requires a connected device.
-      </p></template
-    >
-    <template id="map-dialogs-template">
-      <dialog id="map-location" class="manage map-dialog" aria-labelledby="map-location-title">
-        <form method="dialog" class="manage-head">
-          <h2 id="map-location-title">Add to map</h2>
-          <button>Cancel</button>
-        </form>
-        <div class="manage-body">
-          <p id="map-location-coordinates"></p>
-          <div class="actions">
-            <button id="map-location-point">Add point here</button
-            ><button id="map-location-area">Draw area from here</button>
-          </div>
+      <form id="map-item-form" class="field-stack">
+        <label class="sr-only" for="map-name">Name</label>
+        <input id="map-name" required maxlength="48" placeholder="Name" />
+        <label class="sr-only" for="map-note">Note</label>
+        <input id="map-note" maxlength="160" placeholder="Note (optional)" />
+        <div id="map-colors" class="color-swatches" role="radiogroup" aria-label="Color"></div>
+        <input id="map-color" type="hidden" value="#b2dda3" />
+        <div id="map-type-field" class="field">
+          <label for="map-type">Type</label>
+          <select id="map-type"></select>
         </div>
-      </dialog>
-      <dialog id="map-editor" class="manage map-dialog" aria-labelledby="map-editor-title">
-        <div class="manage-head">
-          <h2 id="map-editor-title">Map item</h2>
-          <button id="map-editor-cancel" type="button">Cancel</button>
-        </div>
-        <form id="map-item-form" class="manage-body">
-          <label for="map-type">Type</label
-          ><select id="map-type"></select>
-          <div class="columns">
-            <div>
-              <label for="map-name">Name</label><input id="map-name" required maxlength="48" />
-            </div>
-            <div>
-              <label for="map-color">Color</label
-              ><input id="map-color" type="color" value="#78c5ab" />
-            </div>
-          </div>
+        <details>
+          <summary>Coordinates</summary>
           <div class="coordinate-fields">
-            <div>
-              <label for="map-lat">Latitude / north</label
-              ><input id="map-lat" type="number" step="0.0000001" min="-90" max="90" required />
+            <div class="field">
+              <label for="map-lat">Latitude / north</label>
+              <input id="map-lat" type="number" step="0.0000001" min="-90" max="90" required />
             </div>
-            <div>
-              <label for="map-lng">Longitude / west</label
-              ><input id="map-lng" type="number" step="0.0000001" min="-180" max="180" required />
+            <div class="field">
+              <label for="map-lng">Longitude / west</label>
+              <input id="map-lng" type="number" step="0.0000001" min="-180" max="180" required />
             </div>
-            <div class="area-coordinate">
-              <label for="map-south">South latitude</label
-              ><input id="map-south" type="number" step="0.0000001" min="-90" max="90" />
+            <div class="field area-coordinate">
+              <label for="map-south">South latitude</label>
+              <input id="map-south" type="number" step="0.0000001" min="-90" max="90" />
             </div>
-            <div class="area-coordinate">
-              <label for="map-east">East longitude</label
-              ><input id="map-east" type="number" step="0.0000001" min="-180" max="180" />
+            <div class="field area-coordinate">
+              <label for="map-east">East longitude</label>
+              <input id="map-east" type="number" step="0.0000001" min="-180" max="180" />
             </div>
           </div>
-          <label for="map-note">Short note</label><input id="map-note" maxlength="160" />
-          <div id="map-custom-fields"></div>
-          <p id="map-editor-error" class="warning" role="alert"></p>
-          <p class="small muted">Save locally first. Nothing is sent until you choose Share.</p>
-          <div class="actions"><button type="submit" class="primary">Save map item</button></div>
-        </form>
-      </dialog>
-      <dialog id="map-detail" class="manage map-dialog" aria-labelledby="map-detail-title">
-        <form method="dialog" class="manage-head">
-          <h2 id="map-detail-title">Map item</h2>
-          <button>Close</button>
-        </form>
-        <div class="manage-body">
-          <div id="map-detail-body"></div>
-          <div id="map-detail-actions" class="actions"></div>
+        </details>
+        <div id="map-custom-fields" class="field-stack"></div>
+        <p id="map-editor-error" class="notice" data-tone="bad" role="alert"></p>
+        <small class="faint">Saved locally first. Nothing is sent until you choose Share.</small>
+        <div class="sheet-actions">
+          <button type="submit" class="primary grow">Save</button>
+          <button id="map-editor-delete" type="button" hidden>
+            <i data-icon="trash-2"></i>Delete
+          </button>
         </div>
-      </dialog>
-      <dialog id="map-share" class="manage map-dialog" aria-labelledby="map-share-title">
-        <form method="dialog" class="manage-head">
-          <h2 id="map-share-title">Share map item</h2>
-          <button>Cancel</button>
-        </form>
-        <form id="map-share-form" class="manage-body">
-          <p id="map-share-summary"></p>
-          <label for="map-share-channel">Channel</label
-          ><select id="map-share-channel"></select
-          ><label for="map-share-destination">Recipient</label
-          ><input
-            id="map-share-destination"
-            value="broadcast"
-            required
-            placeholder="broadcast or node ID"
-          />
-          <p class="small muted">
-            Use broadcast for everyone on the channel, or enter a node ID for direct sharing.
-            Recipients can add it to their map from its message card.
-          </p>
-          <label for="map-share-operation">Action</label
-          ><select id="map-share-operation">
-            <option value="put">Share item / update</option>
-            <option value="withdraw">Request removal of my shared item</option>
-          </select>
-          <p id="map-share-budget" role="status"></p>
-          <p id="map-share-error" class="warning" role="alert"></p>
-          <div class="actions">
-            <button id="map-share-send" class="primary" type="submit">Share</button>
-          </div>
-        </form>
-      </dialog>
-      <dialog id="plugin-preview" class="manage map-dialog" aria-labelledby="plugin-preview-title">
-        <form method="dialog" class="manage-head">
-          <h2 id="plugin-preview-title">Review plugin</h2>
-          <button>Cancel</button>
-        </form>
-        <div class="manage-body">
-          <div id="plugin-preview-body"></div>
-          <button id="plugin-install-confirm" class="primary">Install / update plugin</button>
-          <p id="plugin-install-error" role="alert"></p>
-        </div>
-      </dialog>
-      <dialog
-        id="plugin-settings-dialog"
-        class="manage map-dialog"
-        aria-labelledby="plugin-settings-title"
-      >
-        <form method="dialog" class="manage-head">
-          <h2 id="plugin-settings-title">Plugin settings</h2>
-          <button>Cancel</button>
-        </form>
-        <form id="plugin-settings-form" class="manage-body">
-          <div id="plugin-settings-fields"></div>
-          <p id="plugin-settings-error" role="alert"></p>
-          <button class="primary">Save settings</button>
-        </form>
-      </dialog></template
-    >
-    <template id="plugin-panel-template"
-      ><div class="section-toolbar">
-        <h2>Plugins</h2>
-        <label class="plugin-import"
-          >Install / update JSON<input id="plugin-file" type="file" accept="application/json,.json"
-        /></label>
+      </form>
+    </dialog>
+
+    <dialog id="map-detail" class="sheet" aria-labelledby="map-detail-title">
+      <div class="sheet-head">
+        <h2 id="map-detail-title" class="grow">Map item</h2>
+        <button id="map-detail-close" class="round compact" type="button" aria-label="Close">
+          <i data-icon="x"></i>
+        </button>
       </div>
-      <p class="small muted">
-        Plugins add map types, fields and settings without changing the app. JSON definitions cannot
-        execute code or send messages. Settings apply to this browser. Removing a plugin preserves
-        map items.
-      </p>
-      <div id="plugin-list"></div
-    ></template>
+      <div id="map-detail-body" class="field-stack muted small"></div>
+      <div id="map-detail-actions" class="sheet-actions wrap"></div>
+    </dialog>
+
+    <dialog id="map-share" class="sheet" aria-labelledby="map-share-title">
+      <div class="sheet-head">
+        <h2 id="map-share-title" class="grow">Share</h2>
+        <button id="map-share-close" class="round compact" type="button" aria-label="Close">
+          <i data-icon="x"></i>
+        </button>
+      </div>
+      <div class="field">
+        <label for="map-share-operation">Action</label>
+        <select id="map-share-operation" data-segmented>
+          <option value="put">Share or update</option>
+          <option value="withdraw">Ask to remove</option>
+        </select>
+      </div>
+      <small id="map-share-budget" class="muted" role="status"></small>
+      <p id="map-share-error" class="notice" data-tone="bad" role="alert"></p>
+      <div id="map-share-list" class="row-list map-share-list"></div>
+      <small class="faint">Recipients can add it to their map from its message card.</small>
+    </dialog>
+
+    <dialog id="plugin-preview" class="sheet" aria-labelledby="plugin-preview-title">
+      <div class="sheet-head">
+        <h2 id="plugin-preview-title" class="grow">Review plugin</h2>
+        <button id="plugin-preview-close" class="round compact" type="button" aria-label="Close">
+          <i data-icon="x"></i>
+        </button>
+      </div>
+      <div id="plugin-preview-body" class="field-stack muted small"></div>
+      <button id="plugin-install-confirm" class="primary" type="button">
+        Install or update plugin
+      </button>
+      <p id="plugin-install-error" class="notice" data-tone="bad" role="alert"></p>
+    </dialog>
+
+    <dialog id="plugin-settings-dialog" class="sheet" aria-labelledby="plugin-settings-title">
+      <div class="sheet-head">
+        <h2 id="plugin-settings-title" class="grow">Plugin settings</h2>
+        <button id="plugin-settings-close" class="round compact" type="button" aria-label="Close">
+          <i data-icon="x"></i>
+        </button>
+      </div>
+      <form id="plugin-settings-form" class="field-stack">
+        <div id="plugin-settings-fields" class="field-stack"></div>
+        <p id="plugin-settings-error" class="notice" data-tone="bad" role="alert"></p>
+        <button class="primary" type="submit">Save settings</button>
+      </form>
+    </dialog>
+
     <script type="module" src="/main.ts"></script>
   </body>
 </html>

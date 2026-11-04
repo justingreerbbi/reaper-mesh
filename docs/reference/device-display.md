@@ -59,7 +59,7 @@ most of it, so larger savings need the sleep modes planned later in Phase 4.
 
 ## Screen settings
 
-The portal's **Settings → Screen** tab sets two values, which are stored in the device
+The portal's **Device → Screen** page sets two values, which are stored in the device
 configuration and work with no agent connected. There is no settings page on the device itself.
 
 | Setting | Values | Default |

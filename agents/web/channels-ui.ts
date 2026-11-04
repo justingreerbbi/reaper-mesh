@@ -1,5 +1,6 @@
-// Channel editor, invites and per-channel encryption keys in Settings. Channels are identified by
-// their on-air ID (D45); slots are only where the device stores them.
+// Channels: the list, one channel's privacy and sharing, QR creation and scanning. Channels are
+// identified by their on-air ID (D45); slots are only where the device stores them. Keys live in
+// this browser; the codes are the same RMCH1 and RMKEY1 text the mobile app reads and writes.
 import {
   DEFAULT_CHANNEL_IDS,
   DEFAULT_CHANNELS,
@@ -10,346 +11,601 @@ import {
   withChannel,
   type RadioConfig,
 } from '../../packages/protocol/radio-config.ts';
-import { formatInvite, parseInvite } from './channel-invite.ts';
+import { parseChannelCode, planJoin, shareCodeFor, type ChannelCode } from './channel-codes.ts';
 import {
-  clearError,
   current,
   encryption,
   encryptionError,
-  manage,
+  knownConfig,
   recovery,
   render,
-  showError,
+  writableConfig,
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { preparePublicClear, publicHistoryCount } from './messages-ui.ts';
+import { currentPage, isShowing, onPageChange, openPage, backPage } from './nav.ts';
+import { saveConfig, type SaveOutcome } from './settings-ui.ts';
+import { confirmSheet, downloadBlob, icon, setNotice } from './ui.ts';
+import { qrPath, qrPixels, readQr } from './qr.ts';
 
-let editingChannel = 0;
-// Saves in progress, so their "…" status is replaced once the device's table shows the result.
-let saving: { slot: number; name: string } | undefined;
-let removing: { id: number; name: string } | undefined;
-export const editingChannelSlot = () => editingChannel;
+const CHANNEL_NAME = /^[A-Za-z0-9_-]{1,8}$/;
+const SCAN_INTERVAL_MS = 250;
+const SCAN_WIDTH = 640;
 
-function radioConfig() {
-  return current().adapter.connection.sync.config?.radio;
-}
+const OUTCOME_ERRORS: Partial<Record<SaveOutcome, string>> = {
+  conflict: 'The device changed first. Try again.',
+  rejected: 'The device rejected this change.',
+  unknown: "No confirmation arrived, so this may not have applied. It won't be resent.",
+};
+
+let selected: number | undefined;
+let listSignature = '';
+let qrCode = '';
+let found: ChannelCode | undefined;
+let scanStream: MediaStream | undefined;
+let scanTimer: ReturnType<typeof setInterval> | undefined;
+/** A camera reports the same code many times a second, so only the first one counts. */
+let lastRead: string | undefined;
+let committing = false;
+
 function table() {
-  const radio = radioConfig();
+  const radio = knownConfig()?.radio;
   return channelList({
     channels: radio?.channels ?? DEFAULT_CHANNELS,
     channelIds: radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
   });
 }
-/** The channel ID stored in `slot`, or undefined while the slot is still empty. */
-function slotId(slot: number) {
-  return table().find(channel => channel.slot === slot)?.id;
+const selectedChannel = () => table().find(channel => channel.id === selected);
+function blockedReason() {
+  const { connection } = current().adapter;
+  if (connection.sync.state !== 'ready') return 'Connect a device to change its channels.';
+  return connection.radioBlockReason;
 }
-function freeSlot() {
-  const used = new Set(table().map(channel => channel.slot));
-  return Array.from({ length: 7 }, (_, i) => i + 1).find(slot => !used.has(slot));
-}
-function writable() {
-  const model = current(),
-    config = model.adapter.connection.sync.config;
-  if (!config?.radio || model.pending || model.adapter.connection.radioBlockReason)
-    throw Error(model.adapter.connection.radioBlockReason ?? 'Connect a device before saving.');
-  return { model, config, radio: config.radio };
-}
-function save(radio: RadioConfig, status: string) {
-  const { model, config } = writable();
-  if (!validRadio(radio, config.region)) throw Error('Those channel settings are not valid.');
-  model.adapter.configure({ ...config, radio });
-  text('channel-editor-status', status);
+const showError = (id: string, error: unknown) =>
+  setNotice(id, error instanceof Error ? error.message : String(error), 'bad');
+
+/** Channel changes go to the device straight away, since a code or key depends on them. */
+async function commit(next: (radio: RadioConfig) => RadioConfig) {
+  const model = current();
+  const { connection } = model.adapter;
+  const config = connection.sync.config;
+  if (!config?.radio || model.pending || connection.radioBlockReason)
+    throw new Error(connection.radioBlockReason ?? 'Connect a device before saving.');
+  const radio = next(config.radio);
+  if (!validRadio(radio, config.region)) throw new Error('Those channel settings are not valid.');
+  committing = true;
   render();
+  try {
+    const outcome = await saveConfig(model, { ...writableConfig(connection), radio });
+    if (outcome !== 'committed') throw new Error(OUTCOME_ERRORS[outcome] ?? OUTCOME_ERRORS.unknown);
+  } finally {
+    committing = false;
+    render();
+  }
 }
 
-export function editChannel(slot: number) {
-  if (editingChannel !== slot) {
-    element<HTMLTextAreaElement>('channel-key-transfer').value = '';
-    element<HTMLTextAreaElement>('channel-invite-output').value = '';
+function vault() {
+  if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
+  return encryption;
+}
+
+/** Clears anything secret on screen, for leaving the page or locking the app. */
+export function closeSecrets() {
+  stopCamera();
+  qrCode = '';
+  element('share-qr').replaceChildren();
+  text('share-status', '');
+  found = undefined;
+  lastRead = undefined;
+  const join = element<HTMLDialogElement>('join-sheet');
+  if (join.open) join.close();
+  element<HTMLInputElement>('scan-paste').value = '';
+  element<HTMLInputElement>('scan-image').value = '';
+  setNotice('scan-error', undefined);
+  element('scan-done').hidden = true;
+  element('scan-content').hidden = false;
+  if (currentPage() === 'channel-share' || currentPage() === 'channel-scan') {
+    if (isShowing(currentPage())) backPage();
   }
-  editingChannel = slot;
-  saving = removing = undefined;
-  const channel = table().find(item => item.slot === slot);
-  text('channel-editor-title', channel?.name ?? 'Create channel');
-  element<HTMLInputElement>('channel-name').value = channel?.name ?? '';
-  element<HTMLInputElement>('channel-name').disabled =
-    slot === 0 || current().adapter.connection.sync.state !== 'ready';
-  element('channel-name-save').hidden = slot === 0;
-  element('channel-name').hidden = slot === 0;
-  document.querySelector<HTMLLabelElement>('label[for="channel-name"]')!.hidden = slot === 0;
-  text(
-    'channel-name-help',
-    slot === 0
-      ? 'Public is the default channel and cannot be renamed.'
-      : 'Up to 8 letters, numbers, underscores or hyphens.',
-  );
-  text('channel-editor-status', channel && slot ? `Channel ID ${formatChannelId(channel.id)}` : '');
+}
+
+export function openChannel(id: number) {
+  selected = id;
+  setNotice('channel-error', undefined);
   text('channel-remove-status', '');
-  element('channel-invite').hidden = !channel || slot === 0;
-  renderEncryption();
-  const links = element('managed-channels');
-  if (!links.querySelector(`[data-slot="${slot}"]`)) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.slot = String(slot);
-    button.textContent = 'New channel';
-    button.addEventListener('click', () => editChannel(slot));
-    links.append(button);
-  }
-  for (const button of links.querySelectorAll<HTMLButtonElement>('button')) {
-    const active = button.dataset.slot === String(slot);
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-current', active ? 'page' : 'false');
-  }
+  element<HTMLInputElement>('channel-name').value = selectedChannel()?.name ?? '';
+  openPage('channel');
 }
 
-function settleStatus() {
-  if (current().pending) return;
-  if (saving) {
-    const channel = table().find(item => item.slot === saving!.slot);
-    text('channel-editor-status', channel ? `Channel ID ${formatChannelId(channel.id)}` : '');
-    if (channel?.name === saving.name) {
-      text('channel-editor-title', channel.name);
-      element('channel-invite').hidden = false;
-      saving = undefined;
-    }
+function renderList() {
+  const channels = table();
+  const free = channels.length < 8;
+  const blocked = blockedReason();
+  text('channels-status', `${channels.length} of 8 in use`);
+  setNotice('channels-blocked', blocked, 'warn');
+  const required = channels.map(channel => !!encryption?.isRequired(channel.id));
+  const signature = JSON.stringify([channels, required]);
+  if (signature !== listSignature) {
+    listSignature = signature;
+    element('managed-channels').replaceChildren(
+      ...channels.map((channel, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'channel-row';
+        const locked = required[index];
+        button.setAttribute(
+          'aria-label',
+          `${channel.name}, ${locked ? 'encrypted' : 'not encrypted'}`,
+        );
+        const textBox = document.createElement('span');
+        textBox.className = 'channel-text';
+        const name = document.createElement('strong');
+        name.textContent = channel.name;
+        const detail = document.createElement('small');
+        detail.textContent = locked
+          ? 'Encrypted'
+          : channel.slot === 0
+            ? 'Open to everyone'
+            : 'Not encrypted';
+        textBox.append(name, detail);
+        button.append(
+          icon(locked ? 'lock' : 'lock-open', { className: locked ? 'is-locked' : 'is-open' }),
+          textBox,
+          icon('chevron-right', { className: 'row-chevron' }),
+        );
+        button.addEventListener('click', () => openChannel(channel.id));
+        return button;
+      }),
+    );
   }
-  if (removing) {
-    const gone = !table().some(item => item.id === removing!.id);
-    text('channel-remove-status', gone ? `${removing.name} was removed.` : '');
-    if (gone) removing = undefined;
-  }
+  const name = element<HTMLInputElement>('channel-new-name').value;
+  const valid = CHANNEL_NAME.test(name) && !channels.some(channel => channel.name === name);
+  const add = element<HTMLButtonElement>('channel-new-add');
+  add.disabled = !valid || !free || !!blocked || committing || current().pending;
+  element<HTMLButtonElement>('channel-scan-open').disabled = !!blocked;
 }
 
-export function renderEncryption() {
-  settleStatus();
-  const id = slotId(editingChannel);
-  const configured = id !== undefined;
-  const tools = document.querySelector<HTMLElement>('.encryption-tools')!;
-  tools.hidden = !configured;
-  tools.style.display = configured ? '' : 'none';
-  const remove = element<HTMLButtonElement>('channel-remove');
-  remove.hidden = !configured;
-  if (!configured) return;
-  // Public is permanent: it can only be reset. Other channels can be removed from the device.
-  const isPublic = editingChannel === 0;
-  remove.textContent = isPublic ? 'Reset Public' : 'Remove channel';
-  const { adapter, pending } = current();
-  const hasKeys = !!encryption && (encryption.hasKey(id) || encryption.isRequired(id));
-  remove.disabled = isPublic
+function renderDetail() {
+  const channel = selectedChannel();
+  element('channel-gone').hidden = !!channel;
+  element('channel-content').hidden = !channel;
+  if (!channel) return;
+  text('channel-title', channel.name);
+  const required = !!encryption?.isRequired(channel.id);
+  const hasKey = !!encryption?.hasKey(channel.id);
+  const unlocked = !!encryption?.unlocked && recovery.writable;
+  element('channel-lock-on').hidden = !required;
+  element('channel-lock-off').hidden = required;
+  text(
+    'channel-status',
+    encryptionError ||
+      (required && hasKey
+        ? `Encrypted, key ${encryption!.epoch(channel.id)}`
+        : required
+          ? 'Encrypted, but this browser has no key'
+          : hasKey
+            ? 'Has a key, but allows unencrypted'
+            : 'Not encrypted'),
+  );
+  element('channel-keyed').hidden = !hasKey;
+  element('channel-unkeyed').hidden = hasKey;
+  const requiredToggle = element<HTMLInputElement>('channel-required');
+  requiredToggle.checked = required;
+  requiredToggle.disabled = !unlocked;
+  for (const id of ['channel-rotate', 'channel-forget', 'channel-create-key'])
+    element<HTMLButtonElement>(id).disabled = !unlocked;
+
+  // Public can't be invited to, since every device already has it. Only its key can be shared.
+  const code = channel.id !== 0 || hasKey;
+  element('channel-share-open').hidden = !code;
+  element('channel-share-none').hidden = code;
+  text('channel-share-label', hasKey ? 'Share channel and key' : 'Share channel');
+
+  const isPublic = channel.slot === 0;
+  const blocked = blockedReason();
+  element('channel-name-form').hidden = isPublic;
+  element<HTMLButtonElement>('channel-name-save').disabled =
+    !!blocked || committing || current().pending;
+  text('channel-id', isPublic ? '' : `Channel ID ${formatChannelId(channel.id)}`);
+  text('channel-remove-label', isPublic ? 'Reset Public' : 'Remove channel from device');
+  const hasKeys = hasKey || required;
+  element<HTMLButtonElement>('channel-remove').disabled = isPublic
     ? !recovery.writable ||
       (hasKeys && !encryption?.unlocked) ||
       (!hasKeys && publicHistoryCount() === 0)
-    : !radioConfig() || pending || !!adapter.connection.radioBlockReason;
-  const policy = element<HTMLSelectElement>('encryption-policy');
-  if (document.activeElement !== policy)
-    policy.value = encryption?.isRequired(id) ? 'required' : 'plaintext';
-  const unlocked = !!encryption?.unlocked;
-  element<HTMLButtonElement>('channel-key-generate').textContent = encryption?.hasKey(id)
-    ? 'Replace key'
-    : 'Create key';
-  text(
-    'encryption-status',
-    encryptionError || (encryption?.isRequired(id) ? 'Encrypted' : 'Unencrypted'),
-  );
-  element<HTMLButtonElement>('channel-key-generate').disabled = !unlocked || !recovery.writable;
-  element<HTMLButtonElement>('channel-key-export').disabled = !unlocked || !encryption?.hasKey(id);
-  element<HTMLButtonElement>('channel-key-import').disabled = !unlocked || !recovery.writable;
-  policy.options[1].disabled = !unlocked || !encryption?.hasKey(id);
-  policy.disabled = !encryption || !recovery.writable;
+    : !!blocked || committing || current().pending;
 }
 
-/** The channel being edited; throws when it has not been saved to the device yet. */
-function editingId() {
-  const id = slotId(editingChannel);
-  if (id === undefined) throw new Error('Save the channel before managing its keys.');
-  return id;
+function renderShare() {
+  const channel = selectedChannel();
+  // Depends on the key, so a rotated key can't leave an old code on screen.
+  const code = channel && encryption ? shareCodeFor(channel, encryption) : null;
+  element('share-none').hidden = !!code;
+  element('share-content').hidden = !code;
+  if (!channel || !code) return;
+  const hasKey = !!encryption?.hasKey(channel.id);
+  text('share-title', `Share ${channel.name}`);
+  text('share-heading', hasKey ? 'Scan to join, with the key' : 'Scan to join');
+  setNotice(
+    'share-warning',
+    hasKey
+      ? 'This code contains the channel key. Anyone who gets it, including from a photo or a shared image, can read this channel.'
+      : "This channel isn't encrypted, so anyone with this code can join and read it.",
+    hasKey ? 'warn' : 'good',
+  );
+  text('share-copy-label', hasKey ? 'Copy key as text' : 'Copy as text');
+  if (code === qrCode) return;
+  qrCode = code;
+  const { path, total } = qrPath(code);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${total} ${total}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `QR code for ${channel.name}`);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  const paper = document.createElementNS(svg.namespaceURI, 'rect');
+  paper.setAttribute('width', String(total));
+  paper.setAttribute('height', String(total));
+  paper.setAttribute('fill', '#FFFFFF');
+  const modules = document.createElementNS(svg.namespaceURI, 'path');
+  modules.setAttribute('d', path);
+  modules.setAttribute('fill', '#050505');
+  svg.append(paper, modules);
+  element('share-qr').replaceChildren(svg);
+}
+
+function renderScan() {
+  element<HTMLButtonElement>('scan-use').disabled =
+    !element<HTMLInputElement>('scan-paste').value.trim();
+}
+
+export function renderChannels() {
+  if (isShowing('channels')) renderList();
+  if (isShowing('channel')) renderDetail();
+  if (isShowing('channel-share')) renderShare();
+  if (isShowing('channel-scan')) renderScan();
+}
+
+async function qrBlob() {
+  const { data, width } = qrPixels(qrCode, 12);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = width;
+  canvas
+    .getContext('2d')!
+    .putImageData(new ImageData(new Uint8ClampedArray(data), width, width), 0, 0);
+  return new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Could not draw the code.')))),
+  );
+}
+const qrFileName = () => `reaper-channel-${selectedChannel()?.name ?? 'code'}.png`;
+
+function stopCamera() {
+  clearInterval(scanTimer);
+  scanTimer = undefined;
+  for (const track of scanStream?.getTracks() ?? []) track.stop();
+  scanStream = undefined;
+  const video = element<HTMLVideoElement>('scan-video');
+  video.srcObject = null;
+  video.hidden = true;
+  element('scan-idle').hidden = false;
+}
+
+function readCode(value: string | undefined) {
+  if (!value || value === lastRead || found) return;
+  lastRead = value;
+  try {
+    const code = parseChannelCode(value);
+    setNotice('scan-error', undefined);
+    askJoin(code);
+  } catch (error) {
+    showError('scan-error', error);
+  }
+}
+
+function askJoin(code: ChannelCode) {
+  found = code;
+  stopCamera();
+  text('join-title', code.keyOnly ? 'Add this channel key?' : `Join ${code.name}?`);
+  setNotice(
+    'join-notice',
+    code.key
+      ? 'Encrypted. The key will be saved in this browser.'
+      : 'Not encrypted. Anyone in range with a Reaper device can read this channel.',
+    code.key ? 'good' : 'warn',
+  );
+  text(
+    'join-detail',
+    code.keyOnly ? '' : 'Your device stops any messages waiting to send when its channels change.',
+  );
+  text('join-confirm', code.keyOnly ? 'Add key' : 'Join');
+  element<HTMLButtonElement>('join-confirm').disabled = false;
+  element<HTMLDialogElement>('join-sheet').showModal();
+}
+
+async function confirmJoin() {
+  const code = found!;
+  const button = element<HTMLButtonElement>('join-confirm');
+  button.disabled = true;
+  try {
+    const plan = planJoin(code, table());
+    // Keys live in this browser only, so importing first cannot leave the device half-joined.
+    if (code.key) vault().importBundle(code.key, code.id);
+    if (!plan.existing) await commit(radio => withChannel(radio, plan.slot, code.name!, code.id));
+    const name = plan.existing?.name ?? code.name;
+    element<HTMLDialogElement>('join-sheet').close();
+    found = undefined;
+    text(
+      'scan-done-text',
+      plan.existing && code.key
+        ? `Key added to ${name}.`
+        : plan.existing
+          ? `Already joined ${name}.`
+          : `Joined ${name}${code.key ? ', encrypted' : ''}.`,
+    );
+    element('scan-content').hidden = true;
+    element('scan-done').hidden = false;
+    element<HTMLInputElement>('scan-paste').value = '';
+  } catch (error) {
+    element<HTMLDialogElement>('join-sheet').close();
+    found = undefined;
+    lastRead = undefined;
+    showError('scan-error', error);
+  }
+  render();
+}
+
+function scanFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+  if (video.readyState < 2 || !video.videoWidth) return;
+  const scale = Math.min(1, SCAN_WIDTH / video.videoWidth);
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  const context = canvas.getContext('2d', { willReadFrequently: true })!;
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+  readCode(readQr(data, canvas.width, canvas.height));
+}
+
+async function startCamera() {
+  setNotice('scan-error', undefined);
+  try {
+    if (!navigator.mediaDevices?.getUserMedia)
+      throw new Error('This browser has no camera access. Choose an image or paste a code.');
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    });
+    if (currentPage() !== 'channel-scan') return stopCamera();
+    const video = element<HTMLVideoElement>('scan-video');
+    video.srcObject = scanStream;
+    video.hidden = false;
+    element('scan-idle').hidden = true;
+    await video.play();
+    const canvas = document.createElement('canvas');
+    scanTimer = setInterval(() => scanFrame(video, canvas), SCAN_INTERVAL_MS);
+  } catch (error) {
+    stopCamera();
+    showError(
+      'scan-error',
+      error instanceof DOMException && error.name === 'NotAllowedError'
+        ? 'Camera access is off. Allow it in your browser, or choose an image or paste a code.'
+        : error,
+    );
+  }
+}
+
+async function readImage(file: File) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext('2d')!;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    const value = readQr(data, canvas.width, canvas.height);
+    if (!value) throw new Error('No QR code found in that image.');
+    lastRead = undefined;
+    readCode(value);
+  } catch (error) {
+    showError('scan-error', error);
+  }
 }
 
 export function initChannels() {
-  element('create-channel').addEventListener('click', () => {
-    const slot = freeSlot();
-    if (slot !== undefined) {
-      editChannel(slot);
-      element<HTMLInputElement>('channel-name').focus();
+  onPageChange((left, entered) => {
+    const secret = left === 'channel-share' || left === 'channel-scan';
+    if (!secret) return;
+    stopCamera();
+    qrCode = '';
+    element('share-qr').replaceChildren();
+    text('share-status', '');
+    element<HTMLInputElement>('scan-paste').value = '';
+    if (entered !== left) {
+      element('scan-done').hidden = true;
+      element('scan-content').hidden = false;
+      lastRead = undefined;
+      setNotice('scan-error', undefined);
     }
   });
-  element('channel-name-form').addEventListener('submit', event => {
+
+  element('channel-new-name').addEventListener('input', () => render());
+  element('channel-new-form').addEventListener('submit', async event => {
     event.preventDefault();
+    const input = element<HTMLInputElement>('channel-new-name');
+    if (element<HTMLButtonElement>('channel-new-add').disabled) return;
+    setNotice('channels-error', undefined);
     try {
-      if (editingChannel === 0) return;
-      const { radio } = writable();
-      const name = element<HTMLInputElement>('channel-name').value.trim();
-      // A renamed channel keeps its ID; a new one gets a fresh random ID.
-      const id = slotId(editingChannel) ?? newChannelId(table().map(channel => channel.id));
-      if (table().some(channel => channel.name === name && channel.slot !== editingChannel))
-        throw Error('Another channel already uses that name.');
-      save(withChannel(radio, editingChannel, name, id), 'Saving to device…');
-      saving = { slot: editingChannel, name };
-    } catch (e) {
-      text('channel-editor-status', e instanceof Error ? e.message : 'Could not save channel.');
+      const name = input.value;
+      const channels = table();
+      const id = newChannelId(channels.map(channel => channel.id));
+      const plan = planJoin({ id, name, keyOnly: false }, channels);
+      await commit(radio => withChannel(radio, plan.slot, name, id));
+      input.value = '';
+      if (element<HTMLInputElement>('channel-new-encrypt').checked) vault().generate(id);
+    } catch (error) {
+      showError('channels-error', error);
     }
+    render();
   });
-  element('join-channel').addEventListener('click', () => {
-    const form = element('channel-join-form');
-    form.hidden = !form.hidden;
-    if (!form.hidden) element<HTMLTextAreaElement>('channel-invite-input').focus();
+  element('channel-scan-open').addEventListener('click', () => openPage('channel-scan'));
+
+  element('channel-required').addEventListener('change', () => {
+    setNotice('channel-error', undefined);
+    try {
+      vault().setRequired(selected!, element<HTMLInputElement>('channel-required').checked);
+    } catch (error) {
+      showError('channel-error', error);
+    }
+    render();
   });
-  element('channel-join-cancel').addEventListener('click', () => {
-    element('channel-join-form').hidden = true;
-    element<HTMLTextAreaElement>('channel-invite-input').value = '';
+  element('channel-create-key').addEventListener('click', () => {
+    setNotice('channel-error', undefined);
+    try {
+      vault().generate(selected!);
+    } catch (error) {
+      showError('channel-error', error);
+    }
+    render();
   });
-  element('channel-join-form').addEventListener('submit', event => {
+  element('channel-rotate').addEventListener('click', async () => {
+    const yes = await confirmSheet({
+      title: 'Rotate the key?',
+      body: "New messages use a new key, so everyone needs the channel's new QR code to read them. Old messages stay readable here.",
+      confirm: 'Rotate',
+    });
+    if (!yes) return;
+    try {
+      vault().generate(selected!);
+    } catch (error) {
+      showError('channel-error', error);
+    }
+    render();
+  });
+  element('channel-forget').addEventListener('click', async () => {
+    const yes = await confirmSheet({
+      title: 'Remove the key from this browser?',
+      body: "You won't be able to read this channel's encrypted messages here, and anything you send will be unencrypted. Other people keep their copy.",
+      confirm: 'Remove',
+      danger: true,
+    });
+    if (!yes) return;
+    try {
+      vault().reset(selected!);
+    } catch (error) {
+      showError('channel-error', error);
+    }
+    render();
+  });
+  element('channel-share-open').addEventListener('click', () => {
+    qrCode = '';
+    text('share-status', '');
+    const share = element('share-native');
+    share.hidden = !navigator.canShare?.({
+      files: [new File([new Uint8Array(1)], 'code.png', { type: 'image/png' })],
+    });
+    openPage('channel-share');
+  });
+  element('channel-name-form').addEventListener('submit', async event => {
     event.preventDefault();
+    setNotice('channel-error', undefined);
+    const channel = selectedChannel();
+    const name = element<HTMLInputElement>('channel-name').value.trim();
     try {
-      const invite = parseInvite(element<HTMLTextAreaElement>('channel-invite-input').value);
-      const { radio } = writable();
-      const existing = table().find(channel => channel.id === invite.id);
-      if (!existing && table().some(channel => channel.name === invite.name))
-        throw Error(`A different channel is already named ${invite.name}. Rename it first.`);
-      if (invite.key) {
-        if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
-        // Keys live in this browser only, so importing first cannot leave the device half-joined.
-        encryption.importBundle(invite.key, invite.id);
-      }
-      const slot = existing?.slot ?? freeSlot();
-      if (slot === undefined) throw Error('All 8 channel slots are in use.');
-      element<HTMLTextAreaElement>('channel-invite-input').value = '';
-      element('channel-join-form').hidden = true;
-      editChannel(slot);
-      if (existing) text('channel-editor-status', `Already joined ${existing.name}.`);
-      else {
-        save(withChannel(radio, slot, invite.name, invite.id), `Joining ${invite.name}…`);
-        saving = { slot, name: invite.name };
-      }
-      clearError();
-    } catch (e) {
-      text('channel-join-status', e instanceof Error ? e.message : 'Could not join the channel.');
+      if (!channel || channel.slot === 0 || name === channel.name) return;
+      if (table().some(row => row.name === name && row.id !== channel.id))
+        throw new Error('Another channel already uses that name.');
+      await commit(radio => withChannel(radio, channel.slot, name, channel.id));
+    } catch (error) {
+      showError('channel-error', error);
     }
+    render();
   });
-  element('channel-invite-create').addEventListener('click', () => {
+  element('channel-remove').addEventListener('click', async () => {
+    setNotice('channel-error', undefined);
+    const channel = selectedChannel();
+    if (!channel) return;
     try {
-      const channel = table().find(item => item.slot === editingChannel);
-      if (!channel || channel.slot === 0) throw new Error('Save the channel first.');
-      const key = encryption?.hasKey(channel.id) ? encryption.exportBundle(channel.id) : undefined;
-      element<HTMLTextAreaElement>('channel-invite-output').value = formatInvite({
-        id: channel.id,
-        name: channel.name,
-        ...(key ? { key } : {}),
-      });
-      text(
-        'channel-invite-status',
-        key
-          ? 'This invite contains the channel key. Share it only privately.'
-          : 'This channel is not encrypted; anyone with the invite can join.',
-      );
-    } catch (e) {
-      showError(e);
-    }
-  });
-  element('channel-remove').addEventListener('click', () => {
-    try {
-      const channel = table().find(item => item.slot === editingChannel);
-      if (!channel) return;
       if (channel.slot === 0) {
-        if (
-          !confirm(
-            'Reset Public? Its messages are deleted from this browser and its encryption key is removed, so Public goes back to unencrypted. Direct messages stay, but any encrypted with this key can no longer be read.',
-          )
-        )
-          return;
+        const yes = await confirmSheet({
+          title: 'Reset Public?',
+          body: 'Its messages are deleted from this browser and its encryption key is removed, so Public goes back to unencrypted. Direct messages stay, but any encrypted with this key can no longer be read.',
+          confirm: 'Reset',
+          danger: true,
+        });
+        if (!yes) return;
         const clearChat = preparePublicClear();
         if (encryption?.hasKey(channel.id) || encryption?.isRequired(channel.id))
           encryption.reset(channel.id);
         clearChat();
-        element<HTMLSelectElement>('encryption-policy').value = 'plaintext';
         text('channel-remove-status', 'Public was reset.');
         render();
         return;
       }
-      if (
-        !confirm(
-          `Remove ${channel.name} from this device? Messages still waiting to send are cancelled. Its chat history and key stay in this browser. To rejoin you need an invite, so create one first if no one else can send you one.`,
-        )
-      )
-        return;
-      const { radio } = writable();
-      save(withChannel(radio, channel.slot, '', 0), '');
-      editChannel(0);
-      text('channel-remove-status', `Removing ${channel.name}…`);
-      removing = { id: channel.id, name: channel.name };
-    } catch (e) {
-      text(
-        'channel-remove-status',
-        e instanceof Error ? e.message : 'Could not change the channel.',
-      );
+      const yes = await confirmSheet({
+        title: `Remove ${channel.name}?`,
+        body: 'This device stops sending and receiving on it, and messages waiting to send are cancelled. Its chat history and key stay in this browser, so you can rejoin later with its QR code.',
+        confirm: 'Remove',
+        danger: true,
+      });
+      if (!yes) return;
+      await commit(radio => withChannel(radio, channel.slot, '', 0));
+      openPage('channels');
+    } catch (error) {
+      showError('channel-error', error);
     }
+    render();
   });
-  manage.addEventListener('close', () => {
-    element<HTMLTextAreaElement>('channel-key-transfer').value = '';
-    element<HTMLTextAreaElement>('channel-invite-output').value = '';
-    element<HTMLTextAreaElement>('channel-invite-input').value = '';
-  });
-  element('encryption-policy').addEventListener('change', () => {
+
+  element('share-download').addEventListener('click', async () => {
     try {
-      if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
-      encryption.setRequired(
-        editingId(),
-        element<HTMLSelectElement>('encryption-policy').value === 'required',
-      );
-      render();
-    } catch (e) {
-      showError(e);
+      downloadBlob(qrFileName(), await qrBlob());
+    } catch (error) {
+      text('share-status', error instanceof Error ? error.message : String(error));
     }
   });
-  element('channel-key-generate').addEventListener('click', () => {
+  element('share-native').addEventListener('click', async () => {
     try {
-      if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
-      const channel = editingId();
-      if (
-        encryption.hasKey(channel) &&
-        !confirm(
-          'Rotate this channel key? Existing agents need the exported new key epoch before they can decrypt new messages.',
-        )
-      )
-        return;
-      const created = encryption.generate(channel);
-      element<HTMLSelectElement>('encryption-policy').value = 'required';
-      text(
-        'encryption-status',
-        `Key epoch ${created.epoch} generated. Share a new invite or key bundle with other agents.`,
-      );
-      render();
-    } catch (e) {
-      showError(e);
+      const file = new File([await qrBlob()], qrFileName(), { type: 'image/png' });
+      await navigator.share({ files: [file] });
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError'))
+        text('share-status', error instanceof Error ? error.message : String(error));
     }
   });
-  element('channel-key-export').addEventListener('click', () => {
+  element('share-copy').addEventListener('click', async () => {
     try {
-      if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
-      element<HTMLTextAreaElement>('channel-key-transfer').value =
-        encryption.exportBundle(editingId());
-      text(
-        'encryption-status',
-        'Key bundle shown. It contains the secret; share only through a private transfer.',
-      );
-    } catch (e) {
-      showError(e);
+      await navigator.clipboard.writeText(qrCode);
+      text('share-status', 'Copied.');
+    } catch {
+      text('share-status', 'This browser blocked copying.');
     }
   });
-  element('channel-key-import').addEventListener('click', () => {
-    try {
-      if (!encryption) throw new Error(encryptionError || 'Encryption state unavailable.');
-      encryption.importBundle(
-        element<HTMLTextAreaElement>('channel-key-transfer').value.trim(),
-        editingId(),
-      );
-      element<HTMLSelectElement>('encryption-policy').value = 'required';
-      clearError();
-      render();
-    } catch (e) {
-      showError(e);
-    }
+
+  element('scan-start').addEventListener('click', () => void startCamera());
+  element('scan-image').addEventListener('change', () => {
+    const input = element<HTMLInputElement>('scan-image');
+    const file = input.files?.[0];
+    if (file) void readImage(file);
+    input.value = '';
+  });
+  element('scan-paste').addEventListener('input', () => render());
+  element('scan-paste-form').addEventListener('submit', event => {
+    event.preventDefault();
+    lastRead = undefined;
+    readCode(element<HTMLInputElement>('scan-paste').value);
+  });
+  element('scan-done-close').addEventListener('click', () => openPage('channels'));
+  element('join-confirm').addEventListener('click', () => void confirmJoin());
+  const cancelJoin = () => {
+    found = undefined;
+    lastRead = undefined;
+    const sheet = element<HTMLDialogElement>('join-sheet');
+    if (sheet.open) sheet.close();
+  };
+  element('join-cancel').addEventListener('click', cancelJoin);
+  element('join-sheet').addEventListener('cancel', event => {
+    event.preventDefault();
+    cancelJoin();
   });
 }

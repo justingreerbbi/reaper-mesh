@@ -1,9 +1,16 @@
 // Web agent entry point: wires the UI modules together and runs the render loop.
 import 'leaflet/dist/leaflet.css';
 import './style.css';
-import { initOverview, renderOverview } from './overview-ui.ts';
 import { WIPE_SIGNAL } from './local-data.ts';
-import { current, encryption, models, recovery, render, setRenderer } from './app-state.ts';
+import {
+  applyTheme,
+  current,
+  encryption,
+  models,
+  recovery,
+  render,
+  setRenderer,
+} from './app-state.ts';
 import {
   disconnectLocalApp,
   initAccess,
@@ -15,7 +22,7 @@ import {
   stopLocalApp,
 } from './access-ui.ts';
 import { initMessages, renderInbox, renderMessages } from './messages-ui.ts';
-import { initChannels, renderEncryption } from './channels-ui.ts';
+import { initChannels, renderChannels } from './channels-ui.ts';
 import {
   initSettings,
   settleCommands,
@@ -26,16 +33,24 @@ import {
   renderRadio,
 } from './settings-ui.ts';
 import { fieldMap, initMap, mapWorkspace, renderMap } from './map-ui.ts';
-import { initConnection, renderConnection } from './connection-ui.ts';
+import { connectOnLoad, initConnection, renderConnection } from './connection-ui.ts';
+import { initNodes, renderNodes } from './nodes-ui.ts';
+import { initDevice, renderDevice } from './device-ui.ts';
+import { initNavigation } from './nav.ts';
+import { hydrateIcons, syncSegmented } from './ui.ts';
 
+applyTheme();
+hydrateIcons();
 setRenderer(renderApp);
+initNavigation();
 initAccess();
 initMessages();
 initChannels();
 initSettings();
 initMap();
 initConnection();
-initOverview();
+initNodes();
+initDevice();
 
 function renderApp() {
   if (isAppStopped()) return;
@@ -54,12 +69,14 @@ function renderApp() {
   renderBluetooth();
   renderDiscovery();
   renderRadio();
-  renderEncryption();
   renderMessages();
   renderInbox();
-  renderOverview();
+  renderNodes();
+  renderChannels();
+  renderDevice();
   mapWorkspace.update();
   renderMap();
+  syncSegmented();
   settleCommands(model, ready);
 }
 
@@ -80,3 +97,4 @@ document.addEventListener('visibilitychange', render);
 window.addEventListener('focus', render);
 render();
 fieldMap.invalidate();
+void connectOnLoad().catch(() => {});
