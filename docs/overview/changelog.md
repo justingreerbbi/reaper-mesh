@@ -10,6 +10,26 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 3: remove a channel and reset Public
+
+At the owner's request, Settings → Channels can remove a channel from the device. Public is
+permanent: it cannot be removed but can be reset, which deletes its chat, keys and encryption
+requirement from this browser. Direct messages stay. A removed channel leaves the list and unread counts, an open conversation moves to Public,
+and its history and key stay in the browser until it is rejoined by invite. The simulator now stores
+radio and channel settings so these controls can be exercised without a board. No firmware,
+protocol or storage changes.
+
+Verification: `npm run check` (284 tests) and `npm run format:check` pass. In the in-app browser
+against the simulator, clicking through created a channel, created an invite, removed the channel
+with its conversation open, rejoined with the same ID, and encrypted then reset Public. With
+synthetic messages on a separate empty origin (cleared afterwards), the reset emptied the Public
+chat and kept direct messages, and that held after a reload. Between the
+boards on `v0.3.0`, `tools/hardware-channel-smoke.ts` passed with a new removal step: after removal
+the T-Beam's send on that channel was rejected, a Heltec broadcast on it did not reach the T-Beam's
+inbox within 8 seconds, and a direct message on Public was acknowledged. Settings afterwards were
+identical to before the run; only revisions advanced (Heltec 52, T-Beam 46). Not checked: these
+buttons in a native browser over USB.
+
 ## November 3: channel IDs and invites (firmware `v0.3.0`)
 
 At the owner's direction (D45, options 1 and 2, breaking change approved before core v1 under

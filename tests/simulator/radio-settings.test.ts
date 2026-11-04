@@ -175,3 +175,14 @@ test('firmware without channel IDs reads slot numbers as IDs and blocks channel 
   assert.throws(() => connection.configure({ region: 'US', label: 'node', radio }, 0));
   assert.deepEqual(drain(), []);
 });
+test('removing a channel empties its slot and keeps Public and the others', () => {
+  const joined = withChannel(radio, 5, 'Ridge', 0x1234abcd);
+  const removed = withChannel(joined, 1, '', 0);
+  assert.equal(removed.channels, 'Public|||||Ridge||');
+  assert.ok(validChannels(removed.channels, removed.channelIds));
+  assert.deepEqual(
+    channelList(removed).map(c => c.id),
+    [0, 0x1234abcd],
+  );
+  assert.throws(() => withChannel(joined, 0, '', 0));
+});

@@ -2,12 +2,26 @@ import { ConfigDevice } from './config-device.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import type { SerialPortLike } from '../agent-core/serial.ts';
+import {
+  DEFAULT_CHANNEL_IDS,
+  DEFAULT_CHANNELS,
+  validChannels,
+  type RadioConfig,
+} from '../protocol/radio-config.ts';
 
-/** In-memory browser/host demo. No radio or flash persistence is simulated. */
+/** In-memory browser/host demo. Radio settings are stored only; no radio or flash is simulated. */
 export class SimulatedDevice {
   readonly config = new ConfigDevice();
   nextFault: 'none' | 'lose-result' | 'disconnect' = 'none';
   readOnly = false;
+  radio: RadioConfig = {
+    mode: 'off',
+    power: 0,
+    relay: false,
+    channels: DEFAULT_CHANNELS,
+    channelIds: DEFAULT_CHANNEL_IDS,
+    preset: 'US915_LAB1',
+  };
   #lostId: string | undefined;
   #disconnect: (() => void) | undefined;
 
@@ -60,7 +74,10 @@ export class SimulatedDevice {
                 minVersion: 1,
                 maxVersion: 1,
                 configSchema: 1,
-                features: this.readOnly ? 2 : 7,
+                features: this.readOnly ? 2 : 7 | 16 | 1024,
+                radioSchema: 1,
+                maxChannels: 8,
+                channelIdVersion: 1,
                 maxPayload: 2048,
                 receiptCapacity: this.config.capacity,
                 ownerCapacity: this.config.ownerCapacity,
@@ -86,6 +103,12 @@ export class SimulatedDevice {
                 revision: this.config.revision,
                 region: this.config.config.region,
                 label: this.config.config.label,
+                radioMode: this.radio.mode,
+                txPower: this.radio.power,
+                relay: this.radio.relay ? 1 : 0,
+                channels: this.radio.channels,
+                channelIds: this.radio.channelIds,
+                preset: this.radio.preset,
               } as Message);
             if (message.type === 'query') {
               const result = this.config.query(message.id);
@@ -108,6 +131,22 @@ export class SimulatedDevice {
                 });
                 return;
               }
+              const radio = message.channels !== undefined;
+              if (
+                radio &&
+                (message.channelIds === undefined ||
+                  !validChannels(message.channels!, message.channelIds))
+              ) {
+                reply({
+                  type: 'result',
+                  link,
+                  boot,
+                  id: message.id,
+                  outcome: 'rejected',
+                  revision: this.config.revision,
+                });
+                return;
+              }
               const fault = this.nextFault;
               this.nextFault = 'none';
               if (fault === 'lose-result') this.#lostId = message.id;
@@ -117,6 +156,15 @@ export class SimulatedDevice {
                 expectedRevision: message.expectedRevision,
                 config: { region: message.region, label: message.label },
               });
+              if (radio && result.outcome === 'committed')
+                this.radio = {
+                  ...this.radio,
+                  mode: message.radioMode!,
+                  power: message.txPower!,
+                  relay: message.relay === 1,
+                  channels: message.channels!,
+                  channelIds: message.channelIds!,
+                };
               if (fault === 'disconnect') {
                 disconnect();
                 return;

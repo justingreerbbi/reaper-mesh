@@ -324,7 +324,8 @@ using the same slot shared a channel.
   encrypted payloads move to the RME2 envelope with a 4-byte channel ID, and RME1 is no longer
   accepted. The 32-bit width is fixed by the header; widening it later would need a new radio
   version. IDs are visible on air, like slot numbers were, so they are not secret. Removing a
-  channel is still separate portal work ([roadmap](../overview/roadmap.md#planned-after-qualification)).
+  channel empties its slot and keeps its history and key in the browser, so an invite restores it.
+  Public cannot be removed, only reset.
 
 Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [protocol](../reference/protocol.md#channel-ids-v1-d45),

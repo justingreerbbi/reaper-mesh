@@ -185,6 +185,58 @@ function messageTime(at: number) {
     : `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
 }
 
+/** Local identities of a thread's retained messages on the current device. */
+function threadIdentities(destination: string, channel: number) {
+  const connection = current().adapter.connection;
+  const messages = threadMessages(
+    lastDevice,
+    destination,
+    channel,
+    connection.messaging.history,
+    connection.inbox.history,
+  );
+  const keys = messages.map(m =>
+    m.received
+      ? receivedKey(mode.value, m.received)
+      : sentKey(mode.value, lastDevice!, m.entry!.id),
+  );
+  return { messages, keys, outgoing: messages.flatMap(m => (m.entry ? [m.entry.id] : [])) };
+}
+function forgetMessages(
+  connection: SerialAdapter['connection'],
+  source: string,
+  keys: string[],
+  outgoing: string[],
+  conversation?: { scope: string; key: string },
+) {
+  messageState!.remove(keys, conversation);
+  for (const message of connection.inbox.history)
+    if (keys.includes(receivedKey(source, message)))
+      connection.forgetReceived(message.device, message.origin, message.messageId);
+  for (const id of outgoing)
+    if (connection.messaging.history.some(m => m.id === id)) connection.forgetMessage(id);
+}
+export function publicHistoryCount() {
+  return threadIdentities('broadcast', 0).keys.filter(key => !messageState?.deleted(key)).length;
+}
+/**
+ * Checks that the Public chat can be cleared and returns the step that clears it, so a caller
+ * can do its other work only once clearing cannot be refused.
+ */
+export function preparePublicClear() {
+  const { messages, keys, outgoing } = threadIdentities('broadcast', 0);
+  if (keys.length && (!messageState || !recovery.writable))
+    throw Error('This tab cannot change message history.');
+  if (messages.some(m => m.entry?.state === 'receiving'))
+    throw Error('Wait for the current upload before resetting Public.');
+  const connection = current().adapter.connection,
+    source = mode.value;
+  return () => {
+    if (keys.length) forgetMessages(connection, source, keys, outgoing);
+    messageSignature = '';
+  };
+}
+
 export function hexBytes(value: string) {
   if (!/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('Saved encrypted message is malformed.');
   return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
@@ -358,9 +410,23 @@ export function renderMessages() {
         text: m.text.startsWith(MAP_PREFIX) ? 'Shared map item' : m.text,
       };
     });
-  const unread = messageState?.unread(mode.value, connection.inbox.history) ?? [];
+  const names = deviceChannels({
+    channels: connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
+    channelIds: connection.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
+  });
+  // A channel removed from the device leaves the list and the counts. Its history stays saved
+  // and returns on rejoining. While disconnected the table is unknown, so everything shows.
+  const onDevice = (id: number) =>
+    !connection.sync.config?.radio || names.some(item => item.id === id);
+  const unread = (messageState?.unread(mode.value, connection.inbox.history) ?? []).filter(m =>
+    onDevice(m.channel),
+  );
   const totalUnread = sources.reduce(
-    (n, source) => n + (messageState?.unread(source.source, source.messages).length ?? 0),
+    (n, source) =>
+      n +
+      (source.source === mode.value
+        ? unread.length
+        : (messageState?.unread(source.source, source.messages).length ?? 0)),
     0,
   );
   document.title = `${totalUnread ? `(${totalUnread}) ` : ''}Reaper Mesh`;
@@ -382,10 +448,6 @@ export function renderMessages() {
     encryptedRequired = encryption?.isRequired(selectedChannel) ?? false;
   const maxBytes = encryptedRequired ? 1024 - ENCRYPTED_HEADER_BYTES - ENCRYPTED_TAG_BYTES : 1024;
   text('message-bytes', `${bytes} / ${maxBytes} bytes`);
-  const names = deviceChannels({
-    channels: connection.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
-    channelIds: connection.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
-  });
   if (channel.dataset.names !== JSON.stringify(names)) {
     const selected = channel.value;
     channel.replaceChildren();
@@ -395,6 +457,10 @@ export function renderMessages() {
       channel.add(new Option(`Channel ${Number(selected).toString(16)}`, selected));
     channel.value = selected;
     channel.dataset.names = JSON.stringify(names);
+  }
+  if (!onDevice(selectedChannel)) {
+    chooseConversation('broadcast', 0);
+    return;
   }
   const key = conversationKey(destination.value, selectedChannel);
   const sendBlockReason = connection.messaging.sendBlockReason;
@@ -433,13 +499,9 @@ export function renderMessages() {
   const visibleThread = (row: { key: string; destination: string; channel: number }) =>
     !messageState?.hidden(uiScope, row.key) ||
     !!threadMessages(lastDevice, row.destination, row.channel, history, incoming).length;
-  const rows = conversations(
-    lastDevice,
-    names,
-    connection.discovery.nodes,
-    history,
-    incoming,
-  ).filter(visibleThread);
+  const rows = conversations(lastDevice, names, connection.discovery.nodes, history, incoming)
+    .filter(visibleThread)
+    .filter(row => onDevice(row.channel));
   if (
     !rows.some(row => row.key === key) &&
     destination.value.trim() &&
@@ -458,6 +520,7 @@ export function renderMessages() {
     if (
       savedKey.startsWith(scope + ':') &&
       draft &&
+      onDevice(target.channel) &&
       !rows.some(row => row.key === conversationKey(target.destination, target.channel))
     )
       rows.push({
@@ -705,13 +768,7 @@ export function initMessages() {
         )
       )
         throw Error('Wait for the current upload before deleting.');
-      messageState!.remove(plan.keys, plan.conversation);
-      for (const message of plan.connection.inbox.history)
-        if (plan.keys.includes(receivedKey(plan.source, message)))
-          plan.connection.forgetReceived(message.device, message.origin, message.messageId);
-      for (const id of plan.outgoing)
-        if (plan.connection.messaging.history.some(m => m.id === id))
-          plan.connection.forgetMessage(id);
+      forgetMessages(plan.connection, plan.source, plan.keys, plan.outgoing, plan.conversation);
       if (plan.conversation) {
         if (plan.clearDraft) {
           drafts.save(plan.clearDraft, '');
@@ -762,24 +819,13 @@ export function initMessages() {
   element('clear-conversation').addEventListener('click', () => {
     showMenu(false);
     if (!lastDevice) return;
-    const connection = current().adapter.connection,
-      destination = element<HTMLInputElement>('message-destination').value,
-      channel = Number(element<HTMLSelectElement>('message-channel').value);
-    const messages = threadMessages(
-      lastDevice,
-      destination,
-      channel,
-      connection.messaging.history,
-      connection.inbox.history,
-    );
-    const keys = messages.map(m =>
-      m.received
-        ? receivedKey(mode.value, m.received)
-        : sentKey(mode.value, lastDevice!, m.entry!.id),
+    const { messages, keys, outgoing } = threadIdentities(
+      element<HTMLInputElement>('message-destination').value,
+      Number(element<HTMLSelectElement>('message-channel').value),
     );
     requestDelete(
       keys,
-      messages.flatMap(m => (m.entry ? [m.entry.id] : [])),
+      outgoing,
       `Clear the ${messages.length} messages in this chat from this browser? The chat stays in your list.`,
     );
   });
