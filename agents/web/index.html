@@ -539,9 +539,28 @@
         <section class="manage-panel" data-manage-panel="channels" hidden>
           <div class="section-toolbar">
             <h2>Channels</h2>
-            <button id="create-channel" type="button" class="primary">Create channel</button>
+            <div class="actions">
+              <button id="join-channel" type="button">Join channel</button>
+              <button id="create-channel" type="button" class="primary">Create channel</button>
+            </div>
           </div>
           <p id="channels-status" role="status" class="small muted"></p>
+          <form id="channel-join-form" class="channel-join" hidden>
+            <label for="channel-invite-input">Channel invite</label>
+            <textarea
+              id="channel-invite-input"
+              rows="3"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="Paste an RMCH1 invite"
+              required
+            ></textarea>
+            <p id="channel-join-status" role="status" class="small muted"></p>
+            <div class="actions">
+              <button type="submit" class="primary">Join</button>
+              <button id="channel-join-cancel" type="button">Cancel</button>
+            </div>
+          </form>
           <nav id="managed-channels" class="managed-channels" aria-label="Channel settings"></nav>
           <section
             id="channel-editor"
@@ -565,15 +584,21 @@
               <button id="channel-name-save" type="submit" class="primary">Save channel</button>
               <p id="channel-editor-status" role="status" class="small muted"></p>
             </form>
+            <section id="channel-invite" class="channel-invite" hidden>
+              <h3>Invite</h3>
+              <p class="small muted">
+                Another device joins this channel with the invite, in any free slot.
+              </p>
+              <button id="channel-invite-create" type="button">Create invite</button>
+              <label class="sr-only" for="channel-invite-output">Channel invite</label>
+              <textarea id="channel-invite-output" rows="3" spellcheck="false" readonly></textarea>
+              <p id="channel-invite-status" role="status" class="small muted"></p>
+            </section>
             <section class="encryption-tools" aria-labelledby="encryption-heading">
               <div class="section-title"><h3 id="encryption-heading">Message privacy</h3></div>
               <p id="encryption-status" role="status" class="small muted">
                 Messages are plaintext unless a channel key is enabled.
               </p>
-              <label for="encryption-channel">Channel</label>
-              <select id="encryption-channel">
-                <option value="0">Public</option>
-              </select>
               <label for="encryption-policy">Messages</label>
               <select id="encryption-policy" aria-describedby="encryption-status">
                 <option value="plaintext">Unencrypted</option>
@@ -607,7 +632,6 @@
               </p>
             </section>
           </section>
-          <div id="channel-settings" hidden></div>
         </section>
         <section class="manage-panel" data-manage-panel="position" hidden>
           <h2>Position</h2>

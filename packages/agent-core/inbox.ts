@@ -88,7 +88,7 @@ export class InboxReader {
       });
       if (
         !entry.sequence ||
-        entry.channel > 7 ||
+        entry.channel === 0xffffffff ||
         history.some(
           previous =>
             previous.device === entry.device &&
@@ -202,7 +202,7 @@ export class InboxReader {
       !reply.count ||
       reply.count > 32 ||
       reply.part >= reply.count ||
-      reply.channel > 7 ||
+      reply.channel === 0xffffffff ||
       (reply.part + 1 < reply.count && reply.data.length !== 64)
     )
       return;

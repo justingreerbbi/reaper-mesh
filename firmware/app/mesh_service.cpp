@@ -12,18 +12,8 @@ void literal(d::Text<N>& text, const char* value) {
 }
 bool changed(const d::Settings& a, const d::Settings& b) {
   return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.power != b.radio.power ||
-         a.radio.relay != b.radio.relay || a.radio.channels.bytes != b.radio.channels.bytes;
-}
-std::uint8_t channels(const d::RadioSettings& radio) {
-  std::uint8_t mask = 1;
-  unsigned slot = 0;
-  for (std::size_t i = 0; i < radio.channels.length; ++i) {
-    if (radio.channels.bytes[i] == '|')
-      ++slot;
-    else if (slot < 8)
-      mask |= 1u << slot;
-  }
-  return mask;
+         a.radio.relay != b.radio.relay || a.radio.channels.bytes != b.radio.channels.bytes ||
+         a.radio.channel_ids != b.radio.channel_ids;
 }
 std::uint64_t destination(const d::Text<64>& text) {
   if (text.length == 9 && !std::memcmp(text.bytes.data(), "broadcast", 9))
@@ -172,7 +162,7 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     configured_ = true;
     mesh_.policy(
         settings_.radio.relay && settings_.radio.mode == d::RadioMode::Mesh && antenna_verified_,
-        channels(settings_.radio));
+        d::channel_set(settings_.radio));
     const bool receive =
         settings_.region == d::Region::Us && settings_.radio.mode != d::RadioMode::Off;
     if (receive && info_.probe)

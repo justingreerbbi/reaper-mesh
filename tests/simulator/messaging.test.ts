@@ -186,9 +186,10 @@ test('local outgoing deletion frees history without sending or resetting the req
 
 test('encrypted payload is checkpointed once and RACE recovery never re-encrypts or replays it', () => {
   const { messages, sync, reopen } = setup();
-  const bytes = new Uint8Array(74);
-  bytes.set([0x52, 0x4d, 0x45, 0x01, 1, 0, 1]);
-  new DataView(bytes.buffer).setUint32(14, 1, true);
+  // RME2: magic, suite, channel ID 0, key ID, epoch.
+  const bytes = new Uint8Array(77);
+  bytes.set([0x52, 0x4d, 0x45, 0x02, 1, 0, 0, 0, 0, 1]);
+  new DataView(bytes.buffer).setUint32(17, 1, true);
   const original = messages.sendPayload(bytes, 'broadcast', 0, 'node-A', 0);
   const saved = JSON.parse(JSON.stringify(messages.exportState()));
   assert.equal(messages.history[0].text, '');

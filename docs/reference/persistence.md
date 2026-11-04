@@ -56,3 +56,13 @@ An invalid timeout or wake flag fails closed without erasing. Firmware that read
 1–4 fails closed on a record 5 after a downgrade; it never erases it. Screen settings commit
 under the same revision check and durable-publication boundary as other settings, and writes
 that omit them preserve them.
+
+## Channel IDs record 6
+
+Record 6 (`v0.3.0`, D45) keeps the complete record 5 layout and adds the eight slot channel IDs
+(little-endian u32 each, 32 bytes) before the CRC. The maximum record is 203 bytes. Readers accept
+records 1–6. Records 1–5 have no IDs: on load, a named slot *k* gets ID *k*, which is also what a
+board upgraded from earlier firmware keeps using on air. Settings whose IDs equal that rule keep
+writing the earlier applicable format; a channel with any other ID needs record 6. A table that
+breaks the [channel ID rules](radio-configuration.md#channel-ids) fails closed without erasing.
+Firmware that reads only records 1–5 fails closed on a record 6 after a downgrade.

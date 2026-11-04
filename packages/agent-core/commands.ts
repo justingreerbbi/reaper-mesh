@@ -5,7 +5,12 @@ import {
   type DiscoveryConfig,
 } from '../protocol/discovery-config.ts';
 import { encodeMessage, validateField } from '../protocol/messages.ts';
-import { radioFields, validRadio, type RadioConfig } from '../protocol/radio-config.ts';
+import {
+  legacyChannelIds,
+  radioFields,
+  validRadio,
+  type RadioConfig,
+} from '../protocol/radio-config.ts';
 import { screenFields, validScreen, type ScreenConfig } from '../protocol/screen-config.ts';
 import * as recovery from './recovery-data.ts';
 import { Synchronizer, copyConfig, type Config } from './sync.ts';
@@ -94,6 +99,11 @@ export class Commands {
           power: recovery.u32(r.power),
           relay: r.relay,
           channels: recovery.string(r.channels),
+          // Commands saved before channel IDs used slot numbers as IDs (D45).
+          channelIds:
+            r.channelIds === undefined
+              ? legacyChannelIds(recovery.string(r.channels))
+              : recovery.string(r.channelIds),
           preset: recovery.string(r.preset) as RadioConfig['preset'],
         };
         if (!validRadio(radio, region)) throw new Error('invalid recovery radio policy');

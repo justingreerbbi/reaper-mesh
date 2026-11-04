@@ -40,6 +40,20 @@ USB/radio framing stays1; base config schema stays1. locationVersion1/feature256
 
 Location-bearing beacon/presence payloadv2 is rejected by discovery-v1-only receivers; name-only payloadv1 and manual requests remain supported. Text/data1/ACK2 are unchanged. Physically checked Heltec8↔T-Beam2 and Heltec8↔T-Beam3 with1024-byte messages, destination ACK and exact inbox body in each direction. New/new fixed reports and sharing-off identity-only responses are separately checked. This does not establish old firmware reading record4 after downgrade, relay, range or security.
 
+## Channel IDs (`v0.3.0`)
+
+Breaking, owner-approved before core v1 (D42, D45). The radio packet layout and USB v1 framing are
+unchanged, but channels are now identified by 32-bit IDs and encrypted payloads use RME2. Earlier
+firmware drops packets on channel IDs above 7 and rejects RME2, so update both boards together.
+Channels from earlier settings keep working: slot *k* becomes ID *k* on both the device and the
+agent, so two upgraded boards still share Public and their existing channels. Plaintext traffic
+on Public and converted channels uses the same on-air values as earlier firmware, but mixed
+versions were not tested on hardware. Records 1–6 are readable; record 6 is
+written only for channels with other IDs. Downgrading with a record 6 stored fails closed without
+erasing. The agent reads earlier firmware but does not change its channels or radio settings.
+Encrypted messages saved by earlier builds (RME1) show as unsupported. The 31 earlier fixtures are
+unchanged; three are appended.
+
 ## Screen settings (`v0.2.0`)
 
 USB v1, config schema 1 and the radio protocol are unchanged. `screenVersion` 1 with feature bit

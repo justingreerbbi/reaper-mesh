@@ -10,6 +10,35 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 3: channel IDs and invites (firmware `v0.3.0`)
+
+At the owner's direction (D45, options 1 and 2, breaking change approved before core v1 under
+D42), channels are identified on air by a 32-bit channel ID instead of a slot number, and the
+portal shares them with invites.
+
+- **Radio:** the header's existing 4-byte channel field now carries the ID, so the packet layout
+  is unchanged. Public is 0; IDs 1–255 are reserved, with 1–7 used for channels converted from
+  slot numbers; new channels get random IDs of 256 or more. Devices admit, relay and receive only
+  channels in their table.
+- **USB:** `channelIdVersion` 1 with feature bit 10 and a `channelIds` field in the radio group.
+  The 31 earlier fixtures are unchanged; three are appended.
+- **Storage:** record 6 adds the slot IDs; records 1–5 load with slot *k* as ID *k*.
+- **Encryption:** the RME2 envelope carries the 4-byte channel ID; RME1 is no longer accepted, so
+  encrypted messages saved by earlier builds show as unsupported. Keys belong to a channel ID.
+- **Portal:** Settings → Channels has **Join channel** and **Create invite** (`RMCH1`, including
+  the key for an encrypted channel). Conversations, the composer and map sharing use channel IDs.
+  Radio saves keep the device's channel table; earlier firmware is readable but its channels and
+  radio settings are not changed.
+- The manifest now lists records 1–6, and the images are renamed `v0.3.0`.
+
+Verification: `npm run check` (282 tests) and `npm run format:check` pass, and CTest passes 76.
+New coverage: the channel table rules and record 6 round trip, conversion of earlier records,
+rejected tables without writes, the `channelIds` wire field, mesh admission by ID (a node outside
+the channel ignores it), RME2 framing on device and agent, invites with keys decrypting on another
+agent, and a TypeScript-to-native USB test that joins a random-ID channel in slot 3, reads it back
+and has the native session accept a message on that ID and refuse an unknown one. Not yet done:
+building and installing `v0.3.0` on the boards, and any hardware check of joining or messaging.
+
 ## November 3: chat layout
 
 At the owner's request, the conversation view is more compact:

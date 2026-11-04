@@ -11,22 +11,22 @@ Status: the first implementation is in the web portal and shared firmware transp
 
 Plaintext remains available on channels set to “Allow plaintext”. “Require encryption” is local to each web agent: it blocks that agent's outgoing plaintext and visibly rejects incoming unmarked plaintext. Encryption is automatically recognized from the envelope on other agents, but their policy must also be set to Required to reject plaintext. Policy and keys are not synchronized through the radio.
 
-## RME1 envelope
+## RME2 envelope
 
-All multi-byte integers are little-endian. The 58-byte authenticated header is followed by ciphertext and the 16-byte Poly1305 tag; current maximum envelope size is 1024 bytes, so encrypted UTF-8 plaintext is at most 950 bytes.
+All multi-byte integers are little-endian. The 61-byte authenticated header is followed by ciphertext and the 16-byte Poly1305 tag; current maximum envelope size is 1024 bytes, so encrypted UTF-8 plaintext is at most 947 bytes. RME2 replaced RME1 in firmware `v0.3.0` to carry 32-bit channel IDs (D45); devices and agents reject RME1, so encrypted messages saved by earlier builds show as unsupported.
 
 | Offset | Length | Value |
 | --- | ---: | --- |
-| 0 | 4 | ASCII `RME` followed by version byte `0x01` |
+| 0 | 4 | ASCII `RME` followed by version byte `0x02` |
 | 4 | 1 | Suite `1`: XChaCha20-Poly1305-IETF |
-| 5 | 1 | Numeric channel, 0–7 |
-| 6 | 8 | BLAKE2b-8 key identifier |
-| 14 | 4 | Key epoch |
-| 18 | 24 | Fresh random XChaCha20 nonce |
-| 42 | 16 | Random stable envelope message ID |
-| 58 | variable | Authenticated ciphertext followed by 16-byte tag |
+| 5 | 4 | Channel ID; must match the radio header |
+| 9 | 8 | BLAKE2b-8 key identifier |
+| 17 | 4 | Key epoch |
+| 21 | 24 | Fresh random XChaCha20 nonce |
+| 45 | 16 | Random stable envelope message ID |
+| 61 | variable | Authenticated ciphertext followed by 16-byte tag |
 
-AEAD additional data binds the suite/channel/key ID/epoch header, stable envelope ID, numeric channel, canonical sender node ID and destination. The key itself and plaintext never enter the device upload or agent message-recovery record. Retries reuse the saved ciphertext byte-for-byte; reconnect recovery may query existing device state but never resends/re-encrypts an uncertain upload on a new session.
+AEAD additional data binds the suite/channel/key ID/epoch header, stable envelope ID, channel ID, canonical sender node ID and destination. The key itself and plaintext never enter the device upload or agent message-recovery record. Retries reuse the saved ciphertext byte-for-byte; reconnect recovery may query existing device state but never resends/re-encrypts an uncertain upload on a new session.
 
 Malformed data beginning with `RME` is rejected instead of treated as text. Unknown framing or suite is kept opaque and shown as unsupported. Devices check marker, version, suite, channel, key ID, epoch and size; agents perform cryptography.
 
@@ -37,12 +37,12 @@ Malformed data beginning with `RME` is rejected instead of treated as text. Unkn
 - Existing password-protected keys migrate through a one-time prompt for the old password and a new PIN. All key epochs and replay records are retained. A failed save preserves the previous encrypted record.
 - With PIN protection enabled, channel keys are encrypted in browser storage with Argon2id and XChaCha20-Poly1305. The PIN is never saved in plaintext. Five failed unlock attempts start a 30-second cooldown, increasing to five minutes; the browser stores cooldown state across reloads.
 - This is a browser-local convenience lock, not device authentication or an OS-backed login. A short PIN has limited entropy and cannot provide strong protection against offline guessing of copied storage. Cooldowns cannot stop someone who controls browser storage or scripts. Other apps can connect to the device without this PIN. Forgotten PINs have no recovery bypass; keep channel-key backups private.
-- In Settings → Channels, select an existing channel or create one in an available slot. Save a new channel before managing its keys. Create a key to enable encrypted messages, then export its RMKEY1 bundle privately to other agents using the same numeric slot.
-- Export produces an `RMKEY1` text bundle containing the raw channel key. Transfer it privately to each authorized agent and import it there under that agent's app PIN. The bundle is secret material; do not paste it into chat, issues, logs or public storage. Imported keys are assigned to the channel selected in the importing UI.
+- In Settings → Channels, select an existing channel or create one. Save a new channel before managing its keys. Create a key to enable encrypted messages, then share the channel with **Create invite**: the `RMCH1` invite carries the channel's ID, name and current key. Another agent joins with **Join channel**, which stores the key under that channel ID and puts the channel in any free slot. An invite for an encrypted channel is secret material, like a key bundle.
+- Export produces an `RMKEY1` text bundle containing the raw channel key. Transfer it privately to each authorized agent and import it there under that agent's app PIN. The bundle is secret material; do not paste it into chat, issues, logs or public storage. Imported keys are assigned to the channel being edited. Use key bundles to deliver a rotated key to agents that already joined.
 - Rotation creates a higher epoch and retains old epochs locally to decrypt earlier messages. Every peer must receive/import the new bundle before it can decrypt messages using that epoch. Remove access by rotating and securely distributing the new key; old recorded ciphertext remains readable to anyone who kept the old key.
 - Direct routes currently use the selected channel's group key. Anyone holding that channel key can decrypt direct-routed messages; this is not pairwise private messaging. The portal no longer shows this note in the composer (removed November 3 at the owner's request), so share this limitation with users another way.
 
-Keys map to numeric channel slots; use the same slot on every agent. Renaming a displayed channel while keeping its slot is fine. Moving it to another slot requires importing the bundle for that slot on each agent.
+Keys belong to a channel ID, not a slot, so each agent can keep the channel in a different slot. Renaming a channel keeps its ID and keys. Keys saved by earlier builds for slots 1–7 apply to the channels converted to IDs 1–7.
 
 This is a simple group-key design, not forward-secure. Any group member can decrypt and create valid ciphertext for the group; the envelope does not authenticate an individual sender. A compromised device exposes routing metadata and ciphertext. A compromised unlocked agent can expose keys and plaintext. A browser vault at rest does not protect an unlocked session from malicious scripts, extensions, malware or a compromised OS. Replay suppression is bounded to the most recent 1024 envelope IDs retained in the local encrypted vault; replay state is local to that agent.
 

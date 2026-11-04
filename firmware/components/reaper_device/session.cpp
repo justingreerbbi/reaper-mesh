@@ -28,22 +28,12 @@ bool same(const p::FieldValue& field, const Text<N>& text) {
   return field.present && field.length == text.length &&
          std::memcmp(field.text.data(), text.bytes.data(), text.length) == 0;
 }
-std::uint8_t channel_mask(const RadioSettings& radio) {
-  std::uint8_t mask = 1;
-  unsigned slot = 0;
-  for (std::size_t i = 0; i < radio.channels.length; ++i) {
-    if (radio.channels.bytes[i] == '|')
-      ++slot;
-    else if (slot < 8)
-      mask |= 1u << slot;
-  }
-  return mask;
-}
 bool radio_changed(const Settings& a, const Settings& b) {
   return a.region != b.region || a.radio.mode != b.radio.mode || a.radio.power != b.radio.power ||
          a.radio.relay != b.radio.relay || a.radio.profile != b.radio.profile ||
          a.radio.channels.length != b.radio.channels.length ||
-         a.radio.channels.bytes != b.radio.channels.bytes;
+         a.radio.channels.bytes != b.radio.channels.bytes ||
+         a.radio.channel_ids != b.radio.channel_ids;
 }
 const char* outcome(Outcome value) {
   switch (value) {
@@ -117,7 +107,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeMaxVersion], 1);
     number(reply.fields[p::kWelcomeConfigSchema], 1);
     number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) |
-                                                  (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0) | 512);
+                                                  (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0) | 512 |
+                                                  1024);
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -129,6 +120,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeRadioSchema], 1);
     number(reply.fields[p::kWelcomeMaxChannels], 8);
     number(reply.fields[p::kWelcomeScreenVersion], 1);
+    number(reply.fields[p::kWelcomeChannelIdVersion], 1);
     if (inbox_) {
       number(reply.fields[p::kWelcomeInboxVersion], 2);
       number(reply.fields[p::kWelcomeInboxCapacity], Inbox::kCapacity);
@@ -136,7 +128,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     if (messages_) {
       Snapshot current{};
       if (authority_.snapshot(current))
-        messages_->channels(channel_mask(current.settings.radio));
+        messages_->channels(channel_set(current.settings.radio));
       number(reply.fields[p::kWelcomeMessageVersion], 1);
       number(reply.fields[p::kWelcomeMaxMessageBytes], 1024);
       number(reply.fields[p::kWelcomeMessageCapacity], MessageQueue::kCapacity);
@@ -363,6 +355,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kSnapshotTxPower], radio.power);
     number(reply.fields[p::kSnapshotRelay], radio.relay ? 1 : 0);
     set(reply.fields[p::kSnapshotChannels], radio.channels);
+    format_channel_ids(reply.fields[p::kSnapshotChannelIds], radio);
     literal(reply.fields[p::kSnapshotPreset], "US915_LAB1");
     if (discovery_) {
       number(reply.fields[p::kSnapshotBeacon], snapshot.settings.discovery.beacon);
@@ -399,7 +392,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       if (messages_ && result.outcome == Outcome::Committed && authority_.snapshot(current)) {
         if (radio_changed(snapshot.settings, current.settings))
           messages_->quiesce();
-        messages_->channels(channel_mask(current.settings.radio));
+        messages_->channels(channel_set(current.settings.radio));
       }
     }
   }

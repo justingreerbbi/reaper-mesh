@@ -46,7 +46,7 @@ test('channel activity does not invent the missing RF destination and discovered
   const publicMessage = { ...incoming, destination: 'broadcast' };
   const rows = conversations(
     'device-A',
-    ['Public'],
+    [{ id: 0, name: 'Public' }],
     [{ node: out.destination, name: 'Field unit' }],
     [out],
     [publicMessage],
@@ -73,7 +73,11 @@ test('broadcast and direct traffic stay in separate threads while every configur
   const direct = { ...incoming, text: 'private route from peer', messageId: 'direct-1' };
   const rows = conversations(
     'device-A',
-    ['Public', 'Camp', '', 'Ops'],
+    [
+      { id: 0, name: 'Public' },
+      { id: 1, name: 'Camp' },
+      { id: 0x9c41e2a7, name: 'Ops' },
+    ],
     [{ node: out.destination, name: 'Field unit' }],
     [],
     [broadcast, direct],
@@ -83,7 +87,7 @@ test('broadcast and direct traffic stay in separate threads while every configur
     [
       ['Public', 0],
       ['Camp', 1],
-      ['Ops', 3],
+      ['Ops', 0x9c41e2a7],
     ],
   );
   const publicThread = threadMessages('device-A', 'broadcast', 0, [], [broadcast, direct]);

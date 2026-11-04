@@ -27,7 +27,7 @@ struct Inbound {
 // No register I/O, RF claims, heap allocation or wall-clock ownership.
 class Mesh {
  public:
-  explicit Mesh(std::uint64_t node, bool relay = false, std::uint8_t channels = 1,
+  explicit Mesh(std::uint64_t node, bool relay = false, ChannelSet channels = {},
                 std::uint8_t hops = 3)
       : node_(node), relay_(relay), channels_(channels), hops_(hops <= 7 ? hops : 0) {}
   bool enqueue(const MessageKey&, std::uint64_t destination, std::uint32_t channel,
@@ -37,7 +37,7 @@ class Mesh {
   void complete_tx(bool success, std::uint64_t now);
   void tick(std::uint64_t now);
   void quiesce();
-  void policy(bool relay, std::uint8_t channels) {
+  void policy(bool relay, const ChannelSet& channels) {
     quiesce();
     relay_ = relay;
     channels_ = channels;
@@ -60,7 +60,8 @@ class Mesh {
   };
   std::uint64_t node_;
   bool relay_;
-  std::uint8_t channels_, hops_;
+  ChannelSet channels_;
+  std::uint8_t hops_;
   std::array<Outbound, 8> out_{};
   std::array<Inbound, 8> in_{};
   std::array<Forward, 16> forward_{};

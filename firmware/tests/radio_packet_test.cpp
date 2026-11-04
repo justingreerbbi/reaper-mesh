@@ -60,22 +60,32 @@ int main(int argc, char** argv) {
     CHECK(m::encode_packet(p, bytes.data(), bytes.size(), size) && size == 54);
     CHECK(m::decode_packet(bytes.data(), size, decoded) && decoded.kind == m::PacketKind::Ack);
   } else if (scenario == "encrypted") {
-    std::array<std::uint8_t, 74> envelope{};
+    // RME2 carries the 32-bit channel ID at bytes 5-8 (D45).
+    const std::uint32_t channel = 0x9c41e2a7;
+    std::array<std::uint8_t, 77> envelope{};
     envelope[0] = 'R';
     envelope[1] = 'M';
     envelope[2] = 'E';
-    envelope[3] = 1;
-    envelope[4] = 1;
-    envelope[5] = 1;
-    envelope[6] = 0x42;
-    envelope[14] = 1;
-    CHECK(m::encrypted_payload(envelope.data(), envelope.size(), 1));
-    CHECK(m::valid_message_payload(envelope.data(), envelope.size(), 1));
-    CHECK(!m::valid_message_payload(envelope.data(), envelope.size(), 0));
-    CHECK(!m::encrypted_payload(envelope.data(), envelope.size() - 1, 1));
     envelope[3] = 2;
-    CHECK(!m::valid_message_payload(envelope.data(), envelope.size(), 1));
+    envelope[4] = 1;
+    for (unsigned i = 0; i < 4; ++i)
+      envelope[5 + i] = static_cast<std::uint8_t>(channel >> (8 * i));
+    envelope[9] = 0x42;
+    envelope[17] = 1;
+    CHECK(m::encrypted_payload(envelope.data(), envelope.size(), channel));
+    CHECK(m::valid_message_payload(envelope.data(), envelope.size(), channel));
+    CHECK(!m::valid_message_payload(envelope.data(), envelope.size(), channel ^ 1));
+    CHECK(!m::encrypted_payload(envelope.data(), envelope.size() - 1, channel));
+    for (std::uint8_t version : {1, 3}) {  // the old RME1 and unknown versions are refused
+      envelope[3] = version;
+      CHECK(!m::valid_message_payload(envelope.data(), envelope.size(), channel));
+    }
     CHECK(m::valid_message_payload(reinterpret_cast<const std::uint8_t*>("plain"), 5, 1));
+    // Header channels are full 32-bit IDs now; only the reserved all-ones value is invalid.
+    p.channel = channel;
+    CHECK(m::valid_packet(p));
+    p.channel = 0xffffffff;
+    CHECK(!m::valid_packet(p));
   } else if (scenario == "malformed") {
     for (std::size_t bit = 0; bit < size * 8; ++bit) {
       auto changed = bytes;

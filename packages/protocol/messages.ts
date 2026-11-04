@@ -29,6 +29,8 @@ export function validateField(kind: string, value: unknown) {
     throw new Error('invalid radio mode');
   if (kind === 'channels' && !/^Public(?:\|[A-Za-z0-9_-]{0,8}){7}$/.test(value))
     throw new Error('invalid channels');
+  if (kind === 'channelIds' && !/^[0-9a-f]{8}(?:\|[0-9a-f]{8}){7}$/.test(value))
+    throw new Error('invalid channel IDs');
   if (kind === 'hex' && !/^(?:[0-9a-f]{2}){1,32}$/.test(value)) throw new Error('invalid chunk');
   if (
     kind === 'messageState' &&

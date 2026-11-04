@@ -103,7 +103,6 @@ export function renderRadio() {
     element('radio-mode'),
     element('radio-power'),
     element('radio-relay'),
-    ...Array.from({ length: 7 }, (_, i) => element<HTMLInputElement>(`channel-${i + 1}`)),
   ];
   const ready = sync.state === 'ready';
   const supported = ready && !connection.radioBlockReason && !!sync.config?.radio;
@@ -113,9 +112,6 @@ export function renderRadio() {
     element<HTMLSelectElement>('radio-mode').value = radio.mode;
     element<HTMLInputElement>('radio-power').value = String(radio.power);
     element<HTMLInputElement>('radio-relay').checked = radio.relay;
-    const names = radio.channels.split('|');
-    for (let slot = 1; slot < 8; slot++)
-      element<HTMLInputElement>(`channel-${slot}`).value = names[slot];
   }
   const channelNames = (sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|');
   const list = element('managed-channels');
@@ -127,7 +123,7 @@ export function renderRadio() {
       if (!name) return;
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = `${slot} · ${name}`;
+      button.textContent = name;
       button.dataset.slot = String(slot);
       button.classList.toggle('is-active', slot === editingChannelSlot());
       button.setAttribute('aria-current', slot === editingChannelSlot() ? 'page' : 'false');
@@ -332,20 +328,6 @@ export function renderDiscovery() {
 }
 
 export function initSettings() {
-  for (let slot = 1; slot < 8; slot++) {
-    const wrapper = document.createElement('div');
-    const title = document.createElement('label');
-    title.htmlFor = `channel-${slot}`;
-    title.textContent = `Channel ${slot}`;
-    const input = document.createElement('input');
-    input.id = `channel-${slot}`;
-    input.setAttribute('form', 'radio-form');
-    input.type = 'text';
-    input.maxLength = 8;
-    input.autocomplete = 'off';
-    wrapper.append(title, input);
-    element('channel-settings').append(wrapper);
-  }
   for (const tab of document.querySelectorAll<HTMLElement>('.manage-tab')) {
     tab.addEventListener('click', () => setManage(tab.dataset.manage!));
   }
@@ -354,10 +336,6 @@ export function initSettings() {
   }
   element('open-manage').addEventListener('click', () => openManage('device'));
   element('radio-form').addEventListener('input', () => {
-    radioDirty = true;
-    render();
-  });
-  element('channel-settings').addEventListener('input', () => {
     radioDirty = true;
     render();
   });
@@ -374,19 +352,13 @@ export function initSettings() {
         mode: element<HTMLSelectElement>('radio-mode').value as RadioConfig['mode'],
         power: Number(element<HTMLInputElement>('radio-power').value),
         relay: element<HTMLInputElement>('radio-relay').checked,
-        channels: [
-          'Public',
-          ...Array.from(
-            { length: 7 },
-            (_, i) => element<HTMLInputElement>(`channel-${i + 1}`).value,
-          ),
-        ].join('|'),
+        // Channels are edited in the Channels tab; keep the device's current table here.
+        channels: currentConfig.radio!.channels,
+        channelIds: currentConfig.radio!.channelIds,
         preset: 'US915_LAB1',
       };
       if (!validRadio(radio, currentConfig.region))
-        throw new Error(
-          'Use US region, power 0–10 dBm, and channel names of up to 8 letters, numbers, underscores or hyphens.',
-        );
+        throw new Error('Use the US region and a power of 0–10 dBm.');
       model.adapter.configure({ ...currentConfig, radio });
       radioDirty = false;
       clearError();

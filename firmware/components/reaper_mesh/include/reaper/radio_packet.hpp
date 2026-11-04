@@ -24,6 +24,26 @@ struct Packet {
   std::uint16_t total = 0;
   std::array<std::uint8_t, kFragmentBytes> bytes{};
 };
+// Channels this node uses, by on-air channel ID (D45). Public (ID 0) is always a member.
+struct ChannelSet {
+  std::array<std::uint32_t, 8> ids{};
+  std::uint8_t count = 1;
+  bool contains(std::uint32_t id) const {
+    for (std::uint8_t i = 0; i < count; ++i)
+      if (ids[i] == id)
+        return true;
+    return false;
+  }
+  bool add(std::uint32_t id) {
+    if (contains(id))
+      return true;
+    if (count >= ids.size() || id == kNoChannel)
+      return false;
+    ids[count++] = id;
+    return true;
+  }
+  static constexpr std::uint32_t kNoChannel = 0xffffffff;
+};
 struct PositionReport {
   std::uint8_t source = 0;
   std::uint32_t latitude = 0, longitude = 0, age_ms = 0;

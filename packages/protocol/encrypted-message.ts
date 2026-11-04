@@ -1,7 +1,16 @@
 /** Stable binary envelope framing; cryptographic operations live in the agent. */
-export const ENCRYPTED_MAGIC = new Uint8Array([0x52, 0x4d, 0x45, 0x01]); // RME1
+export const ENCRYPTED_MAGIC = new Uint8Array([0x52, 0x4d, 0x45, 0x02]); // RME2
 export const ENCRYPTED_SUITE_XCHACHA20_POLY1305 = 1;
-export const ENCRYPTED_HEADER_BYTES = 58;
+/** RME2 layout (D45): magic, suite, channel ID (LE32), key ID, epoch (LE32), nonce, message ID. */
+export const ENCRYPTED_OFFSETS = Object.freeze({
+  suite: 4,
+  channel: 5,
+  keyId: 9,
+  epoch: 17,
+  nonce: 21,
+  messageId: 45,
+});
+export const ENCRYPTED_HEADER_BYTES = 61;
 export const ENCRYPTED_TAG_BYTES = 16;
 export const MAX_MESSAGE_BYTES = 1024;
 
@@ -14,24 +23,25 @@ export type EncryptedHeader = Readonly<{
 }>;
 
 export function parseEncryptedHeader(bytes: Uint8Array): EncryptedHeader | undefined {
+  const at = ENCRYPTED_OFFSETS;
   if (
     bytes.length < ENCRYPTED_HEADER_BYTES + ENCRYPTED_TAG_BYTES ||
     bytes.length > MAX_MESSAGE_BYTES ||
     !ENCRYPTED_MAGIC.every((value, index) => bytes[index] === value) ||
-    bytes[4] !== ENCRYPTED_SUITE_XCHACHA20_POLY1305 ||
-    bytes[5] > 7
+    bytes[at.suite] !== ENCRYPTED_SUITE_XCHACHA20_POLY1305
   )
     return;
-  const epoch = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(14, true);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const epoch = view.getUint32(at.epoch, true);
   if (!epoch) return;
-  const id = bytes.subarray(6, 14);
+  const id = bytes.subarray(at.keyId, at.epoch);
   if (id.every(value => value === 0)) return;
   return {
-    channel: bytes[5],
+    channel: view.getUint32(at.channel, true),
     keyId: [...id].map(value => value.toString(16).padStart(2, '0')).join(''),
     epoch,
-    nonce: bytes.slice(18, 42),
-    messageId: bytes.slice(42, 58),
+    nonce: bytes.slice(at.nonce, at.messageId),
+    messageId: bytes.slice(at.messageId, ENCRYPTED_HEADER_BYTES),
   };
 }
 
@@ -42,9 +52,13 @@ export function isEncryptedPayload(bytes: Uint8Array, channel?: number): boolean
 
 /** Plain text or a well-framed encrypted envelope; devices can validate framing without keys. */
 export function isMessagePayload(bytes: Uint8Array, channel: number): boolean {
+  // Any envelope version is checked as an envelope, so an older RME1 is rejected, not taken as text.
   if (
-    bytes.length >= ENCRYPTED_MAGIC.length &&
-    ENCRYPTED_MAGIC.every((value, index) => bytes[index] === value)
+    bytes.length >= 4 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x4d &&
+    bytes[2] === 0x45 &&
+    bytes[3] < 32
   )
     return isEncryptedPayload(bytes, channel);
   if (!bytes.length || bytes.length > MAX_MESSAGE_BYTES) return false;

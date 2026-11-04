@@ -3,17 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 namespace reaper::protocol {
-enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version };
+enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version, ChannelIds };
 enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
-inline constexpr std::size_t kMaxFields = 26;
+inline constexpr std::size_t kMaxFields = 27;
 inline constexpr FieldDescriptor kHelloFields[] = { {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Id, true} };
 inline constexpr std::size_t kHelloLink = 0;
 inline constexpr std::size_t kHelloMinVersion = 1;
 inline constexpr std::size_t kHelloMaxVersion = 2;
 inline constexpr std::size_t kHelloOwner = 3;
-inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Version, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kWelcomeFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Version, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
 inline constexpr std::size_t kWelcomeLink = 0;
 inline constexpr std::size_t kWelcomeDevice = 1;
 inline constexpr std::size_t kWelcomeBoot = 2;
@@ -40,11 +40,12 @@ inline constexpr std::size_t kWelcomeDiscoveryVersion = 22;
 inline constexpr std::size_t kWelcomeNodeCapacity = 23;
 inline constexpr std::size_t kWelcomeLocationVersion = 24;
 inline constexpr std::size_t kWelcomeScreenVersion = 25;
+inline constexpr std::size_t kWelcomeChannelIdVersion = 26;
 inline constexpr FieldDescriptor kSyncFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false} };
 inline constexpr std::size_t kSyncLink = 0;
 inline constexpr std::size_t kSyncBoot = 1;
 inline constexpr std::size_t kSyncRequest = 2;
-inline constexpr FieldDescriptor kSnapshotFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kSnapshotFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::ChannelIds, true} };
 inline constexpr std::size_t kSnapshotLink = 0;
 inline constexpr std::size_t kSnapshotBoot = 1;
 inline constexpr std::size_t kSnapshotRequest = 2;
@@ -66,7 +67,8 @@ inline constexpr std::size_t kSnapshotLatitude = 17;
 inline constexpr std::size_t kSnapshotLongitude = 18;
 inline constexpr std::size_t kSnapshotScreenTimeout = 19;
 inline constexpr std::size_t kSnapshotScreenWake = 20;
-inline constexpr FieldDescriptor kEventFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr std::size_t kSnapshotChannelIds = 21;
+inline constexpr FieldDescriptor kEventFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::ChannelIds, true} };
 inline constexpr std::size_t kEventLink = 0;
 inline constexpr std::size_t kEventBoot = 1;
 inline constexpr std::size_t kEventSequence = 2;
@@ -87,6 +89,7 @@ inline constexpr std::size_t kEventLatitude = 16;
 inline constexpr std::size_t kEventLongitude = 17;
 inline constexpr std::size_t kEventScreenTimeout = 18;
 inline constexpr std::size_t kEventScreenWake = 19;
+inline constexpr std::size_t kEventChannelIds = 20;
 inline constexpr FieldDescriptor kPingFields[] = { {Kind::Id, false}, {Kind::U32, false} };
 inline constexpr std::size_t kPingLink = 0;
 inline constexpr std::size_t kPingRequest = 1;
@@ -94,7 +97,7 @@ inline constexpr FieldDescriptor kPongFields[] = { {Kind::Id, false}, {Kind::Id,
 inline constexpr std::size_t kPongLink = 0;
 inline constexpr std::size_t kPongBoot = 1;
 inline constexpr std::size_t kPongRequest = 2;
-inline constexpr FieldDescriptor kConfigureFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true} };
+inline constexpr FieldDescriptor kConfigureFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::U32, false}, {Kind::Region, false}, {Kind::Label, false}, {Kind::RadioMode, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::Channels, true}, {Kind::Id, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::U32, true}, {Kind::ChannelIds, true} };
 inline constexpr std::size_t kConfigureLink = 0;
 inline constexpr std::size_t kConfigureBoot = 1;
 inline constexpr std::size_t kConfigureId = 2;
@@ -115,6 +118,7 @@ inline constexpr std::size_t kConfigureLatitude = 16;
 inline constexpr std::size_t kConfigureLongitude = 17;
 inline constexpr std::size_t kConfigureScreenTimeout = 18;
 inline constexpr std::size_t kConfigureScreenWake = 19;
+inline constexpr std::size_t kConfigureChannelIds = 20;
 inline constexpr FieldDescriptor kResultFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::CommandId, false}, {Kind::Outcome, false}, {Kind::U32, false} };
 inline constexpr std::size_t kResultLink = 0;
 inline constexpr std::size_t kResultBoot = 1;
@@ -236,13 +240,13 @@ inline constexpr std::size_t kNodeReplyLongitude = 14;
 inline constexpr std::size_t kNodeReplyPositionAgeMs = 15;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 4},
-  {MessageType::Welcome, kWelcomeFields, 26},
+  {MessageType::Welcome, kWelcomeFields, 27},
   {MessageType::Sync, kSyncFields, 3},
-  {MessageType::Snapshot, kSnapshotFields, 21},
-  {MessageType::Event, kEventFields, 20},
+  {MessageType::Snapshot, kSnapshotFields, 22},
+  {MessageType::Event, kEventFields, 21},
   {MessageType::Ping, kPingFields, 2},
   {MessageType::Pong, kPongFields, 3},
-  {MessageType::Configure, kConfigureFields, 20},
+  {MessageType::Configure, kConfigureFields, 21},
   {MessageType::Result, kResultFields, 5},
   {MessageType::Query, kQueryFields, 3},
   {MessageType::Error, kErrorFields, 3},

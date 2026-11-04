@@ -171,9 +171,10 @@ test('local received-message removal scopes device/origin/identity and leaves no
 });
 
 test('encrypted inbox bytes stay opaque through assembly and recovery snapshots', () => {
-  const payload = new Uint8Array(74);
-  payload.set([0x52, 0x4d, 0x45, 0x01, 1, 0, 1]);
-  new DataView(payload.buffer).setUint32(14, 1, true);
+  // RME2: magic, suite, channel ID 0, key ID, epoch.
+  const payload = new Uint8Array(77);
+  payload.set([0x52, 0x4d, 0x45, 0x02, 1, 0, 0, 0, 0, 1]);
+  new DataView(payload.buffer).setUint32(17, 1, true);
   const reader = new InboxReader();
   head(reader, 1, 1);
   for (let part = 0; part < Math.ceil(payload.length / 32); ++part) {

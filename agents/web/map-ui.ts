@@ -1,5 +1,9 @@
 // Map workspace, node selection and navigation between the portal workspaces.
-import { DEFAULT_CHANNELS } from '../../packages/protocol/radio-config.ts';
+import {
+  DEFAULT_CHANNEL_IDS,
+  DEFAULT_CHANNELS,
+  channelList,
+} from '../../packages/protocol/radio-config.ts';
 import { degrees } from '../../packages/protocol/position-config.ts';
 import { MapWorkspace } from './map-workspace.ts';
 import { FieldMap, type MapPoint } from './map.ts';
@@ -23,7 +27,10 @@ export const mapWorkspace = new MapWorkspace(fieldMap, {
   context: () => {
     const c = current().adapter.connection;
     return {
-      channels: (c.sync.config?.radio?.channels ?? DEFAULT_CHANNELS).split('|'),
+      channels: channelList({
+        channels: c.sync.config?.radio?.channels ?? DEFAULT_CHANNELS,
+        channelIds: c.sync.config?.radio?.channelIds ?? DEFAULT_CHANNEL_IDS,
+      }),
       ready: c.sync.state === 'ready',
       device: c.device,
       source: mode.value,
