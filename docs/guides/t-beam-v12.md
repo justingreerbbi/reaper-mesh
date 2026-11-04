@@ -8,7 +8,7 @@ Build: `bash tools/build-firmware.sh tbeam-v12`. Validate: `python3 tools/update
 
 Board pins: UART0 TX1/RX3; SPI SCK5/MISO19/MOSI27/CS18/reset23; SX1276 IRQ polling (DIO0 26, DIO1 33); I2C SDA21/SCL22. AXP2101 at 0x34 must identify as 0x4a before enabling its radio ALDO2 at 3.3 V. Only that rail's voltage/enable bits change; CPU/charging settings are preserved. Power readback must succeed before the radio bus can begin. Optional SSD1306 at 0x3c uses the same bus and fails closed independently. GPS/Wi-Fi/BLE are not initialized.
 
-Initial radio implementation is first-party SX1276, gated on register-version 0x12 plus configuration readback. A different radio must fail the probe; do not infer SX1276 from the processor alone. It uses the existing Reaper US915_LAB1 modem (915MHz, BW500kHz, SF7, CR4/5, preamble8, explicit header, CRC, sync0x52), bounded SPI DMA, shared airtime budget and software TX deadline. T-Beam's PA_BOOST path supports 2–10 dBm in this prototype. A lower requested TX power fails closed; no silent power increase or disconnected RFO selection. Receive/probe with power0 emits no TX. Default persisted mode is off.
+Initial radio implementation is first-party SX1276, gated on register-version 0x12 plus configuration readback. A different radio must fail the probe; do not infer SX1276 from the processor alone. It uses the existing Reaper US915_LAB1 modem (915MHz, BW500kHz, SF7, CR4/5, preamble8, explicit header, CRC, sync0x52), bounded SPI DMA, shared airtime budget and software TX deadline. T-Beam's PA_BOOST path gives +2, +10 and +17 dBm at low, medium and high. Boost, off by default, is the SX1276's high-power mode and gives +5, +13 and +20 dBm. See [transmit power](../reference/radio-configuration.md#transmit-power). Receive and probe emit no TX. Default persisted mode is off.
 
 The device ID is node-000008b61f9fe548, a canonical 64-bit radio address already understood by Heltec prototype-6. USB schema, config records, mesh/message IDs and acknowledgment semantics are shared. No GPS, alternative mesh protocol or extra features are introduced. The present web console can connect either board; simultaneous automated two-port tests can use separate SerialAdapters. Multi-tab writer ownership remains intentionally restricted until per-device journaling is implemented.
 
@@ -28,7 +28,7 @@ Reproduce direct delivery with both antennas attached, both boards in the US and
 node tools/hardware-pair-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 /dev/cu.wchusbserial57700003341
 ```
 
-It temporarily selects mesh/2 dBm as needed, validates actual destination ACK/body/source, and restores original settings. The report is build/tbeam-v12/pair-smoke.json. Third-node relay qualification is still outstanding.
+It temporarily selects mesh at low power as needed, validates actual destination ACK/body/source, and restores original settings. The report is build/tbeam-v12/pair-smoke.json. Third-node relay qualification is still outstanding.
 
 Final read-only verification confirmed Heltec firmware6/revision21 stayed mesh/2dBm and T-Beam firmware1/revision7 was restored off/2dBm. Both were open simultaneously for the check. T-Beam package SHA256: 3a79222f814d1aebf8c5b4551f5f45d116b844e20c15ab7b299aef5f3ea57242. No old firmware backup, NVS erase, eFuse change, or Heltec reflash was performed.
 

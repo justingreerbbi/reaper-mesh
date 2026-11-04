@@ -158,7 +158,7 @@ Feature bit 3 advertises bounded message submission/query. All previous config s
 
 ## Radio/channel settings extension
 
-Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the radio extension. Configure appends optional fields 8–12; snapshot appends 8–12, and event appends 7–11: radioMode, txPower, relay, channels, preset. All are supplied together for a radio mutation; omission preserves device radio settings. Base config schema remains 1. The independent radio-config schema and record version must not be conflated with the radio packet version. See radio-configuration.md for channels, atomic persistence/migration, and policy-change queue invalidation.
+Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the radio extension. Configure appends optional fields 8–12; snapshot appends 8–12, and event appends 7–11: radioMode, txLevel, relay, channels, preset. All are supplied together for a radio mutation; omission preserves device radio settings. Base config schema remains 1. The independent radio-config schema and record version must not be conflated with the radio packet version. See radio-configuration.md for channels, atomic persistence/migration, and policy-change queue invalidation.
 
 ## Inbox and live hardware status extension
 
@@ -227,3 +227,15 @@ packets whose channel ID is above 7 and rejects RME2, so both boards are updated
 31 earlier fixtures are unchanged; three (welcome, configure, snapshot) are appended. Rules,
 reserved IDs and invites are in [radio configuration](radio-configuration.md#channel-ids);
 storage is [record 6](persistence.md#channel-ids-record-6).
+
+## Transmit power levels (D46)
+
+Feature bit 11 (2048) means `txLevel` holds a level: 0 low, 1 medium, 2 high. This field was
+`txPower` (dBm) at the same tag in every message, so frames did not change shape. Configure, snapshot
+and event append `txBoost` (0 or 1), which a radio configure carries with the other radio fields.
+Feature bit 12 (4096) means the board has boost; without it the device rejects `txBoost` 1. Levels
+are in [radio configuration](radio-configuration.md#transmit-power). The dBm for a level depends on
+the board and is not on the wire. This is a breaking change approved by the owner before core v1
+(D42): agents do not change radio settings on firmware without bit 11, and a `v0.4.0` device rejects
+a radio configure that has no `txBoost`. The existing fixtures keep their exact bytes with the field
+renamed, and new fixtures carry `txBoost`.

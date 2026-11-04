@@ -10,8 +10,8 @@ bool equal(const Text<N>& a, const Text<N>& b) {
          std::memcmp(a.bytes.data(), b.bytes.data(), a.length) == 0;
 }
 bool equal(const RadioSettings& a, const RadioSettings& b) {
-  return a.mode == b.mode && a.power == b.power && a.relay == b.relay && a.profile == b.profile &&
-         equal(a.channels, b.channels) && a.channel_ids == b.channel_ids;
+  return a.mode == b.mode && a.level == b.level && a.boost == b.boost && a.relay == b.relay &&
+         a.profile == b.profile && equal(a.channels, b.channels) && a.channel_ids == b.channel_ids;
 }
 // Which of the eight slots have a name; false for every slot if the text is malformed.
 std::array<bool, 8> named_slots(const Text<71>& names) {
@@ -119,8 +119,8 @@ bool valid(const Command& command) {
       static_cast<unsigned>(command.settings.region) > 2 ||
       !valid_channel_ids(command.settings.radio))
     return false;
-  if (static_cast<unsigned>(command.settings.radio.mode) > 2 || command.settings.radio.power > 10 ||
-      command.settings.radio.profile != 1 ||
+  if (static_cast<unsigned>(command.settings.radio.mode) > 2 ||
+      command.settings.radio.level > mesh::TxLevel::High || command.settings.radio.profile != 1 ||
       (command.has_radio && command.settings.radio.mode != RadioMode::Off &&
        command.settings.region != Region::Us))
     return false;
@@ -144,7 +144,9 @@ bool valid(const Command& command) {
             command.settings.radio.mode == RadioMode::Off       ? "off"
             : command.settings.radio.mode == RadioMode::Receive ? "receive"
                                                                 : "mesh");
-    number(message.fields[protocol::kConfigureTxPower], command.settings.radio.power);
+    number(message.fields[protocol::kConfigureTxLevel],
+           static_cast<unsigned>(command.settings.radio.level));
+    number(message.fields[protocol::kConfigureTxBoost], command.settings.radio.boost ? 1 : 0);
     number(message.fields[protocol::kConfigureRelay], command.settings.radio.relay ? 1 : 0);
     text(message.fields[protocol::kConfigureChannels], command.settings.radio.channels);
     format_ids(message.fields[protocol::kConfigureChannelIds], command.settings.radio.channel_ids);
@@ -199,9 +201,13 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   if (!output || !settings_valid(snapshot.settings))
     return false;
   const auto& discovery = snapshot.settings.discovery;
+  // Record 7 changes the meaning of the power byte (level and boost instead of dBm), so any
+  // setting other than Medium without boost needs it. Earlier records load as Medium.
+  const auto& tx = snapshot.settings.radio;
+  const bool levels = tx.level != mesh::TxLevel::Medium || tx.boost;
   // Record 6 appends the slot channel IDs; IDs that match the slot numbers need no record 6.
-  const bool ids =
-      snapshot.settings.radio.channel_ids != legacy_channel_ids(snapshot.settings.radio.channels);
+  const bool ids = levels || snapshot.settings.radio.channel_ids !=
+                                 legacy_channel_ids(snapshot.settings.radio.channels);
   const bool screen = ids || !same_screen(snapshot.settings.screen, ScreenSettings{});
   const bool position = screen || !same_position(snapshot.settings.position, PositionSettings{});
   const bool presence =
@@ -215,7 +221,7 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
     return false;
   output[0] = 'R';
   output[1] = 'C';
-  output[2] = ids ? 6 : screen ? 5 : position ? 4 : presence ? 3 : extended ? 2 : 1;
+  output[2] = levels ? 7 : ids ? 6 : screen ? 5 : position ? 4 : presence ? 3 : extended ? 2 : 1;
   write32(output + 3, snapshot.revision);
   output[7] = static_cast<std::uint8_t>(snapshot.settings.region);
   output[8] = static_cast<std::uint8_t>(snapshot.settings.label.length);
@@ -224,7 +230,7 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
     auto* extra = output + 9 + snapshot.settings.label.length;
     const auto& radio = snapshot.settings.radio;
     extra[0] = static_cast<std::uint8_t>(radio.mode);
-    extra[1] = radio.power;
+    extra[1] = static_cast<std::uint8_t>(radio.level) | (radio.boost ? 0x80 : 0);
     extra[2] = radio.relay;
     extra[3] = radio.channels.length;
     std::memcpy(extra + 4, radio.channels.bytes.data(), radio.channels.length);
@@ -258,12 +264,12 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
 
 bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output) {
   if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' ||
-      (data[2] < 1 || data[2] > 6) || data[7] > 2 || data[8] > 64 ||
+      (data[2] < 1 || data[2] > 7) || data[7] > 2 || data[8] > 64 ||
       (data[2] == 1 && size != std::size_t(data[8]) + 13) ||
       read32(data + size - 4) != protocol::crc32(data, size - 4))
     return false;
   Snapshot next{};
-  const std::size_t id_bytes = data[2] == 6 ? 32 : 0, tail = (data[2] >= 5 ? 5 : 0) + id_bytes;
+  const std::size_t id_bytes = data[2] >= 6 ? 32 : 0, tail = (data[2] >= 5 ? 5 : 0) + id_bytes;
   next.revision = read32(data + 3);
   next.settings.region = static_cast<Region>(data[7]);
   next.settings.label.assign(data + 9, data[8]);
@@ -274,11 +280,14 @@ bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output)
     const auto* extra = data + offset;
     const auto names = extra[3];
     if (size != offset + 9u + names + (data[2] >= 3 ? 5u : 0u) + (data[2] >= 4 ? 10u : 0u) + tail ||
-        extra[0] > 2 || extra[1] > 10 || extra[2] > 1 ||
+        extra[0] > 2 || (data[2] >= 7 ? (extra[1] & 0x7f) > 2 : extra[1] > 10) || extra[2] > 1 ||
         !next.settings.radio.channels.assign(extra + 4, names))
       return false;
     next.settings.radio.mode = static_cast<RadioMode>(extra[0]);
-    next.settings.radio.power = extra[1];
+    if (data[2] >= 7) {
+      next.settings.radio.level = static_cast<mesh::TxLevel>(extra[1] & 0x7f);
+      next.settings.radio.boost = (extra[1] & 0x80) != 0;
+    }
     next.settings.radio.relay = extra[2] != 0;
     next.settings.radio.profile = extra[4 + names];
   }
@@ -334,8 +343,9 @@ bool decode_command(const protocol::Message& message, Command& output) {
                                                  : Region::Eu;
   bool any = false, all = true;
   for (auto index :
-       {protocol::kConfigureRadioMode, protocol::kConfigureTxPower, protocol::kConfigureRelay,
-        protocol::kConfigureChannels, protocol::kConfigureChannelIds, protocol::kConfigurePreset}) {
+       {protocol::kConfigureRadioMode, protocol::kConfigureTxLevel, protocol::kConfigureTxBoost,
+        protocol::kConfigureRelay, protocol::kConfigureChannels, protocol::kConfigureChannelIds,
+        protocol::kConfigurePreset}) {
     any = any || message.fields[index].present;
     all = all && message.fields[index].present;
   }
@@ -347,10 +357,13 @@ bool decode_command(const protocol::Message& message, Command& output) {
     next.settings.radio.mode = mode.length == 3   ? RadioMode::Off
                                : mode.length == 7 ? RadioMode::Receive
                                                   : RadioMode::Mesh;
-    if (message.fields[protocol::kConfigureTxPower].number > 10 ||
+    if (message.fields[protocol::kConfigureTxLevel].number > 2 ||
+        message.fields[protocol::kConfigureTxBoost].number > 1 ||
         message.fields[protocol::kConfigureRelay].number > 1)
       return false;
-    next.settings.radio.power = message.fields[protocol::kConfigureTxPower].number;
+    next.settings.radio.level =
+        static_cast<mesh::TxLevel>(message.fields[protocol::kConfigureTxLevel].number);
+    next.settings.radio.boost = message.fields[protocol::kConfigureTxBoost].number != 0;
     next.settings.radio.relay = message.fields[protocol::kConfigureRelay].number != 0;
     const auto& names = message.fields[protocol::kConfigureChannels];
     const auto& preset = message.fields[protocol::kConfigurePreset];

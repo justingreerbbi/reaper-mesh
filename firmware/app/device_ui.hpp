@@ -83,7 +83,7 @@ struct Status {
   bool storage_ok = true;
   std::uint32_t revision = 0;
   const char* mode = "";
-  unsigned power_dbm = 0;
+  int power_dbm = 0;
   std::uint32_t heap = 0, stack = 0;
   std::uint64_t uptime_s = 0;
 };

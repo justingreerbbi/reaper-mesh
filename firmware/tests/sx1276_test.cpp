@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
   r::Sx1276 radio(bus);
   const auto packet = bytes();
   if (scenario == "receive") {
-    CHECK(radio.configure(0, true, false));
+    CHECK(radio.configure(m::TxLevel::Low, false, true, false));
     CHECK(bus.tx == 0 && bus.registers[1] == 0x85);
     CHECK(bus.registers[6] == 0xe4 && bus.registers[7] == 0xc0 && bus.registers[8] == 0);
     CHECK(bus.registers[0x1d] == 0x92 && bus.registers[0x1e] == 0x74 &&
@@ -93,8 +93,9 @@ int main(int argc, char** argv) {
     bus.registers[0x12] = 0x40;
     CHECK(!radio.poll(3).received);
   } else if (scenario == "tx") {
-    CHECK(radio.configure(2, true, true));
-    CHECK(bus.tx == 0 && bus.registers[9] == 0x80);
+    CHECK(radio.configure(m::TxLevel::Low, false, true, true));
+    CHECK(bus.tx == 0 && bus.registers[9] == 0x80 && bus.registers[0x4d] == 0x84 &&
+          bus.registers[0x0b] == 0x2b);
     CHECK(radio.transmit(packet.data(), packet.size(), 0) == r::Start::Started);
     CHECK(std::memcmp(bus.fifo.data(), packet.data(), packet.size()) == 0 &&
           bus.registers[0x22] == packet.size());
@@ -107,11 +108,19 @@ int main(int argc, char** argv) {
     const auto late = radio.poll(1103);
     CHECK(late.tx_done && !late.tx_success);
   } else if (scenario == "faults") {
-    CHECK(!radio.configure(1, true, true) && bus.tx == 0);
+    CHECK(!radio.configure(static_cast<m::TxLevel>(3), false, true, true) && bus.tx == 0);
     bus.registers[0x42] = 0;
-    CHECK(!radio.configure(2, true, true) && !radio.healthy());
+    CHECK(!radio.configure(m::TxLevel::Low, false, true, true) && !radio.healthy());
     bus.registers[0x42] = 0x12;
-    CHECK(radio.configure(10, true, true) && bus.registers[9] == 0x88);
+    CHECK(radio.configure(m::TxLevel::Medium, false, true, true) && bus.registers[9] == 0x88);
+    CHECK(radio.configure(m::TxLevel::High, false, true, true) && bus.registers[9] == 0x8f);
+    // Boost keeps the same output setting and raises the PA DAC and current limit.
+    CHECK(radio.configure(m::TxLevel::Medium, true, true, true) && bus.registers[9] == 0x88 &&
+          bus.registers[0x4d] == 0x87 && bus.registers[0x0b] == 0x31);
+    CHECK(r::Sx1276::dbm(m::TxLevel::Low) == 2 && r::Sx1276::dbm(m::TxLevel::Medium) == 10 &&
+          r::Sx1276::dbm(m::TxLevel::High) == 17 && r::Sx1276::dbm(m::TxLevel::Low, true) == 5 &&
+          r::Sx1276::dbm(m::TxLevel::Medium, true) == 13 &&
+          r::Sx1276::dbm(m::TxLevel::High, true) == 20);
     CHECK(radio.transmit(packet.data(), packet.size(), 0) == r::Start::Started);
     bus.failed = true;
     const auto failed = radio.poll(1);

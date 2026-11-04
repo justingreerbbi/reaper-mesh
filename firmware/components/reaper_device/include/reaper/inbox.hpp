@@ -4,6 +4,7 @@ namespace reaper::device {
 struct RadioInfo {
   Text<64> state{}, reason{};
   bool probe = false;
+  bool tx_boost = false;  // This board's radio has a transmit boost mode.
   std::uint32_t transmitted = 0, received = 0, revision = 0, heap_free = 0, stack_free = 0;
 };
 struct InboxItem {

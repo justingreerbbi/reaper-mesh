@@ -230,7 +230,7 @@ These possibilities are not approved implementation work. Broad telemetry, MQTT/
 | Logical channels | Eight numeric slots | Shared radio profile; names do not create independent frequencies |
 | Plaintext message payload | Up to 1,024 UTF-8 bytes | Capacity bound, not a throughput guarantee |
 | Encrypted text payload | Up to 950 UTF-8 bytes | Current 1,024-byte envelope limit includes 74 bytes of overhead |
-| Radio preset | `US915_LAB1`: 915 MHz, 500 kHz bandwidth, spreading factor 7, at most 10 dBm | A short-range lab preset tuned for speed; range results describe this preset only |
+| Radio preset | `US915_LAB1`: 915 MHz, 500 kHz bandwidth, spreading factor 7, low, medium or high transmit power (default medium, at most +22 dBm) | A short-range lab preset tuned for speed; range results describe this preset only |
 | Airtime budget | 1% refill with a one-second burst, shared by original, relay, retry and ACK traffic | About one full 1,024-byte message per node per minute after the first burst; a project courtesy limit, not a regulatory claim |
 | Discovery node snapshot | Up to 32 retained device entries | Observed cache, not a complete inventory or online roster |
 | Local retained histories | Bounded; the browser keeps a rolling 160-entry sent history, at most 32 unresolved operations, within a 1 MiB journal | Detailed limits remain in the referenced contracts |

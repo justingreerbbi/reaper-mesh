@@ -65,7 +65,12 @@ manifest = {
             (root / "firmware/heltec-v3/main/board_profile.hpp").read_text(),
         ).group(1)
         == "true",
-        "driver": {"source": "first-party-sx1276", "probe_version": "0x12", "min_tx_dbm": 2}
+        "driver": {
+            "source": "first-party-sx1276",
+            "probe_version": "0x12",
+            "tx_dbm": [2, 17],
+            "boost_dbm": 20,
+        }
         if tbeam
         else json.loads(
             (root / "firmware/components/reaper_radio/vendor/upstream.json").read_text()

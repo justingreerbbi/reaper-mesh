@@ -63,6 +63,10 @@ The integrated firmware supports local delivery by selecting This device. An ack
 
 USB identity, monotonic request counters and bounded command/message/inbox history are checkpointed before dispatch. Reload restores unfinished work as unknown and never resumes partial sends. Query status after reconnecting to the same device/boot. The recovery panel exports history, retries unavailable storage, or explicitly resets disconnected history. Reset/cleared browser data allocates a new identity and can consume another device owner slot. Invalid saved JSON remains exportable; it is not silently discarded. A second tab is read-only. Native Brave local delivery and both outgoing/inbox retention across reload passed on usb-prototype-4.
 
+## Radio settings
+
+Settings → Radio sets the transmit power to Low, Medium or High. Medium is the default. A board that has a boost mode, currently the T-Beam, also shows **Boost transmit power**, which is off by default. Power per board is in [radio configuration](../reference/radio-configuration.md#transmit-power). Firmware older than `v0.4.0` must be updated before radio settings can be changed.
+
 ## Screen settings
 
 Settings → Screen sets how long the device's own screen stays on (10 s, 30 s, 1 min, 5 min or

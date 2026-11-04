@@ -332,6 +332,26 @@ Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [persistence](../reference/persistence.md#channel-ids-record-6),
 [Channel encryption](../guides/encryption.md#rme2-envelope).
 
+### D46. Transmit power levels
+Nov 4 · **Confirmed**. Owner request. Transmit power is low, medium or high instead of a dBm number,
+because a person choosing power needs the choice and not the radio's scale. Low is the radio's
+minimum, high its maximum, medium halfway between them in dBm. The default is medium with boost off.
+
+- **Range.** This replaces the 0–10 dBm development bound with each radio's full range, so the
+  Heltec reaches +22 dBm and the T-Beam +17 dBm, or +20 dBm with boost. The limit that remains is
+  the airtime budget. Neither is a compliance determination, and output has not been measured.
+- **Boost.** Only the SX1276 has it (its high-power mode). It adds about 3 dB at every level rather
+  than being a fourth level. The SX1262's receive boost is a different feature and is not used.
+- **Firmware, not an agent.** The device owns the radio and the per-board values, so an agent cannot
+  do this (D41). The wire carries the level; the dBm stays in the driver.
+- **Consequences.** A breaking change approved under D42: `txLevel` replaces `txPower` at the same
+  tag, `txBoost` is added, and storage adds record 7. Stored dBm values are not converted, so an
+  upgraded board moves to medium, which raises a board that was at 2 dBm.
+
+Details: [radio configuration](../reference/radio-configuration.md#transmit-power),
+[protocol](../reference/protocol.md#transmit-power-levels-d46),
+[persistence](../reference/persistence.md#transmit-power-levels-record-7).
+
 ## Priorities
 
 ### D37. Field qualification before new portal features

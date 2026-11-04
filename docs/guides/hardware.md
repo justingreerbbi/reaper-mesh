@@ -19,10 +19,10 @@ Full board-specific wiring, power rails, and radio bring-up for the T-Beam are i
 Power is expressed in dBm at the radio output, before antenna gain. The radio-chip
 programming ranges and board output specifications have different scopes:
 
-| Board | Manufacturer radio minimum | Manufacturer radio maximum | Board specification | Current Reaper Mesh TX range |
+| Board | Manufacturer radio minimum | Manufacturer radio maximum | Board specification | Reaper Mesh low / medium / high |
 | --- | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 (SX1262) | −9 dBm | +22 dBm | Heltec specifies maximum output as 21 ± 1 dBm; it does not specify a board-level minimum on its product page | 0–10 dBm |
-| LILYGO T-Beam V1.2 (SX1276, PA_BOOST path) | +2 dBm | +20 dBm with high-power settings; normal PA_BOOST operation is +2 to +17 dBm | Values describe the SX1276 PA_BOOST path used by this board; they are not measurements of this unit | 2–10 dBm |
+| Heltec WiFi LoRa 32 V3 (SX1262) | −9 dBm | +22 dBm | Heltec specifies maximum output as 21 ± 1 dBm; it does not specify a board-level minimum on its product page | −9 / +7 / +22 dBm (no boost) |
+| LILYGO T-Beam V1.2 (SX1276, PA_BOOST path) | +2 dBm | +20 dBm with high-power settings; normal PA_BOOST operation is +2 to +17 dBm | Values describe the SX1276 PA_BOOST path used by this board; they are not measurements of this unit | +2 / +10 / +17 dBm, or +5 / +13 / +20 dBm with boost |
 
 Manufacturer sources, checked November 4, 2026: [Heltec V3 product specifications](https://heltec.org/project/wifi-lora-32-v3/),
 [Semtech SX1261/SX1262 datasheet](https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/RQ000008nKCH/hp2iKwMDKWl34g1D3LBf_zC7TGBRIo2ff5LMnS8r19s)
@@ -30,8 +30,9 @@ Manufacturer sources, checked November 4, 2026: [Heltec V3 product specification
 (RF power amplifiers and +20 dBm operation). The SX1276 +20 dBm mode has additional
 supply, duty-cycle and antenna-mismatch conditions in the datasheet.
 
-These manufacturer capabilities do not expand the firmware limits in
-[radio configuration](../reference/radio-configuration.md) and the [T-Beam guide](t-beam-v12.md).
+The firmware's levels and boost are defined in
+[radio configuration](../reference/radio-configuration.md#transmit-power). The default is medium
+with boost off. Attach the antenna before transmitting at any level.
 Actual output power on these units has not been measured; see [Status](../overview/status.md).
 
 ## Heltec WiFi LoRa 32 V3

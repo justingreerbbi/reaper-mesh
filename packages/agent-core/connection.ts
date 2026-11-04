@@ -6,7 +6,13 @@ import * as recovery from './recovery-data.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { Synchronizer, type Config } from './sync.ts';
-import { legacyChannelIds, radioFields, validRadio } from '../protocol/radio-config.ts';
+import {
+  DEFAULT_TX_LEVEL,
+  TX_LEVELS,
+  legacyChannelIds,
+  radioFields,
+  validRadio,
+} from '../protocol/radio-config.ts';
 import { InboxReader } from './inbox.ts';
 import { Messaging } from './messaging.ts';
 import { Commands, type ConfigCommand } from './commands.ts';
@@ -133,6 +139,13 @@ export class Connection {
   get supportsChannelIds() {
     return this.capabilities?.channelIdVersion === 1 && !!(this.capabilities.features & 1024);
   }
+  /** Transmit power is low, medium or high rather than a dBm value. */
+  get supportsTxLevels() {
+    return !!(this.capabilities && this.capabilities.features & 2048);
+  }
+  get supportsTxBoost() {
+    return this.supportsTxLevels && !!(this.capabilities!.features & 4096);
+  }
   get supportsScreen() {
     return this.capabilities?.screenVersion === 1 && !!(this.capabilities.features & 512);
   }
@@ -217,7 +230,7 @@ export class Connection {
     const c = this.capabilities;
     if (!c || !(c.features & 16) || c.radioSchema !== 1 || c.maxChannels !== 8)
       return 'device does not support radio configuration v1';
-    return this.supportsChannelIds
+    return this.supportsChannelIds && this.supportsTxLevels
       ? undefined
       : 'update the device firmware to change channels or radio settings';
   }
@@ -236,6 +249,8 @@ export class Connection {
       throw new Error('unsupported or invalid discovery settings');
     if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region)))
       throw new Error(this.radioBlockReason || 'invalid radio/channel settings');
+    if (config.radio?.boost && !this.supportsTxBoost)
+      throw new Error('this device has no transmit boost');
     const regionMask = { UNSET: 1, US: 2, EU: 4 }[config.region];
     if (!regionMask || !(this.capabilities!.regions & regionMask))
       throw new Error('device does not support this region');
@@ -521,16 +536,18 @@ export class Connection {
               }
             : {}),
           ...(message.radioMode !== undefined &&
-          message.txPower !== undefined &&
+          message.txLevel !== undefined &&
           message.relay !== undefined &&
           message.channels !== undefined &&
           message.preset === 'US915_LAB1' &&
           message.relay <= 1 &&
-          message.txPower <= 10
+          (!this.supportsTxLevels || (message.txLevel <= 2 && (message.txBoost ?? 0) <= 1))
             ? {
                 radio: {
                   mode: message.radioMode,
-                  power: message.txPower,
+                  // Older firmware sends dBm here; its radio settings are read-only anyway.
+                  level: this.supportsTxLevels ? TX_LEVELS[message.txLevel] : DEFAULT_TX_LEVEL,
+                  boost: message.txBoost === 1,
                   relay: message.relay === 1,
                   channels: message.channels,
                   // Firmware without channel IDs uses slot numbers on air (D45).

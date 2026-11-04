@@ -28,7 +28,6 @@ d::Settings settings(const char* name, bool respond = false, bool beacon = false
   d::Settings s{};
   s.region = d::Region::Us;
   s.radio.mode = d::RadioMode::Mesh;
-  s.radio.power = 2;
   s.label = text<64>(name);
   s.discovery.respond = respond;
   s.discovery.beacon = beacon;

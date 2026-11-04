@@ -30,26 +30,26 @@ void Sx1276::stop() {
 bool Sx1276::listen() {
   return write(0x0d, 0) && write(0x12, 0xff) && write(0x01, 0x85);
 }
-bool Sx1276::configure(std::uint8_t power, bool receive, bool transmit) {
+bool Sx1276::configure(mesh::TxLevel level, bool boost, bool receive, bool transmit) {
   stop();
-  if (power > mesh::kUs915Lab1.max_power_dbm || (transmit && power < 2) || !bus_.reset() ||
-      !read(0x42, version_) || version_ != 0x12) {
+  if (level > mesh::TxLevel::High || !bus_.reset() || !read(0x42, version_) || version_ != 0x12) {
     stop();
     return false;
   }
   // Sleep before switching the LoRa register bank; 32 MHz reference, 915 MHz.
   const std::uint32_t frequency = (std::uint64_t(mesh::kUs915Lab1.frequency_hz) << 19) / 32000000;
-  // T-Beam routes PA_BOOST only: 2..10 dBm. Lower values are RX/probe-only.
-  const auto pa = std::uint8_t(0x80 | (power >= 2 ? power - 2 : 0));
+  // T-Beam routes PA_BOOST only. Boost keeps the same output setting and raises the PA DAC, with
+  // the current limit raised from 100 mA to 140 mA to allow for it.
+  const auto pa = std::uint8_t(0x80 | (dbm(level) - 2));
   if (!write(0x01, 0x00) || !write(0x01, 0x80) || !write(0x01, 0x81) ||
       !write(0x06, std::uint8_t(frequency >> 16)) || !write(0x07, std::uint8_t(frequency >> 8)) ||
       !write(0x08, std::uint8_t(frequency)) || !write(0x09, pa) || !write(0x0a, 0x09) ||
-      !write(0x0b, 0x2b) || !write(0x4d, 0x84) || !write(0x0c, 0x23) || !write(0x0e, 0) ||
-      !write(0x0f, 0) || !write(0x11, 0) || !write(0x1d, 0x92) || !write(0x1e, 0x74) ||
-      !write(0x26, 0x04) || !write(0x20, 0) || !write(0x21, 8) ||
-      !write(0x23, mesh::kMaxPacketBytes) || !write(0x31, 0x03) || !write(0x37, 0x0a) ||
-      !write(0x39, 0x52) || !write(0x33, 0x27) || !write(0x3b, 0x1d) || !write(0x36, 0x02) ||
-      !write(0x3a, 0x64) || !write(0x40, 0) || !write(0x12, 0xff))
+      !write(0x0b, boost ? 0x31 : 0x2b) || !write(0x4d, boost ? 0x87 : 0x84) ||
+      !write(0x0c, 0x23) || !write(0x0e, 0) || !write(0x0f, 0) || !write(0x11, 0) ||
+      !write(0x1d, 0x92) || !write(0x1e, 0x74) || !write(0x26, 0x04) || !write(0x20, 0) ||
+      !write(0x21, 8) || !write(0x23, mesh::kMaxPacketBytes) || !write(0x31, 0x03) ||
+      !write(0x37, 0x0a) || !write(0x39, 0x52) || !write(0x33, 0x27) || !write(0x3b, 0x1d) ||
+      !write(0x36, 0x02) || !write(0x3a, 0x64) || !write(0x40, 0) || !write(0x12, 0xff))
     return false;
   std::uint8_t mode = 0, modem = 0, sync = 0;
   if (!read(0x01, mode) || mode != 0x81 || !read(0x1d, modem) || modem != 0x92 ||

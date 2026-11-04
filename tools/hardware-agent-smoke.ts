@@ -41,7 +41,7 @@ for (let run = 0; run < 3; run++) {
         if (message.type === 'messageStatus')
           console.log('Device message state:', message.state, message.reason, message.received);
         if (message.type === 'snapshot')
-          console.log('Device snapshot:', message.revision, message.txPower, message.channels);
+          console.log('Device snapshot:', message.revision, message.txLevel, message.channels);
       }),
     );
   }
@@ -127,7 +127,7 @@ for (let run = 0; run < 3; run++) {
         const first = adapter.configure({
           region: 'US',
           label: 'Reaper T-Beam V1.2',
-          radio: { ...agent.sync.config.radio!, mode: 'off', power: 2 },
+          radio: { ...agent.sync.config.radio!, mode: 'off', level: 'low' },
         });
         await waitFor(
           () =>
@@ -228,7 +228,7 @@ for (let run = 0; run < 3; run++) {
       try {
         await save({
           ...original,
-          radio: { ...original.radio, mode: 'mesh', power: 2, relay: false },
+          radio: { ...original.radio, mode: 'mesh', level: 'low', relay: false },
         });
         await waitFor(() => agent.radioInfo?.reason === 'ready');
         const before = agent.radioInfo!.transmitted;
@@ -321,16 +321,16 @@ for (let run = 0; run < 3; run++) {
             1,
           ),
           mode: 'off',
-          power: 1,
+          level: 'high',
           relay: true,
         },
       });
-      assert.equal(agent.sync.config?.radio?.power, 1);
+      assert.equal(agent.sync.config?.radio?.level, 'high');
       const message = adapter.sendMessage('Named channel queue policy test', 'broadcast', 1);
       await waitFor(
         () => agent.messaging.history.find(entry => entry.id === message)?.state === 'queued',
       );
-      await save({ ...agent.sync.config!, radio: { ...agent.sync.config!.radio!, power: 2 } });
+      await save({ ...agent.sync.config!, radio: { ...agent.sync.config!.radio!, level: 'low' } });
       await waitFor(
         () => agent.messaging.history.find(entry => entry.id === message)?.state === 'failed',
       );

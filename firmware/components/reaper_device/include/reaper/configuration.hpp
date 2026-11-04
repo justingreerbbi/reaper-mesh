@@ -1,6 +1,7 @@
 #pragma once
 #include "reaper/protocol.hpp"
 #include "reaper/radio_packet.hpp"
+#include "reaper/regional.hpp"
 
 namespace reaper::device {
 template <std::size_t N>
@@ -21,7 +22,8 @@ enum class Region : std::uint8_t { Unset = 0, Us = 1, Eu = 2 };
 enum class RadioMode : std::uint8_t { Off, Receive, Mesh };
 struct RadioSettings {
   RadioMode mode = RadioMode::Off;
-  std::uint8_t power = 0;
+  mesh::TxLevel level = mesh::TxLevel::Medium;
+  bool boost = false;  // Boards without a boost mode refuse it (Session).
   bool relay = false;
   std::uint8_t profile = 1;
   Text<71> channels{};

@@ -270,7 +270,7 @@ void debug_page(Frame& f, const Status& s) {
   std::snprintf(buffer, sizeof(buffer), "%s REV %lu", s.usb,
                 static_cast<unsigned long>(s.revision));
   text(f, 0, 20, buffer);
-  std::snprintf(buffer, sizeof(buffer), "%s %s %udBm", s.storage_ok ? "NVS OK" : "NVS FAULT",
+  std::snprintf(buffer, sizeof(buffer), "%s %s %ddBm", s.storage_ok ? "NVS OK" : "NVS FAULT",
                 s.mode, s.power_dbm);
   text(f, 0, 29, buffer);
   std::snprintf(buffer, sizeof(buffer), "RX %lu TX %lu", static_cast<unsigned long>(s.rx),

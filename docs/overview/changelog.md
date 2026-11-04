@@ -10,6 +10,29 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: transmit power levels (`v0.4.0`)
+
+At the owner's request (D46), transmit power is low, medium or high instead of a dBm number, with
+medium the default. The Heltec uses −9, +7 and +22 dBm. The T-Beam uses +2, +10 and +17 dBm, and an
+optional boost, off by default, raises those to +5, +13 and +20 dBm. Settings → Radio has the new
+control, and shows boost only on a board that has it. USB replaces `txPower` with `txLevel` and adds
+`txBoost` (feature bits 11 and 12), and storage adds record 7. Stored dBm values load as medium.
+Existing message fixtures keep their exact bytes with the field renamed; two fixtures were appended.
+
+Both boards run `v0.4.0` from clean commit `078f9fe`, installed with the ROM updater, and both moved
+from their stored dBm value to medium without boost. `tools/hardware-power-smoke.ts` passed on the
+bench: direct messages were acknowledged and read from the inbox in both directions at low, medium
+and high, then again at each level with boost on the T-Beam (the Heltec stayed at high). The agent
+refused boost for the Heltec; the device's own refusal is covered by host tests. Heltec low and T-Beam
+high with boost survived a reset, and both boards were restored to medium afterward. `npm run check`
+(289 tests) and the firmware CTest suite (78 tests) pass. In the simulator, the portal showed Low,
+Medium and High, saved High and hid boost.
+
+Not checked: output power was not measured, so these runs show the radios accept each setting and
+still deliver, not that they reach the stated dBm. No range test, and at bench distance a message
+getting through says little about the difference between levels. The boost checkbox has not been
+clicked in a browser, because the simulator has no boost.
+
 ## November 3: remove a channel and reset Public
 
 At the owner's request, Settings → Channels can remove a channel from the device. Public is

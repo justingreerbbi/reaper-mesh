@@ -518,13 +518,20 @@
                 </select>
               </div>
               <div>
-                <label for="radio-power">Transmit power (dBm)</label>
-                <input id="radio-power" type="number" min="0" max="10" step="1" value="0" />
+                <label for="radio-power">Transmit power</label>
+                <select id="radio-power">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                </select>
               </div>
             </div>
             <p class="small muted">
               US 915 lab preset. Transmission also requires the board antenna check.
             </p>
+            <label class="check" id="radio-boost-row" hidden>
+              <input id="radio-boost" type="checkbox" />Boost transmit power</label
+            >
             <label class="check">
               <input id="radio-relay" type="checkbox" />Relay messages for other nodes</label
             >

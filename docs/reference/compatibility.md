@@ -11,6 +11,7 @@ There is no stable/public release yet. Firmware identifiers describe development
 | usb-prototype-5 | Same wire/schema | 1 | 1, 2 | Antenna confirmed; superseded due to full-fragment SPI failure |
 | tbeam-usb-prototype-1 | Same USB v1 | 1 | 1, 2 | ESP32/4MB, AXP2101/SX1276; real direct RF with Heltec6 passed |
 | usb-prototype-6 | Same wire/schema | 1 | 1, 2 | DMA-backed full-fragment transfer; owner-confirmed US board/antenna |
+| heltec/tbeam-reaper-mesh-v0.4.0 | `txLevel` replaces `txPower`, adds `txBoost` | 1 | 1–7 | Low, medium and high power; T-Beam boost |
 
 Current agent to older firmware: missing message/radio/inbox capabilities disable those functions. Unknown optional fields are skipped by length; unsupported required behavior fails closed. Base agents editing label/region on newer firmware omit the five radio fields, preserving device-authoritative radio policy. A radio policy update is all-or-none, shares the revision CAS, and cancels stale queued work. Storage schema 1 remains readable; schema 2 is written only for nondefault radio policy. Downgrading to schema-1-only firmware with schema 2 on disk is unsupported: storage must fail closed, never erase itself.
 

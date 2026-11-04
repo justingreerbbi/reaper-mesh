@@ -5,6 +5,8 @@ import type { SerialPortLike } from '../agent-core/serial.ts';
 import {
   DEFAULT_CHANNEL_IDS,
   DEFAULT_CHANNELS,
+  DEFAULT_TX_LEVEL,
+  TX_LEVELS,
   validChannels,
   type RadioConfig,
 } from '../protocol/radio-config.ts';
@@ -14,9 +16,11 @@ export class SimulatedDevice {
   readonly config = new ConfigDevice();
   nextFault: 'none' | 'lose-result' | 'disconnect' = 'none';
   readOnly = false;
+  txBoost = false;
   radio: RadioConfig = {
     mode: 'off',
-    power: 0,
+    level: DEFAULT_TX_LEVEL,
+    boost: false,
     relay: false,
     channels: DEFAULT_CHANNELS,
     channelIds: DEFAULT_CHANNEL_IDS,
@@ -74,7 +78,7 @@ export class SimulatedDevice {
                 minVersion: 1,
                 maxVersion: 1,
                 configSchema: 1,
-                features: this.readOnly ? 2 : 7 | 16 | 1024,
+                features: this.readOnly ? 2 : 7 | 16 | 1024 | 2048 | (this.txBoost ? 4096 : 0),
                 radioSchema: 1,
                 maxChannels: 8,
                 channelIdVersion: 1,
@@ -104,7 +108,8 @@ export class SimulatedDevice {
                 region: this.config.config.region,
                 label: this.config.config.label,
                 radioMode: this.radio.mode,
-                txPower: this.radio.power,
+                txLevel: TX_LEVELS.indexOf(this.radio.level),
+                txBoost: this.radio.boost ? 1 : 0,
                 relay: this.radio.relay ? 1 : 0,
                 channels: this.radio.channels,
                 channelIds: this.radio.channelIds,
@@ -160,7 +165,8 @@ export class SimulatedDevice {
                 this.radio = {
                   ...this.radio,
                   mode: message.radioMode!,
-                  power: message.txPower!,
+                  level: TX_LEVELS[message.txLevel!],
+                  boost: message.txBoost === 1,
                   relay: message.relay === 1,
                   channels: message.channels!,
                   channelIds: message.channelIds!,

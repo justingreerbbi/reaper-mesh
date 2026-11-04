@@ -82,7 +82,7 @@ try {
     assert.equal(originals[i].region, 'US');
     await save(i, {
       ...originals[i],
-      radio: { ...originals[i].radio!, mode: 'mesh', power: 2 },
+      radio: { ...originals[i].radio!, mode: 'mesh', level: 'low' },
       discovery: { beacon: false, respond: true, interval: 300 },
       position: {
         share: true,

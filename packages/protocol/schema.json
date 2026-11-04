@@ -59,7 +59,7 @@
       "region": "region",
       "label": "label",
       "radioMode": "radioMode?",
-      "txPower": "u32?",
+      "txLevel": "u32?",
       "relay": "u32?",
       "channels": "channels?",
       "preset": "id?",
@@ -72,7 +72,8 @@
       "longitude": "u32?",
       "screenTimeout": "u32?",
       "screenWake": "u32?",
-      "channelIds": "channelIds?"
+      "channelIds": "channelIds?",
+      "txBoost": "u32?"
     }
   },
   "event": {
@@ -85,7 +86,7 @@
       "region": "region",
       "label": "label",
       "radioMode": "radioMode?",
-      "txPower": "u32?",
+      "txLevel": "u32?",
       "relay": "u32?",
       "channels": "channels?",
       "preset": "id?",
@@ -98,7 +99,8 @@
       "longitude": "u32?",
       "screenTimeout": "u32?",
       "screenWake": "u32?",
-      "channelIds": "channelIds?"
+      "channelIds": "channelIds?",
+      "txBoost": "u32?"
     }
   },
   "ping": {
@@ -126,7 +128,7 @@
       "region": "region",
       "label": "label",
       "radioMode": "radioMode?",
-      "txPower": "u32?",
+      "txLevel": "u32?",
       "relay": "u32?",
       "channels": "channels?",
       "preset": "id?",
@@ -139,7 +141,8 @@
       "longitude": "u32?",
       "screenTimeout": "u32?",
       "screenWake": "u32?",
-      "channelIds": "channelIds?"
+      "channelIds": "channelIds?",
+      "txBoost": "u32?"
     }
   },
   "result": {

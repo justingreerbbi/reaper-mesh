@@ -44,9 +44,9 @@ try {
     originals[index] = original;
     assert.equal(original.region, 'US');
     assert.ok(original.radio);
-    if (original.radio.mode !== 'mesh' || original.radio.power !== 2) {
+    if (original.radio.mode !== 'mesh' || original.radio.level !== 'low') {
       changed.push(index);
-      await save(index, { ...original, radio: { ...original.radio, mode: 'mesh', power: 2 } });
+      await save(index, { ...original, radio: { ...original.radio, mode: 'mesh', level: 'low' } });
     }
     await waitFor(() => board.connection.radioInfo?.reason === 'ready', 10000);
     assert.equal(board.connection.radioInfo?.probe, 1);
