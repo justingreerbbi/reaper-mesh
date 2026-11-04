@@ -21,7 +21,7 @@ started it with nothing paired.
 
 Evidence: `npm run check` (296 tests) and the firmware CTest suite (84 tests) pass, including Bluetooth
 being refused pairing even as the session's owner, and the Web Bluetooth port against a fake device.
-Both boards run `v0.6.0` from an uncommitted build. Over USB with the real agent code, each board
+Both boards now run `v0.6.0` from clean commit `0268691`. On an earlier uncommitted build, over USB with the real agent code, each board
 reported closed, then open with its name and 116 seconds left after the agent opened pairing, with
 no pairings stored. With the Bluetooth stack running, the Heltec had 135 KB of heap free and the
 T-Beam 73 KB. In the simulator, Settings → Bluetooth opened pairing, showed a passkey, kept it out of
@@ -32,7 +32,10 @@ stopped because the browser had Web Bluetooth switched off, and that the portal 
 Bluetooth and exchanged messages. This is the owner's report; message size and delivery times were not
 recorded.
 
-Not checked: reconnecting after a reset, refusal of
+Read over USB, the Heltec held one pairing before and after installing the clean build, with its
+settings kept. The T-Beam holds none, so this is one board.
+
+Not checked: reconnecting over Bluetooth after a reset, refusal of
 an unpaired device, a wrong passkey, and any effect on LoRa timing. The earlier failed run from
 Terminal.app is unexplained.
 
