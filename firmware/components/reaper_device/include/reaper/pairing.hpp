@@ -38,9 +38,12 @@ class PairingWindow {
   PairingState state() const { return state_; }
   std::uint32_t seconds_left(std::uint64_t now) const {
     const auto used = now - since_;
-    return !open() || used >= kOpenMs ? 0 : static_cast<std::uint32_t>((kOpenMs - used + 999) / 1000);
+    return !open() || used >= kOpenMs ? 0
+                                      : static_cast<std::uint32_t>((kOpenMs - used + 999) / 1000);
   }
-  std::uint64_t connection_deadline() const { return open() ? kPairingDeadlineMs : kIdleDeadlineMs; }
+  std::uint64_t connection_deadline() const {
+    return open() ? kPairingDeadlineMs : kIdleDeadlineMs;
+  }
 
  private:
   void show(PairingState state, std::uint64_t now) {

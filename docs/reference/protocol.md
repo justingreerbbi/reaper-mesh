@@ -192,6 +192,10 @@ NodeReply appends positionSource/latitude/longitude/positionAgeMs together for a
 
 Committed position/privacy changes cancel pending controls, including controls already selected by the board service, before further TX under the new policy. An already transmitted/in-flight radio signal cannot be recalled; stopping a driver does not erase prior disclosure. No position is emitted merely because coordinates are stored. The separate beacon/respond policies and radio/antenna/airtime gates still apply.
 
+## Bluetooth link and pairing
+
+The same framed bytes also run over Bluetooth, and a USB host can open pairing. See [Bluetooth link](bluetooth.md).
+
 ## Agent naming and compatibility
 
 An agent is the software connected to a node. This naming convention changes no wire fields, owner identity rules, persisted request IDs, or synchronization/recovery behavior. Frozen v1 fixtures retain their historical `client-A` owner/ID values and exact bytes: these are opaque valid identities, not required terminology or a migration target.

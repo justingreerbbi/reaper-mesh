@@ -1882,3 +1882,12 @@ form.manage-body > label:first-child {
   border-radius: 50%;
   border-width: 2px;
 }
+
+.pairing-passkey {
+  margin: 8px 0;
+  color: var(--text);
+  font-size: 40px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}

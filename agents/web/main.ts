@@ -22,6 +22,7 @@ import {
   renderDiscovery,
   renderPosition,
   renderScreen,
+  renderBluetooth,
   renderRadio,
 } from './settings-ui.ts';
 import { fieldMap, initMap, mapWorkspace, renderMap } from './map-ui.ts';
@@ -50,6 +51,7 @@ function renderApp() {
   renderPinSettings();
   renderPosition();
   renderScreen();
+  renderBluetooth();
   renderDiscovery();
   renderRadio();
   renderEncryption();

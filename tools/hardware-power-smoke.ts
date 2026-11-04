@@ -81,7 +81,7 @@ async function direct(sender: Board, receiver: Board, label: string) {
 try {
   opened.push(await open(heltecPort), await open(tbeamPort));
   for (const [index, board] of opened.entries()) {
-    assert.match(board.connection.capabilities?.firmware ?? '', /-reaper-mesh-v0\.[45]\./);
+    assert.match(board.connection.capabilities?.firmware ?? '', /-reaper-mesh-v0\.[456]\./);
     assert.equal(board.connection.supportsTxLevels, true);
     originals[index] = board.connection.sync.config!;
     assert.equal(originals[index].radio?.mode, 'mesh');

@@ -26,6 +26,13 @@ export class Connection {
   readonly discovery: Discovery;
   readonly inbox = new InboxReader();
   radioInfo: Extract<Message, { type: 'radioStatus' }> | undefined;
+  /** Held in memory only: it can carry a live passkey, so it is never journaled. */
+  pairing: Extract<Message, { type: 'pairingStatus' }> | undefined;
+  #pairingWatched = false;
+  #pairingRequest = 0;
+  #pairingPending = 0;
+  #pairingDeadline = 0;
+  #nextPairing = 0;
   radioError: string | undefined;
   #radioRequest = 0;
   #radioPending = 0;
@@ -136,6 +143,34 @@ export class Connection {
     );
   }
   /** Channels are identified by on-air ID rather than slot number (D45). */
+  get supportsPairing() {
+    return !!(this.capabilities && this.capabilities.features & 8192);
+  }
+  /** Opens the device's pairing window. The device accepts this over USB only (D47). */
+  openPairing(now: number) {
+    this.#time(now);
+    this.sync.mutationContext();
+    if (this.#expired(now) || !this.supportsPairing)
+      throw new Error('Bluetooth pairing is unavailable');
+    this.#pairingWatched = true;
+    this.#sendPairing(1, now);
+  }
+  /** Polls the pairing state once a second while something is showing it. */
+  watchPairing(active: boolean) {
+    this.#pairingWatched = active;
+    if (!active && this.pairing?.passkey !== undefined) this.pairing = undefined;
+  }
+  #sendPairing(open: 0 | 1, now: number) {
+    this.#pairingPending = ++this.#pairingRequest;
+    this.#pairingDeadline = now + 2000;
+    this.#send({
+      type: 'pairingRequest',
+      link: this.#link,
+      boot: this.sync.boot!,
+      request: this.#pairingPending,
+      open,
+    });
+  }
   get supportsChannelIds() {
     return this.capabilities?.channelIdVersion === 1 && !!(this.capabilities.features & 1024);
   }
@@ -320,6 +355,7 @@ export class Connection {
     this.#radioRequest = this.#radioPending = this.#nextRadio = this.#radioTimeouts = 0;
     this.radioInfo = undefined;
     this.radioError = undefined;
+    this.#clearPairing();
     this.#request = 0;
     this.#ping = 0;
     this.#awaitingPong = false;
@@ -330,7 +366,14 @@ export class Connection {
     return session;
   }
 
+  #clearPairing() {
+    this.pairing = undefined;
+    this.#pairingWatched = false;
+    this.#pairingRequest = this.#pairingPending = this.#nextPairing = 0;
+  }
+
   close(reason?: string) {
+    this.#clearPairing();
     this.sync.disconnect();
     this.commands.tick(this.#now);
     this.inbox.tick(this.#now);
@@ -425,6 +468,13 @@ export class Connection {
         }
       }
     }
+    if (this.#pairingWatched && this.supportsPairing) {
+      if (this.#pairingPending && now >= this.#pairingDeadline) {
+        this.#pairingPending = 0;
+        this.pairing = undefined; // Never leave an old passkey showing.
+      }
+      if (!this.#pairingPending && now >= this.#nextPairing) this.#sendPairing(0, now);
+    }
     if (!this.#awaitingPong && now >= this.#nextPing) {
       this.#ping++;
       this.#awaitingPong = true;
@@ -455,6 +505,18 @@ export class Connection {
         this.#radioPending = this.#radioTimeouts = 0;
         this.radioError = undefined;
         this.#nextRadio = this.#now + 2000;
+      }
+      return;
+    }
+    if (message.type === 'pairingStatus') {
+      if (
+        this.#pairingWatched &&
+        message.boot === this.sync.boot &&
+        message.request === this.#pairingPending
+      ) {
+        this.pairing = message;
+        this.#pairingPending = 0;
+        this.#nextPairing = this.#now + 1000;
       }
       return;
     }

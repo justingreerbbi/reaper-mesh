@@ -27,8 +27,13 @@
           <button id="lock-app" type="button" hidden>Lock app</button>
           <label class="sr-only" for="mode">Connection source</label>
           <select id="mode">
-            <option value="usb">USB device</option>
+            <option value="usb">Device</option>
             <option value="demo">Simulator</option>
+          </select>
+          <label class="sr-only" for="transport">Device connection</label>
+          <select id="transport">
+            <option value="usb">USB</option>
+            <option value="ble">Bluetooth</option>
           </select>
           <button id="connect" class="primary" type="button">Connect USB</button>
         </div>
@@ -444,6 +449,7 @@
         <button type="button" class="manage-tab" data-manage="position">Position</button>
         <button type="button" class="manage-tab" data-manage="discovery">Discovery</button>
         <button type="button" class="manage-tab" data-manage="screen">Screen</button>
+        <button type="button" class="manage-tab" data-manage="bluetooth">Bluetooth</button>
         <button type="button" class="manage-tab" data-manage="privacy">Privacy</button>
         <button type="button" class="manage-tab" data-manage="recovery">Storage</button>
         <button type="button" class="manage-tab" data-manage="details">Diagnostics</button>
@@ -761,6 +767,26 @@
               <button id="screen-reset" type="button">Discard changes</button>
             </div>
           </form>
+        </section>
+
+        <section class="manage-panel" data-manage-panel="bluetooth" hidden>
+          <h2>Bluetooth</h2>
+          <p id="pairing-support" role="status" class="muted"></p>
+          <p class="small muted">
+            Pair a phone or this browser so it can connect without a cable. Pairing needs physical
+            access: start it here over USB, or hold the device's main button for 5 seconds. Holding
+            for 15 seconds forgets all paired devices.
+          </p>
+          <div id="pairing-state" role="status" hidden>
+            <p id="pairing-message"></p>
+            <p id="pairing-passkey" class="pairing-passkey" hidden></p>
+            <p id="pairing-detail" class="small muted"></p>
+          </div>
+          <div class="actions">
+            <button id="pairing-start" class="primary" type="button">Start pairing</button>
+            <button id="pairing-browser" type="button">Pair this browser</button>
+          </div>
+          <p id="pairing-browser-status" role="status" class="small muted"></p>
         </section>
 
         <section class="manage-panel" data-manage-panel="recovery" hidden>

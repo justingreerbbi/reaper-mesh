@@ -1,5 +1,5 @@
 // Read-only overview of the selected source. Transport and recovery stay in agent-core.
-import { current, messageState, mode } from './app-state.ts';
+import { current, messageState, mode, openLink } from './app-state.ts';
 import { deliveryLabel } from './conversations.ts';
 import { element, text } from './dom.ts';
 import { openManage } from './settings-ui.ts';
@@ -45,7 +45,14 @@ export function renderOverview() {
   const nodes = connection.discovery.nodes;
   // Use the connection renderer's label, including opening and read-only states.
   text('overview-connection', element('status').textContent ?? sync.state);
-  text('overview-source', mode.value === 'demo' ? 'Simulator · no radio traffic' : 'USB device');
+  text(
+    'overview-source',
+    mode.value === 'demo'
+      ? 'Simulator · no radio traffic'
+      : openLink.transport === 'ble'
+        ? 'Bluetooth device'
+        : 'USB device',
+  );
   text('overview-nodes', ready && connection.supportsDiscovery ? nodes.length : '—');
   text(
     'overview-unread',

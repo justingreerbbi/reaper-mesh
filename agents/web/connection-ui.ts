@@ -1,17 +1,23 @@
 // Device connection controls, the simulator, and device status in Settings.
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 import type { SerialPortLike } from '../../packages/agent-core/serial.ts';
+import { BlePort, chooseBleDevice } from '../../packages/agent-core/ble.ts';
 import type { ConfigModel } from './model.ts';
 import {
+  bluetooth,
+  bluetoothHelp,
+  bluetoothProblem,
   clearError,
   current,
   currentError,
   demo,
   mode,
   models,
+  openLink,
   recovery,
   render,
   showError,
+  transport,
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { messagesModeChanged } from './messages-ui.ts';
@@ -36,26 +42,36 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   const ready = sync.state === 'ready';
   const writable = ready && !connection.writeBlockReason;
   mode.disabled = busy || active;
+  transport.disabled = busy || active;
+  transport.hidden = mode.value === 'demo';
+  const ble = mode.value !== 'demo' && transport.value === 'ble';
   // One toggle: connect when idle, cancel while opening, disconnect when connected.
   connected = busy || active;
-  connect.disabled = !connected && mode.value === 'usb' && (!serial || !isSecureContext);
+  connect.disabled =
+    !connected && mode.value === 'usb' && ((ble ? !bluetooth : !serial) || !isSecureContext);
   connect.textContent = busy
     ? 'Cancel'
     : active
       ? 'Disconnect'
       : mode.value === 'demo'
         ? 'Connect simulator'
-        : 'Connect USB';
+        : ble
+          ? 'Connect Bluetooth'
+          : 'Connect USB';
   connect.classList.toggle('primary', !connected);
   text(
     'support',
     mode.value === 'demo'
       ? 'An in-memory device. No USB access or radio traffic.'
       : !isSecureContext
-        ? 'USB requires HTTPS or localhost.'
-        : !serial
-          ? 'Use a desktop browser with Web Serial support.'
-          : 'Choose Heltec (usbserial-0001) or T-Beam (wchusbserial…) in the browser port chooser. One device at a time.',
+        ? `${ble ? 'Bluetooth' : 'USB'} requires HTTPS or localhost.`
+        : ble
+          ? bluetooth
+            ? 'Choose a paired Reaper device, or pair one first in Settings → Bluetooth.'
+            : bluetoothHelp
+          : !serial
+            ? 'Use a desktop browser with Web Serial support.'
+            : 'Choose Heltec (usbserial-0001) or T-Beam (wchusbserial…) in the browser port chooser. One device at a time.',
   );
   text(
     'status',
@@ -156,7 +172,7 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
   text(
     'recovery-status',
     recovery.connection.recoveryError ??
-      'USB history is saved in this browser before commands are sent.',
+      'Device history is saved in this browser before commands are sent.',
   );
   element<HTMLButtonElement>('recovery-reset').disabled = busy || models.usb.adapter.active;
   element('simulation').hidden = mode.value !== 'demo';
@@ -176,12 +192,19 @@ async function open() {
   clearError();
   render();
   try {
-    const port = mode.value === 'demo' ? demo.createPort() : await serial!.requestPort();
+    const ble = mode.value !== 'demo' && transport.value === 'ble';
+    openLink.transport = ble ? 'ble' : 'usb';
+    const port =
+      mode.value === 'demo'
+        ? demo.createPort()
+        : ble
+          ? new BlePort(await chooseBleDevice(bluetooth!))
+          : await serial!.requestPort();
     if (token !== attempt) return;
     demo.readOnly = readOnly.checked;
     await model.adapter.connect(port, crypto.randomUUID());
   } catch (e) {
-    if (token === attempt) showError(e);
+    if (token === attempt) showError(openLink.transport === 'ble' ? bluetoothProblem(e) : e);
   } finally {
     if (token === attempt) {
       busy = false;
@@ -210,6 +233,10 @@ async function close() {
 
 export function initConnection() {
   connect.addEventListener('click', () => (connected ? close() : open()));
+  transport.addEventListener('change', () => {
+    clearError();
+    render();
+  });
   mode.addEventListener('change', () => {
     messagesModeChanged();
     clearError();

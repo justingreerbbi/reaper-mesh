@@ -149,6 +149,96 @@ int routing() {
   CHECK(!session.synchronized());
   return 0;
 }
+struct FakePairing : d::PairingControl {
+  unsigned opens = 0;
+  int passkey = 123456;
+  void open(std::uint64_t) override { ++opens; }
+  d::PairingView view(std::uint64_t) const override {
+    d::PairingView view;
+    view.state = "passkey";
+    view.passkey = passkey;
+    view.seconds = 100;
+    view.bonds = 1;
+    view.name = "Reaper-1A2B";
+    return view;
+  }
+};
+std::vector<std::uint8_t> pairing_request(const char* link, std::uint32_t open) {
+  p::Message request{};
+  request.type = p::MessageType::PairingRequest;
+  set(request.fields[p::kPairingRequestLink], link);
+  set(request.fields[p::kPairingRequestBoot], "boot-A");
+  num(request.fields[p::kPairingRequestRequest], 1);
+  num(request.fields[p::kPairingRequestOpen], open);
+  return frame(request);
+}
+struct Captured {
+  p::Message last{};
+  bool seen = false;
+};
+void capture(const p::Message& message, void* context) {
+  auto& captured = *static_cast<Captured*>(context);
+  captured.last = message;
+  captured.seen = true;
+}
+bool write_capture(d::HostLink, const std::uint8_t* data, std::size_t size, void* context) {
+  static p::FrameDecoder decoder;
+  decoder.feed(data, size, capture, context);
+  return true;
+}
+bool is(const p::FieldValue& field, const char* value) {
+  return field.length == std::strlen(value) &&
+         std::memcmp(field.text.data(), value, field.length) == 0;
+}
+int pairing() {
+  Store store;
+  d::Configuration authority(store, text<64>("boot-A"));
+  FakePairing control;
+  d::Session session(authority, text<64>("device-A"), text<64>("boot-A"), nullptr, nullptr, nullptr,
+                     nullptr, &control);
+  static Captured captured;
+  static d::HostLinks links(session, write_capture, &captured);
+  const auto send = [&](d::HostLink link, const std::vector<std::uint8_t>& bytes,
+                        std::uint64_t now) {
+    captured.seen = false;
+    links.feed(link, bytes.data(), bytes.size(), now);
+  };
+  // Nothing before the session is synchronized.
+  send(d::HostLink::Usb, hello("usb-1"), 10);
+  CHECK(captured.last.fields[p::kWelcomeFeatures].number & 8192);
+  send(d::HostLink::Usb, pairing_request("usb-1", 1), 20);
+  CHECK(!captured.seen && control.opens == 0);
+  send(d::HostLink::Usb, sync("usb-1"), 30);
+
+  // USB can read the state without opening, then open, and sees the passkey.
+  send(d::HostLink::Usb, pairing_request("usb-1", 0), 40);
+  CHECK(captured.seen && control.opens == 0);
+  send(d::HostLink::Usb, pairing_request("usb-1", 1), 50);
+  CHECK(captured.seen && control.opens == 1);
+  CHECK(captured.last.type == p::MessageType::PairingStatus);
+  CHECK(is(captured.last.fields[p::kPairingStatusState], "passkey"));
+  CHECK(captured.last.fields[p::kPairingStatusPasskey].present);
+  CHECK(captured.last.fields[p::kPairingStatusPasskey].number == 123456);
+  CHECK(is(captured.last.fields[p::kPairingStatusName], "Reaper-1A2B"));
+
+  // Bluetooth, even as the session's owner, can neither open pairing nor read a passkey.
+  send(d::HostLink::Ble, hello("ble-1"), 60);
+  send(d::HostLink::Ble, sync("ble-1"), 70);
+  CHECK(session.synchronized());
+  send(d::HostLink::Ble, pairing_request("ble-1", 1), 80);
+  CHECK(captured.seen && control.opens == 1);
+  CHECK(is(captured.last.fields[p::kPairingStatusState], "refused"));
+  CHECK(!captured.last.fields[p::kPairingStatusPasskey].present);
+  CHECK(!captured.last.fields[p::kPairingStatusName].present);
+  send(d::HostLink::Ble, pairing_request("ble-1", 0), 90);
+  CHECK(is(captured.last.fields[p::kPairingStatusState], "refused"));
+  CHECK(!captured.last.fields[p::kPairingStatusPasskey].present);
+
+  // A USB request with the Bluetooth session's link is ignored, not treated as physical.
+  send(d::HostLink::Usb, pairing_request("ble-1x", 1), 100);
+  CHECK(!captured.seen && control.opens == 1);
+  return 0;
+}
 int window() {
   d::PairingWindow pairing;
   CHECK(!pairing.open() && pairing.connection_deadline() == d::PairingWindow::kIdleDeadlineMs);
@@ -212,6 +302,8 @@ int main(int argc, char** argv) {
   const std::string scenario = argv[1];
   if (scenario == "routing")
     return routing();
+  if (scenario == "pairing")
+    return pairing();
   if (scenario == "window")
     return window();
   if (scenario == "trust")

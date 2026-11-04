@@ -331,5 +331,27 @@
       "longitude": "u32?",
       "positionAgeMs": "u32?"
     }
+  },
+  "pairingRequest": {
+    "tag": 26,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "open": "u32"
+    }
+  },
+  "pairingStatus": {
+    "tag": 27,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "state": "id",
+      "seconds": "u32",
+      "bonds": "u32",
+      "passkey": "u32?",
+      "name": "id?"
+    }
   }
 }

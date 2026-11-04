@@ -10,6 +10,34 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: Bluetooth in the web portal (`v0.6.0`, in development)
+
+At the owner's request (D47), the portal can connect over Web Bluetooth (Device, then USB or Bluetooth
+in the header) and Settings → Bluetooth can start pairing, show the passkey and pair this browser. USB
+adds `pairingRequest` and `pairingStatus` (feature bit 13), which the firmware accepts only on the USB
+link. Two message fixtures were appended deliberately; existing bytes did not change. The stack also
+now starts at boot only for an actual stored peer key, because a board with leftover stack records
+started it with nothing paired.
+
+Evidence: `npm run check` (296 tests) and the firmware CTest suite (84 tests) pass, including Bluetooth
+being refused pairing even as the session's owner, and the Web Bluetooth port against a fake device.
+Both boards now run `v0.6.0` from clean commit `0268691`. On an earlier uncommitted build, over USB with the real agent code, each board
+reported closed, then open with its name and 116 seconds left after the agent opened pairing, with
+no pairings stored. With the Bluetooth stack running, the Heltec had 135 KB of heap free and the
+T-Beam 73 KB. In the simulator, Settings → Bluetooth opened pairing, showed a passkey, kept it out of
+browser storage and cleared it when closed.
+
+The owner reported that pairing worked from the portal with Web Bluetooth turned on, after a first try
+stopped because the browser had Web Bluetooth switched off, and that the portal then connected over
+Bluetooth and exchanged messages. This is the owner's report; message size and delivery times were not
+recorded.
+
+Read over USB, the Heltec held one pairing before and after installing the clean build, with its
+settings kept. The owner then reported the browser reconnecting to it over Bluetooth without a passkey. The owner also reported the Heltec refusing an unpaired phone with the window closed. The T-Beam holds none, so these results are from one board.
+
+Not checked: a wrong passkey, and any effect on LoRa timing. The earlier failed run from
+Terminal.app is unexplained.
+
 ## November 4: Bluetooth link (`v0.5.0`, in development)
 
 At the owner's request (D47), the firmware gains a [Bluetooth link](../reference/bluetooth.md) for a
@@ -26,12 +54,13 @@ of `0x1000` on the T-Beam, so it did not boot until rewritten at the correct off
 
 Evidence: `npm run check` (290 tests) and the firmware CTest suite (83 tests) pass, covering link
 routing, the pairing window, trust rules, passkey range, button holds and the pairing screen. The
-T-Beam runs `v0.5.0` from an uncommitted build with USB working, 121 KB of heap free with the
-Bluetooth stack not started and about 9 KB of the 24 KB stack used.
+T-Beam and Heltec run `v0.5.0` from an uncommitted build with USB working and settings kept. With
+the Bluetooth stack not started, the T-Beam has 121 KB of heap free and the Heltec 213 KB, and each
+has used about 9 KB of its 24 KB stack.
 
-Not checked: no Bluetooth traffic has run on any board, because this session's host process has no
-Bluetooth permission on the Mac. Host tests do not qualify pairing or radio coexistence. The Heltec
-has the build but not the flash.
+Not checked: Bluetooth has not worked end to end. One run of `tools/hardware-ble-smoke.ts` from
+Terminal.app ended without a results file, and the cause is not known yet. Both boards still answered
+over USB afterward. Host tests do not qualify pairing or radio coexistence.
 
 ## November 4: transmit power levels (`v0.4.0`)
 

@@ -78,6 +78,12 @@ export class SerialAdapter {
     return id;
   }
 
+  openPairing() {
+    this.#readyRun();
+    this.connection.openPairing(this.#now());
+    this.#flush(this.#run!);
+  }
+
   recoverMessage(id: string) {
     this.#readyRun();
     const found = this.connection.recoverMessage(id, this.#now());

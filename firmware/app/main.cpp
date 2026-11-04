@@ -133,7 +133,7 @@ static void run(void*) {
   static MeshService mesh(messages, inbox, radio_info, device, random, node,
                           reaper::board::kUsBandOwnerConfirmed && reaper::board::kAntennaVerified);
   static d::Session session(authority, device, boot, &messages, &radio_info, &inbox,
-                            &mesh.discovery());
+                            &mesh.discovery(), &ble);
   static d::HostLinks links(session, write_link, nullptr);
   mesh.begin();
   ble.begin();
