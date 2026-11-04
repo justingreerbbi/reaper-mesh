@@ -36,8 +36,30 @@ New coverage: the channel table rules and record 6 round trip, conversion of ear
 rejected tables without writes, the `channelIds` wire field, mesh admission by ID (a node outside
 the channel ignores it), RME2 framing on device and agent, invites with keys decrypting on another
 agent, and a TypeScript-to-native USB test that joins a random-ID channel in slot 3, reads it back
-and has the native session accept a message on that ID and refuse an unknown one. Not yet done:
-building and installing `v0.3.0` on the boards, and any hardware check of joining or messaging.
+and has the native session accept a message on that ID and refuse an unknown one.
+
+Hardware: `v0.3.0` was installed on both boards from clean commit `f1ad4ed` with ROM-verified
+hashes and NVS preserved (Heltec 287,296-byte app, T-Beam 258,000-byte app). Settings read back
+identical at the same revisions (Heltec 46, T-Beam 40), with Camp, Vehicles and Secure converted
+to IDs 1, 2 and 3. `tools/hardware-channel-smoke.ts` then passed all 14 checks between the boards
+at 2 dBm on a bench, on a random channel ID (`16d55505`) held in slot 4 on the Heltec and slot 7 on
+the T-Beam:
+
+- Direct messages on Public and Camp in both directions were acknowledged and read from the inbox.
+- A broadcast on a channel the T-Beam had not joined did not reach its inbox within 8 seconds, and
+  the T-Beam's own send on it was rejected (`invalid-message`).
+- After joining by parsed invite: plaintext direct messages both ways, a plaintext broadcast and
+  RME2 encrypted direct messages both ways were delivered, and the encrypted ones decrypted with
+  the invite's key. Stored inbox bytes did not contain the plaintext.
+- The channel table survived a reset with a new boot identity on both boards, and a direct message
+  was acknowledged afterwards.
+
+The first run stopped at its reset step because of a bug in the tool, not the firmware, and left its
+test channel on both boards. That also showed the channel persisting across resets on both. The
+tool was fixed, the channel removed and the full run repeated. Afterwards both boards' settings
+were identical to before the install; only the revisions advanced (Heltec 50, T-Beam 44). Not
+checked: the Join channel and Create invite buttons in a native browser, relay through a third
+board, range, and mixed firmware versions.
 
 ## November 3: chat layout
 

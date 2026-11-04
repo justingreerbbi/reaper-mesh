@@ -30,7 +30,7 @@ Owner-reported problems, recorded November 3. Portal feature work stays paused u
 
 **Channels**
 
-- **Join a channel out of order: built (November 3, firmware `v0.3.0`).** Channels have on-air IDs and the portal shares them with invites (D45). Still to do: install `v0.3.0` on both boards and check joining and messaging on hardware.
+- **Join a channel out of order: built (November 3, firmware `v0.3.0`).** Channels have on-air IDs and the portal shares them with invites (D45). Verified between the two boards; the portal's Join and Invite buttons still need a native browser check.
 - **Remove a channel.** The portal can create and rename channels but cannot remove one. The device already accepts an empty slot, so this is likely portal-only: clear the slot's name, then deal with what depends on it (queued messages fail with `radio-config-changed`, the channel's local keys and encryption policy, and its conversation history).
 
 **Map workspace.** The map tools feel unfinished from end to end and need one coherent pass rather than separate fixes:
