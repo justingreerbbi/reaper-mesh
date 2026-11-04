@@ -49,12 +49,13 @@ const char* outcome(Outcome value) {
 }
 }  // namespace
 Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages,
-                 RadioInfo* radio, Inbox* inbox, Discovery* discovery)
+                 RadioInfo* radio, Inbox* inbox, Discovery* discovery, PairingControl* pairing)
     : authority_(authority),
       messages_(messages),
       radio_(radio),
       inbox_(inbox),
       discovery_(discovery),
+      pairing_(pairing),
       device_(device),
       boot_(boot) {}
 void Session::reset() {
@@ -106,10 +107,10 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeMinVersion], 1);
     number(reply.fields[p::kWelcomeMaxVersion], 1);
     number(reply.fields[p::kWelcomeConfigSchema], 1);
-    number(reply.fields[p::kWelcomeFeatures], 23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) |
-                                                  (inbox_ ? 64 : 0) | (discovery_ ? 384 : 0) | 512 |
-                                                  1024 | 2048 |
-                                                  (radio_ && radio_->tx_boost ? 4096 : 0));
+    number(reply.fields[p::kWelcomeFeatures],
+           23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) |
+               (discovery_ ? 384 : 0) | 512 | 1024 | 2048 |
+               (radio_ && radio_->tx_boost ? 4096 : 0) | (pairing_ ? 8192 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -215,6 +216,33 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
                std::min<std::uint64_t>(now_ >= peer->seen ? now_ - peer->seen : 0, 0xffffffff));
       }
     }
+    return true;
+  }
+  if (request.type == p::MessageType::PairingRequest) {
+    if (!pairing_ || !synchronized_ || !same(request.fields[p::kPairingRequestBoot], boot_))
+      return false;
+    reply.type = p::MessageType::PairingStatus;
+    set(reply.fields[p::kPairingStatusLink], link_);
+    set(reply.fields[p::kPairingStatusBoot], boot_);
+    number(reply.fields[p::kPairingStatusRequest],
+           request.fields[p::kPairingRequestRequest].number);
+    // A paired phone must not be able to admit another device or read a passkey.
+    if (!physical_ || !admitted_) {
+      literal(reply.fields[p::kPairingStatusState], "refused");
+      number(reply.fields[p::kPairingStatusSeconds], 0);
+      number(reply.fields[p::kPairingStatusBonds], 0);
+      return true;
+    }
+    if (request.fields[p::kPairingRequestOpen].number == 1)
+      pairing_->open(now_);
+    const auto view = pairing_->view(now_);
+    literal(reply.fields[p::kPairingStatusState], view.state);
+    number(reply.fields[p::kPairingStatusSeconds], view.seconds);
+    number(reply.fields[p::kPairingStatusBonds], view.bonds);
+    if (view.passkey >= 0)
+      number(reply.fields[p::kPairingStatusPasskey], static_cast<std::uint32_t>(view.passkey));
+    if (*view.name)
+      literal(reply.fields[p::kPairingStatusName], view.name);
     return true;
   }
   if (request.type == p::MessageType::RadioQuery || request.type == p::MessageType::InboxQuery ||

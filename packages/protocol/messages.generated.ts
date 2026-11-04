@@ -24,4 +24,6 @@ export type Message =
   | Readonly<{ type: 'discover'; link: string; boot: string; id: string; action: number }>
   | Readonly<{ type: 'discoveryStatus'; link: string; boot: string; id: string; state: string; replies: number; sequence: number }>
   | Readonly<{ type: 'nodeQuery'; link: string; boot: string; request: number; generation: number; cursor: number }>
-  | Readonly<{ type: 'nodeReply'; link: string; boot: string; request: number; generation: number; cursor: number; total: number; state: string; node?: string; peerBoot?: string; peerSequence?: number; name?: string; ageMs?: number; positionSource?: number; latitude?: number; longitude?: number; positionAgeMs?: number }>;
+  | Readonly<{ type: 'nodeReply'; link: string; boot: string; request: number; generation: number; cursor: number; total: number; state: string; node?: string; peerBoot?: string; peerSequence?: number; name?: string; ageMs?: number; positionSource?: number; latitude?: number; longitude?: number; positionAgeMs?: number }>
+  | Readonly<{ type: 'pairingRequest'; link: string; boot: string; request: number; open: number }>
+  | Readonly<{ type: 'pairingStatus'; link: string; boot: string; request: number; state: string; seconds: number; bonds: number; passkey?: number; name?: string }>;

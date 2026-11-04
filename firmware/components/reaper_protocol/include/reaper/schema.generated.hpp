@@ -4,7 +4,7 @@
 #include <cstdint>
 namespace reaper::protocol {
 enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version, ChannelIds };
-enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25 };
+enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25, PairingRequest = 26, PairingStatus = 27 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
 inline constexpr std::size_t kMaxFields = 27;
@@ -241,6 +241,20 @@ inline constexpr std::size_t kNodeReplyPositionSource = 12;
 inline constexpr std::size_t kNodeReplyLatitude = 13;
 inline constexpr std::size_t kNodeReplyLongitude = 14;
 inline constexpr std::size_t kNodeReplyPositionAgeMs = 15;
+inline constexpr FieldDescriptor kPairingRequestFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false} };
+inline constexpr std::size_t kPairingRequestLink = 0;
+inline constexpr std::size_t kPairingRequestBoot = 1;
+inline constexpr std::size_t kPairingRequestRequest = 2;
+inline constexpr std::size_t kPairingRequestOpen = 3;
+inline constexpr FieldDescriptor kPairingStatusFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, true}, {Kind::Id, true} };
+inline constexpr std::size_t kPairingStatusLink = 0;
+inline constexpr std::size_t kPairingStatusBoot = 1;
+inline constexpr std::size_t kPairingStatusRequest = 2;
+inline constexpr std::size_t kPairingStatusState = 3;
+inline constexpr std::size_t kPairingStatusSeconds = 4;
+inline constexpr std::size_t kPairingStatusBonds = 5;
+inline constexpr std::size_t kPairingStatusPasskey = 6;
+inline constexpr std::size_t kPairingStatusName = 7;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 4},
   {MessageType::Welcome, kWelcomeFields, 27},
@@ -267,5 +281,7 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::DiscoveryStatus, kDiscoveryStatusFields, 6},
   {MessageType::NodeQuery, kNodeQueryFields, 5},
   {MessageType::NodeReply, kNodeReplyFields, 16},
+  {MessageType::PairingRequest, kPairingRequestFields, 4},
+  {MessageType::PairingStatus, kPairingStatusFields, 8},
 };
 } // namespace reaper::protocol

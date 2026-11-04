@@ -77,15 +77,22 @@ bool store_address(bool fresh) {
          nvs_commit(handle) == ESP_OK;
   }
   nvs_close(handle);
-  std::snprintf(advertised_name, sizeof(advertised_name), "Reaper-%02X%02X", address[1], address[0]);
+  std::snprintf(advertised_name, sizeof(advertised_name), "Reaper-%02X%02X", address[1],
+                address[0]);
   return ok;
 }
 bool has_bonds() {
   nvs_handle_t handle;
   if (nvs_open("nimble_bond", NVS_READONLY, &handle) != ESP_OK)
     return false;
-  std::size_t used = 0;
-  const bool found = nvs_get_used_entry_count(handle, &used) == ESP_OK && used > 0;
+  // Only a stored peer key counts. The stack also keeps other records here after it has run.
+  bool found = false;
+  for (std::size_t index = 1; index <= d::PairingWindow::kMaxBonds && !found; ++index) {
+    char key[16];
+    std::snprintf(key, sizeof(key), "peer_sec_%u", static_cast<unsigned>(index));
+    std::size_t size = 0;
+    found = nvs_get_blob(handle, key, nullptr, &size) == ESP_OK && size > 0;
+  }
   nvs_close(handle);
   return found;
 }
@@ -313,7 +320,8 @@ void advertise() {
   params.disc_mode = BLE_GAP_DISC_MODE_GEN;
   params.itvl_min = params.itvl_max = want == Advertising::Pairing ? 160 : 1600;  // 100 ms, 1 s
   if (ble_gap_adv_set_fields(&fields) != 0 || ble_gap_adv_rsp_set_fields(&response) != 0 ||
-      ble_gap_adv_start(BLE_OWN_ADDR_RANDOM, nullptr, BLE_HS_FOREVER, &params, on_gap, nullptr) != 0)
+      ble_gap_adv_start(BLE_OWN_ADDR_RANDOM, nullptr, BLE_HS_FOREVER, &params, on_gap, nullptr) !=
+          0)
     advertising = Advertising::Off;  // Tried again on the next tick.
 }
 void pump_output() {
@@ -322,8 +330,8 @@ void pump_output() {
     if (handle == BLE_HS_CONN_HANDLE_NONE || !trusted || !subscribed)
       return;
     if (!pending_size)
-      pending_size = xStreamBufferReceive(
-          output, pending.data(), std::min<std::size_t>(kMaxChunk, att_mtu - 3), 0);
+      pending_size = xStreamBufferReceive(output, pending.data(),
+                                          std::min<std::size_t>(kMaxChunk, att_mtu - 3), 0);
     if (!pending_size)
       return;
     os_mbuf* chunk = ble_hs_mbuf_from_flat(pending.data(), pending_size);
@@ -446,4 +454,39 @@ ui::BleStatus BleLink::status(std::uint64_t now) const {
       break;
   }
   return status;
+}
+d::PairingView BleLink::view(std::uint64_t now) const {
+  d::PairingView view;
+  const auto shown = status(now);
+  view.seconds = shown.seconds;
+  view.bonds = static_cast<std::uint32_t>(bond_count.load());
+  switch (shown.notice) {
+    case ui::BleNotice::Open:
+      view.state = "open";
+      view.name = shown.name;
+      break;
+    case ui::BleNotice::Passkey:
+      view.state = "passkey";
+      view.name = shown.name;
+      view.passkey = static_cast<int>(shown.passkey);
+      break;
+    case ui::BleNotice::Full:
+      view.state = "full";
+      break;
+    case ui::BleNotice::Paired:
+      view.state = "paired";
+      break;
+    case ui::BleNotice::Failed:
+      view.state = "failed";
+      break;
+    case ui::BleNotice::Forgotten:
+      view.state = "forgotten";
+      break;
+    case ui::BleNotice::Unavailable:
+      view.state = "unavailable";
+      break;
+    default:
+      break;
+  }
+  return view;
 }

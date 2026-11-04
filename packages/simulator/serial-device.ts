@@ -35,6 +35,9 @@ export class SimulatedDevice {
     this.#disconnect?.();
   }
 
+  /** Acts as if a phone starts pairing five seconds after the window opens. */
+  pairingOpenedAt = 0;
+
   createPort(): SerialPortLike {
     let input!: ReadableStreamDefaultController<Uint8Array>;
     let live = false;
@@ -78,7 +81,9 @@ export class SimulatedDevice {
                 minVersion: 1,
                 maxVersion: 1,
                 configSchema: 1,
-                features: this.readOnly ? 2 : 7 | 16 | 1024 | 2048 | (this.txBoost ? 4096 : 0),
+                features: this.readOnly
+                  ? 2
+                  : 7 | 16 | 1024 | 2048 | 8192 | (this.txBoost ? 4096 : 0),
                 radioSchema: 1,
                 maxChannels: 8,
                 channelIdVersion: 1,
@@ -115,6 +120,24 @@ export class SimulatedDevice {
                 channelIds: this.radio.channelIds,
                 preset: this.radio.preset,
               } as Message);
+            if (message.type === 'pairingRequest') {
+              if (message.open === 1) this.pairingOpenedAt = Date.now();
+              const seconds = this.pairingOpenedAt
+                ? 120 - Math.floor((Date.now() - this.pairingOpenedAt) / 1000)
+                : 0;
+              const open = seconds > 0;
+              reply({
+                type: 'pairingStatus',
+                link,
+                boot,
+                request: message.request,
+                state: open ? (seconds > 115 ? 'open' : 'passkey') : 'closed',
+                seconds: Math.max(0, seconds),
+                bonds: 0,
+                ...(open ? { name: 'Reaper-SIM0' } : {}),
+                ...(open && seconds <= 115 ? { passkey: 42 } : {}),
+              });
+            }
             if (message.type === 'query') {
               const result = this.config.query(message.id);
               reply({

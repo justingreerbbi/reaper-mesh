@@ -341,11 +341,17 @@ access. Owner choices: a 5-second hold on the main button opens pairing and a 15
 all paired devices; Bluetooth stays off until the first pairing and then accepts paired phones only,
 with no off switch for now; a paired phone has the same access as USB. Passkey on the device screen
 with LE Secure Connections only; at most four paired devices. One host owns the session at a time,
-and the newest hello wins. Boards without screens are not built yet; the planned route is a USB
-command that opens the window and shows the passkey in the agent. Rotating private addresses are not
+and the newest hello wins. Rotating private addresses are not
 implemented, so the fixed random address can be recognized over time. The firmware now runs in its
 own task, because Bluetooth reserves early memory on the classic ESP32 and the startup task could not
 get a 24 KB stack. See [Bluetooth link](../reference/bluetooth.md).
+
+Nov 4 update (`v0.6.0`): at the owner's request the web portal connects over Web Bluetooth and starts
+pairing from Settings. A USB host can now open the window and read the passkey, because a cable is
+also physical access; this needs firmware because no agent can open the window otherwise (D41). The
+firmware accepts it only on the USB link, so a paired phone cannot admit another device. This also
+gives boards without screens a route. USB and Bluetooth share one history in the portal, because they
+reach the same device. Safari has no Web Bluetooth and Brave may need it turned on.
 
 ### D46. Transmit power levels
 Nov 4 · **Confirmed**. Owner request. Transmit power is low, medium or high instead of a dBm number,

@@ -6,13 +6,18 @@ import {
   type RadioConfig,
 } from '../../packages/protocol/radio-config.ts';
 import { SerialAdapter } from '../../packages/agent-core/serial.ts';
+import { chooseBleDevice, pairBleDevice } from '../../packages/agent-core/ble.ts';
 import { ConfigModel } from './model.ts';
 import {
+  bluetooth,
+  bluetoothHelp,
+  bluetoothProblem,
   clearError,
   current,
   manage,
   mode,
   models,
+  openLink,
   recovery,
   render,
   setError,
@@ -232,6 +237,75 @@ export function renderScreen() {
   element<HTMLButtonElement>('screen-save').disabled =
     !writable || !screenDirty || stale || model.pending;
   element<HTMLButtonElement>('screen-reset').disabled = !ready;
+}
+
+const PAIRING_MESSAGES: Record<string, string> = {
+  open: 'Pairing is open.',
+  passkey: 'Enter this passkey on the phone or computer you are pairing:',
+  full: 'Four devices are already paired. Hold the device button for 15 seconds to forget them.',
+  paired: 'Paired.',
+  failed: 'Pairing failed. Start pairing to try again.',
+  forgotten: 'All paired devices were forgotten.',
+  unavailable: 'Bluetooth is not available on this device right now.',
+  refused: 'The device refused. Pairing can only be started over USB.',
+};
+export function renderBluetooth() {
+  const connection = current().adapter.connection,
+    ready = connection.sync.state === 'ready';
+  const usb = mode.value === 'demo' || openLink.transport === 'usb';
+  const can = ready && usb && connection.supportsPairing;
+  const showing =
+    manage.open && !manage.querySelector<HTMLElement>('[data-manage-panel="bluetooth"]')!.hidden;
+  // Stops polling, and forgets any passkey in memory, when the panel is closed.
+  if (ready) connection.watchPairing(can && showing);
+  const pairing = can ? connection.pairing : undefined;
+  text(
+    'pairing-support',
+    !ready
+      ? 'Connect over USB to start pairing here.'
+      : !usb
+        ? 'Connected over Bluetooth. Pairing another device needs USB or the device button.'
+        : !connection.supportsPairing
+          ? 'Update this device’s firmware to start pairing here.'
+          : '',
+  );
+  const message = pairing ? PAIRING_MESSAGES[pairing.state] : undefined;
+  element('pairing-state').hidden = !message;
+  text('pairing-message', message ?? '');
+  const passkey = element('pairing-passkey');
+  passkey.hidden = pairing?.passkey === undefined;
+  passkey.textContent =
+    pairing?.passkey === undefined ? '' : String(pairing.passkey).padStart(6, '0');
+  text(
+    'pairing-detail',
+    pairing?.name
+      ? `Device name: ${pairing.name} · closes in ${pairing.seconds} s · ${pairing.bonds} of 4 paired`
+      : pairing
+        ? `${pairing.bonds} of 4 paired`
+        : '',
+  );
+  const open = pairing?.state === 'open' || pairing?.state === 'passkey';
+  element<HTMLButtonElement>('pairing-start').disabled = !can || open;
+  element<HTMLButtonElement>('pairing-browser').disabled = !bluetooth || !open || pairingBrowser;
+  if (!bluetooth) text('pairing-browser-status', bluetoothHelp);
+}
+let pairingBrowser = false;
+async function pairThisBrowser() {
+  pairingBrowser = true;
+  text('pairing-browser-status', 'Choose the device, then type the passkey when asked.');
+  render();
+  try {
+    await pairBleDevice(await chooseBleDevice(bluetooth!));
+    text(
+      'pairing-browser-status',
+      'This browser is paired. Disconnect USB, choose Bluetooth and connect.',
+    );
+  } catch (error) {
+    text('pairing-browser-status', `Not paired: ${bluetoothProblem(error)}`);
+  } finally {
+    pairingBrowser = false;
+    render();
+  }
 }
 
 export function renderDiscovery() {
@@ -454,6 +528,16 @@ export function initSettings() {
       showError(error);
     }
   });
+  element('pairing-start').addEventListener('click', () => {
+    try {
+      clearError();
+      current().adapter.openPairing();
+    } catch (error) {
+      showError(error);
+    }
+    render();
+  });
+  element('pairing-browser').addEventListener('click', () => void pairThisBrowser());
   element('screen-form').addEventListener('input', () => {
     screenDirty = true;
     render();

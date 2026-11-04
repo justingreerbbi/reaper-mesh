@@ -16,6 +16,7 @@ void HostLinks::received(const p::Message& request, void* context) {
     self.owner_ = link;
     self.owned_ = true;
   }
+  self.session_.set_physical(link == HostLink::Usb);
   if (self.session_.handle(request, self.reply_)) {
     if (!self.write(self.reply_)) {
       self.release(link);
@@ -56,7 +57,6 @@ void HostLinks::release(HostLink link) {
 }
 bool HostLinks::ready(HostLink link, std::uint64_t now) const {
   const auto& from = slot(link);
-  return owns(link) && session_.synchronized() && from.replied &&
-         now - from.last_reply < kActiveMs;
+  return owns(link) && session_.synchronized() && from.replied && now - from.last_reply < kActiveMs;
 }
 }  // namespace reaper::device

@@ -1,5 +1,6 @@
 // Shared web agent state: device models, the recovery journal, local message and
 // encryption stores, the current error message and the render hook.
+import type { BleBluetooth } from '../../packages/agent-core/ble.ts';
 import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 import { SerialAdapter } from '../../packages/agent-core/serial.ts';
 import { ConfigModel } from './model.ts';
@@ -10,6 +11,19 @@ import { EncryptionVault } from './encryption.ts';
 import { element } from './dom.ts';
 
 export const mode = element<HTMLSelectElement>('mode');
+/** How the device source connects. USB and Bluetooth reach one device and share its history. */
+export const transport = element<HTMLSelectElement>('transport');
+export const openLink = { transport: 'usb' };
+/** A browser can expose the API and still have it switched off, which only shows up on use. */
+export function bluetoothProblem(error: unknown) {
+  const text = String(error);
+  return /globally disabled/i.test(text)
+    ? 'This browser has Web Bluetooth switched off. In Brave, turn on the Web Bluetooth API in brave://flags and relaunch, or use Chrome or Edge.'
+    : text;
+}
+export const bluetooth = (navigator as Navigator & { bluetooth?: BleBluetooth }).bluetooth;
+export const bluetoothHelp =
+  'This browser has no Web Bluetooth. Chrome and Edge include it; in Brave it may need turning on in brave://flags. Safari does not support it.';
 export const app = document.querySelector('.app') as HTMLElement;
 export const manage = element<HTMLDialogElement>('manage');
 

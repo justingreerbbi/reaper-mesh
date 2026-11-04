@@ -10,6 +10,32 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: Bluetooth in the web portal (`v0.6.0`, in development)
+
+At the owner's request (D47), the portal can connect over Web Bluetooth (Device, then USB or Bluetooth
+in the header) and Settings → Bluetooth can start pairing, show the passkey and pair this browser. USB
+adds `pairingRequest` and `pairingStatus` (feature bit 13), which the firmware accepts only on the USB
+link. Two message fixtures were appended deliberately; existing bytes did not change. The stack also
+now starts at boot only for an actual stored peer key, because a board with leftover stack records
+started it with nothing paired.
+
+Evidence: `npm run check` (296 tests) and the firmware CTest suite (84 tests) pass, including Bluetooth
+being refused pairing even as the session's owner, and the Web Bluetooth port against a fake device.
+Both boards run `v0.6.0` from an uncommitted build. Over USB with the real agent code, each board
+reported closed, then open with its name and 116 seconds left after the agent opened pairing, with
+no pairings stored. With the Bluetooth stack running, the Heltec had 135 KB of heap free and the
+T-Beam 73 KB. In the simulator, Settings → Bluetooth opened pairing, showed a passkey, kept it out of
+browser storage and cleared it when closed.
+
+The owner reported that pairing worked from the portal with Web Bluetooth turned on, after a first try
+stopped because the browser had Web Bluetooth switched off, and that the portal then connected over
+Bluetooth and exchanged messages. This is the owner's report; message size and delivery times were not
+recorded.
+
+Not checked: reconnecting after a reset, refusal of
+an unpaired device, a wrong passkey, and any effect on LoRa timing. The earlier failed run from
+Terminal.app is unexplained.
+
 ## November 4: Bluetooth link (`v0.5.0`, in development)
 
 At the owner's request (D47), the firmware gains a [Bluetooth link](../reference/bluetooth.md) for a

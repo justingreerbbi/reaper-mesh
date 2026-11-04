@@ -54,7 +54,7 @@ try {
   console.log('Hold the main button on board A for 5 seconds, then enter the passkey here.');
   ble = await openBleBoard(blePython, Number(pairingSeconds));
   const device = ble.connection.device!;
-  assert.match(ble.connection.capabilities?.firmware ?? '', /-reaper-mesh-v0\.5\./);
+  assert.match(ble.connection.capabilities?.firmware ?? '', /-reaper-mesh-v0\.6\./);
   assert.equal(ble.connection.sync.state, 'ready');
   note({ check: 'paired and synchronized over Bluetooth', device });
 
