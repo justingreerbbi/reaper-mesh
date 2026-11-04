@@ -22,11 +22,10 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 
 | Board | Reported version | Built from | Port |
 | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.4.0` | Clean commit `078f9fe`, November 4 | `/dev/cu.usbserial-0001` |
+| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.5.0` | Uncommitted development build, November 4 | `/dev/cu.usbserial-0001` |
 | LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.5.0` | Uncommitted development build, November 4 | `/dev/cu.wchusbserial57700003341` |
 
-Both antennas are owner-confirmed. Both boards are at the default medium power with boost off since the
-`v0.4.0` upgrade. The last recorded owner policies were: both boards in mesh mode; Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
+Both antennas are owner-confirmed. On November 4 the Heltec read high power and the T-Beam low power. The last recorded owner policies were: both boards in mesh mode; Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
 position source none and sharing off. Always read the current settings from the device rather
 than assuming these. On November 3 the Heltec read beacon/respond on, a 60-second interval and a
 shared fixed position, and its screen was left at a 10 s timeout with wake on.
@@ -47,7 +46,7 @@ shared fixed position, and its screen was left at a 10 s timeout with wake on.
 | Fixed position | Saved coordinates, opt-in sharing, versioned reports | Two-board coordinate exchange, privacy switch, reboot persistence | Native browser QA of the controls |
 | Encryption | Agent-side XChaCha20-Poly1305 group keys per channel ID; devices carry RME2 ciphertext only | Encrypted direct messages in both directions, RME2 on a random-ID channel with the key from an invite | Reconnect or reboot during upload, key rotation over radio, relay, security review |
 | Web portal | Overview dashboard, separate messaging and map workspaces, shared app-wide theme for messaging, map tools, settings and recovery pages, optional PIN, local wipe, JSON plugins | Earlier portal versions checked in native Brave over USB; replacement styles checked at 1920 × 1080 and phone sizes, including simulator saves and all settings sections | USB and hardware QA of the redesigned shell; sharing and plugin flows; known channel and map problems in the roadmap's [Planned after qualification](roadmap.md#planned-after-qualification) |
-| Bluetooth link | Physical-access pairing with a passkey on screen, LE Secure Connections only, up to four paired devices, one session shared with USB (D47) | T-Beam boots `v0.5.0` with USB and settings intact. No Bluetooth traffic yet: not advertised, paired or connected on any board | Pairing, refusal of unpaired devices, a session over Bluetooth, memory with the stack running, effect on LoRa timing, Heltec `v0.5.0`, iOS and Android |
+| Bluetooth link | Physical-access pairing with a passkey on screen, LE Secure Connections only, up to four paired devices, one session shared with USB (D47) | Both boards boot `v0.5.0` with USB and settings intact. Bluetooth has not worked end to end: one test run from Terminal.app did not pass, cause unknown | Pairing, refusal of unpaired devices, a session over Bluetooth, memory with the stack running, effect on LoRa timing, iOS and Android |
 | Firmware updates | Manifest-validating ROM updater that preserves NVS | Repeated installs on both boards | Interrupted flash, rollback, signed releases |
 
 Map cleanup on November 4 adds explicit creation, a placement crosshair, visible-layer fit,

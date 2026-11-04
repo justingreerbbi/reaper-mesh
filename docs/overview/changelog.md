@@ -26,12 +26,13 @@ of `0x1000` on the T-Beam, so it did not boot until rewritten at the correct off
 
 Evidence: `npm run check` (290 tests) and the firmware CTest suite (83 tests) pass, covering link
 routing, the pairing window, trust rules, passkey range, button holds and the pairing screen. The
-T-Beam runs `v0.5.0` from an uncommitted build with USB working, 121 KB of heap free with the
-Bluetooth stack not started and about 9 KB of the 24 KB stack used.
+T-Beam and Heltec run `v0.5.0` from an uncommitted build with USB working and settings kept. With
+the Bluetooth stack not started, the T-Beam has 121 KB of heap free and the Heltec 213 KB, and each
+has used about 9 KB of its 24 KB stack.
 
-Not checked: no Bluetooth traffic has run on any board, because this session's host process has no
-Bluetooth permission on the Mac. Host tests do not qualify pairing or radio coexistence. The Heltec
-has the build but not the flash.
+Not checked: Bluetooth has not worked end to end. One run of `tools/hardware-ble-smoke.ts` from
+Terminal.app ended without a results file, and the cause is not known yet. Both boards still answered
+over USB afterward. Host tests do not qualify pairing or radio coexistence.
 
 ## November 4: transmit power levels (`v0.4.0`)
 
