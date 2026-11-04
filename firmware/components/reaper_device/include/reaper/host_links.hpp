@@ -22,6 +22,8 @@ class HostLinks {
       : session_(session), writer_(writer), context_(context) {}
   void feed(HostLink, const std::uint8_t* data, std::size_t size, std::uint64_t now);
   void tick(std::uint64_t now);
+  // Local output backpressure is not a peer abandoning a partial input frame.
+  void paused(HostLink link, std::uint64_t now) { slot(link).last_read = now; }
   // The link failed or went away. Ends the session only if that link owns it.
   void closed(HostLink);
   bool ready(HostLink, std::uint64_t now) const;

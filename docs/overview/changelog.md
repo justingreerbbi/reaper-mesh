@@ -10,6 +10,35 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: BLE output recovery and Heltec storage reset (`v0.6.2`)
+
+At the owner's explicit request, addressed the remaining BLE findings and installed
+`heltec-reaper-mesh-v0.6.2`, then wiped all device data partitions. Output now reserves space
+for two maximum-sized replies before consuming each input byte, so queue congestion cannot
+process a request and then silently discard its reply/reset the session. Locally paused input
+does not trigger the partial-frame abandonment timer. Permanent notification errors close the
+broken transport explicitly; transient allocation/resource errors have a five-second retry
+limit. Disconnect, host-reset and notification reason codes are retained on Debug. The address
+initialization flag shared between application and Bluetooth tasks is atomic.
+
+Validation: `npm ci --ignore-scripts`, `npm run check` (316 passing tests), standalone CTest
+(91 passing tests), and both firmware target builds pass. A recovery regression checks a
+partially received frame surviving local output backpressure and completing afterward. Phone
+BLE operation and injected physical controller errors remain unqualified; this is not a claim
+that every possible disconnect or the earlier suspected reboot has been reproduced and solved.
+
+The manifest-validating updater verified all three firmware image hashes. The subsequent
+explicit data reset wrote and hash-verified erased bytes over `0x9000–0xffff` (configuration,
+reserved gap and runtime PHY data) and `0x210000–0x217fff` (Bluetooth NVS). No whole-chip erase,
+eFuse write or T-Beam install was performed. RAM messages cleared on reset. The firmware and
+partition table were preserved. This was a local development build on `983a961` with uncommitted
+changes; the manifest and `build/heltec-v3/flash-result.json` record provenance and image hashes.
+
+After reboot, USB inspection confirms firmware `v0.6.2`, configuration revision 0, empty label,
+region `UNSET`, radio off, only Public configured, discovery and message wake off, an empty inbox,
+and pairing closed with zero bonds. Evidence: ignored
+`build/heltec-v0.6.2-wipe-verification.json`. Device setup and BLE pairing must be done again.
+
 ## November 4: Heltec battery and BLE congestion fix (`v0.6.1`)
 
 At the owner's direction, implemented and installed `heltec-reaper-mesh-v0.6.1`. The missing

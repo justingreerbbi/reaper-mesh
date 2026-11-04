@@ -140,6 +140,17 @@ int routing() {
   links.tick(320 + d::HostLinks::kBleStallMs + 1);
   CHECK(!session.synchronized());
 
+  // A locally paused frame survives output congestion, then completes normally.
+  send(d::HostLink::Ble, hello("ble-paused"), 7000);
+  send(d::HostLink::Ble, sync("ble-paused"), 7010);
+  const auto paused_frame = sync("ble-paused");
+  links.feed(d::HostLink::Ble, paused_frame.data(), 5, 7020);
+  links.paused(d::HostLink::Ble, 14000);
+  links.tick(14001);
+  CHECK(session.synchronized());
+  links.feed(d::HostLink::Ble, paused_frame.data() + 5, paused_frame.size() - 5, 14002);
+  CHECK(session.synchronized());
+
   // A failed write ends the session when that link owns it.
   send(d::HostLink::Ble, hello("ble-3"), 400);
   send(d::HostLink::Ble, sync("ble-3"), 410);

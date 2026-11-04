@@ -74,6 +74,7 @@ struct NodeRow {
 // Bluetooth pairing state, drawn over every page while it is not None.
 enum class BleNotice { None, Open, Passkey, Full, Paired, Failed, Forgotten, Unavailable };
 struct BleStatus {
+  int disconnect = 0, reset = 0, notify = 0;
   BleNotice notice = BleNotice::None;
   const char* name = "";      // advertised name while pairing is open
   std::uint32_t passkey = 0;  // shown only on this screen, never sent over any link

@@ -275,9 +275,16 @@ void debug_page(Frame& f, const Status& s) {
   std::snprintf(buffer, sizeof(buffer), "%s REV %lu", s.usb,
                 static_cast<unsigned long>(s.revision));
   text(f, 0, 20, buffer);
-  std::snprintf(buffer, sizeof(buffer), "%s %s %ddBm", s.storage_ok ? "NVS OK" : "NVS FAULT",
-                s.mode, s.power_dbm);
-  text(f, 0, 29, buffer);
+  if (s.ble.disconnect || s.ble.reset || s.ble.notify) {
+    std::snprintf(buffer, sizeof(buffer), "BLE D%d S%d N%d", s.ble.disconnect, s.ble.reset,
+                  s.ble.notify);
+    // Reuse the next debug row for retained Bluetooth fault reasons.
+    text(f, 0, 29, buffer);
+  } else {
+    std::snprintf(buffer, sizeof(buffer), "%s %s %ddBm", s.storage_ok ? "NVS OK" : "NVS FAULT",
+                  s.mode, s.power_dbm);
+    text(f, 0, 29, buffer);
+  }
   std::snprintf(buffer, sizeof(buffer), "RX %lu TX %lu", static_cast<unsigned long>(s.rx),
                 static_cast<unsigned long>(s.tx));
   text(f, 0, 38, buffer);

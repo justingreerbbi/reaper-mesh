@@ -22,10 +22,10 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 
 | Board | Reported version | Built from | Port |
 | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.6.1` | Local development build on `68cb40e` with uncommitted battery/BLE fixes, November 4; hashes in the install receipt | `/dev/cu.usbserial-0001` |
+| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.6.2` | Local development build on `983a961` with uncommitted BLE fixes, November 4; hashes in the install receipt | `/dev/cu.usbserial-0001` |
 | LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.6.0` | Clean commit `0268691`, November 4 | `/dev/cu.wchusbserial57700003341` |
 
-Both antennas are owner-confirmed. The latest November 4 diagnostic read both boards at low power in mesh mode, with relay on; revisions were Heltec 77 and T-Beam 64, unchanged by the diagnostic and Heltec install. Earlier on November 4 the Heltec read high power and the T-Beam low power. The last recorded owner discovery policies were: Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
+Both antennas are owner-confirmed. After the owner-requested Heltec storage wipe, its verified configuration is revision 0, region unset, radio off, only Public configured, discovery and message wake off, and no saved BLE pairings. The T-Beam was not wiped. Before the wipe, the November 4 diagnostic read both boards at low power in mesh mode, with relay on; revisions were Heltec 77 and T-Beam 64. Earlier on November 4 the Heltec read high power and the T-Beam low power. The last recorded owner discovery policies before the wipe were: Heltec beacon/respond off; T-Beam beacon/respond on; 300-second interval;
 position source none and sharing off. Always read the current settings from the device rather
 than assuming these. On November 3 the Heltec read beacon/respond on, a 60-second interval and a
 shared fixed position, and its screen was left at a 10 s timeout with wake on.
@@ -90,11 +90,12 @@ The owner reports Heltec-only BLE disconnects after sending and receiving messag
 November 4. The owner clarified that the startup logo appeared on receipt, which points to a
 reboot: normal message wake does not restart the logo sequence. The connected Heltec's application flash
 matches the recorded `v0.6.0` binary by digest, so an older application under the same version
-has been ruled out for the original report. `v0.6.1` is now installed with a fix for forced
-BLE disconnection on receive-buffer congestion and more frequent reply draining. The original
+has been ruled out for the original report. `v0.6.2` is now installed with receive/output
+backpressure handling, bounded notification retries, retained BLE reason codes and a shared-state
+race fix. Device storage was wiped at the owner's request and default state verified. The original
 logo/reboot cause remains unconfirmed, and phone BLE messaging after this fix is not yet verified.
 The owner confirms the new battery icon and measured voltage are visible. See the
-[fix and install evidence](changelog.md#november-4-heltec-battery-and-ble-congestion-fix-v061).
+[fix and install evidence](changelog.md#november-4-ble-output-recovery-and-heltec-storage-reset-v062).
 Twenty physical Heltec local deliveries over USB, including maximum-size messages and inbox
 replacement, passed without reboot or heap loss. That check does not qualify BLE or RF reception.
 

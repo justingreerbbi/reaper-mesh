@@ -2,6 +2,7 @@
 #include "ble_io.hpp"
 #include "reaper/pairing.hpp"
 #include "esp_random.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/stream_buffer.h"
 #include "host/ble_hs.h"
@@ -24,6 +25,8 @@ namespace ui = reaper::ui;
 namespace {
 constexpr std::size_t kBufferBytes = 4096, kMaxChunk = 244;
 constexpr std::uint64_t kNoticeMs = 5000;
+constexpr std::size_t kOutputBytes = 8192;
+constexpr std::size_t kReplyReserve = 2 * (reaper::protocol::kMaxEncoded + 1);
 // 5d7e00NN-8b3a-4f6c-9e21-3c1a7f42b9d0: 01 service, 02 host to device, 03 device to host,
 // 04 protected read that makes a client pair before it starts a session.
 ble_uuid128_t uuid(std::uint8_t id) {
@@ -47,7 +50,11 @@ std::atomic<bool> window_open{false};
 std::atomic<int> shown_passkey{-1};
 std::atomic<std::size_t> bond_count{0};
 
-bool available = false, started = false, address_set = false;
+bool available = false, started = false;
+std::atomic<bool> address_set{false};
+std::atomic<int> disconnect_reason{0}, reset_reason{0}, notify_error{0};
+std::atomic<unsigned> disconnect_count{0}, reset_count{0};
+std::atomic<bool> output_fault{false};
 d::PairingWindow window;
 std::uint64_t connected_at = 0, unavailable_until = 0;
 std::array<std::uint8_t, 6> address{};
@@ -55,6 +62,7 @@ char advertised_name[16] = "Reaper";
 enum class Advertising { Off, Paired, Pairing } advertising = Advertising::Off;
 std::array<std::uint8_t, kMaxChunk> pending{};
 std::size_t pending_size = 0;
+std::int64_t blocked_since = -1;
 
 void update_bonds() {
   int count = 0;
@@ -161,6 +169,8 @@ int on_gap(ble_gap_event* event, void*) {
       }
       return 0;
     case BLE_GAP_EVENT_DISCONNECT:
+      disconnect_reason = event->disconnect.reason;
+      ++disconnect_count;
       connection = BLE_HS_CONN_HANDLE_NONE;
       trusted = subscribed = false;
       att_mtu = BLE_ATT_MTU_DFLT;
@@ -256,7 +266,7 @@ bool start_stack() {
   if (!available)
     return false;
   input = xStreamBufferCreate(kBufferBytes, 1);
-  output = xStreamBufferCreate(kBufferBytes, 1);
+  output = xStreamBufferCreate(kOutputBytes, 1);
   if (!input || !output || nimble_port_init() != ESP_OK) {
     available = false;
     return false;
@@ -265,7 +275,9 @@ bool start_stack() {
     update_bonds();
     synced = true;
   };
-  ble_hs_cfg.reset_cb = [](int) {
+  ble_hs_cfg.reset_cb = [](int reason) {
+    reset_reason = reason;
+    ++reset_count;
     synced = false;
     address_set = false;
   };
@@ -340,9 +352,28 @@ void pump_output() {
     if (!pending_size)
       return;
     os_mbuf* chunk = ble_hs_mbuf_from_flat(pending.data(), pending_size);
-    if (!chunk || ble_gatts_notify_custom(handle, output_handle, chunk) != 0)
-      return;  // Out of buffers: keep the chunk and try again on the next tick.
+    if (!chunk) {
+      const auto now = esp_timer_get_time();
+      if (blocked_since < 0)
+        blocked_since = now;
+      notify_error = BLE_HS_ENOMEM;
+      if (now - blocked_since >= 5000000)
+        output_fault = true;
+      return;
+    }
+    const int error = ble_gatts_notify_custom(handle, output_handle, chunk);
+    if (error != 0) {
+      notify_error = error;
+      const auto now = esp_timer_get_time();
+      if (blocked_since < 0)
+        blocked_since = now;
+      if ((error != BLE_HS_ENOMEM && error != BLE_HS_EAGAIN && error != BLE_HS_EBUSY) ||
+          now - blocked_since >= 5000000)
+        output_fault = true;
+      return;  // Only transient resource errors are retried.
+    }
     pending_size = 0;
+    blocked_since = -1;
   }
 }
 }  // namespace
@@ -404,19 +435,33 @@ void BleLink::tick(std::uint64_t now, d::HostLinks& links) {
     xStreamBufferReset(output);
     pending_size = 0;
     links.closed(d::HostLink::Ble);
+    output_fault = false;
+    blocked_since = -1;
   }
   const auto handle = connection.load();
   if (handle != BLE_HS_CONN_HANDLE_NONE) {
+    if (output_fault.exchange(false)) {
+      // A permanent notification error cannot be repaired by replaying the same chunk.
+      // End the broken transport explicitly; normal GAP cleanup clears framing/queues.
+      ble_gap_terminate(handle, BLE_ERR_REM_USER_CONN_TERM);
+      return;
+    }
     if (!trusted && now - connected_at > window.connection_deadline())
       refuse(handle);
     reaper::ble::drain(
-        [](std::uint8_t* data, std::size_t capacity) {
-          return xStreamBufferReceive(input, data, capacity, 0);
+        [&](std::uint8_t* data, std::size_t) -> std::size_t {
+          // Stop before consuming a frame's final byte unless its reply (and a possible
+          // error reply) fits. Never discard a processed request due to congestion.
+          if (output_fault || xStreamBufferSpacesAvailable(output) < kReplyReserve) {
+            links.paused(d::HostLink::Ble, now);
+            return 0;
+          }
+          return xStreamBufferReceive(input, data, 1, 0);
         },
         [&](const std::uint8_t* data, std::size_t size) {
           links.feed(d::HostLink::Ble, data, size, now);
         },
-        pump_output);
+        pump_output, kBufferBytes);
   }
   advertise();
 }
@@ -428,6 +473,9 @@ bool BleLink::write(const std::uint8_t* data, std::size_t size) {
 }
 ui::BleStatus BleLink::status(std::uint64_t now) const {
   ui::BleStatus status;
+  status.disconnect = disconnect_reason;
+  status.reset = reset_reason;
+  status.notify = notify_error;
   status.name = advertised_name;
   status.seconds = window.seconds_left(now);
   if (now < unavailable_until) {
