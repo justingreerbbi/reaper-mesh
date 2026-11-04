@@ -33,9 +33,9 @@ Bluetooth and exchanged messages. This is the owner's report; message size and d
 recorded.
 
 Read over USB, the Heltec held one pairing before and after installing the clean build, with its
-settings kept. The T-Beam holds none, so this is one board.
+settings kept. The owner then reported the browser reconnecting to it over Bluetooth without a passkey. The T-Beam holds none, so this is one board.
 
-Not checked: reconnecting over Bluetooth after a reset, refusal of
+Not checked: refusal of
 an unpaired device, a wrong passkey, and any effect on LoRa timing. The earlier failed run from
 Terminal.app is unexplained.
 
