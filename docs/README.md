@@ -60,6 +60,7 @@ you want to do.
 | [Development plan](contributing/plan.md) | Repository layout, architecture and engineering standards |
 | [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
 | [Field qualification plan](contributing/field-qualification.md) | Three-node relay, outdoor range, power-loss and soak tests |
+| [Security architecture proposal](contributing/security-architecture.md) | Proposed trusted-device model: relay, team, channel and direct-message keys, rotation, optional setup, background delivery and delivery order |
 | [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 

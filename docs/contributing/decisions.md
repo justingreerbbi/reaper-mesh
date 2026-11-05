@@ -14,6 +14,7 @@ Questions that need a decision now:
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
 | Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.2 reviewed against current docs and code on November 3; awaiting owner approval |
+| Q12 | Approve, revise or reject the [security architecture proposal](security-architecture.md) (D50), including its owner decisions | Further radio protocol work and the core v1 review | Written November 4; awaiting owner approval |
 
 ## Parked questions
 
@@ -210,6 +211,19 @@ control payload v2; manual requests stay name-only v1 so older nodes still respo
 
 ### D26. GPS deferred
 Nov 2 · **Confirmed**. T-Beam GPS (Phase 2.2b) is deferred. Fixed positions serve the map. See Q7.
+
+### D50. Trusted-device security model
+Nov 4 · **Proposed**; not implemented, and D33 stays in force until the owner decides (Q12). Four
+key layers: a relay key on every radio that admits and forwards team frames without reading them; a
+team key that agents load into their radio's memory, protecting headers, beacons and ACKs; channel
+keys on agents; and pairwise direct-message keys on agents using Noise pattern K. A radio with no
+agent attached is a relay and sends nothing of its own (owner direction). Trust starts from
+in-person setup by a team authority, with optional deputies and a sealed backup; losing the authority
+freezes membership and does not stop communications. Keys rotate automatically with a hash ratchet,
+and removing a member needs an explicit rekey. Open operation stays available with today's channel
+keys and the same frame format, and a radio stays silent until a mode is chosen. A small firmware
+alert lets a backgrounded mobile app learn of new messages. Would amend D16, D24, D33, D34, D45 and
+D47 and answer Q5 and Q10. See the [security architecture proposal](security-architecture.md).
 
 ### D38. Keep the schema-driven TLV encoding
 Nov 3 · **Confirmed** (closes Q4). The USB protocol keeps its schema-driven TLV encoding, with
