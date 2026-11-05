@@ -83,8 +83,9 @@ p::Message configure(const char* link = "link-A", const char* id = "agent-A:1") 
   set(request.fields[p::kConfigureRegion], "US");
   return request;
 }
+constexpr char kProofHex[] = "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
 struct FakeNetwork final : d::NetworkControl {
-  unsigned fills = 0, loads = 0, erases = 0;
+  unsigned fills = 0, loads = 0, erases = 0, advances = 0;
   bool had_relay = false;
   d::NetworkView view() const override {
     d::NetworkView v{};
@@ -92,12 +93,15 @@ struct FakeNetwork final : d::NetworkControl {
     v.generation = fills ? 1 : 0;
     v.team_loaded = loads > 0;
     v.healthy = true;
-    if (fills)
+    if (fills) {
       std::strcpy(v.relay_fingerprint, "0011223344556677");
+      v.proven_epoch = 4;
+      std::strcpy(v.proof, kProofHex);
+    }
     return v;
   }
   const char* fill(std::uint32_t, std::uint32_t, std::uint32_t,
-                   const std::array<std::uint8_t, 32>* relay,
+                   const std::array<std::uint8_t, 32>* relay, const std::array<std::uint8_t, 32>*,
                    const std::array<std::uint8_t, 32>*) override {
     ++fills;
     had_relay = relay && (*relay)[0] == 0xab;
@@ -106,6 +110,10 @@ struct FakeNetwork final : d::NetworkControl {
   const char* load_team(std::uint32_t, std::uint32_t,
                         const std::array<std::uint8_t, 32>&) override {
     ++loads;
+    return "ok";
+  }
+  const char* advance(std::uint32_t, const std::array<std::uint8_t, 32>&) override {
+    ++advances;
     return "ok";
   }
   const char* erase() override {
@@ -134,6 +142,7 @@ p::Message network_fill() {
   num(request.fields[p::kNetworkFillEpoch], 0);
   set(request.fields[p::kNetworkFillRelayChain], kKeyHex);
   set(request.fields[p::kNetworkFillDeviceKey], kKeyHex);
+  set(request.fields[p::kNetworkFillProof], kKeyHex);
   return request;
 }
 int main(int argc, char** argv) {
@@ -265,6 +274,27 @@ int main(int argc, char** argv) {
     // The reply carries fingerprints, never keys.
     CHECK(keyed.handle(network_fill(), reply));
     CHECK(is(reply.fields[p::kNetworkStatusRelayFingerprint], "0011223344556677"));
+    CHECK(is(reply.fields[p::kNetworkStatusProof], kProofHex));
+    CHECK(reply.fields[p::kNetworkStatusProvenEpoch].number == 4);
+    CHECK(reply.fields[p::kNetworkStatusProvenEpoch].present);
+    // Rotation works over a paired link with no button press, because the proof is the authority.
+    CHECK(reply.fields[p::kNetworkStatusNetworkMode].number == 2);
+    keyed.set_physical(false);
+    p::Message advance{};
+    advance.type = p::MessageType::NetworkAdvance;
+    set(advance.fields[p::kNetworkAdvanceLink], "link-A");
+    set(advance.fields[p::kNetworkAdvanceBoot], "boot-A");
+    num(advance.fields[p::kNetworkAdvanceRequest], 11);
+    num(advance.fields[p::kNetworkAdvanceEpoch], 5);
+    set(advance.fields[p::kNetworkAdvanceProof], kKeyHex);
+    CHECK(keyed.handle(advance, reply) && reply.type == p::MessageType::NetworkStatus);
+    CHECK(is(reply.fields[p::kNetworkStatusState], "ok") && network.advances == 1);
+    CHECK(reply.fields[p::kNetworkStatusRequest].number == 11);
+    set(advance.fields[p::kNetworkAdvanceProof], "abcd");
+    CHECK(keyed.handle(advance, reply) && is(reply.fields[p::kNetworkStatusState], "invalid"));
+    CHECK(network.advances == 1);
+    // The welcome says this radio can rotate.
+    CHECK(keyed.handle(hello(), reply) && (reply.fields[p::kWelcomeFeatures].number & 65536));
   } else if (scenario == "sync") {
     CHECK(session.handle(configure(), reply) && is(reply.fields[p::kResultOutcome], "rejected"));
     CHECK(store.writes == 0);

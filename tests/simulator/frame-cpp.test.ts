@@ -110,9 +110,34 @@ function reference(vector: Vector) {
   assert.deepEqual(opened, plain);
   return frame.toString('hex');
 }
+type ProofVector = {
+  relayChain: string;
+  epoch: number;
+  hops: number;
+  nonce: string;
+  proof: string;
+  frame: string;
+};
 const fixture = JSON.parse(readFileSync('packages/protocol/fixtures/frame-v2.json', 'utf8')) as {
   vectors: Vector[];
+  proofChain: { seed: string; proofs: string[] };
+  proofFrames: ProofVector[];
 };
+const previousProof = (proof: Uint8Array) => label(proof, 'reaper-v2 epoch proof');
+function proofFrame(vector: ProofVector) {
+  const relayChain = ratchet(Buffer.from(vector.relayChain, 'hex'), vector.epoch);
+  const clear = Buffer.alloc(14);
+  clear[0] = 0x12;
+  label(relayChain, 'reaper-v2 hint').copy(clear, 1, 0, 2);
+  clear.writeUInt16LE(vector.epoch, 3);
+  clear[5] = vector.hops << 4;
+  Buffer.from(vector.nonce, 'hex').copy(clear, 6);
+  const body = Buffer.concat([Buffer.from([1]), Buffer.from(vector.proof, 'hex')]);
+  const tag = hmac(label(relayChain, 'reaper-v2 relay tag'), clear, body);
+  const header = Buffer.from(clear);
+  header[5] = (vector.hops << 4) | vector.hops;
+  return Buffer.concat([header, body, tag.subarray(0, 4)]).toString('hex');
+}
 
 test('Radio version 2 vectors match an independent Node implementation', () => {
   for (const vector of fixture.vectors) assert.equal(reference(vector), vector.frame, vector.name);
@@ -132,7 +157,29 @@ test('Radio version 2 firmware codec produces the frozen vectors', () => {
     fixture.vectors.map(vector => vector.frame),
   );
 });
+test('Epoch proof vectors match an independent Node implementation', () => {
+  let proof: Uint8Array = Buffer.from(fixture.proofChain.seed, 'hex');
+  for (const expected of fixture.proofChain.proofs) {
+    assert.equal(Buffer.from(proof).toString('hex'), expected);
+    proof = previousProof(proof);
+  }
+  for (const vector of fixture.proofFrames) assert.equal(proofFrame(vector), vector.frame);
+});
+test('Epoch proof firmware code produces the frozen vectors', () => {
+  const lines = execFileSync(binary, ['golden-proof'], { encoding: 'utf8', timeout: 10000 })
+    .trim()
+    .split('\n');
+  assert.deepEqual(lines, [
+    ...fixture.proofChain.proofs,
+    ...fixture.proofFrames.map(vector => vector.frame),
+  ]);
+});
 for (const [scenario, description] of Object.entries({
+  proofchain: 'proofs walk one way only, to exactly the proof a radio holds',
+  window:
+    'forwards a window of epochs without moving state, and only a team tag moves a member forward',
+  proofframe: 'proof frames need only the relay key, and every bit but current hops is covered',
+  budget: 'bounds hashing from unauthenticated epochs while honest traffic stays free',
   hmac: 'host HMAC matches the RFC 4231 vector',
   roundtrip: 'round trips maximum fragments and ACKs without exposing the sender',
   relay: 'lets a relay forward without the team key, and team members reject a relay-key forgery',
@@ -143,7 +190,7 @@ for (const [scenario, description] of Object.entries({
 })) {
   test(`Radio version 2 ${description}`, () => {
     assert.equal(
-      execFileSync(binary, [scenario], { encoding: 'utf8', timeout: 20000 }).trim(),
+      execFileSync(binary, [scenario], { encoding: 'utf8', timeout: 30000 }).trim(),
       `ok ${scenario}`,
     );
   });

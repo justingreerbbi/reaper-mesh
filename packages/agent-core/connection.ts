@@ -157,6 +157,10 @@ export class Connection {
   get supportsNetwork() {
     return !!(this.capabilities && this.capabilities.features & 16384);
   }
+  /** The radio follows key rotation, and accepts epoch proofs (D52). */
+  get supportsRotation() {
+    return this.supportsNetwork && !!(this.capabilities!.features & 65536);
+  }
   /**
    * Network commands (D50). Keys pass straight through to the device and are kept nowhere here, not
    * even in the journal. They are never retried: a lost reply is settled by the next status query,
@@ -170,13 +174,24 @@ export class Connection {
     this.#sendNetwork({ type: 'networkFill', networkMode: 1, generation: 0, epoch: 0 }, now);
   }
   fillTeam(
-    keys: { generation: number; epoch: number; relayChain: string; deviceKey: string },
+    keys: {
+      generation: number;
+      epoch: number;
+      relayChain: string;
+      deviceKey: string;
+      proof: string;
+    },
     now: number,
   ) {
     this.#sendNetwork({ type: 'networkFill', networkMode: 2, ...keys }, now);
   }
   loadTeamKey(key: { generation: number; epoch: number; teamChain: string }, now: number) {
     this.#sendNetwork({ type: 'teamLoad', ...key }, now);
+  }
+  /** Tells the radio an epoch has started. It announces this over the air, and it carries a loaded team key forward. */
+  advanceNetwork(advance: { epoch: number; proof: string }, now: number) {
+    if (!this.supportsRotation) throw new Error('This device cannot rotate keys');
+    this.#sendNetwork({ type: 'networkAdvance', ...advance }, now);
   }
   eraseNetwork(now: number) {
     this.#sendNetwork({ type: 'networkErase' }, now);

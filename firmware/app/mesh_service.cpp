@@ -129,6 +129,8 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now, bool atta
     network_.apply(mesh_.link());
     configured_ = false;
   }
+  // An epoch change is not a new key: messages in flight carry on across it.
+  network_.sync(mesh_.link());
   // Relaying needs only the radio. Sending anything of its own also needs the team key.
   const auto may_transmit = [this] { return boot_ && radio_.healthy() && antenna_verified_; };
   const auto may_originate = [&] { return may_transmit() && mesh_.link().can_originate(); };
@@ -220,9 +222,22 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now, bool atta
   if (event.received) {
     increment(info_.received);
     m::Packet control{};
-    if (mesh_.receive(event.bytes.data(), event.size, now, control) == m::Received::Control)
+    const auto result = mesh_.receive(event.bytes.data(), event.size, now, control);
+    if (result == m::Received::Control) {
       discovery_.receive(control, now);
+    } else if (result == m::Received::Proof) {
+      m::FrameRoute route{};
+      // Forwarded only when it was news, so each radio sends each proof at most once.
+      if (m::parse_route(event.bytes.data(), event.size, route) &&
+          network_.hear_proof(route.epoch, m::frame_proof(event.bytes.data()), mesh_.link(), now))
+        mesh_.forward(event.bytes.data(), event.size, now);
+    }
+    network_.sync(mesh_.link());
   }
+  std::uint16_t announced = 0;
+  reaper::crypto::Key announced_proof{};
+  if (network_.take_announcement(announced, announced_proof))
+    mesh_.send_proof(announced, announced_proof, now);
   const auto& incoming = mesh_.incoming();
   for (std::size_t i = 0; i < incoming.size(); ++i) {
     const auto& item = incoming[i];

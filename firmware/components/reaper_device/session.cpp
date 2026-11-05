@@ -149,7 +149,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
            23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) |
                (discovery_ ? 384 : 0) | 512 | 1024 | 2048 |
                (radio_ && radio_->tx_boost ? 4096 : 0) | (pairing_ ? 8192 : 0) |
-               (network_ ? 16384 : 0) | (inbox_ ? 32768 : 0));
+               (network_ ? 16384 + 65536 : 0) | (inbox_ ? 32768 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -285,7 +285,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     return true;
   }
   if (request.type == p::MessageType::NetworkQuery || request.type == p::MessageType::NetworkFill ||
-      request.type == p::MessageType::TeamLoad || request.type == p::MessageType::NetworkErase) {
+      request.type == p::MessageType::TeamLoad || request.type == p::MessageType::NetworkErase ||
+      request.type == p::MessageType::NetworkAdvance) {
     if (!network_ || !synchronized_ || !same(request.fields[1], boot_))
       return false;
     const auto number_at = request.fields[2].number;
@@ -294,19 +295,22 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     // button. A paired phone must not be able to move a radio to another network.
     const bool window = pairing_ && !std::strcmp(pairing_->view(now_).state, "open");
     if (request.type == p::MessageType::NetworkFill) {
-      crypto::Key relay{}, device{};
+      crypto::Key relay{}, device{}, proof{};
       const bool has_relay = request.fields[p::kNetworkFillRelayChain].present,
-                 has_device = request.fields[p::kNetworkFillDeviceKey].present;
+                 has_device = request.fields[p::kNetworkFillDeviceKey].present,
+                 has_proof = request.fields[p::kNetworkFillProof].present;
       if (!admitted_ || (!physical_ && !window))
         state = "refused";
       else if ((has_relay && !hex_key(request.fields[p::kNetworkFillRelayChain], relay)) ||
-               (has_device && !hex_key(request.fields[p::kNetworkFillDeviceKey], device)))
+               (has_device && !hex_key(request.fields[p::kNetworkFillDeviceKey], device)) ||
+               (has_proof && !hex_key(request.fields[p::kNetworkFillProof], proof)))
         state = "invalid";
       else
         state = network_->fill(request.fields[p::kNetworkFillNetworkMode].number,
                                request.fields[p::kNetworkFillGeneration].number,
                                request.fields[p::kNetworkFillEpoch].number,
-                               has_relay ? &relay : nullptr, has_device ? &device : nullptr);
+                               has_relay ? &relay : nullptr, has_device ? &device : nullptr,
+                               has_proof ? &proof : nullptr);
       crypto::wipe(relay.data(), relay.size());
       crypto::wipe(device.data(), device.size());
     } else if (request.type == p::MessageType::TeamLoad) {
@@ -320,6 +324,16 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
         state = network_->load_team(request.fields[p::kTeamLoadGeneration].number,
                                     request.fields[p::kTeamLoadEpoch].number, team);
       crypto::wipe(team.data(), team.size());
+    } else if (request.type == p::MessageType::NetworkAdvance) {
+      // Rotation has to work over Bluetooth with no button press. The proof is the authority: only
+      // an agent holding the team's seed has one for an epoch that has not started.
+      crypto::Key proof{};
+      if (!admitted_)
+        state = "refused";
+      else if (!hex_key(request.fields[p::kNetworkAdvanceProof], proof))
+        state = "invalid";
+      else
+        state = network_->advance(request.fields[p::kNetworkAdvanceEpoch].number, proof);
     } else if (request.type == p::MessageType::NetworkErase) {
       state = !admitted_ || (!physical_ && !window) ? "refused" : network_->erase();
     }
@@ -338,6 +352,10 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       literal(reply.fields[p::kNetworkStatusRelayFingerprint], view.relay_fingerprint);
     if (*view.team_fingerprint)
       literal(reply.fields[p::kNetworkStatusTeamFingerprint], view.team_fingerprint);
+    if (*view.proof) {
+      number(reply.fields[p::kNetworkStatusProvenEpoch], view.proven_epoch);
+      literal(reply.fields[p::kNetworkStatusProof], view.proof);
+    }
     return true;
   }
   if (request.type == p::MessageType::RadioQuery || request.type == p::MessageType::InboxQuery ||

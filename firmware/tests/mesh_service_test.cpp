@@ -58,7 +58,7 @@ bool RadioBus::transfer(const std::uint8_t* tx, std::uint8_t* rx, std::size_t si
   return true;
 }
 struct MemorySectors final : d::KeySectors {
-  std::array<std::array<std::uint8_t, 80>, 2> sectors{};
+  std::array<std::array<std::uint8_t, 4096>, 2> sectors{};
   MemorySectors() {
     for (auto& sector : sectors)
       sector.fill(0xff);
@@ -120,13 +120,14 @@ int main(int argc, char** argv) {
   MemorySectors key_sectors;
   d::Network network(key_sectors);
   network.begin();
-  if (scenario != "unset" && scenario != "teamrelay")
-    network.fill(1, 0, 0, nullptr, nullptr);  // Open mode.
+  if (scenario != "unset" && scenario != "teamrelay" && scenario != "rotation")
+    network.fill(1, 0, 0, nullptr, nullptr, nullptr);  // Open mode.
   MeshService service(messages, inbox, info, network, device,
                       scenario == "noboot" ? 0 : boot_counter, nonce_seed, 1,
                       scenario == "tx" || scenario == "policy" || scenario == "discovery" ||
                           scenario == "privacy" || scenario == "noboot" || scenario == "identity" ||
-                          scenario == "unset" || scenario == "teamrelay" || scenario == "detached");
+                          scenario == "unset" || scenario == "teamrelay" ||
+                          scenario == "detached" || scenario == "rotation");
   service.begin();
   CHECK(info.probe);
   d::Snapshot config{};
@@ -159,6 +160,99 @@ int main(int argc, char** argv) {
     service.tick(&config, 806001, true);
     CHECK(transmitted);
     std::cout << "ok detached\n";
+    return 0;
+  }
+  if (scenario == "rotation") {
+    // A member radio with a message on air when the epoch moves under it.
+    using Key = reaper::crypto::Key;
+    Key relay_chain{}, device_key{}, team_chain{}, start{};
+    relay_chain.fill(0x11);
+    device_key.fill(0x12);
+    team_chain.fill(0x13);
+    std::array<Key, 4> proofs{};
+    proofs[3].fill(0x14);
+    for (std::size_t i = 3; i > 0; --i)
+      CHECK(m::previous_proof(proofs[i], proofs[i - 1]));
+    CHECK(!std::strcmp(network.fill(2, 1, 0, &relay_chain, &device_key, &proofs[0]), "ok"));
+    CHECK(!std::strcmp(network.load_team(1, 0, team_chain), "ok"));
+    config.settings.radio.relay = true;
+    ++config.revision;
+    service.tick(&config, 2);
+    CHECK(info.reason.length == 5);  // ready
+    const std::uint8_t body[] = {'h', 'i'};
+    CHECK(messages
+              .submit(text<64>("agent"), text<75>("agent:2"), 0, text<64>("heltec-000000000009"), 0,
+                      1, body, sizeof(body), 3)
+              .state == d::MessageState::Queued);
+    transmitted = false;
+    service.tick(&config, 3);
+    service.tick(&config, 200);
+    CHECK(transmitted);
+    irq = 1;  // Its transmission finishes.
+    service.tick(&config, 201);
+    CHECK(messages.query(text<75>("agent:2")).state == d::MessageState::Transmitted);
+    // Agent advances. Nothing is cancelled, and the proof goes out on air.
+    CHECK(!std::strcmp(network.advance(1, proofs[1]), "ok"));
+    sent.clear();
+    transmitted = false;
+    service.tick(&config, 202);
+    service.tick(&config, 400);
+    CHECK(transmitted && sent.size() == m::kProofFrameBytes && sent[0] == m::kNetworkFrameByte);
+    CHECK(sent[3] == 1 && sent[5] == 0x33);  // Epoch 1 with three hops to go.
+    CHECK(messages.query(text<75>("agent:2")).state == d::MessageState::Transmitted);
+    irq = 1;
+    service.tick(&config, 401);
+    // The radio's next frames use the new epoch, and a retry of that same message is one of them.
+    sent.clear();
+    transmitted = false;
+    service.tick(&config, 4300);
+    CHECK(transmitted && sent[0] == 2 && sent[3] == 1);
+    irq = 1;
+    service.tick(&config, 4301);
+    // A proof from another radio: forwarded once when new, and never when it is old news.
+    m::FrameLink other;
+    Key seed{};
+    seed.fill(7);
+    other.seed(seed);
+    Key chain_2 = relay_chain;
+    CHECK(m::ratchet_chain(chain_2) && m::ratchet_chain(chain_2));
+    CHECK(other.set_chains(chain_2, nullptr, 2));
+    m::Frame proof{};
+    CHECK(other.seal_proof(2, proofs[2], 3, proof));
+    received.assign(proof.bytes.begin(), proof.bytes.begin() + proof.size);
+    irq = 2;
+    sent.clear();
+    transmitted = false;
+    service.tick(&config, 4302);
+    CHECK(network.view().proven_epoch == 2 && network.view().epoch == 2);
+    service.tick(&config, 4500);
+    CHECK(transmitted && sent.size() == m::kProofFrameBytes && sent[5] == 0x32);
+    CHECK(std::equal(sent.begin() + 6, sent.end(), proof.bytes.begin() + 6));
+    irq = 1;
+    service.tick(&config, 4501);
+    received.assign(proof.bytes.begin(), proof.bytes.begin() + proof.size);
+    irq = 2;
+    sent.clear();
+    transmitted = false;
+    service.tick(&config, 5000);
+    service.tick(&config, 5200);
+    CHECK(sent.size() != m::kProofFrameBytes);
+    // A forged proof with a valid relay tag does nothing, and is not forwarded.
+    Key bogus{};
+    bogus.fill(0x55);
+    CHECK(other.seal_proof(2, bogus, 3, proof));
+    Key chain_3 = chain_2;
+    CHECK(m::ratchet_chain(chain_3));
+    CHECK(other.set_chains(chain_3, nullptr, 3));
+    CHECK(other.seal_proof(3, bogus, 3, proof));
+    received.assign(proof.bytes.begin(), proof.bytes.begin() + proof.size);
+    irq = 2;
+    sent.clear();
+    service.tick(&config, 5300);
+    service.tick(&config, 5500);
+    CHECK(network.view().proven_epoch == 2 && sent.size() != m::kProofFrameBytes);
+    (void)start;
+    std::cout << "ok rotation\n";
     return 0;
   }
   if (scenario == "privacy") {
@@ -278,16 +372,17 @@ int main(int argc, char** argv) {
     service.tick(&config, 200);
     CHECK(!transmitted);
     // Choosing Open mode brings it up.
-    CHECK(!std::strcmp(network.fill(1, 0, 0, nullptr, nullptr), "ok"));
+    CHECK(!std::strcmp(network.fill(1, 0, 0, nullptr, nullptr, nullptr), "ok"));
     service.tick(&config, 201);
     CHECK(info.reason.length == 5);  // ready
   } else if (scenario == "teamrelay") {
     // With relay keys but no team key: it relays, and sends nothing of its own.
-    reaper::crypto::Key relay_chain{}, device_key{}, team_chain{};
+    reaper::crypto::Key relay_chain{}, device_key{}, team_chain{}, proof{};
     relay_chain.fill(0x11);
     device_key.fill(0x12);
     team_chain.fill(0x13);
-    CHECK(!std::strcmp(network.fill(2, 1, 0, &relay_chain, &device_key), "ok"));
+    proof.fill(0x14);
+    CHECK(!std::strcmp(network.fill(2, 1, 0, &relay_chain, &device_key, &proof), "ok"));
     config.settings.radio.relay = true;
     ++config.revision;
     service.tick(&config, 2);

@@ -10,6 +10,45 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 5: automatic key rotation (`v0.10.0`), D50 step 2a
+
+Keys now rotate automatically (D52). A relay forwards any valid frame in a window of epochs, and erases old keys only on an epoch proof, which a stolen relay key cannot produce. The Radio network page shows the keys' age, sets the interval from 6 hours to 7 days, and has **Rotate now**. Team codes become `RMTEAM2`. The key record changes format, so a board reads as no network after this install and needs its network chosen again. The design and what changed while building it are in the [rotation and rekey design](../contributing/rotation-design.md).
+
+**Faults found and fixed along the way:**
+
+- **Serial session lost during flash writes.** Found by running it on hardware. A flash erase turns off the serial interrupt, traffic arriving then overflowed the chip's 128-byte buffer, and firmware closes the session on overflow. The board kept running but stopped answering. The Heltec failed a stress sequence in 9 of 22 runs. `CONFIG_UART_ISR_IN_IRAM=y` keeps the interrupt running, and the same sequence then passed 20 of 20 on the Heltec and 12 of 12 on the T-Beam. This was already possible on a settings save. Rotation made it matter, because a radio now writes to flash when it hears a proof, at a moment no agent chose.
+- **Proof frames would have been discarded.** Both radio drivers dropped anything under 58 bytes, and a proof frame is 51.
+- **Rotation would have disturbed traffic.** A key change cancels queued messages and restarts the radio, and a first version did this on every proof heard by a relay. Rotation now has its own path that does neither.
+- **A saved team locked the whole app.** A team from before this format read as damaged keys, which locks the app and offers only erasing local data. It is now removed on load with a notice, and channel keys are kept. Found in the in-app browser against the simulated radio.
+
+**Evidence on two boards**, `v0.10.0` over radio with throwaway keys, using `tools/hardware-team-smoke.ts`, all 14 checks passing:
+
+- A proof from one board reached the other, which moved its team key too, and fingerprints matched an independent calculation. The floor stayed one epoch behind.
+- Messages were acknowledged and in the inbox both ways after a proof.
+- A wrong proof was refused, with nothing moved.
+- With its radio off while the other board advanced twice, a board then read a message from the newer epoch and moved its team key by the team tag alone, with its proven epoch unchanged. One later proof covered the whole gap, and messages crossed both ways.
+- A restarted board kept its proven epoch, lost its team key, followed a proof with only the relay key, and delivered a message once its team key was reloaded at the current epoch.
+- The earlier checks still pass: nothing is sent with no network or with only the relay key, and a wrong team key or another network is not heard.
+
+**Measured through USB**, including a round trip of about 85 ms: 1,024 hashes took about 345 ms on the Heltec and 640 ms on the T-Beam, so about 0.25 ms and 0.55 ms each. The largest proof, including its flash write and both chain walks, took about 490 ms and 1,070 ms. A one-epoch proof took about 140 ms and 210 ms. The budget allows about one full walk per 16 seconds, so frames can hold a radio's main loop for up to about 3.5% of the time. Frames arriving during a walk may be lost, and normal retries cover them. Heap stayed above 120 KB, and stack above 15 KB.
+
+Host checks: `npm run check` passes 377 tests, the firmware CTest suite passes 125, and both boards build. New frozen vectors for the proof chain and proof frames come from a separate Node calculation.
+
+**Not tested:** rotation through the portal on real boards, which has only been clicked through against the simulated radio; a relay-key thief over the air, because firmware won't send a frame it can't verify, so only host tests cover it; forwarding across an epoch change, which needs a third board; lockout after more than 1,024 epochs on hardware; a power cut during an advance on hardware; radio frames lost during a long walk; Bluetooth; the mobile app. The security review has not started.
+
+## November 5: team page on two real boards
+
+First use of the Radio network page (D51) on real radios, with the portal in native Brave over USB and both boards on `v0.9.0`: the T-Beam in one browser profile and the Heltec in another. No code changed. The owner ran these checks and reported that all six passed. No logs or reports were kept.
+
+1. Created a team and added the T-Beam, which showed the team as encrypted.
+2. Copied the team code, pasted it into the second profile to join, and added the Heltec.
+3. Sent messages on Public from each board, and each arrived once on the other. Discovered the T-Beam from the Heltec, and a direct message showed as delivered.
+4. Unplugged and reconnected the Heltec. Its team key reloaded by itself, and a message then arrived. This is the reconnect the simulator could not exercise.
+5. Moved the T-Beam to relay. Sending turned off there, and a message from the Heltec did not arrive on it. Moved it back to member, and messages arrived again.
+6. Left the team on both boards, which showed no network chosen, and chose Open mode, which is how both boards started.
+
+Not tested: relaying, because two boards can't show forwarding, so check 5 shows only that a relay stops reading and sending; what the radios actually transmit, with an independent receiver; a channel other than Public under a team; the camera scanner with a team code; Bluetooth with the button window; a radio refusing a move to relay, which the portal fix from November 4 handles and USB doesn't trigger; and the mobile app.
+
 ## November 4: portal fixes for a refused relay move and unknown payloads
 
 Two portal faults, both found by reading the code while porting these features to the mobile app. Neither was reproduced in the portal itself. No firmware change.

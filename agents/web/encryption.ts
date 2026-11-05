@@ -7,7 +7,7 @@ import {
   MAX_MESSAGE_BYTES,
   parseEncryptedHeader,
 } from '../../packages/protocol/encrypted-message.ts';
-import { newChain, validTeamKeys, type TeamKeys } from './team.ts';
+import { newChain, validRotationHours, validTeamKeys, type TeamKeys } from './team.ts';
 
 export const ENCRYPTION_VAULT_KEY = 'reaper-mesh.crypto-vault.v1';
 export const ENCRYPTION_POLICY_KEY = 'reaper-mesh.crypto-policy.v1';
@@ -19,7 +19,7 @@ await sodium.ready;
 type KeyRecord = { channel: number; keyId: string; epoch: number; keyHex: string };
 export type TeamRole = 'member' | 'relay';
 type TeamRadio = { role: TeamRole; deviceKey: string };
-type TeamRecord = TeamKeys & { radios: Record<string, TeamRadio> };
+type TeamRecord = TeamKeys & { radios: Record<string, TeamRadio>; advancedAt: number };
 type VaultRecord = { v: 1; keys: KeyRecord[]; seen: [string, string][]; team?: TeamRecord };
 type StoredVault = {
   version: 1;
@@ -135,6 +135,7 @@ export class EncryptionVault {
   #salt: Uint8Array | undefined;
   #keys: KeyRecord[] = [];
   #team: TeamRecord | undefined;
+  #droppedOldTeam = false;
   #seen = new Map<string, string>();
   #policies = new Set<number>();
   #exists = false;
@@ -198,13 +199,36 @@ export class EncryptionVault {
   /** The team this browser belongs to. Holds secrets, so it is for the network page only. */
   get team(): TeamKeys | undefined {
     if (!this.#team) return undefined;
-    const { name, generation, epoch, relayChain, teamChain } = this.#team;
-    return { name, generation, epoch, relayChain, teamChain };
+    const { name, generation, epoch, relayChain, teamChain, proofSeed, proofStart, rotationHours } =
+      this.#team;
+    return { name, generation, epoch, relayChain, teamChain, proofSeed, proofStart, rotationHours };
   }
-  setTeam(keys: TeamKeys) {
+  /** A team saved before rotation existed was removed when this vault opened. */
+  get droppedOldTeam() {
+    return this.#droppedOldTeam;
+  }
+  /** When this browser last made or saw an advance, which schedules its next one. */
+  get teamAdvancedAt() {
+    return this.#team?.advancedAt;
+  }
+  setTeam(keys: TeamKeys, now = Date.now()) {
     this.#assertUnlocked();
     if (!validTeamKeys(keys)) throw new Error('This team is invalid.');
-    this.#saveTeam({ ...keys, radios: {} });
+    this.#saveTeam({ ...keys, radios: {}, advancedAt: now });
+  }
+  /** Saves the team at a later epoch. Only the new chains are kept, so older keys are gone. */
+  advanceTeam(keys: TeamKeys, now = Date.now()) {
+    this.#assertUnlocked();
+    if (!this.#team) throw new Error('Join a team first.');
+    if (!validTeamKeys(keys) || keys.epoch < this.#team.epoch)
+      throw new Error('This team is invalid.');
+    this.#saveTeam({ ...this.#team, ...keys, advancedAt: now });
+  }
+  setTeamRotation(hours: number) {
+    this.#assertUnlocked();
+    if (!this.#team) throw new Error('Join a team first.');
+    if (!validRotationHours(hours)) throw new Error('Choose between 6 hours and 7 days.');
+    this.#saveTeam({ ...this.#team, rotationHours: hours });
   }
   leaveTeam() {
     this.#assertUnlocked();
@@ -592,10 +616,18 @@ export class EncryptionVault {
         row.some(value => typeof value !== 'string' || value.length > 512)
       )
         throw new Error('Invalid replay record.');
+    // A team from before rotation can't work with current firmware, and treating it as damage would
+    // lock away this browser's channel keys too. It goes, and the network page says so (D52).
+    if (record.team && !('proofSeed' in record.team)) {
+      record = { ...record };
+      delete record.team;
+      this.#droppedOldTeam = true;
+    }
     if (record.team !== undefined) {
       const radios = Object.values(record.team?.radios ?? { bad: undefined });
       if (
         !validTeamKeys(record.team) ||
+        !Number.isFinite(record.team.advancedAt) ||
         radios.length > 256 ||
         radios.some(
           radio =>

@@ -91,7 +91,7 @@ export class SimulatedDevice {
                 configSchema: 1,
                 features: this.readOnly
                   ? 2
-                  : 7 | 16 | 1024 | 2048 | 8192 | 16384 | (this.txBoost ? 4096 : 0),
+                  : 7 | 16 | 1024 | 2048 | 8192 | 16384 | 65536 | (this.txBoost ? 4096 : 0),
                 radioSchema: 1,
                 maxChannels: 8,
                 channelIdVersion: 1,

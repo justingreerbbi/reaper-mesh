@@ -24,9 +24,10 @@ class PairingControl {
 // Which network the radio belongs to, as seen over the host protocol (D50).
 enum class NetworkMode : std::uint8_t { Unset = 0, Open = 1, Team = 2 };
 struct NetworkView {
-  std::uint32_t mode = 0, generation = 0, epoch = 0;
+  // Epoch is what this radio sends with if it holds the team key, and its floor otherwise.
+  std::uint32_t mode = 0, generation = 0, epoch = 0, proven_epoch = 0;
   bool team_loaded = false, healthy = false;
-  char relay_fingerprint[17]{}, team_fingerprint[17]{};
+  char relay_fingerprint[17]{}, team_fingerprint[17]{}, proof[65]{};
 };
 class NetworkControl {
  public:
@@ -34,9 +35,12 @@ class NetworkControl {
   // Each returns the reply state: "ok" or the reason for refusing.
   virtual const char* fill(std::uint32_t mode, std::uint32_t generation, std::uint32_t epoch,
                            const std::array<std::uint8_t, 32>* relay_chain,
-                           const std::array<std::uint8_t, 32>* device_key) = 0;
+                           const std::array<std::uint8_t, 32>* device_key,
+                           const std::array<std::uint8_t, 32>* proof) = 0;
   virtual const char* load_team(std::uint32_t generation, std::uint32_t epoch,
                                 const std::array<std::uint8_t, 32>& team_chain) = 0;
+  // An agent has started this epoch, and this proves it. Also announces it over the radio.
+  virtual const char* advance(std::uint32_t epoch, const std::array<std::uint8_t, 32>& proof) = 0;
   virtual const char* erase() = 0;
 
  protected:

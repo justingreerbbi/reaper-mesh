@@ -38,3 +38,7 @@ CONFIG_BT_NIMBLE_SM_SC_ONLY=1
 CONFIG_BT_NIMBLE_SM_LVL=4
 CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
 CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=6144
+# A flash write turns off interrupts that are not in IRAM. Traffic arriving then would overflow the
+# 128-byte hardware buffer, and the session is closed when that happens. Radios write to flash when
+# they hear an epoch proof, at a moment no agent chose (D52).
+CONFIG_UART_ISR_IN_IRAM=y

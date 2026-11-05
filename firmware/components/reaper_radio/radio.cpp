@@ -115,7 +115,7 @@ Event Radio::poll(std::uint64_t now) {
              !(irq & (SX126X_IRQ_CRC_ERROR | SX126X_IRQ_HEADER_ERROR))) {
     sx126x_rx_buffer_status_t buffer{};
     if (check(sx126x_get_rx_buffer_status(&bus_, &buffer)) &&
-        buffer.pld_len_in_bytes >= mesh::kMinPacketBytes &&
+        buffer.pld_len_in_bytes >= mesh::kMinFrameBytes &&
         buffer.pld_len_in_bytes <= mesh::kMaxPacketBytes &&
         check(sx126x_read_buffer(&bus_, buffer.buffer_start_pointer, event.bytes.data(),
                                  buffer.pld_len_in_bytes))) {

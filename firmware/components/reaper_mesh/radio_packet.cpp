@@ -43,8 +43,12 @@ bool readable_by_any_agent(const std::uint8_t* bytes, std::size_t size, std::uin
   return protocol::valid_message_text(bytes, size);
 }
 bool valid_frame_layout(const std::uint8_t* bytes, std::size_t size) {
-  return bytes && size >= kMinPacketBytes && size <= kMaxPacketBytes && bytes[0] == 2 &&
-         !(bytes[5] & 0x88) && (bytes[5] & 7) <= ((bytes[5] >> 4) & 7);
+  if (!bytes || size < kMinFrameBytes || size > kMaxPacketBytes)
+    return false;
+  const bool sized = bytes[0] == 2 ? size >= kMinPacketBytes
+                                   : bytes[0] == kNetworkFrameByte && size == kProofFrameBytes &&
+                                         bytes[14] == kNetworkTypeProof;
+  return sized && !(bytes[5] & 0x88) && (bytes[5] & 7) <= ((bytes[5] >> 4) & 7);
 }
 bool valid_packet(const Packet& p) {
   if (!p.key.origin || p.key.origin == kBroadcast || !p.destination || !p.key.sequence ||

@@ -114,6 +114,8 @@ const sampleValues: Record<string, unknown> = {
   relayChain: 'ab'.repeat(32),
   deviceKey: 'cd'.repeat(32),
   teamChain: 'ef'.repeat(32),
+  provenEpoch: 3,
+  proof: '12'.repeat(32),
   passkey: 42,
   sequence: 0xffffffff,
   revision: 0xffffffff,

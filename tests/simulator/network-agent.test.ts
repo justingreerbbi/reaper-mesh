@@ -6,7 +6,8 @@ import { SimulatedDevice } from '../../packages/simulator/serial-device.ts';
 
 const RELAY = 'ab'.repeat(32),
   DEVICE = 'cd'.repeat(32),
-  TEAM = 'ef'.repeat(32);
+  TEAM = 'ef'.repeat(32),
+  PROOF = '12'.repeat(32);
 async function until(check: () => boolean) {
   const deadline = performance.now() + 3000;
   while (!check() && performance.now() < deadline)
@@ -25,7 +26,7 @@ test('an agent learns the network, fills it, loads the team key and erases it', 
   const { connection, adapter, simulator } = await connected();
   assert.equal(connection.supportsNetwork, true);
   await until(() => connection.network?.networkMode === 1);
-  adapter.fillTeam({ generation: 2, epoch: 5, relayChain: RELAY, deviceKey: DEVICE });
+  adapter.fillTeam({ generation: 2, epoch: 5, relayChain: RELAY, deviceKey: DEVICE, proof: PROOF });
   await until(() => connection.network?.networkMode === 2);
   assert.equal(connection.network?.state, 'ok');
   assert.equal(connection.network?.generation, 2);
@@ -46,12 +47,36 @@ test('an agent learns the network, fills it, loads the team key and erases it', 
 test('keys reach neither the journal nor anything the agent keeps', async () => {
   const { connection, adapter } = await connected();
   await until(() => !!connection.network);
-  adapter.fillTeam({ generation: 1, epoch: 0, relayChain: RELAY, deviceKey: DEVICE });
+  adapter.fillTeam({ generation: 1, epoch: 0, relayChain: RELAY, deviceKey: DEVICE, proof: PROOF });
   await until(() => connection.network?.networkMode === 2);
   adapter.loadTeamKey({ generation: 1, epoch: 0, teamChain: TEAM });
   await until(() => connection.network?.teamLoaded === 1);
   const kept = JSON.stringify([connection.exportJournal(), connection.network]);
   for (const key of [RELAY, DEVICE, TEAM]) assert.ok(!kept.includes(key));
+  await adapter.disconnect();
+});
+
+test('an agent advances the radio, which reports the proof and carries the team key along', async () => {
+  const { connection, adapter, simulator } = await connected();
+  assert.equal(connection.supportsRotation, true);
+  await until(() => !!connection.network);
+  adapter.fillTeam({ generation: 1, epoch: 3, relayChain: RELAY, deviceKey: DEVICE, proof: PROOF });
+  await until(() => connection.network?.networkMode === 2);
+  assert.equal(connection.network?.provenEpoch, 3);
+  assert.equal(connection.network?.proof, PROOF);
+  adapter.loadTeamKey({ generation: 1, epoch: 3, teamChain: TEAM });
+  await until(() => connection.network?.teamLoaded === 1);
+  const next = '34'.repeat(32);
+  adapter.advanceNetwork({ epoch: 4, proof: next });
+  await until(() => connection.network?.provenEpoch === 4);
+  assert.equal(connection.network?.proof, next);
+  assert.equal(connection.network?.epoch, 4);
+  assert.equal(simulator.network.floor, 3);
+  // A radio that finds the proof wrong says so, and nothing moves.
+  simulator.network.validProof = () => false;
+  adapter.advanceNetwork({ epoch: 5, proof: '56'.repeat(32) });
+  await until(() => connection.network?.state === 'invalid');
+  assert.equal(connection.network?.provenEpoch, 4);
   await adapter.disconnect();
 });
 
@@ -64,6 +89,8 @@ test('a read-only or older device offers no network commands', async () => {
   await until(() => connection.sync.state === 'ready');
   assert.equal(connection.supportsNetwork, false);
   assert.throws(() => adapter.chooseOpenMode());
+  assert.equal(connection.supportsRotation, false);
+  assert.throws(() => adapter.advanceNetwork({ epoch: 1, proof: PROOF }));
   assert.equal(connection.network, undefined);
   await adapter.disconnect();
 });

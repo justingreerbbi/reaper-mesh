@@ -4,7 +4,7 @@
 #include <cstdint>
 namespace reaper::protocol {
 enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version, ChannelIds };
-enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25, PairingRequest = 26, PairingStatus = 27, NetworkQuery = 28, NetworkStatus = 29, NetworkFill = 30, TeamLoad = 31, NetworkErase = 32, InboxChanged = 33 };
+enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25, PairingRequest = 26, PairingStatus = 27, NetworkQuery = 28, NetworkStatus = 29, NetworkFill = 30, TeamLoad = 31, NetworkErase = 32, InboxChanged = 33, NetworkAdvance = 34 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };
 inline constexpr std::size_t kMaxFields = 27;
@@ -260,7 +260,7 @@ inline constexpr FieldDescriptor kNetworkQueryFields[] = { {Kind::Id, false}, {K
 inline constexpr std::size_t kNetworkQueryLink = 0;
 inline constexpr std::size_t kNetworkQueryBoot = 1;
 inline constexpr std::size_t kNetworkQueryRequest = 2;
-inline constexpr FieldDescriptor kNetworkStatusFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, true}, {Kind::Hex, true} };
+inline constexpr FieldDescriptor kNetworkStatusFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, true}, {Kind::Hex, true}, {Kind::U32, true}, {Kind::Hex, true} };
 inline constexpr std::size_t kNetworkStatusLink = 0;
 inline constexpr std::size_t kNetworkStatusBoot = 1;
 inline constexpr std::size_t kNetworkStatusRequest = 2;
@@ -271,7 +271,9 @@ inline constexpr std::size_t kNetworkStatusEpoch = 6;
 inline constexpr std::size_t kNetworkStatusTeamLoaded = 7;
 inline constexpr std::size_t kNetworkStatusRelayFingerprint = 8;
 inline constexpr std::size_t kNetworkStatusTeamFingerprint = 9;
-inline constexpr FieldDescriptor kNetworkFillFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, true}, {Kind::Hex, true} };
+inline constexpr std::size_t kNetworkStatusProvenEpoch = 10;
+inline constexpr std::size_t kNetworkStatusProof = 11;
+inline constexpr FieldDescriptor kNetworkFillFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, true}, {Kind::Hex, true}, {Kind::Hex, true} };
 inline constexpr std::size_t kNetworkFillLink = 0;
 inline constexpr std::size_t kNetworkFillBoot = 1;
 inline constexpr std::size_t kNetworkFillRequest = 2;
@@ -280,6 +282,7 @@ inline constexpr std::size_t kNetworkFillGeneration = 4;
 inline constexpr std::size_t kNetworkFillEpoch = 5;
 inline constexpr std::size_t kNetworkFillRelayChain = 6;
 inline constexpr std::size_t kNetworkFillDeviceKey = 7;
+inline constexpr std::size_t kNetworkFillProof = 8;
 inline constexpr FieldDescriptor kTeamLoadFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, false} };
 inline constexpr std::size_t kTeamLoadLink = 0;
 inline constexpr std::size_t kTeamLoadBoot = 1;
@@ -295,6 +298,12 @@ inline constexpr FieldDescriptor kInboxChangedFields[] = { {Kind::Id, false}, {K
 inline constexpr std::size_t kInboxChangedLink = 0;
 inline constexpr std::size_t kInboxChangedBoot = 1;
 inline constexpr std::size_t kInboxChangedLatest = 2;
+inline constexpr FieldDescriptor kNetworkAdvanceFields[] = { {Kind::Id, false}, {Kind::Id, false}, {Kind::U32, false}, {Kind::U32, false}, {Kind::Hex, false} };
+inline constexpr std::size_t kNetworkAdvanceLink = 0;
+inline constexpr std::size_t kNetworkAdvanceBoot = 1;
+inline constexpr std::size_t kNetworkAdvanceRequest = 2;
+inline constexpr std::size_t kNetworkAdvanceEpoch = 3;
+inline constexpr std::size_t kNetworkAdvanceProof = 4;
 inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::Hello, kHelloFields, 5},
   {MessageType::Welcome, kWelcomeFields, 27},
@@ -324,10 +333,11 @@ inline constexpr MessageDescriptor kMessages[] = {
   {MessageType::PairingRequest, kPairingRequestFields, 4},
   {MessageType::PairingStatus, kPairingStatusFields, 8},
   {MessageType::NetworkQuery, kNetworkQueryFields, 3},
-  {MessageType::NetworkStatus, kNetworkStatusFields, 10},
-  {MessageType::NetworkFill, kNetworkFillFields, 8},
+  {MessageType::NetworkStatus, kNetworkStatusFields, 12},
+  {MessageType::NetworkFill, kNetworkFillFields, 9},
   {MessageType::TeamLoad, kTeamLoadFields, 6},
   {MessageType::NetworkErase, kNetworkEraseFields, 3},
   {MessageType::InboxChanged, kInboxChangedFields, 3},
+  {MessageType::NetworkAdvance, kNetworkAdvanceFields, 5},
 };
 } // namespace reaper::protocol

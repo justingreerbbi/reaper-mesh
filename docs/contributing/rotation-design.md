@@ -1,10 +1,33 @@
 # Rotation and rekey design (D50 step 2)
 
 Status: **Confirmed** by the owner on November 5, 2026
-([D52](decisions.md#d52-rotation-and-rekey-design)). Nothing here is built. Until it ships, the [radio protocol](../reference/radio-protocol.md) and the
-[USB protocol](../reference/protocol.md#radio-network-d50) describe how radios behave. This design
-has had no independent security review. Sizes and airtime are calculated, and nothing has been
-measured.
+([D52](decisions.md#d52-rotation-and-rekey-design)). Rotation (2a) is built, and rekey and relay
+status (2b) are not. [Status](../overview/status.md) says what has been verified. The
+[radio protocol](../reference/radio-protocol.md#epochs) and the
+[USB protocol](../reference/protocol.md#radio-network-d50) are the contract for what is built. This
+design has had no independent security review. Sizes and airtime for 2b are calculated, and airtime
+has not been measured.
+
+**What changed while building 2a:**
+
+- **`networkAdvance` replaced `networkSend`.** The radio builds the proof frame itself, from an epoch
+  and a proof. USB hex fields hold 32 bytes, too few for a frame, and this way no agent can put
+  arbitrary bytes on air. Rekey frames in 2b need their own way through.
+- **A proof carries the team key with it.** A proof is authentic, so a member radio moves its team
+  chain forward too, and the agent has nothing else to send.
+- **Agents keep only the current chains.** A radio can always be moved forward, so nothing needs the
+  previous ones.
+- **Agents recognize a team by proof, not fingerprint.** A chain can't go backward, so an agent can't
+  compute the fingerprint of a radio that is behind it. It can compute any proof.
+- **The derivation budget counts hashes.** It allows 1,024, refilling at 64 a second, with walks of up
+  to 4 free. A full walk measured about 260 ms on the Heltec and 560 ms on the T-Beam, so it isn't split
+  across service passes for now. Anyone can spend this budget with junk frames, which delays a radio
+  catching up from a long way behind. It doesn't affect one that is up to date.
+- **The serial interrupt stays on during flash writes.** Radios now write to flash at moments no agent
+  chose, and this was losing serial sessions.
+- **`teamLoad` still compares generations.** Nothing separates relay and team generations until 2b.
+- **Older teams are dropped.** A team saved before this format is removed on load, with a notice, so
+  it can't lock a browser's channel keys away. This is the one compatibility step here.
 
 This fills in step 2 of the [security architecture](security-architecture.md#delivery-order): the
 relay key ratchet, rekeying and relay status. It builds on the
@@ -20,9 +43,8 @@ relay key ratchet, rekeying and relay status. It builds on the
 | A radio's device key exists only in the browser that filled it (D51), so no one agent can reach every radio | Until step 4, an agent rekeys the radios it filled and the portal says plainly which others need the new team code by hand |
 | The frame's epoch is shared by the relay and team chains, so the relay ratchet cannot ship alone | The team chain ratchets in the same work, which needs firmware |
 
-Firmware stays small: it gains one hash check, one new frame layout, a small key cache and two USB
-commands. It still has no clock and does no public-key cryptography, and agents build every network
-frame.
+Firmware stays small: it gains one hash check, one new frame layout, a small key cache and a new USB
+command for each slice. It still has no clock and does no public-key cryptography.
 
 ## The stranded relay problem
 
@@ -91,11 +113,10 @@ Team radios and relays verify a proof by hashing it forward until it reaches the
 3. **Member radios.** A valid team tag at a newer epoch moves the sending epoch up, as D50 says, and
    the older frame key is wiped. A relay key alone cannot do this. A stolen team key could, but the
    agent can reload the right epoch, and that loss needs a rekey anyway.
-4. **Look-ahead cost.** Reaching an uncached epoch means hashing forward from the floor. A token
-   bucket allows one such derivation every few seconds, and the frame is dropped when it is empty.
-   An honest sender that loses a frame this way recovers through its normal retries. The bound and
-   the bucket are set after measuring both chips, and a long walk may have to be split across
-   service passes so it does not delay the radio.
+4. **Look-ahead cost.** Reaching an uncached epoch means hashing forward from the nearest cached one.
+   A budget of hashes bounds this, and the frame is dropped when it runs out. An honest sender that
+   loses a frame this way recovers through its normal retries. A long walk holds up the main loop for
+   its whole length, as measured above.
 5. **Out of reach.** A radio that was off for more than 1,024 epochs can no longer verify the team
    and needs an in-person fill. The portal must show this as locked out.
 
@@ -105,10 +126,9 @@ Agents decide when, and firmware never does.
 
 1. An agent checks its schedule. If at least one interval has passed since the last advance it made
    or heard, it ratchets its copies of both chains.
-2. It sends `teamLoad` for the new epoch, then a proof frame through `networkSend`. The radio handles
-   its own proof exactly as if it had heard it.
-3. The agent keeps the previous chains for one interval, then erases them.
-4. Other radios hear the proof, verify it, forward it and report the new epoch. Their agents derive
+2. It saves them, erasing the older ones, then sends `networkAdvance` with the new epoch and its
+   proof. The radio checks it, moves, and announces the proof over the air.
+3. Other radios hear the proof, verify it, forward it and report the new epoch. Their agents derive
    forward and erase their older chains.
 
 Every agent computes the same chain, so two agents advancing together cannot fork the team. A wrong
@@ -221,8 +241,8 @@ Until step 4:
 The issuer sends a status request to one radio, and it replies with its generation, floor, proven
 epoch, pending generation and fingerprint, boot counter and uptime. Nothing else is sent, and a relay
 never reports on its own. The issuer's radio cannot decrypt replies, so it holds up to eight
-unconsumed "from a radio" frames for its agent, for 60 seconds after that agent last used
-`networkSend`. No other radio stores them.
+unconsumed "from a radio" frames for its agent, for 60 seconds after that agent last sent one. No
+other radio stores them.
 
 ## Changes to contracts
 
@@ -233,12 +253,13 @@ Both boards will need a reflash and a new fill.
 | --- | --- |
 | Radio frames | Bit 4 of byte 0 allows the network frame layout. Team frames are unchanged |
 | Radio behavior | Frames outside the radio's own epoch are accepted within the window, which removes the "keys do not rotate yet" rule |
-| `networkFill` | Adds the 32-byte starting proof |
+| `networkFill` | Adds the 32-byte proof for its epoch |
 | `networkStatus` | Adds the proven epoch, and the pending generation and fingerprint. `epoch` becomes the sending epoch on a member radio and the floor on a relay |
-| `teamLoad` | Accepts any epoch at or above the floor. A lower one gets `mismatch`, and the agent derives forward and tries again. It stops comparing generations, because relay and team generations separate here, and agents compare fingerprints instead |
-| `networkSend` (new) | Carries one finished network frame from an admitted session. The radio checks its layout and relay tag, handles it as if received, and transmits it under the airtime budget. It needs no physical access, because automatic rotation has to work over Bluetooth, and it is useless without keys the session must already have |
-| `networkFrames` (new) | Reads the frames held for this agent, one per call |
-| Key storage | Record version 2, about 182 bytes, adding the proven epoch, its proof and the pending generation. It still fits the 4 KiB sectors, at about one erase per sector per epoch |
+| `teamLoad` | Accepts any epoch from the floor to 1,024 above it. A lower one gets `mismatch`, and the agent derives forward and tries again. In 2b it stops comparing generations, because relay and team generations separate there |
+| `networkAdvance` (new, 2a) | Carries an epoch and proof from an admitted session. It needs no physical access, because automatic rotation has to work over Bluetooth |
+| Sending rekey frames (new, 2b) | Not yet designed in detail. It needs a way past the 32-byte USB hex field |
+| `networkFrames` (new, 2b) | Reads the frames held for this agent, one per call |
+| Key storage | Record version 2, 114 bytes, adding the proven epoch and its proof. 2b adds the pending generation, for about 182 bytes. It fits the 4 KiB sectors, at about one erase per sector per epoch |
 | Team code | `RMTEAM2` adds the proof seed, generation start and interval. Codes carry the chains at the current epoch, so a joiner cannot read older recordings, and a code scanned later just derives forward |
 | Shared code | Chain, proof and frame sealing move to `packages/agent-core` with frozen vectors, so the mobile app stays compatible (D48) |
 
@@ -265,7 +286,7 @@ that test covers epoch changes. 2b comes after qualification.
 
 | Slice | Work | Done when |
 | --- | --- | --- |
-| 2a Epochs | Flag bit and proof frame, epoch window, key cache, team chain ratchet, `networkSend`, record version 2, `RMTEAM2`, portal rotation and key age | Two boards rotate through the portal. A board that was off catches up alone. Separated boards converge. A board holding only the relay key cannot move another board's floor |
+| 2a Epochs | Flag bit and proof frame, epoch window, key cache, team chain ratchet, `networkAdvance`, record version 2, `RMTEAM2`, portal rotation and key age | Two boards rotate through the portal. A board that was off catches up alone. Separated boards converge. A board holding only the relay key cannot move another board's floor |
 | 2b Rekey and status | Addressed frames, pending keys and promotion, `networkFrames`, portal **Check relays** and **Replace relay key** | A board left out of a rekey is locked out and the portal says so beforehand. A power cut during promotion leaves one usable key. Status works in both directions |
 
 ### Tests to add
@@ -289,7 +310,8 @@ Host tests use the existing deterministic fault approach.
 
 | Check | Boards needed |
 | --- | --- |
-| Rotation, catch-up, convergence, relay-key thief, lockout, power cut during a key write, derivation time on both chips | Two |
+| Rotation, catch-up, convergence, lockout, power cut during a key write, derivation time on both chips | Two |
+| A relay-key thief over the air. Firmware won't send a frame it can't verify, so this needs a test build; the host tests cover the logic | Two, with a test build |
 | Forwarding across an epoch change, a rekey through a relay, airtime and collisions during a flood | Three |
 
 ## Owner decisions

@@ -246,17 +246,18 @@ renamed, and new fixtures carry `txBoost`.
 
 ## Radio network (D50)
 
-Feature bit 14 (16384) means the device has a [radio network](radio-protocol.md#which-keys-a-radio-holds). Agents query it with `networkQuery`, and `networkFill`, `teamLoad` and `networkErase` change it. Each carries `link`, `boot` and `request`, and each is answered with `networkStatus`: `state`, `networkMode` (0 not chosen, 1 Open, 2 Team), `generation`, `epoch`, `teamLoaded` (0 or 1), and in Team mode `relayFingerprint` and, once loaded, `teamFingerprint`.
+Feature bit 14 (16384) means the device has a [radio network](radio-protocol.md#which-keys-a-radio-holds). Feature bit 16 (65536) means it also follows [key rotation](radio-protocol.md#epochs). Agents query it with `networkQuery`, and `networkFill`, `teamLoad`, `networkAdvance` and `networkErase` change it. Each carries `link`, `boot` and `request`, and each is answered with `networkStatus`: `state`, `networkMode` (0 not chosen, 1 Open, 2 Team), `generation`, `epoch`, `teamLoaded` (0 or 1), and in Team mode `relayFingerprint`, `provenEpoch`, `proof` and, once loaded, `teamFingerprint`. `epoch` is the sending epoch if the team key is loaded, and the floor otherwise. `relayFingerprint` is for the chain at the floor, and `teamFingerprint` for the chain at the sending epoch.
 
 - `state` is `ok`, `refused`, `invalid`, `mismatch`, `not-team` or `storage-failed`. The other status fields always show what the device holds now.
-- `networkFill` carries `networkMode`, `generation`, `epoch`, and for Team mode `relayChain` and `deviceKey`, each 32 bytes of hex. Open mode carries no keys, with `generation` and `epoch` zero. Team mode needs a nonzero generation.
-- `teamLoad` carries `generation`, `epoch` and `teamChain`, which must match what the radio holds, or the answer is `mismatch`.
+- `networkFill` carries `networkMode`, `generation`, `epoch`, and for Team mode `relayChain`, `deviceKey` and `proof`, each 32 bytes of hex. `proof` is the epoch proof for `epoch`. Open mode carries none of these, with `generation` and `epoch` zero. Team mode needs a nonzero generation.
+- `teamLoad` carries `generation`, `epoch` and `teamChain`. The generation must match, and the epoch must be from the floor to 1,024 above it, or the answer is `mismatch`: the agent derives its chain forward and tries again. Moving the same team forward leaves traffic alone. Any other key replaces the loaded one, which cancels what is queued.
+- `networkAdvance` carries `epoch` and `proof`. The radio checks the proof, moves to that epoch and announces it over the air, and a loaded team key moves with it. Its own current epoch and proof are announced again with nothing changed, an older epoch is `mismatch`, and a proof that doesn't check out is `invalid`. It needs only an admitted session, because rotation has to work over Bluetooth with no button press, and the proof itself is the authority. Agents can't send any other bytes over the air this way.
 - **Physical access.** `networkFill` and `networkErase` are `refused` unless they arrive over USB, or while the pairing window opened with the button is open. `teamLoad` needs only an admitted session, because it is memory only and changes nothing stored. The firmware decides by the link a request arrived on, not by anything the request says.
-- **Keys are write-only.** No message returns a key. Agents compare fingerprints, which are the first 8 bytes of HMAC-SHA-256 over `reaper-v2 fingerprint`, keyed with the chain.
+- **Keys are write-only.** No message returns a key. Fingerprints are the first 8 bytes of HMAC-SHA-256 over `reaper-v2 fingerprint`, keyed with the chain. Fingerprints change every epoch and a chain can't go backward, so agents recognize their team by `proof`, which they can compute for any epoch.
 - **Retries.** Agents never resend these automatically. A lost reply is settled by the next query, and repeating an identical fill changes nothing and spends no flash.
 - Keys must never reach a journal or a log. Radio status reports `network-not-chosen` or `team-key-needed` as its `reason` while the radio cannot send.
 
-These messages use tags 28–32, and their fixtures are appended to the frozen list.
+These messages use tags 28–32 and 34, and their fixtures are appended to the frozen list.
 
 ## Agent features, payloads and inbox alert (D50)
 

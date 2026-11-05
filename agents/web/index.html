@@ -741,6 +741,7 @@
               <p id="network-support" class="notice" data-tone="warn" hidden></p>
               <p id="network-error" class="notice" data-tone="bad" role="alert" hidden></p>
               <p id="network-pin" class="notice" data-tone="warn" hidden></p>
+              <p id="network-rotation" class="notice" data-tone="warn" hidden></p>
               <div class="card field-card">
                 <h2>This radio</h2>
                 <p id="network-summary" role="status"></p>
@@ -782,6 +783,24 @@
                   Each person scans this team's QR code once, then adds their own radio. Relays are
                   set up from a browser on the team.
                 </p>
+                <p id="team-rotation-status" role="status"></p>
+                <div class="field">
+                  <label for="team-interval">Rotate keys automatically every</label>
+                  <div class="inline">
+                    <select id="team-interval" class="grow">
+                      <option value="6">6 hours</option>
+                      <option value="12">12 hours</option>
+                      <option value="24">24 hours</option>
+                      <option value="72">3 days</option>
+                      <option value="168">7 days</option>
+                    </select>
+                    <button id="team-rotate" type="button">Rotate now</button>
+                  </div>
+                  <small class="muted"
+                    >Rotation needs a radio connected to a browser on the team. It doesn't remove
+                    anyone: to do that, create a new team.</small
+                  >
+                </div>
                 <div class="field-stack">
                   <button id="team-share-open" type="button">
                     <i data-icon="share-2"></i>Share team QR code

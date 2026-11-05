@@ -375,7 +375,9 @@
       "epoch": "u32",
       "teamLoaded": "u32",
       "relayFingerprint": "hex?",
-      "teamFingerprint": "hex?"
+      "teamFingerprint": "hex?",
+      "provenEpoch": "u32?",
+      "proof": "hex?"
     }
   },
   "networkFill": {
@@ -388,7 +390,8 @@
       "generation": "u32",
       "epoch": "u32",
       "relayChain": "hex?",
-      "deviceKey": "hex?"
+      "deviceKey": "hex?",
+      "proof": "hex?"
     }
   },
   "teamLoad": {
@@ -416,6 +419,16 @@
       "link": "id",
       "boot": "id",
       "latest": "u32"
+    }
+  },
+  "networkAdvance": {
+    "tag": 34,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "epoch": "u32",
+      "proof": "hex"
     }
   }
 }

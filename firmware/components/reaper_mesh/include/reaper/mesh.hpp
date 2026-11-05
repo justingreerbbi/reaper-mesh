@@ -2,8 +2,9 @@
 #include "reaper/frame.hpp"
 namespace reaper::mesh {
 enum class SendState { Queued, Transmitted, Acknowledged, Failed };
-// Handled includes frames relayed without being read. Control hands discovery traffic back.
-enum class Received { Dropped, Handled, Control };
+// Handled includes frames relayed without being read. Control hands discovery traffic back. Proof
+// hands back an epoch proof, which is forwarded only once the caller has found it new and valid.
+enum class Received { Dropped, Handled, Control, Proof };
 struct Outbound {
   bool used = false;
   MessageKey key{};
@@ -39,6 +40,12 @@ class Mesh {
     Packet ignored{};
     return receive(bytes, size, now, ignored) == Received::Handled;
   }
+  // Forwards a frame the caller has finished checking.
+  bool forward(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
+    return relay_frame(bytes, size, now);
+  }
+  // Announces an epoch this radio's agent has started.
+  bool send_proof(std::uint16_t epoch, const crypto::Key& proof, std::uint64_t now);
   bool next_tx(std::uint64_t now, Frame&);
   FrameLink& link() { return link_; }
   void complete_tx(bool success, std::uint64_t now);

@@ -13,7 +13,7 @@ Version 2 implements [D50](../contributing/decisions.md#d50-trusted-device-secur
 | Team, team key not loaded | In flash | None | Forwards valid frames it cannot read and sends nothing of its own. Reason `team-key-needed` |
 | Team, team key loaded | In flash | In memory, from its agent | Everything. A reboot loses the team key |
 
-Sending to or from a radio's own inbox over USB does not depend on any of this. How an agent chooses a network is in [Radio network](protocol.md#radio-network-d50). Keys do not rotate yet: frames from any epoch other than the radio's own are rejected.
+Sending to or from a radio's own inbox over USB does not depend on any of this. How an agent chooses a network is in [Radio network](protocol.md#radio-network-d50). Keys rotate as described in [Epochs](#epochs).
 
 ## Frame
 
@@ -21,7 +21,7 @@ All multibyte integers are unsigned little endian. Unknown versions and kinds ar
 
 | Offset | Bytes | Protected by | Meaning |
 | --- | --- | --- | --- |
-| 0 | 1 | Relay tag | Version `2` in the low four bits; the high four bits are flags and must be zero |
+| 0 | 1 | Relay tag | Version `2` in the low four bits. The high four bits are flags: bit 4 marks a [network frame](#network-frames), and the others must be zero |
 | 1 | 2 | Relay tag | Network hint, which changes every epoch |
 | 3 | 2 | Relay tag | Epoch |
 | 5 | 1 | Relay tag, except hops | Remaining hops in bits 0–2, hop limit in bits 4–6, other bits zero; hops may not exceed the limit |
@@ -38,7 +38,7 @@ All multibyte integers are unsigned little endian. Unknown versions and kinds ar
 | 46+N | 8 | Relay tag | Team tag |
 | 54+N | 4 | Itself | Relay tag |
 
-The overhead is 58 bytes, so a maximum frame is 218 bytes. N comes from the frame length. Unknown versions, set flag bits, impossible hop values and lengths outside 58–218 bytes are rejected before any cryptography runs.
+The overhead is 58 bytes, so a maximum frame is 218 bytes. N comes from the frame length. Unknown versions, other flag bits, impossible hop values and lengths outside 58–218 bytes are rejected before any cryptography runs. A network frame has its own layout and length.
 
 **Keys.** Each generation starts from two independent random 32-byte seeds, one for the relay chain and one for the team chain, so a relay key reveals nothing about the team key. All derivations use HMAC-SHA-256, keyed with the chain key, over an ASCII label:
 
@@ -49,6 +49,8 @@ The overhead is 58 bytes, so a maximum frame is 218 bytes. N comes from the fram
 | Network hint (first 2 bytes) | Relay | `reaper-v2 hint` |
 | Frame key | Team | `reaper-v2 frame` |
 
+Each chain moves forward by its next chain key, and they share one epoch number.
+
 Open mode uses published chains at epoch 0: HMAC-SHA-256 keyed with the ASCII string `reaper-v2 open` over `relay` and over `team`. These provide no secrecy.
 
 **Sealing.** The additional data is the 14 clear bytes with the hops bits set to zero. Encrypt bytes 14 to 46+N with AES-256-CCM using the frame key, an 8-byte tag and a 13-byte nonce made of the frame nonce, the epoch and three zero bytes. The relay tag is the first 4 bytes of HMAC-SHA-256, keyed with the relay tag key, over the additional data, the ciphertext and the team tag.
@@ -57,7 +59,38 @@ Open mode uses published chains at epoch 0: HMAC-SHA-256 keyed with the ASCII st
 
 Field rules: a nonzero sender that is not broadcast, a nonzero destination, a nonzero boot counter and sequence, consistent fragment fields, ACKs with no body and a unicast destination, and controls on channel 0 in a single fragment. Parsers reject trailing data and impossible lengths, and no allocation is driven by untrusted values.
 
-The frozen vectors are in `packages/protocol/fixtures/frame-v2.json`.
+## Epochs
+
+Keys rotate automatically (D52), with no change to any frame. Agents decide when, because a board has no clock. The design and the reasons for it are in [Rotation and rekey design](../contributing/rotation-design.md).
+
+**Epoch proofs.** A generation has a chain of 4,096 proofs, 32 bytes each, from a random seed that only agents hold. The last epoch's proof is the seed, and the proof for epoch `e - 1` is HMAC-SHA-256, keyed with the proof for epoch `e`, over `reaper-v2 epoch proof`. So a later proof gives every earlier one and never a later one, and a relay key cannot produce one. A proof is public once released.
+
+**What a radio holds.** In flash: the relay chain at its **floor**, the newest **proven** epoch, and that epoch's proof. A member also holds the team chain in memory at its **sending epoch**, and the previous epoch's frame key.
+
+**Rules.**
+
+- **Forwarding.** A frame at epoch `E` passes when `floor ≤ E ≤ floor + 1024` and its hint and relay tag are valid for `E`. Passing changes nothing stored, so forwarding never depends on hearing a proof.
+- **Erasing.** Only a proof moves the floor. A proof for `E` must be for a newer epoch, within 1,024 of the proven one, and hash forward to the proof held. The floor becomes `E - 1`, so the previous epoch still works, and the earlier chain is gone from flash in that write. A radio forwards a proof only when it was new, so each radio sends each proof at most once.
+- **Members.** A valid team tag from a newer epoch moves the sending epoch up. So does a proof. A member reads its sending epoch and the one before, and rejects older frames.
+- **Cost.** Reaching an epoch that isn't cached means hashing forward. A radio caches four epochs. Up to 4 hashes are free, and more draw on a budget of 1,024 that refills at 64 a second, with the frame dropped when it runs out. This bounds the work that frames with no valid tag can cause. [Measured](../overview/changelog.md#november-5-automatic-key-rotation-v0100-d50-step-2a), a full walk takes about 260 ms on the Heltec and 560 ms on the T-Beam, and holds up the main loop for that long.
+- **Traffic.** An epoch change is not a key change. Queued messages and the radio carry on across it.
+- **Open mode** stays at epoch 0, and rejects network frames.
+
+A radio more than 1,024 epochs behind can no longer verify the team and needs filling again.
+
+## Network frames
+
+A network frame is one a radio with only the relay key can read. Byte 0 is `0x12`, and the first 14 bytes otherwise mean what they do above. The only type so far is an epoch proof, at exactly 51 bytes:
+
+| Offset | Bytes | Protected by | Meaning |
+| --- | --- | --- | --- |
+| 14 | 1 | Relay tag | Type: 1, epoch proof |
+| 15 | 32 | Relay tag | The proof for the frame's epoch |
+| 47 | 4 | Itself | Relay tag, computed as for team frames over everything before it, with the hops bits zero |
+
+Any other type or length is rejected. A radio announces a proof when its agent asks. Its hops and hop limit are the radio's normal ones.
+
+The frozen vectors, including the proof chain and proof frames, are in `packages/protocol/fixtures/frame-v2.json`.
 
 ## Message payloads
 

@@ -88,7 +88,13 @@ export class SerialAdapter {
     this.connection.chooseOpenMode(this.#now());
     this.#flush(this.#run!);
   }
-  fillTeam(keys: { generation: number; epoch: number; relayChain: string; deviceKey: string }) {
+  fillTeam(keys: {
+    generation: number;
+    epoch: number;
+    relayChain: string;
+    deviceKey: string;
+    proof: string;
+  }) {
     this.#readyRun();
     this.connection.fillTeam(keys, this.#now());
     this.#flush(this.#run!);
@@ -96,6 +102,11 @@ export class SerialAdapter {
   loadTeamKey(key: { generation: number; epoch: number; teamChain: string }) {
     this.#readyRun();
     this.connection.loadTeamKey(key, this.#now());
+    this.#flush(this.#run!);
+  }
+  advanceNetwork(advance: { epoch: number; proof: string }) {
+    this.#readyRun();
+    this.connection.advanceNetwork(advance, this.#now());
     this.#flush(this.#run!);
   }
   eraseNetwork() {

@@ -80,6 +80,7 @@ for (const [scenario, description] of Object.entries({
   identity: 'gives a message the same ID on the sender and the receiver',
   unset: 'stays silent until a network is chosen',
   teamrelay: 'relays with only the relay key, and needs the team key to read or send',
+  rotation: 'keeps messages going across an epoch change, and forwards each proof at most once',
   detached: 'sends no beacons or discovery replies without an agent attached',
 })) {
   test(`Board mesh service ${description}`, () => {

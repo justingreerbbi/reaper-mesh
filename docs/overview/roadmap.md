@@ -2,7 +2,7 @@
 
 Owner-directed phases, set November 1, 2026 and last updated November 3. This is the canonical list of product priorities. Current implementation and verification state is in [Status](status.md); architecture is in the [development plan](../contributing/plan.md).
 
-**Security (owner direction, November 4):** the [security architecture](../contributing/security-architecture.md) (D50) is approved. Its step 1, the new radio format, is built, so field qualification runs on the frames that ship. Key rotation comes next, before the relay test (D52, November 5). Remaining Phase 4 work can continue while waiting for a third board. See [Phase 4 delivery order](#phase-4-delivery-order).
+**Security (owner direction, November 4):** the [security architecture](../contributing/security-architecture.md) (D50) is approved. Its step 1, the new radio format, is built, so field qualification runs on the frames that ship. Key rotation, step 2a, is built, and comes before the relay test (D52, November 5). Remaining Phase 4 work can continue while waiting for a third board. See [Phase 4 delivery order](#phase-4-delivery-order).
 
 **Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
 
@@ -13,7 +13,7 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 Order of work:
 
 1. **Done (November 4, firmware `v0.9.0`):** D50 step 1: radio version 2, relay and team keys, opaque payloads, the partition table, key storage and fill, Open mode, beacons only while attached, and the inbox changed alert. Verified on two boards; relay is not.
-2. Build D50 step 2a: automatic key rotation with epoch proofs, with its portal controls, so the relay test covers epoch changes (D52). See the [rotation and rekey design](../contributing/rotation-design.md).
+2. **Built (November 5, firmware `v0.10.0`):** D50 step 2a: automatic key rotation with epoch proofs, with its portal controls, so the relay test covers epoch changes (D52). Passes on two boards with a test tool; the portal on real boards is next. See the [rotation and rekey design](../contributing/rotation-design.md).
 3. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
 4. Three-node relay test.
 5. Outdoor range test.

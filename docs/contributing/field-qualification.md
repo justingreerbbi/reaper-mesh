@@ -69,6 +69,7 @@ it does not exist. Adding it is a firmware and protocol-scope decision.
 - No message is reported acknowledged without arriving; failures are reported as failed or
   unknown.
 - Record the delivery rate, ACK latency and any retries for each run.
+- Rotate keys during a relay run (D52). Messages keep arriving through B, B forwards the epoch proof, and A and C both reach the new epoch. Leave B unpowered across a rotation, then confirm it catches up and forwards again.
 
 **Tooling to build when the board arrives:** `tools/hardware-relay-smoke.ts`, extending the
 pair test to three ports. It records each board's original settings, runs the control and

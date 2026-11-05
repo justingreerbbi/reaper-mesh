@@ -96,7 +96,7 @@ Event Sx1276::poll(std::uint64_t now) {
       listen();
   } else if (!transmitting_ && (irq & 0x40) && !(irq & 0x20)) {
     std::uint8_t size = 0, start = 0;
-    if (read(0x13, size) && size >= mesh::kMinPacketBytes && size <= mesh::kMaxPacketBytes &&
+    if (read(0x13, size) && size >= mesh::kMinFrameBytes && size <= mesh::kMaxPacketBytes &&
         read(0x10, start) && write(0x0d, start) && transfer(0, nullptr, event.bytes.data(), size)) {
       if (mesh::valid_frame_layout(event.bytes.data(), size)) {
         event.received = true;

@@ -7,6 +7,12 @@ namespace reaper::mesh {
 // Radio version 2 frames: 58 bytes of overhead plus the fragment body (see frame.hpp).
 inline constexpr std::size_t kFragmentBytes = 160, kMaxMessageBytes = 1024, kMinPacketBytes = 58,
                              kMaxPacketBytes = kMinPacketBytes + kFragmentBytes;
+// A network frame, which a radio with only the relay key can read (D52). Its first byte is version
+// 2 with flag bit 4 set. The only type so far is an epoch proof: 14 clear bytes, the type, a
+// 32-byte proof and the relay tag. This is the shortest frame on air, so radio drivers filter on
+// it.
+inline constexpr std::uint8_t kNetworkFrameByte = 0x12, kNetworkTypeProof = 1;
+inline constexpr std::size_t kProofFrameBytes = 51, kMinFrameBytes = kProofFrameBytes;
 inline constexpr std::uint64_t kBroadcast = std::numeric_limits<std::uint64_t>::max();
 enum class PacketKind : std::uint8_t { Data = 1, Ack = 2, Beacon = 3, Discover = 4, Presence = 5 };
 struct MessageKey {

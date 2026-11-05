@@ -47,6 +47,10 @@ for (const [scenario, description] of Object.entries({
   rules: 'refuses invalid fills, makes retries harmless and keeps the network when a save fails',
   erase: 'blanks flash and leaves the radio with no keys',
   corrupt: 'treats damaged or unreadable flash as no network',
+  rotate: 'moves epochs only on a valid proof, erases old keys and leaves traffic undisturbed',
+  thief: 'gives a stolen relay key no way to move or strand a relay',
+  rotatecut: 'keeps one whole record after a power cut at any step of an advance',
+  oldrecord: 'treats a record from the previous format as no network and clears it',
 })) {
   test(`Radio network ${description}`, () => {
     assert.equal(

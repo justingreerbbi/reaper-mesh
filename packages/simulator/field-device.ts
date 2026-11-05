@@ -255,7 +255,7 @@ export class FieldDevice {
           maxVersion: 1,
           configSchema: 1,
           // Every feature through Bluetooth pairing, or only the read-only minimum.
-          features: this.readOnly ? 2 : 32767,
+          features: this.readOnly ? 2 : 32767 | 65536,
           maxPayload: 2048,
           receiptCapacity: 32,
           ownerCapacity: 8,
@@ -384,6 +384,7 @@ export class FieldDevice {
       case 'networkFill':
       case 'teamLoad':
       case 'networkErase':
+      case 'networkAdvance':
         send({ ...this.network.handle(message), boot });
         return;
       case 'pairingRequest': {

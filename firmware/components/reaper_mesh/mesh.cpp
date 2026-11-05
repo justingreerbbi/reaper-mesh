@@ -120,6 +120,13 @@ bool Mesh::relay_frame(const std::uint8_t* bytes, std::size_t size, std::uint64_
   frame.size = size;
   return decrement_hops(frame.bytes.data(), size) && queue_frame(frame, now);
 }
+bool Mesh::send_proof(std::uint16_t epoch, const crypto::Key& proof, std::uint64_t now) {
+  Frame frame{};
+  if (!link_.seal_proof(epoch, proof, hops_, frame))
+    return false;
+  seen(frame.bytes.data(), now);  // Its own echo must not be forwarded back.
+  return queue_frame(frame, now);
+}
 void Mesh::ack(Inbound& r, std::uint64_t now) {
   if (!r.complete || r.destination == kBroadcast || now < r.next_ack)
     return;
@@ -142,9 +149,11 @@ Received Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_
   if (!node_ || node_ == kBroadcast)
     return Received::Dropped;
   Packet p{};
-  const auto result = link_.receive(bytes, size, p);
+  const auto result = link_.receive(bytes, size, now, p);
   if (result == FrameResult::Rejected)
     return Received::Dropped;
+  if (result == FrameResult::Proof)
+    return Received::Proof;
   const auto relayed = [&] {
     return relay_frame(bytes, size, now) ? Received::Handled : Received::Dropped;
   };

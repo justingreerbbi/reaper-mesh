@@ -1,6 +1,6 @@
 {
   "format": "reaper-radio-frame-v2",
-  "note": "Frames computed with Node crypto from the contract in docs/reference/radio-protocol.md, independently of the firmware. Change only deliberately, with owner approval.",
+  "note": "Frames and proofs computed with Node crypto from the contract in docs/reference/radio-protocol.md, independently of the firmware. Change only deliberately, with owner approval.",
   "vectors": [
     {
       "name": "team-data",
@@ -61,6 +61,25 @@
       "total": 5,
       "body": "68656c6c6f",
       "frame": "0210000000330102030405060708f6a4b58a7a0a8194162493108116d3572e38ecefa2887f34fd9ce23bfd566c8073c501a27595644d0af714a68ac6a7682a"
+    }
+  ],
+  "proofChain": {
+    "seed": "3333333333333333333333333333333333333333333333333333333333333333",
+    "proofs": [
+      "3333333333333333333333333333333333333333333333333333333333333333",
+      "286f01f3dedde4030a620ab1389417fa302eff5c494ab45617cd39d63d717e5c",
+      "f6f2451d454e60e1a5f61dae45f108d68b946f512657bdf7ef41c0ce0de554dc"
+    ]
+  },
+  "proofFrames": [
+    {
+      "name": "epoch-proof",
+      "relayChain": "1111111111111111111111111111111111111111111111111111111111111111",
+      "epoch": 3,
+      "hops": 3,
+      "nonce": "0102030405060708",
+      "proof": "3333333333333333333333333333333333333333333333333333333333333333",
+      "frame": "12bd6203003301020304050607080133333333333333333333333333333333333333333333333333333333333333333947315c"
     }
   ]
 }

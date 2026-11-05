@@ -28,8 +28,9 @@ export type Message =
   | Readonly<{ type: 'pairingRequest'; link: string; boot: string; request: number; open: number }>
   | Readonly<{ type: 'pairingStatus'; link: string; boot: string; request: number; state: string; seconds: number; bonds: number; passkey?: number; name?: string }>
   | Readonly<{ type: 'networkQuery'; link: string; boot: string; request: number }>
-  | Readonly<{ type: 'networkStatus'; link: string; boot: string; request: number; state: string; networkMode: number; generation: number; epoch: number; teamLoaded: number; relayFingerprint?: string; teamFingerprint?: string }>
-  | Readonly<{ type: 'networkFill'; link: string; boot: string; request: number; networkMode: number; generation: number; epoch: number; relayChain?: string; deviceKey?: string }>
+  | Readonly<{ type: 'networkStatus'; link: string; boot: string; request: number; state: string; networkMode: number; generation: number; epoch: number; teamLoaded: number; relayFingerprint?: string; teamFingerprint?: string; provenEpoch?: number; proof?: string }>
+  | Readonly<{ type: 'networkFill'; link: string; boot: string; request: number; networkMode: number; generation: number; epoch: number; relayChain?: string; deviceKey?: string; proof?: string }>
   | Readonly<{ type: 'teamLoad'; link: string; boot: string; request: number; generation: number; epoch: number; teamChain: string }>
   | Readonly<{ type: 'networkErase'; link: string; boot: string; request: number }>
-  | Readonly<{ type: 'inboxChanged'; link: string; boot: string; latest: number }>;
+  | Readonly<{ type: 'inboxChanged'; link: string; boot: string; latest: number }>
+  | Readonly<{ type: 'networkAdvance'; link: string; boot: string; request: number; epoch: number; proof: string }>;

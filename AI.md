@@ -63,8 +63,8 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
   [field qualification plan](docs/contributing/field-qualification.md). The exceptions are
   keeping the portal in step with the mobile app (D49), team setup (D51), and the portal controls
   for key rotation and rekeying (D52).
-- D50 step 2a, automatic key rotation, comes next and is built before the three-node relay test.
-  Rekey and relay status (2b) follow qualification. See the
+- D50 step 2a, automatic key rotation, is built as firmware `v0.10.0` and passes on two boards, ahead
+  of the three-node relay test. Rekey and relay status (2b) follow qualification. See the
   [rotation and rekey design](docs/contributing/rotation-design.md).
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.

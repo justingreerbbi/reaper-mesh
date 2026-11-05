@@ -1,6 +1,7 @@
 // The radio network page (D50): creating or joining a team, adding this radio, and sharing the
 // team's QR code. Keys live in this browser's vault. They go to the radio only when the operator
 // adds it, and the team key is reloaded whenever a radio needs it, because it lives in memory there.
+// It also rotates the team's keys on schedule while a radio on the team is connected (D52).
 import { current, demo, encryption, encryptionError, mode, render } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { backPage, currentPage, isShowing, onPageChange, openPage } from './nav.ts';
@@ -12,10 +13,19 @@ import {
   formatTeamInvite,
   newTeam,
   parseTeamInvite,
+  teamAtEpoch,
+  teamProof,
+  validRotationHours,
   validTeamName,
   type TeamKeys,
 } from './team.ts';
 import { confirmSheet, setNotice } from './ui.ts';
+import {
+  EPOCH_LOOK_AHEAD,
+  epochsAheadOfSchedule,
+  lastProofEpoch,
+  rotationStep,
+} from '../../packages/agent-core/rotation.ts';
 
 const REFUSALS: Record<string, string> = {
   refused:
@@ -28,12 +38,22 @@ const REFUSALS: Record<string, string> = {
 const COMMAND_WAIT_MS = 4000;
 const RETRY_MS = 3000;
 const MAX_LOAD_TRIES = 3;
+const MAX_ADVANCE_TRIES = 3;
+/** About two months at the default interval, so there is time to set up a new team. */
+const CHAIN_WARNING_EPOCHS = 64;
 
 let working = false;
 let shareCode = '';
 let loadTarget = '';
 let loadTries = 0;
 let nextLoad = 0;
+let advanceTarget = '';
+let advanceTries = 0;
+let nextAdvance = 0;
+let rotateRequested = false;
+let aheadBy = 0;
+// Checking a proof can take thousands of hashes, and the page renders ten times a second.
+let proofMemo: { seed: string; epoch: number; proof: string } | undefined;
 
 const adapter = () => current().adapter;
 const connection = () => adapter().connection;
@@ -47,16 +67,39 @@ function vault() {
 }
 const team = () => (encryption?.unlocked ? encryption.team : undefined);
 
-/** Whether the radio holds this browser's team, judged by fingerprint so no key is sent to check. */
-function onThisTeam(keys: TeamKeys | undefined) {
+function memoProof(keys: TeamKeys, epoch: number) {
+  if (proofMemo?.seed !== keys.proofSeed || proofMemo.epoch !== epoch)
+    proofMemo = { seed: keys.proofSeed, epoch, proof: teamProof(keys, epoch) };
+  return proofMemo.proof;
+}
+
+/** Whether the radio's proof comes from this team's chain, at any epoch, with no key sent to check. */
+function holdsTeamProof(keys: TeamKeys | undefined) {
   const status = connection().network;
+  const epoch = status?.provenEpoch;
   return (
     !!keys &&
     status?.networkMode === 2 &&
     status.generation === keys.generation &&
-    status.epoch === keys.epoch &&
-    status.relayFingerprint === chainFingerprint(keys.relayChain)
+    epoch !== undefined &&
+    epoch >= keys.proofStart &&
+    epoch <= lastProofEpoch(keys.proofStart) &&
+    status.proof === memoProof(keys, epoch)
   );
+}
+
+/** On this team, but too far behind to follow it. Adding it again brings it back. */
+function lockedOut(keys: TeamKeys | undefined) {
+  return (
+    !!keys &&
+    holdsTeamProof(keys) &&
+    keys.epoch - connection().network!.provenEpoch! > EPOCH_LOOK_AHEAD
+  );
+}
+
+/** Whether the radio holds this browser's team and can follow it. */
+function onThisTeam(keys: TeamKeys | undefined) {
+  return holdsTeamProof(keys) && !lockedOut(keys);
 }
 
 async function waitFree() {
@@ -115,6 +158,7 @@ function addRadio(role: 'member' | 'relay') {
               epoch: keys.epoch,
               relayChain: keys.relayChain,
               deviceKey,
+              proof: teamProof(keys, keys.epoch),
             }),
           () => onThisTeam(keys),
         ),
@@ -161,6 +205,9 @@ function leaveTeam() {
         () => connection().network?.networkMode === 0,
       );
     vault().leaveTeam();
+    proofMemo = undefined;
+    aheadBy = advanceTries = 0;
+    rotateRequested = false;
   });
 }
 
@@ -180,7 +227,107 @@ async function joinFromCode(value: string) {
   });
   if (!yes) return;
   vault().setTeam(keys);
+  aheadBy = advanceTries = 0;
   openPage('network');
+}
+
+/**
+ * Keeps this browser and its radio on the same epoch, and starts the next one when it is due. Every
+ * browser computes the same keys, so two advancing at once cannot split the team.
+ */
+function rotate() {
+  const keys = team();
+  const { network, device, sync, supportsRotation, networkBusy } = connection();
+  if (
+    working ||
+    sync.state !== 'ready' ||
+    !keys ||
+    !device ||
+    !supportsRotation ||
+    !network ||
+    network.provenEpoch === undefined ||
+    networkBusy ||
+    !holdsTeamProof(keys)
+  )
+    return;
+  const now = Date.now();
+  const advancedAt = encryption?.teamAdvancedAt ?? now;
+  const step = rotationStep(
+    keys,
+    { epoch: network.epoch, provenEpoch: network.provenEpoch },
+    advancedAt,
+    now,
+    rotateRequested,
+  );
+  try {
+    if (step?.kind === 'follow') {
+      const ahead = epochsAheadOfSchedule(keys, step.epoch, advancedAt, now);
+      if (ahead > 2) aheadBy = ahead;
+      vault().advanceTeam(teamAtEpoch(keys, step.epoch), now);
+    } else if (step?.kind === 'advance') {
+      // Saved first: if the radio doesn't take it, the catch-up below tries again.
+      vault().advanceTeam(teamAtEpoch(keys, step.epoch), now);
+      rotateRequested = false;
+      aheadBy = 0;
+    } else if (step?.kind === 'catch-up') {
+      const target = `${device}:${sync.boot}:${step.epoch}`;
+      if (target !== advanceTarget) {
+        advanceTarget = target;
+        advanceTries = 0;
+        nextAdvance = 0;
+      }
+      const clock = performance.now();
+      if (advanceTries >= MAX_ADVANCE_TRIES || clock < nextAdvance) return;
+      advanceTries++;
+      nextAdvance = clock + RETRY_MS;
+      adapter().advanceNetwork({ epoch: step.epoch, proof: memoProof(keys, step.epoch) });
+    } else if (rotateRequested) {
+      rotateRequested = false;
+    }
+  } catch (error) {
+    rotateRequested = false;
+    showError(error);
+  }
+}
+
+function plural(count: number, unit: string) {
+  return `${count} ${unit}${count === 1 ? '' : 's'}`;
+}
+
+function span(ms: number) {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 90) return plural(minutes, 'minute');
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? plural(hours, 'hour') : plural(Math.round(hours / 24), 'day');
+}
+
+function rotationSummary(keys: TeamKeys) {
+  const now = Date.now();
+  const at = encryption?.teamAdvancedAt ?? now;
+  const age = `Keys last rotated ${span(now - at)} ago, at epoch ${keys.epoch}.`;
+  if (keys.epoch >= lastProofEpoch(keys.proofStart)) return `${age} Rotation has stopped.`;
+  if (!onThisTeam(keys)) return `${age} The next rotation waits for a radio on this team.`;
+  const due = at + keys.rotationHours * 3_600_000 - now;
+  return due > 0 ? `${age} Next rotation in about ${span(due)}.` : `${age} Rotating now…`;
+}
+
+function rotationNotice(keys: TeamKeys | undefined) {
+  if (!keys)
+    return encryption?.droppedOldTeam
+      ? 'The team saved in this browser was from an older version and has been removed. Create or join a team again, and add your radios to it.'
+      : undefined;
+  if (lockedOut(keys))
+    return 'This radio was off for too long to catch up with the team. Add it to the team again.';
+  const left = lastProofEpoch(keys.proofStart) - keys.epoch;
+  if (left <= 0) return 'This team has used all of its rotations. Create a new team.';
+  if (left <= CHAIN_WARNING_EPOCHS)
+    return `This team has ${plural(left, 'rotation')} left. Create a new team before they run out.`;
+  if (aheadBy)
+    return `The team's keys moved ${plural(aheadBy, 'rotation')} ahead of schedule. This can mean a browser's clock is wrong, or that someone with the team's keys is misusing them.`;
+  const status = connection().network;
+  if (advanceTries >= MAX_ADVANCE_TRIES && status?.provenEpoch !== keys.epoch && onThisTeam(keys))
+    return REFUSALS[status?.state ?? ''] ?? 'This radio has not moved to the current keys yet.';
+  return undefined;
 }
 
 /** A radio forgets its team key when it restarts, so this reloads it whenever it is missing. */
@@ -231,6 +378,11 @@ function summary() {
       short: 'Open',
       long: 'Open: anyone in range can read this, including positions and who is talking to whom.',
     };
+  if (lockedOut(keys))
+    return {
+      short: `${keys!.name}, locked out`,
+      long: `This radio has the old keys of ${keys!.name}, and can no longer reach the team.`,
+    };
   if (!onThisTeam(keys))
     return {
       short: 'Other team',
@@ -264,11 +416,12 @@ function renderPage() {
     'network-support',
     !ready
       ? 'Connect a radio to change its network.'
-      : !status
+      : !status || !connection().supportsRotation
         ? "Update this radio's firmware to use a team."
         : undefined,
     'warn',
   );
+  setNotice('network-rotation', rotationNotice(keys), 'warn');
   setNotice(
     'network-pin',
     keys && encryption && !encryption.protected
@@ -294,7 +447,21 @@ function renderPage() {
   const name = element<HTMLInputElement>('team-name').value;
   element<HTMLButtonElement>('team-create').disabled = !unlocked || !validTeamName(name);
   element<HTMLButtonElement>('team-join').disabled = !unlocked;
-  if (keys) text('team-title', keys.name);
+  if (keys) {
+    text('team-title', keys.name);
+    text('team-rotation-status', rotationSummary(keys));
+    const interval = element<HTMLSelectElement>('team-interval');
+    // Not while it is open, or a render would close it.
+    if (document.activeElement !== interval) interval.value = String(keys.rotationHours);
+    interval.disabled = !unlocked;
+    element<HTMLButtonElement>('team-rotate').disabled =
+      !unlocked ||
+      !here ||
+      working ||
+      rotateRequested ||
+      keys.epoch >= lastProofEpoch(keys.proofStart) ||
+      !connection().supportsRotation;
+  }
   element<HTMLButtonElement>('team-leave').disabled = working;
 }
 
@@ -320,11 +487,13 @@ function clearShare() {
 /** Clears the team's QR code from the screen, for locking the app. */
 export function closeTeamSecrets() {
   clearShare();
+  proofMemo = undefined;
   if (currentPage() === 'team-share' && isShowing('team-share')) backPage();
 }
 
 export function renderNetwork() {
   if (mode.value === 'demo') demo.network.fingerprint = chainFingerprint;
+  rotate();
   loadTeamKey();
   const row = summary();
   text('row-network', row?.short ?? '');
@@ -359,6 +528,21 @@ export function initNetwork() {
     openPage('team-share');
   });
   element('team-leave').addEventListener('click', () => void leaveTeam());
+  element('team-rotate').addEventListener('click', () => {
+    setNotice('network-error', undefined);
+    rotateRequested = true;
+    render();
+  });
+  element('team-interval').addEventListener('change', event => {
+    const hours = Number((event.target as HTMLSelectElement).value);
+    try {
+      if (!validRotationHours(hours)) throw new Error('Choose between 6 hours and 7 days.');
+      vault().setTeamRotation(hours);
+    } catch (error) {
+      showError(error);
+    }
+    render();
+  });
   element('team-share-copy').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(shareCode);

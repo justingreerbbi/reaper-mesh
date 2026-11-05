@@ -52,6 +52,18 @@ bool ratchet_chain(crypto::Key& chain) {
   crypto::wipe(next.data(), next.size());
   return true;
 }
+bool previous_proof(const crypto::Key& proof, crypto::Key& previous) {
+  return labeled(proof.data(), proof.size(), "reaper-v2 epoch proof", previous);
+}
+bool proof_reaches(const crypto::Key& proof, std::uint32_t steps, const crypto::Key& known) {
+  crypto::Key walk = proof, next{};
+  for (std::uint32_t i = 0; i < steps; ++i) {
+    if (!previous_proof(walk, next))
+      return false;
+    walk = next;
+  }
+  return crypto::equal(walk.data(), known.data(), walk.size());
+}
 bool derive_relay_keys(const crypto::Key& relay_chain, RelayKeys& out) {
   crypto::Key tag{}, hint{};
   if (!labeled(relay_chain.data(), relay_chain.size(), "reaper-v2 relay tag", tag) ||
@@ -110,6 +122,33 @@ bool seal_frame(const Packet& p, std::uint16_t epoch,
   size = total;
   return true;
 }
+bool seal_proof_frame(std::uint16_t epoch, const crypto::Key& proof,
+                      const std::array<std::uint8_t, 8>& nonce, std::uint8_t hops,
+                      const RelayKeys& relay, std::uint8_t* out, std::size_t capacity,
+                      std::size_t& size) {
+  size = 0;
+  if (!out || capacity < kProofFrameBytes || hops > 7)
+    return false;
+  std::array<std::uint8_t, kProofFrameBytes> frame{};
+  frame[0] = kNetworkFrameByte;
+  std::memcpy(frame.data() + 1, relay.hint.data(), relay.hint.size());
+  write(frame.data() + 3, epoch, 2);
+  frame[5] = static_cast<std::uint8_t>(hops | hops << 4);
+  std::memcpy(frame.data() + 6, nonce.data(), nonce.size());
+  frame[kFrameClearBytes] = kNetworkTypeProof;
+  std::memcpy(frame.data() + kFrameClearBytes + 1, proof.data(), proof.size());
+  if (!relay_tag(frame.data(), frame.size(), relay.tag,
+                 frame.data() + frame.size() - kFrameRelayTagBytes))
+    return false;
+  std::memcpy(out, frame.data(), frame.size());
+  size = frame.size();
+  return true;
+}
+crypto::Key frame_proof(const std::uint8_t* frame) {
+  crypto::Key proof{};
+  std::memcpy(proof.data(), frame + kFrameClearBytes + 1, proof.size());
+  return proof;
+}
 bool parse_route(const std::uint8_t* bytes, std::size_t size, FrameRoute& out) {
   if (!valid_frame_layout(bytes, size))
     return false;
@@ -132,7 +171,7 @@ bool verify_relay_tag(const std::uint8_t* bytes, std::size_t size, const RelayKe
 bool open_frame(const std::uint8_t* bytes, std::size_t size, const crypto::Key& frame_key,
                 Packet& out) {
   FrameRoute route{};
-  if (!parse_route(bytes, size, route))
+  if (!parse_route(bytes, size, route) || bytes[0] != 2)
     return false;
   const std::size_t sealed = size - kFrameClearBytes - kFrameTeamTagBytes - kFrameRelayTagBytes;
   const auto clear = additional_data(bytes);
@@ -170,40 +209,160 @@ bool decrement_hops(std::uint8_t* bytes, std::size_t size) {
   --bytes[5];
   return true;
 }
+namespace {
+// Walks this short cost nothing, and a whole look-ahead takes 16 seconds to earn back.
+constexpr std::uint32_t kFreeSteps = 4, kBudgetPerSecond = 64;
+}  // namespace
 void FrameLink::seed(const crypto::Key& seed) {
   nonce_seed_ = seed;
   nonce_counter_ = 0;
   seeded_ = true;
 }
-bool FrameLink::set_chains(const crypto::Key& relay_chain, const crypto::Key* team_chain,
-                           std::uint16_t epoch) {
-  relay_ready_ = team_ready_ = false;
-  crypto::wipe(frame_key_.data(), frame_key_.size());
-  if (!derive_relay_keys(relay_chain, relay_))
+void FrameLink::wipe_slot(EpochSlot& slot) {
+  crypto::wipe(slot.chain.data(), slot.chain.size());
+  crypto::wipe(slot.keys.tag.data(), slot.keys.tag.size());
+  slot.used = false;
+}
+bool FrameLink::store(EpochSlot& slot, const crypto::Key& chain, std::uint16_t epoch) {
+  RelayKeys keys{};
+  if (!derive_relay_keys(chain, keys))
     return false;
-  relay_ready_ = true;
-  epoch_ = epoch;
-  if (team_chain) {
-    team_ready_ = derive_frame_key(*team_chain, frame_key_);
-    return team_ready_;
-  }
+  slot.chain = chain;
+  slot.keys = keys;
+  slot.epoch = epoch;
+  slot.used = true;
+  crypto::wipe(keys.tag.data(), keys.tag.size());
   return true;
 }
+// Starts from the nearest cached epoch at or below this one. The floor is always cached.
+bool FrameLink::derive_into(EpochSlot& slot, std::uint16_t epoch) {
+  const EpochSlot* base = nullptr;
+  for (const auto& candidate : slots_)
+    if (candidate.used && candidate.epoch <= epoch && (!base || candidate.epoch > base->epoch))
+      base = &candidate;
+  if (!base)
+    return false;
+  crypto::Key chain = base->chain;
+  bool ok = true;
+  for (std::uint32_t at = base->epoch; ok && at < epoch; ++at)
+    ok = ratchet_chain(chain);
+  ok = ok && store(slot, chain, epoch);
+  crypto::wipe(chain.data(), chain.size());
+  return ok;
+}
+bool FrameLink::spend(std::uint32_t steps, std::uint64_t now) {
+  if (steps <= kFreeSteps)
+    return true;
+  if (now > budget_at_) {
+    const auto earned = (now - budget_at_) * kBudgetPerSecond / 1000;
+    if (earned) {
+      budget_ = earned >= kEpochLookAhead - budget_ ? kEpochLookAhead
+                                                    : budget_ + static_cast<std::uint32_t>(earned);
+      budget_at_ = now;
+    }
+  }
+  if (budget_ < steps)
+    return false;
+  budget_ -= steps;
+  return true;
+}
+const RelayKeys* FrameLink::relay_keys(std::uint32_t epoch, bool budgeted, std::uint64_t now) {
+  if (!relay_ready_ || epoch < floor_ || epoch > std::uint32_t(floor_) + window_)
+    return nullptr;
+  std::uint32_t nearest = floor_;
+  for (auto& slot : slots_)
+    if (slot.used) {
+      if (slot.epoch == epoch)
+        return &slot.keys;
+      if (slot.epoch < epoch && slot.epoch > nearest)
+        nearest = slot.epoch;
+    }
+  if (budgeted && !spend(epoch - nearest, now))
+    return nullptr;
+  auto& slot = slots_[kRecentSlot + next_recent_];
+  next_recent_ = (next_recent_ + 1) % (kSlots - kRecentSlot);
+  return derive_into(slot, static_cast<std::uint16_t>(epoch)) ? &slot.keys : nullptr;
+}
+bool FrameLink::set_chains(const crypto::Key& relay_chain, std::uint16_t floor,
+                           const crypto::Key* team_chain, std::uint16_t team_epoch) {
+  clear();
+  window_ = kEpochLookAhead;
+  floor_ = floor;
+  if (!store(slots_[kFloorSlot], relay_chain, floor))
+    return false;
+  relay_ready_ = true;
+  if (!team_chain)
+    return true;
+  if (team_epoch < floor || !derive_frame_key(*team_chain, frame_key_) ||
+      !derive_into(slots_[kCurrentSlot], team_epoch))
+    return false;
+  team_chain_ = *team_chain;
+  team_epoch_ = team_epoch;
+  team_ready_ = true;
+  return true;
+}
+bool FrameLink::set_floor(const crypto::Key& relay_chain, std::uint16_t floor) {
+  if (!relay_ready_ || floor < floor_)
+    return false;
+  for (auto& slot : slots_)
+    if (slot.used && slot.epoch < floor)
+      wipe_slot(slot);
+  floor_ = floor;
+  return store(slots_[kFloorSlot], relay_chain, floor);
+}
+bool FrameLink::walk_team(std::uint16_t epoch, crypto::Key& chain, crypto::Key& frame,
+                          crypto::Key& previous) const {
+  chain = team_chain_;
+  for (std::uint32_t at = team_epoch_; at + 1 < epoch; ++at)
+    if (!ratchet_chain(chain))
+      return false;
+  return derive_frame_key(chain, previous) && ratchet_chain(chain) &&
+         derive_frame_key(chain, frame);
+}
+void FrameLink::adopt_team(std::uint16_t epoch, const crypto::Key& chain, const crypto::Key& frame,
+                           const crypto::Key& previous) {
+  team_chain_ = chain;
+  team_epoch_ = epoch;
+  frame_key_ = frame;
+  previous_key_ = previous;
+  previous_ready_ = true;
+  // Sealing reads this slot. A failure here leaves no way to send, rather than a wrong tag.
+  if (!derive_into(slots_[kCurrentSlot], epoch))
+    team_ready_ = false;
+}
+bool FrameLink::advance_team(std::uint16_t epoch) {
+  if (!team_ready_ || epoch < team_epoch_)
+    return false;
+  if (epoch == team_epoch_)
+    return true;
+  crypto::Key chain{}, frame{}, previous{};
+  const bool ok = walk_team(epoch, chain, frame, previous);
+  if (ok)
+    adopt_team(epoch, chain, frame, previous);
+  crypto::wipe(chain.data(), chain.size());
+  crypto::wipe(frame.data(), frame.size());
+  crypto::wipe(previous.data(), previous.size());
+  return ok && team_ready_;
+}
 void FrameLink::clear() {
-  relay_ready_ = team_ready_ = false;
+  relay_ready_ = team_ready_ = previous_ready_ = false;
+  window_ = floor_ = team_epoch_ = 0;
+  crypto::wipe(team_chain_.data(), team_chain_.size());
   crypto::wipe(frame_key_.data(), frame_key_.size());
-  crypto::wipe(relay_.tag.data(), relay_.tag.size());
+  crypto::wipe(previous_key_.data(), previous_key_.size());
+  for (auto& slot : slots_)
+    wipe_slot(slot);
 }
 bool FrameLink::use_open_mode() {
   crypto::Key relay{}, team{};
-  const bool ok = open_mode_chains(relay, team) && set_chains(relay, &team, 0);
+  bool ok = open_mode_chains(relay, team) && set_chains(relay, &team, 0);
+  window_ = 0;  // Published keys, so Open mode stays at epoch 0.
   crypto::wipe(relay.data(), relay.size());
   crypto::wipe(team.data(), team.size());
   return ok;
 }
-bool FrameLink::seal(const Packet& p, Frame& out) {
-  out.size = 0;
-  if (!can_originate() || nonce_counter_ == std::numeric_limits<std::uint64_t>::max())
+bool FrameLink::next_nonce(std::array<std::uint8_t, 8>& nonce) {
+  if (!seeded_ || nonce_counter_ == std::numeric_limits<std::uint64_t>::max())
     return false;
   std::array<std::uint8_t, 8> counter{};
   write(counter.data(), ++nonce_counter_, 8);
@@ -211,18 +370,57 @@ bool FrameLink::seal(const Packet& p, Frame& out) {
   crypto::Key digest{};
   if (!crypto::hmac_sha256(nonce_seed_.data(), nonce_seed_.size(), &part, 1, digest))
     return false;
-  std::array<std::uint8_t, 8> nonce{};
   std::memcpy(nonce.data(), digest.data(), nonce.size());
-  return seal_frame(p, epoch_, nonce, relay_, frame_key_, out.bytes.data(), out.bytes.size(),
-                    out.size);
+  return true;
 }
-FrameResult FrameLink::receive(const std::uint8_t* bytes, std::size_t size, Packet& out) const {
+bool FrameLink::seal(const Packet& p, Frame& out) {
+  out.size = 0;
+  std::array<std::uint8_t, 8> nonce{};
+  if (!can_originate() || !slots_[kCurrentSlot].used || !next_nonce(nonce))
+    return false;
+  return seal_frame(p, team_epoch_, nonce, slots_[kCurrentSlot].keys, frame_key_, out.bytes.data(),
+                    out.bytes.size(), out.size);
+}
+bool FrameLink::seal_proof(std::uint16_t epoch, const crypto::Key& proof, std::uint8_t hops,
+                           Frame& out) {
+  out.size = 0;
+  std::array<std::uint8_t, 8> nonce{};
+  const auto* relay = relay_keys(epoch, false, 0);
+  if (!relay || !window_ || !next_nonce(nonce))
+    return false;
+  return seal_proof_frame(epoch, proof, nonce, hops, *relay, out.bytes.data(), out.bytes.size(),
+                          out.size);
+}
+FrameResult FrameLink::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t now,
+                               Packet& out) {
   FrameRoute route{};
-  if (!relay_ready_ || !parse_route(bytes, size, route) || route.epoch != epoch_ ||
-      !verify_relay_tag(bytes, size, relay_))
+  if (!parse_route(bytes, size, route))
     return FrameResult::Rejected;
+  const auto* relay = relay_keys(route.epoch, true, now);
+  if (!relay || !verify_relay_tag(bytes, size, *relay))
+    return FrameResult::Rejected;
+  if (bytes[0] == kNetworkFrameByte)
+    return window_ ? FrameResult::Proof : FrameResult::Rejected;
   if (!team_ready_)
     return FrameResult::RelayOnly;
-  return open_frame(bytes, size, frame_key_, out) ? FrameResult::Opened : FrameResult::Rejected;
+  if (route.epoch == team_epoch_)
+    return open_frame(bytes, size, frame_key_, out) ? FrameResult::Opened : FrameResult::Rejected;
+  if (route.epoch < team_epoch_)
+    return previous_ready_ && route.epoch + 1u == team_epoch_ &&
+                   open_frame(bytes, size, previous_key_, out)
+               ? FrameResult::Opened
+               : FrameResult::Rejected;
+  // A newer epoch counts only once its team tag verifies, which a relay key alone cannot produce.
+  if (!spend(route.epoch - team_epoch_, now))
+    return FrameResult::Rejected;
+  crypto::Key chain{}, frame{}, previous{};
+  const bool ok =
+      walk_team(route.epoch, chain, frame, previous) && open_frame(bytes, size, frame, out);
+  if (ok)
+    adopt_team(route.epoch, chain, frame, previous);
+  crypto::wipe(chain.data(), chain.size());
+  crypto::wipe(frame.data(), frame.size());
+  crypto::wipe(previous.data(), previous.size());
+  return ok ? FrameResult::Opened : FrameResult::Rejected;
 }
 }  // namespace reaper::mesh

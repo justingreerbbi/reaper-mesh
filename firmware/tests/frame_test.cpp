@@ -94,6 +94,24 @@ int main(int argc, char** argv) {
     hex(frame, size);
     return 0;
   }
+  if (scenario == "golden-proof") {
+    // The proof chain from packages/protocol/fixtures/frame-v2.json, walked from its seed.
+    auto proof = filled(0x33);
+    constexpr char digits[] = "0123456789abcdef";
+    for (unsigned i = 0; i < 3; ++i) {
+      for (auto byte : proof)
+        std::cout << digits[byte >> 4] << digits[byte & 15];
+      std::cout << '\n';
+      c::Key previous{};
+      CHECK(m::previous_proof(proof, previous));
+      proof = previous;
+    }
+    const auto at = keys(0x11, 0x22, 3);
+    CHECK(m::seal_proof_frame(3, filled(0x33), kNonce, 3, at.relay, frame.data(), frame.size(),
+                              size));
+    hex(frame, size);
+    return 0;
+  }
   if (scenario == "hmac") {  // RFC 4231 test case 1.
     const auto key = filled(0x0b);
     const char text[] = "Hi There";
@@ -299,6 +317,199 @@ int main(int argc, char** argv) {
     }
     std::sort(nonces.begin(), nonces.end());
     CHECK(std::adjacent_find(nonces.begin(), nonces.end()) == nonces.end());
+  } else if (scenario == "proofchain") {
+    std::array<c::Key, 6> proofs{};
+    proofs[5] = filled(0x33);
+    for (std::size_t i = 5; i > 0; --i)
+      CHECK(m::previous_proof(proofs[i], proofs[i - 1]));
+    CHECK(m::proof_reaches(proofs[5], 5, proofs[0]));
+    CHECK(m::proof_reaches(proofs[3], 2, proofs[1]));
+    CHECK(m::proof_reaches(proofs[2], 0, proofs[2]));
+    // Wrong distance, the wrong direction, and a value from elsewhere all fail.
+    CHECK(!m::proof_reaches(proofs[5], 4, proofs[0]));
+    CHECK(!m::proof_reaches(proofs[0], 1, proofs[1]));
+    CHECK(!m::proof_reaches(filled(0x44), 5, proofs[0]));
+  } else if (scenario == "window") {
+    // A radio holding only the relay key forwards any epoch in its window and changes no state.
+    const auto chain = [](std::uint8_t seed, unsigned steps) {
+      auto key = filled(seed);
+      for (unsigned i = 0; i < steps; ++i)
+        m::ratchet_chain(key);
+      return key;
+    };
+    const auto sender = [&](unsigned epoch) {
+      static std::uint8_t seed = 1;
+      m::FrameLink link;
+      link.seed(filled(seed++));
+      const auto relay = chain(0x11, epoch), team = chain(0x22, epoch);
+      link.set_chains(relay, &team, static_cast<std::uint16_t>(epoch));
+      return link;
+    };
+    m::FrameLink relay;
+    const auto floor_chain = chain(0x11, 5);
+    CHECK(relay.set_chains(floor_chain, nullptr, 5));
+    m::Packet out{};
+    const auto heard = [&](unsigned epoch) {
+      auto link = sender(epoch);
+      m::Frame sealed{};
+      link.seal(data(), sealed);
+      return relay.receive(sealed.bytes.data(), sealed.size, out);
+    };
+    CHECK(heard(4) == m::FrameResult::Rejected);  // Below the floor.
+    CHECK(heard(5) == m::FrameResult::RelayOnly);
+    CHECK(heard(6) == m::FrameResult::RelayOnly);
+    CHECK(heard(5 + 1024) == m::FrameResult::RelayOnly);
+    CHECK(heard(5 + 1025) == m::FrameResult::Rejected);  // Past the look-ahead.
+    // Forwarding a far-future frame moved nothing, so honest traffic still gets through.
+    CHECK(relay.floor() == 5 && heard(5) == m::FrameResult::RelayOnly);
+    // Only a proof moves the floor, and older epochs are gone from then on.
+    const auto next_chain = chain(0x11, 7);
+    CHECK(relay.set_floor(next_chain, 7));
+    CHECK(heard(6) == m::FrameResult::Rejected && heard(7) == m::FrameResult::RelayOnly);
+    CHECK(!relay.set_floor(floor_chain, 5));
+
+    // A member follows only a valid team tag, and keeps reading the previous epoch.
+    m::FrameLink member;
+    member.seed(filled(0x70));
+    const auto relay_5 = chain(0x11, 5), team_5 = chain(0x22, 5);
+    CHECK(member.set_chains(relay_5, &team_5, 5));
+    const auto member_heard = [&](unsigned epoch) {
+      auto link = sender(epoch);
+      m::Frame sealed{};
+      link.seal(data(), sealed);
+      return member.receive(sealed.bytes.data(), sealed.size, out);
+    };
+    CHECK(member_heard(6) == m::FrameResult::Opened && member.team_epoch() == 6);
+    CHECK(same(data(), out));
+    CHECK(member_heard(5) == m::FrameResult::Opened && member.team_epoch() == 6);
+    CHECK(member_heard(4) == m::FrameResult::Rejected);
+    // It now sends at the new epoch, and a radio still at the old floor can check that.
+    m::Frame own{};
+    CHECK(member.seal(data(), own));
+    m::FrameRoute route{};
+    CHECK(m::parse_route(own.bytes.data(), own.size, route) && route.epoch == 6);
+    m::FrameLink listener;
+    CHECK(listener.set_chains(relay_5, &team_5, 5));
+    CHECK(listener.receive(own.bytes.data(), own.size, out) == m::FrameResult::Opened);
+    CHECK(same(data(), out) && listener.team_epoch() == 6);
+    // A frame with a valid relay tag but the wrong team key moves nothing.
+    m::FrameLink thief;
+    thief.seed(filled(0x71));
+    const auto relay_9 = chain(0x11, 9), wrong_team = filled(0x66);
+    CHECK(thief.set_chains(relay_9, &wrong_team, 9));
+    m::Frame forged{};
+    CHECK(thief.seal(data(), forged));
+    CHECK(member.receive(forged.bytes.data(), forged.size, out) == m::FrameResult::Rejected);
+    CHECK(member.team_epoch() == 6);
+    CHECK(member.advance_team(8) && member.team_epoch() == 8);
+    CHECK(!member.advance_team(7) && member.team_epoch() == 8);
+    CHECK(member_heard(8) == m::FrameResult::Opened);
+    CHECK(member_heard(7) == m::FrameResult::Opened);
+
+    // Open mode uses published keys, so it never leaves epoch 0.
+    m::FrameLink open;
+    open.seed(filled(0x72));
+    CHECK(open.use_open_mode());
+    m::FrameLink other;
+    other.seed(filled(0x73));
+    c::Key open_relay{}, open_team{};
+    CHECK(m::open_mode_chains(open_relay, open_team));
+    CHECK(other.set_chains(open_relay, &open_team, 0));
+    CHECK(other.seal(data(), own));
+    CHECK(open.receive(own.bytes.data(), own.size, out) == m::FrameResult::Opened);
+    CHECK(m::ratchet_chain(open_relay) && m::ratchet_chain(open_team));
+    CHECK(other.set_chains(open_relay, &open_team, 1));
+    CHECK(other.seal(data(), own));
+    CHECK(open.receive(own.bytes.data(), own.size, out) == m::FrameResult::Rejected);
+    CHECK(other.seal_proof(1, filled(0x33), 3, own));
+    CHECK(open.receive(own.bytes.data(), own.size, out) == m::FrameResult::Rejected);
+    CHECK(!open.seal_proof(0, filled(0x33), 3, own));
+  } else if (scenario == "proofframe") {
+    const auto chain = filled(0x11);
+    m::FrameLink sender, relay, stranger, unseeded;
+    sender.seed(filled(1));
+    CHECK(sender.set_chains(chain, nullptr, 0));
+    CHECK(relay.set_chains(chain, nullptr, 0));
+    const auto other = filled(0x55);
+    CHECK(stranger.set_chains(other, nullptr, 0));
+    CHECK(unseeded.set_chains(chain, nullptr, 0));
+    m::Frame proof{};
+    CHECK(!unseeded.seal_proof(1, filled(0x33), 3, proof));
+    CHECK(sender.seal_proof(1, filled(0x33), 3, proof));  // No team key is needed.
+    CHECK(proof.size == m::kProofFrameBytes && proof.bytes[0] == m::kNetworkFrameByte);
+    m::Packet out{};
+    CHECK(relay.receive(proof.bytes.data(), proof.size, out) == m::FrameResult::Proof);
+    CHECK(m::frame_proof(proof.bytes.data()) == filled(0x33));
+    CHECK(stranger.receive(proof.bytes.data(), proof.size, out) == m::FrameResult::Rejected);
+    // It cannot be mistaken for a team frame, and every other bit is covered by the relay tag.
+    CHECK(!m::open_frame(proof.bytes.data(), proof.size, filled(0x22), out));
+    const auto original = proof;
+    for (std::size_t bit = 0; bit < proof.size * 8; ++bit) {
+      if (bit / 8 == 5 && bit % 8 < 3)
+        continue;  // Current hops, which relays change.
+      proof = original;
+      proof.bytes[bit / 8] ^= static_cast<std::uint8_t>(1u << (bit % 8));
+      CHECK(relay.receive(proof.bytes.data(), proof.size, out) == m::FrameResult::Rejected);
+    }
+    proof = original;
+    CHECK(m::decrement_hops(proof.bytes.data(), proof.size));
+    CHECK(relay.receive(proof.bytes.data(), proof.size, out) == m::FrameResult::Proof);
+    // Only the exact layout passes: one type, one size.
+    m::FrameRoute route{};
+    proof = original;
+    CHECK(m::parse_route(proof.bytes.data(), proof.size, route));
+    CHECK(!m::parse_route(proof.bytes.data(), proof.size - 1, route));
+    CHECK(!m::parse_route(proof.bytes.data(), proof.size + 1, route));
+    proof.bytes[14] = 2;
+    CHECK(!m::parse_route(proof.bytes.data(), proof.size, route));
+    proof = original;
+    proof.bytes[0] = 0x22;
+    CHECK(!m::parse_route(proof.bytes.data(), proof.size, route));
+    // A proof frame's size is too short to be a team frame.
+    proof = original;
+    proof.bytes[0] = 2;
+    CHECK(!m::parse_route(proof.bytes.data(), proof.size, route));
+  } else if (scenario == "budget") {
+    // Unauthenticated epochs cannot make a radio hash without limit, and honest ones stay cheap.
+    const auto chain = filled(0x11);
+    m::FrameLink relay;
+    CHECK(relay.set_chains(chain, nullptr, 0));
+    CHECK(relay.spend(4, 0));  // Short walks are free.
+    CHECK(relay.spend(1000, 0));
+    CHECK(!relay.spend(1000, 0));
+    CHECK(relay.spend(4, 0));
+    CHECK(relay.spend(24, 0) && !relay.spend(5, 0));
+    // 64 steps a second, up to the look-ahead.
+    CHECK(relay.spend(64, 1000) && !relay.spend(5, 1000));
+    CHECK(relay.spend(1024, 1000 + 16000) && !relay.spend(5, 1000 + 16000));
+    CHECK(!relay.spend(1025, 1000 + 1000000));
+
+    // A flood of far-future frames runs the budget out, and honest traffic still passes.
+    m::FrameLink flooded;
+    CHECK(flooded.set_chains(chain, nullptr, 0));
+    const auto frame_at = [&](unsigned epoch) {
+      auto key = chain;
+      for (unsigned i = 0; i < epoch; ++i)
+        m::ratchet_chain(key);
+      m::FrameLink link;
+      link.seed(filled(static_cast<std::uint8_t>(epoch)));
+      const auto team = filled(0x22);
+      link.set_chains(key, &team, static_cast<std::uint16_t>(epoch));
+      m::Frame sealed{};
+      link.seal(data(), sealed);
+      return sealed;
+    };
+    m::Packet out{};
+    const auto far = frame_at(1000), near_it = frame_at(1002), middle = frame_at(500),
+               honest = frame_at(1);
+    CHECK(flooded.receive(far.bytes.data(), far.size, 0, out) == m::FrameResult::RelayOnly);
+    // Two steps on from a cached epoch is free.
+    CHECK(flooded.receive(near_it.bytes.data(), near_it.size, 0, out) == m::FrameResult::RelayOnly);
+    // This is 500 steps from the floor, with little budget left.
+    CHECK(flooded.receive(middle.bytes.data(), middle.size, 0, out) == m::FrameResult::Rejected);
+    CHECK(flooded.receive(honest.bytes.data(), honest.size, 0, out) == m::FrameResult::RelayOnly);
+    CHECK(flooded.receive(middle.bytes.data(), middle.size, 10000, out) ==
+          m::FrameResult::RelayOnly);
   } else {
     return 2;
   }
