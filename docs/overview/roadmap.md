@@ -17,7 +17,7 @@ Order of work:
 3. Three-node relay test.
 4. Outdoor range test.
 5. Power-loss, interrupted-flash and soak tests.
-6. Build D50 step 2: relay key rotation and rekey, which the freeze depends on.
+6. Build D50 step 2: relay key rotation and rekey, which the freeze depends on. A [draft design](../contributing/rotation-design.md) awaits owner decisions (Q13), including whether to build part of it before the three-node test.
 7. **Core v1 protocol review.** Using the test results, define the core to freeze: the content types carried in opaque payloads (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
 8. Resume Phase 2.3 portal work and D50 steps 3 to 6, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
 

@@ -40,7 +40,7 @@ Once a session has been up, a lost link keeps you in the app. A banner says the 
 - The trash button on a conversation row deletes that conversation, after confirmation. It appears on hover or keyboard focus, and always on a touchscreen. A direct conversation leaves the list along with its messages, and comes back if that node messages you or you open it from Nodes or the Map. A channel is removed from your device first, and its messages, including direct messages sent over it, are deleted from this browser only if the device commits. Its key stays, so you can rejoin. Public cannot be deleted. Deleting the open conversation returns you to the list, with Public behind it.
 - The three dots in a thread offer **Channel settings** for a channel, **Show on map** for a node with a position, and **Delete all messages**, which keeps the conversation in the list.
 - **Brevity phrases** (Copy, Moving, Holding, At rally, Need assist, All clear) sit above the message box. The first press arms one and the second sends it. An armed phrase disarms after 3 seconds.
-- An encrypted message that cannot be read says why, and its text is never shown unless it authenticated. If a channel has encrypted traffic and this browser has no key, sending is off so nothing goes out in the clear.
+- An encrypted message that cannot be read says why, and its text is never shown unless it authenticated. If a channel has encrypted traffic and this browser has no key, sending is off so nothing goes out in the clear. A message in a format this app can't read doesn't count as encrypted traffic.
 - The byte count appears only within 200 bytes of the limit. Drafts are kept per conversation in this tab and are not saved across a reload. Enter sends; Shift+Enter adds a line.
 
 ## Channels

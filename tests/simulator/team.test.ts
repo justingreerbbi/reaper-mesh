@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { EncryptionVault } from '../../agents/web/encryption.ts';
 import { qrPixels, readQr } from '../../agents/web/qr.ts';
+import { addRadioToTeam } from '../../agents/web/team-radio.ts';
 import {
   chainFingerprint,
   formatTeamInvite,
@@ -135,4 +136,75 @@ test('a team QR code reads back exactly', () => {
   const code = formatTeamInvite(newTeam('x'.repeat(24)));
   const { data, width } = qrPixels(code, 6);
   assert.equal(readQr(new Uint8ClampedArray(data), width, width), code);
+});
+
+test('a radio that refuses to become a relay keeps the role it really has', async () => {
+  const refused = new Error('The radio refused.');
+  const setup = (prior?: 'member' | 'relay') => {
+    const vault = new EncryptionVault(new MemoryStorage());
+    vault.setTeam(newTeam('Alpha'));
+    const deviceKey = prior && vault.enrollTeamRadio('node-a', prior).deviceKey;
+    const radio = {
+      here: true,
+      loaded: true,
+      calls: [] as string[],
+      fails: '',
+      onTeam: () => radio.here,
+      teamLoaded: () => radio.loaded,
+      erase: async () => {
+        radio.calls.push('erase');
+        if (radio.fails === 'erase') throw refused;
+        radio.here = radio.loaded = false;
+      },
+      fill: async () => {
+        radio.calls.push('fill');
+        if (radio.fails === 'fill') throw refused;
+        radio.here = true;
+      },
+    };
+    return { vault, radio, deviceKey };
+  };
+
+  // No button window over Bluetooth: it still holds the key, so its key must keep being reloaded.
+  const member = setup('member');
+  member.radio.fails = 'erase';
+  await assert.rejects(addRadioToTeam(member.vault, 'node-a', 'relay', member.radio), refused);
+  assert.equal(member.vault.teamRadioRole('node-a'), 'member');
+  assert.deepEqual(member.radio.calls, ['erase']);
+  assert.equal(member.vault.enrollTeamRadio('node-a', 'member').deviceKey, member.deviceKey);
+
+  // Added by another browser, so none is recorded here. Holding the key still makes it a member.
+  const unrecorded = setup();
+  unrecorded.radio.fails = 'erase';
+  await assert.rejects(
+    addRadioToTeam(unrecorded.vault, 'node-a', 'relay', unrecorded.radio),
+    refused,
+  );
+  assert.equal(unrecorded.vault.teamRadioRole('node-a'), 'member');
+
+  // The key is gone once the erase is through, so a failed refill leaves it a relay to finish.
+  const erased = setup('member');
+  erased.radio.fails = 'fill';
+  await assert.rejects(addRadioToTeam(erased.vault, 'node-a', 'relay', erased.radio), refused);
+  assert.equal(erased.vault.teamRadioRole('node-a'), 'relay');
+  assert.deepEqual(erased.radio.calls, ['erase', 'fill']);
+
+  // A radio not on the team has no key to protect, so nothing is restored.
+  const outside = setup('member');
+  outside.radio.here = outside.radio.loaded = false;
+  outside.radio.fails = 'fill';
+  await assert.rejects(addRadioToTeam(outside.vault, 'node-a', 'relay', outside.radio), refused);
+  assert.equal(outside.vault.teamRadioRole('node-a'), 'relay');
+
+  // The move itself still works when the radio agrees.
+  const agreed = setup('member');
+  await addRadioToTeam(agreed.vault, 'node-a', 'relay', agreed.radio);
+  assert.equal(agreed.vault.teamRadioRole('node-a'), 'relay');
+  assert.deepEqual(agreed.radio.calls, ['erase', 'fill']);
+  assert.equal(agreed.radio.loaded, false);
+
+  // Back to member needs no command, because the radio is already on the team without its key.
+  await addRadioToTeam(agreed.vault, 'node-a', 'member', agreed.radio);
+  assert.equal(agreed.vault.teamRadioRole('node-a'), 'member');
+  assert.deepEqual(agreed.radio.calls, ['erase', 'fill']);
 });

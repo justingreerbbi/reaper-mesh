@@ -220,6 +220,10 @@ That maps directly to a hash ratchet, and it is the right tool for automatic rot
 limit that matters: **whoever holds today's key can compute every future key**, so it cannot remove
 anyone. Removal needs a second mechanism.
 
+The [rotation and rekey design](rotation-design.md) is a draft for building this. It proposes changes
+to the rules below, because a stolen relay key could use them to strand relays. Until the owner
+decides ([Q13](decisions.md#open-questions)), this section stands.
+
 | | Ratchet (the fob) | Rekey (over-the-air rekeying) |
 | --- | --- | --- |
 | Happens | Automatically on a schedule | When the authority, a deputy or a channel owner orders it |

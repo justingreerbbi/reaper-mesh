@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ENCRYPTED_HEADER_BYTES,
+  ENCRYPTED_MAGIC,
+  ENCRYPTED_OFFSETS,
+  ENCRYPTED_SUITE_XCHACHA20_POLY1305,
+  ENCRYPTED_TAG_BYTES,
+} from '../../packages/protocol/encrypted-message.ts';
+import {
   channelIdentities,
+  hasEncryptedTraffic,
   MessageState,
   MESSAGE_UI_KEY,
   receivedKey,
@@ -210,6 +218,40 @@ test('deleting a channel covers its direct messages and leaves other channels al
   ]);
   assert.equal(
     channelIdentities('usb', device, team, [{ ...outgoing[0], state: 'receiving' }], []).uploading,
+    true,
+  );
+});
+
+test('only a real envelope shows that a channel is encrypted', () => {
+  const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
+  const envelope = (channel: number) => {
+    const bytes = new Uint8Array(ENCRYPTED_HEADER_BYTES + ENCRYPTED_TAG_BYTES + 4).fill(1);
+    bytes.set(ENCRYPTED_MAGIC);
+    bytes[ENCRYPTED_OFFSETS.suite] = ENCRYPTED_SUITE_XCHACHA20_POLY1305;
+    new DataView(bytes.buffer).setUint32(ENCRYPTED_OFFSETS.channel, channel, true);
+    return hex(bytes);
+  };
+  assert.equal(hasEncryptedTraffic([], 5), false);
+  // Bytes firmware carried without understanding them, as it has since v0.9.0.
+  assert.equal(hasEncryptedTraffic([{ channel: 5, payloadHex: 'ff00ff00' }], 5), false);
+  assert.equal(
+    hasEncryptedTraffic([{ channel: 5, payloadHex: envelope(5).slice(0, 40) }], 5),
+    false,
+  );
+  assert.equal(hasEncryptedTraffic([{ channel: 5 }], 5), false);
+  assert.equal(hasEncryptedTraffic([{ channel: 5, payloadHex: envelope(5) }], 5), true);
+  // Traffic on another channel, or an envelope naming one, says nothing about this channel.
+  assert.equal(hasEncryptedTraffic([{ channel: 6, payloadHex: envelope(6) }], 5), false);
+  assert.equal(hasEncryptedTraffic([{ channel: 5, payloadHex: envelope(6) }], 5), false);
+  // One envelope among unknown payloads still counts.
+  assert.equal(
+    hasEncryptedTraffic(
+      [
+        { channel: 5, payloadHex: 'ff00ff00' },
+        { channel: 5, payloadHex: envelope(5) },
+      ],
+      5,
+    ),
     true,
   );
 });

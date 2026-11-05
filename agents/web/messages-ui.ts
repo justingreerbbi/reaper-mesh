@@ -12,6 +12,8 @@ import {
 import type { SerialAdapter } from '../../packages/agent-core/serial.ts';
 import {
   channelIdentities,
+  hasEncryptedTraffic,
+  hexBytes,
   receivedKey,
   sentKey,
   messageScope,
@@ -321,10 +323,6 @@ export function preparePublicClear() {
   };
 }
 
-export function hexBytes(value: string) {
-  if (!/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('Saved encrypted message is malformed.');
-  return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
-}
 export function chooseConversation(destination: string, channel = 0) {
   const kind = destination === 'broadcast' ? 'channel' : 'direct';
   if (sendError && currentError() === sendError) clearError();
@@ -543,7 +541,7 @@ export function renderMessages() {
   // Traffic here is encrypted and there's no key, so sending would go out in the clear.
   const needsKey =
     !encryption?.hasKey(selectedChannel) &&
-    connection.inbox.history.some(m => m.channel === selectedChannel && !!m.payloadHex);
+    hasEncryptedTraffic(connection.inbox.history, selectedChannel);
   const sendBlockReason = connection.messaging.sendBlockReason;
   const remoteBlocked =
     destination.value !== connection.device &&

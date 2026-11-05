@@ -23,13 +23,8 @@ import {
 } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { isAppStopped, onLocalAppStop } from './access-ui.ts';
-import {
-  chooseConversation,
-  hexBytes,
-  lastDeviceId,
-  shareTargets,
-  shortNode,
-} from './messages-ui.ts';
+import { hexBytes } from './message-state.ts';
+import { chooseConversation, lastDeviceId, shareTargets, shortNode } from './messages-ui.ts';
 import { STALE_NODE_MS } from './node-cache.ts';
 import {
   bearingDegrees,

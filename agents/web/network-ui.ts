@@ -6,6 +6,7 @@ import { element, text } from './dom.ts';
 import { backPage, currentPage, isShowing, onPageChange, openPage } from './nav.ts';
 import { qrSvg } from './qr.ts';
 import { setTeamCodeHandler } from './channels-ui.ts';
+import { addRadioToTeam } from './team-radio.ts';
 import {
   chainFingerprint,
   formatTeamInvite,
@@ -91,32 +92,33 @@ async function run(action: () => Promise<void>) {
   }
 }
 
-/** Adds the connected radio to this browser's team. A relay never gets the team key. */
+/** Adds the connected radio to this browser's team. */
 function addRadio(role: 'member' | 'relay') {
   return run(async () => {
     const keys = team();
     const device = connection().device;
     if (!keys || !device) throw new Error('Connect a radio first.');
-    const { deviceKey } = vault().enrollTeamRadio(device, role);
     loadTarget = '';
-    if (onThisTeam(keys)) {
-      // A relay must not hold the team key, and only erasing clears it from the radio's memory.
-      if (role === 'member' || !connection().network?.teamLoaded) return;
-      await command(
-        () => adapter().eraseNetwork(),
-        () => connection().network?.networkMode === 0,
-      );
-    }
-    await command(
-      () =>
-        adapter().fillTeam({
-          generation: keys.generation,
-          epoch: keys.epoch,
-          relayChain: keys.relayChain,
-          deviceKey,
-        }),
-      () => onThisTeam(keys),
-    );
+    await addRadioToTeam(vault(), device, role, {
+      onTeam: () => onThisTeam(keys),
+      teamLoaded: () => !!connection().network?.teamLoaded,
+      erase: () =>
+        command(
+          () => adapter().eraseNetwork(),
+          () => connection().network?.networkMode === 0,
+        ),
+      fill: deviceKey =>
+        command(
+          () =>
+            adapter().fillTeam({
+              generation: keys.generation,
+              epoch: keys.epoch,
+              relayChain: keys.relayChain,
+              deviceKey,
+            }),
+          () => onThisTeam(keys),
+        ),
+    });
   });
 }
 

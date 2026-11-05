@@ -1,3 +1,4 @@
+import { isEncryptedPayload } from '../../packages/protocol/encrypted-message.ts';
 import { canonicalNode, conversationKey, type Incoming, type Outgoing } from './conversations.ts';
 export const MESSAGE_UI_KEY = 'reaper-mesh.message-ui.v1';
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
@@ -35,6 +36,25 @@ export function inConversation(
       : canonicalNode(message.origin) === canonicalNode(destination) &&
         !!message.destination &&
         message.destination !== 'broadcast')
+  );
+}
+export function hexBytes(value: string) {
+  if (!/^(?:[0-9a-f]{2})+$/u.test(value)) throw new Error('Saved encrypted message is malformed.');
+  return Uint8Array.from(value.match(/../g)!, byte => Number.parseInt(byte, 16));
+}
+/**
+ * Whether a channel has carried an encrypted envelope. `payloadHex` alone doesn't show that: it is
+ * also set for any bytes that aren't text, and those say nothing about the channel (D41).
+ */
+export function hasEncryptedTraffic(
+  incoming: readonly Pick<Incoming, 'channel' | 'payloadHex'>[],
+  channel: number,
+) {
+  return incoming.some(
+    m =>
+      m.channel === channel &&
+      !!m.payloadHex &&
+      isEncryptedPayload(hexBytes(m.payloadHex), channel),
   );
 }
 /** Everything a device holds on one channel, including direct messages sent over it. */

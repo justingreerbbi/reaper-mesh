@@ -10,6 +10,17 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: portal fixes for a refused relay move and unknown payloads
+
+Two portal faults, both found by reading the code while porting these features to the mobile app. Neither was reproduced in the portal itself. No firmware change.
+
+- A radio's new role was saved before the radio agreed. A member that refused the move to relay, for example with no button window over Bluetooth, stayed on the team with its key loaded but was recorded as a relay, so the portal called it a relay and stopped reloading its team key after a restart. The earlier role now comes back when a command fails and the radio still holds the key. A radio with no role recorded in this browser is recorded as a member in that case.
+- Any inbox item with `payloadHex` counted as proof that its channel was encrypted. Since `v0.9.0` that field is also set for bytes that are not an envelope, so one unknown payload on a channel with no key turned sending off there and wrongly called the channel encrypted. Only a valid envelope naming that channel counts now.
+
+Evidence: `npm run check` passes (360 tests). The two new tests each fail with their fix removed. The firmware source confirms that a refused erase changes nothing and that its reply still reports the team key as loaded.
+
+Not tested: either fix in a browser or on a board. The simulated radio cannot refuse a command, so the relay test uses a stand-in radio, and the firmware suite was not run because no firmware changed.
+
 ## November 4: team setup in the web portal (D51)
 
 The portal gains a Radio network page: create or join a team by QR code, add the radio as a member or relay, share the code, leave the team, and choose Open mode. It loads the team key automatically when a radio needs it. No firmware change. Clicked through in a browser against the simulated radio: create, add as member, member to relay and back, the share QR, leave, and rejoin by pasted code. Moving a member to relay erases and refills the radio, because only that clears the team key from its memory.

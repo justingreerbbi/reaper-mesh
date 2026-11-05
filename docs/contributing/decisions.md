@@ -14,6 +14,7 @@ Questions that need a decision now:
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
 | Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.2 reviewed against current docs and code on November 3; awaiting owner approval |
+| Q13 | Approve, revise or reject the [rotation and rekey design](rotation-design.md) for D50 step 2. It has five decisions, including replacing "highest authenticated epoch wins" for relays with epoch proofs, because a stolen relay key could otherwise strand relays | Building step 2 | Drafted November 4; awaiting owner decisions |
 
 ## Parked questions
 
