@@ -163,3 +163,10 @@ Up to 32 unresolved messages (including unknown outcomes and unacknowledged unic
 ## Bluetooth
 
 USB and Bluetooth reach the same device and share its history. A browser must be paired before **Connect over Bluetooth** works: connect over USB, open Device → Bluetooth and select **Start pairing**, or hold the device's main button for 5 seconds. Pair a phone from the phone, or select **Pair this browser**, then enter the passkey shown there and on the device. Web Bluetooth needs HTTPS or localhost. Chrome and Edge include it, Brave may need it turned on in `brave://flags`, and Safari does not support it. See [Bluetooth link](../reference/bluetooth.md).
+
+## Radio network
+
+Device → Radio network shows which network the radio is on. **Create** a team, or **scan** a team's QR code, then choose **Add this radio to the team** or **Add as a relay only**. Adding a radio needs a USB cable, or its main button held for 5 seconds over Bluetooth. A radio forgets its team key when it restarts, and the portal reloads it on connect, so a member radio only works once a browser or app holding the keys connects. A relay never receives the team key.
+
+The team code holds the team's keys, so anyone who gets it can join and read team traffic. Share it in person. The code is `RMTEAM1.` followed by base64url JSON with `format`, `name`, `generation`, `epoch`, `relay` and `team`. This first version has no rotation or member removal (D51): to remove someone, create a new team and add every radio again.
+

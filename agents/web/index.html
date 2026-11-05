@@ -557,6 +557,13 @@
                 ></span>
                 <i data-icon="chevron-right" class="faint"></i>
               </button>
+              <button class="setting-row" data-page-target="network" type="button">
+                <span class="setting-icon"><i data-icon="lock"></i></span>
+                <span class="setting-text"
+                  ><span>Radio network</span><small id="row-network" class="muted"></small
+                ></span>
+                <i data-icon="chevron-right" class="faint"></i>
+              </button>
               <button class="setting-row" data-page-target="channels" type="button">
                 <span class="setting-icon"><i data-icon="settings-2"></i></span>
                 <span class="setting-text"
@@ -679,13 +686,6 @@
             </header>
             <div class="page-body">
               <p id="radio-support" class="notice" data-tone="warn" hidden></p>
-              <div id="network-card" class="card field-card" hidden>
-                <strong>Radio network</strong>
-                <p id="network-summary" class="muted" role="status"></p>
-                <div class="inline wrap">
-                  <button id="network-open" type="button">Use Open mode</button>
-                </div>
-              </div>
               <form id="radio-form" class="card field-card">
                 <div class="field">
                   <label for="radio-mode">Mode</label>
@@ -727,6 +727,97 @@
                   <span id="radio-preset" class="muted">US915_LAB1</span>
                 </div>
               </form>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="network" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 class="grow">Radio network</h1>
+            </header>
+            <div class="page-body">
+              <p id="network-support" class="notice" data-tone="warn" hidden></p>
+              <p id="network-error" class="notice" data-tone="bad" role="alert" hidden></p>
+              <p id="network-pin" class="notice" data-tone="warn" hidden></p>
+              <div class="card field-card">
+                <h2>This radio</h2>
+                <p id="network-summary" role="status"></p>
+                <div class="field-stack">
+                  <button id="network-add-member" class="primary" type="button" hidden></button>
+                  <button id="network-add-relay" type="button" hidden></button>
+                  <button id="network-open" type="button">Use Open mode</button>
+                </div>
+                <small class="muted"
+                  >Changing a radio's network needs a USB cable, or hold its main button for 5
+                  seconds to allow it over Bluetooth.</small
+                >
+              </div>
+              <div id="team-none" class="card field-card">
+                <h2>Join or create a team</h2>
+                <p class="muted">
+                  Only radios on the same team can read or relay each other's traffic.
+                </p>
+                <button id="team-join" class="primary" type="button">
+                  <i data-icon="camera"></i>Scan a team QR code
+                </button>
+                <form id="team-form" class="field">
+                  <label for="team-name">Or create a new team</label>
+                  <div class="inline">
+                    <input
+                      id="team-name"
+                      class="grow"
+                      maxlength="24"
+                      autocomplete="off"
+                      placeholder="Team name"
+                    />
+                    <button id="team-create" type="submit" disabled>Create team</button>
+                  </div>
+                </form>
+              </div>
+              <div id="team-joined" class="card field-card" hidden>
+                <h2 id="team-title"></h2>
+                <p class="muted">
+                  Each person scans this team's QR code once, then adds their own radio. Relays are
+                  set up from a browser on the team.
+                </p>
+                <div class="field-stack">
+                  <button id="team-share-open" type="button">
+                    <i data-icon="share-2"></i>Share team QR code
+                  </button>
+                  <button id="team-leave" class="danger" type="button">Leave team</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="device-page" data-page="team-share" hidden>
+            <header class="page-head">
+              <button class="round" data-page-back type="button" aria-label="Back">
+                <i data-icon="chevron-left"></i>
+              </button>
+              <h1 id="team-share-title" class="grow">Share team</h1>
+            </header>
+            <div class="page-body">
+              <div class="share-layout">
+                <div id="team-qr" class="qr-frame"></div>
+                <div class="field-stack">
+                  <h2>Scan to join</h2>
+                  <p class="muted">
+                    On the other phone or browser, open Device, then Radio network, then Scan a team
+                    QR code.
+                  </p>
+                  <p class="notice" data-tone="warn">
+                    This code contains the team's keys. Anyone who gets it, including from a photo
+                    or a shared image, can join the team and read its traffic. Share it in person.
+                  </p>
+                  <button id="team-share-copy" class="compact" type="button">
+                    <i data-icon="copy"></i>Copy as text
+                  </button>
+                  <small id="team-share-status" class="muted" role="status"></small>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -942,7 +1033,7 @@
                   </div>
                 </div>
                 <div class="field-stack">
-                  <p class="muted">Point the camera at a channel's QR code.</p>
+                  <p class="muted">Point the camera at a channel's or team's QR code.</p>
                   <div class="field">
                     <label for="scan-image">Or choose an image of a code</label>
                     <input id="scan-image" type="file" accept="image/*" />

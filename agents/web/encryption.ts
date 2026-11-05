@@ -7,6 +7,7 @@ import {
   MAX_MESSAGE_BYTES,
   parseEncryptedHeader,
 } from '../../packages/protocol/encrypted-message.ts';
+import { newChain, validTeamKeys, type TeamKeys } from './team.ts';
 
 export const ENCRYPTION_VAULT_KEY = 'reaper-mesh.crypto-vault.v1';
 export const ENCRYPTION_POLICY_KEY = 'reaper-mesh.crypto-policy.v1';
@@ -16,7 +17,10 @@ const textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 await sodium.ready;
 
 type KeyRecord = { channel: number; keyId: string; epoch: number; keyHex: string };
-type VaultRecord = { v: 1; keys: KeyRecord[]; seen: [string, string][] };
+export type TeamRole = 'member' | 'relay';
+type TeamRadio = { role: TeamRole; deviceKey: string };
+type TeamRecord = TeamKeys & { radios: Record<string, TeamRadio> };
+type VaultRecord = { v: 1; keys: KeyRecord[]; seen: [string, string][]; team?: TeamRecord };
 type StoredVault = {
   version: 1;
   salt: string;
@@ -130,6 +134,7 @@ export class EncryptionVault {
   #vaultKey: Uint8Array | undefined;
   #salt: Uint8Array | undefined;
   #keys: KeyRecord[] = [];
+  #team: TeamRecord | undefined;
   #seen = new Map<string, string>();
   #policies = new Set<number>();
   #exists = false;
@@ -189,6 +194,47 @@ export class EncryptionVault {
   }
   hasKey(channel: number) {
     return !!this.#current(channel);
+  }
+  /** The team this browser belongs to. Holds secrets, so it is for the network page only. */
+  get team(): TeamKeys | undefined {
+    if (!this.#team) return undefined;
+    const { name, generation, epoch, relayChain, teamChain } = this.#team;
+    return { name, generation, epoch, relayChain, teamChain };
+  }
+  setTeam(keys: TeamKeys) {
+    this.#assertUnlocked();
+    if (!validTeamKeys(keys)) throw new Error('This team is invalid.');
+    this.#saveTeam({ ...keys, radios: {} });
+  }
+  leaveTeam() {
+    this.#assertUnlocked();
+    this.#saveTeam(undefined);
+  }
+  teamRadioRole(device: string): TeamRole | undefined {
+    return this.#team?.radios[device]?.role;
+  }
+  /** Records a radio's role, and gives it a device key of its own that later rekeying will use. */
+  enrollTeamRadio(device: string, role: TeamRole) {
+    this.#assertUnlocked();
+    if (!this.#team) throw new Error('Join a team first.');
+    const deviceKey = this.#team.radios[device]?.deviceKey ?? newChain();
+    if (!this.#team.radios[device] && Object.keys(this.#team.radios).length >= 256)
+      throw new Error('This browser has set up too many radios.');
+    this.#saveTeam({
+      ...this.#team,
+      radios: { ...this.#team.radios, [device]: { role, deviceKey } },
+    });
+    return { deviceKey };
+  }
+  #saveTeam(next: TeamRecord | undefined) {
+    const prior = this.#team;
+    this.#team = next;
+    try {
+      this.#save();
+    } catch (error) {
+      this.#team = prior;
+      throw error;
+    }
   }
   /** The channel's current key generation, which goes up each time its key is rotated. */
   epoch(channel: number) {
@@ -521,7 +567,12 @@ export class EncryptionVault {
     }
   }
   #record(): VaultRecord {
-    return { v: 1, keys: this.#keys, seen: [...this.#seen] };
+    return {
+      v: 1,
+      keys: this.#keys,
+      seen: [...this.#seen],
+      ...(this.#team ? { team: this.#team } : {}),
+    };
   }
   #loadRecord(record: VaultRecord) {
     if (
@@ -541,6 +592,21 @@ export class EncryptionVault {
         row.some(value => typeof value !== 'string' || value.length > 512)
       )
         throw new Error('Invalid replay record.');
+    if (record.team !== undefined) {
+      const radios = Object.values(record.team?.radios ?? { bad: undefined });
+      if (
+        !validTeamKeys(record.team) ||
+        radios.length > 256 ||
+        radios.some(
+          radio =>
+            !radio ||
+            (radio.role !== 'member' && radio.role !== 'relay') ||
+            !/^[0-9a-f]{64}$/u.test(radio.deviceKey),
+        )
+      )
+        throw new Error('Invalid saved team.');
+    }
+    this.#team = record.team;
     this.#keys = record.keys;
     this.#seen = new Map(record.seen);
   }
@@ -632,6 +698,7 @@ export class EncryptionVault {
     this.#vaultKey = undefined;
     this.#salt = undefined;
     this.#keys = [];
+    this.#team = undefined;
     this.#seen.clear();
   }
 }

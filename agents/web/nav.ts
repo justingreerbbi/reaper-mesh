@@ -6,6 +6,8 @@ export type Page =
   | 'home'
   | 'general'
   | 'radio'
+  | 'network'
+  | 'team-share'
   | 'channels'
   | 'channel'
   | 'channel-share'
@@ -24,6 +26,7 @@ const PARENT: Partial<Record<Page, Page>> = {
   channel: 'channels',
   'channel-share': 'channel',
   'channel-scan': 'channels',
+  'team-share': 'network',
 };
 
 let page: Page = 'home';

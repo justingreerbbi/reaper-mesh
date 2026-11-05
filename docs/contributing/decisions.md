@@ -229,6 +229,9 @@ as each step ships, and sets the direction for Q5 and Q10. The new radio format 
 qualification (D37 otherwise stands). An independent security review is still outstanding. See
 [Security architecture](security-architecture.md).
 
+### D51. Team setup in the portal before field qualification
+Nov 4 · **Confirmed**. Owner direction: the owner tests through the web app, so team setup cannot wait behind D37, and test tools are not the way to use it. This is an exception to the pause on portal features, like D49. The portal's Radio network page creates or joins a team by an `RMTEAM1` QR code, adds a radio as a member or relay, and reloads the team key when a radio needs it. It needs no firmware change. This first version has no roster, deputies, rotation or member removal, so anyone with the code can join, and removing someone means creating a new team. A missing PIN only shows a warning for now, although D50 calls for requiring one in team mode. See the [web portal guide](../guides/web-portal.md).
+
 ### D38. Keep the schema-driven TLV encoding
 Nov 3 · **Confirmed** (closes Q4). The USB protocol keeps its schema-driven TLV encoding, with
 TypeScript and C++ descriptors generated from `packages/protocol/schema.json`. It is

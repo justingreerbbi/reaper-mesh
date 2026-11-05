@@ -154,7 +154,8 @@ const char* Network::fill(std::uint32_t mode, std::uint32_t generation, std::uin
   // Retrying a fill whose reply was lost changes nothing and spends no flash.
   const bool same = active_ >= 0 && next.mode == record_.mode &&
                     next.generation == record_.generation && next.epoch == record_.epoch &&
-                    next.relay_chain == record_.relay_chain && next.device_key == record_.device_key;
+                    next.relay_chain == record_.relay_chain &&
+                    next.device_key == record_.device_key;
   const char* state = "ok";
   if (!same) {
     if (save(next)) {
@@ -202,7 +203,8 @@ bool Network::apply(mesh::FrameLink& link) const {
   if (record_.mode == NetworkMode::Open)
     return link.use_open_mode();
   if (record_.mode == NetworkMode::Team)
-    return link.set_chains(record_.relay_chain, team_loaded_ ? &team_chain_ : nullptr, record_.epoch);
+    return link.set_chains(record_.relay_chain, team_loaded_ ? &team_chain_ : nullptr,
+                           record_.epoch);
   return false;
 }
 }  // namespace reaper::device

@@ -85,6 +85,9 @@ int main(int argc, char** argv) {
     CHECK(!std::strcmp(network.load_team(1, 5, team), "ok") && network.team_loaded());
     CHECK(network.apply(link) && link.can_originate());
     CHECK(!flash.contains(team));
+    // The same values the portal computes, so the two can compare keys without sending them.
+    CHECK(!std::strcmp(network.view().relay_fingerprint, "53bb84e9427aeb94"));
+    CHECK(!std::strcmp(network.view().team_fingerprint, "992f5023c1997e44"));
     d::Network rebooted(flash);
     rebooted.begin();
     CHECK(rebooted.mode() == d::NetworkMode::Team && !rebooted.team_loaded());
@@ -126,17 +129,15 @@ int main(int argc, char** argv) {
     }
   } else if (scenario == "rules") {
     const auto zero = filled(0);
-    for (const auto* state : {network.fill(0, 0, 0, nullptr, nullptr),   // Erase is its own command.
-                              network.fill(3, 1, 0, &relay1, &device1),  // Unknown mode.
-                              network.fill(kOpen, 1, 0, nullptr, nullptr),
-                              network.fill(kOpen, 0, 0, &relay1, nullptr),
-                              network.fill(kTeam, 0, 0, &relay1, &device1),  // Generation 0.
-                              network.fill(kTeam, 1, 0, nullptr, &device1),
-                              network.fill(kTeam, 1, 0, &relay1, nullptr),
-                              network.fill(kTeam, 1, 0, &zero, &device1),
-                              network.fill(kTeam, 1, 0, &relay1, &zero),
-                              network.fill(kTeam, 0x10000, 0, &relay1, &device1),
-                              network.fill(kTeam, 1, 0x10000, &relay1, &device1)})
+    for (const auto* state :
+         {network.fill(0, 0, 0, nullptr, nullptr),   // Erase is its own command.
+          network.fill(3, 1, 0, &relay1, &device1),  // Unknown mode.
+          network.fill(kOpen, 1, 0, nullptr, nullptr), network.fill(kOpen, 0, 0, &relay1, nullptr),
+          network.fill(kTeam, 0, 0, &relay1, &device1),  // Generation 0.
+          network.fill(kTeam, 1, 0, nullptr, &device1), network.fill(kTeam, 1, 0, &relay1, nullptr),
+          network.fill(kTeam, 1, 0, &zero, &device1), network.fill(kTeam, 1, 0, &relay1, &zero),
+          network.fill(kTeam, 0x10000, 0, &relay1, &device1),
+          network.fill(kTeam, 1, 0x10000, &relay1, &device1)})
       CHECK(!std::strcmp(state, "invalid"));
     CHECK(flash.writes == 0 && network.mode() == d::NetworkMode::Unset);
     CHECK(!std::strcmp(network.load_team(1, 0, team), "not-team"));

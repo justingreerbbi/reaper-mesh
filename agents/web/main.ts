@@ -24,6 +24,7 @@ import {
 } from './access-ui.ts';
 import { initMessages, renderInbox, renderMessages } from './messages-ui.ts';
 import { initChannels, renderChannels } from './channels-ui.ts';
+import { initNetwork, renderNetwork } from './network-ui.ts';
 import {
   initSettings,
   renderDiscovery,
@@ -47,6 +48,7 @@ initNavigation();
 initAccess();
 initMessages();
 initChannels();
+initNetwork();
 initSettings();
 initMap();
 initConnection();
@@ -70,6 +72,7 @@ function renderApp() {
   renderBluetooth();
   renderDiscovery();
   renderRadio();
+  renderNetwork();
   renderMessages();
   renderInbox();
   renderNodes();

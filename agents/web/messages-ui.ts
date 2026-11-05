@@ -564,7 +564,10 @@ export function renderMessages() {
                 : sendBlockReason
                   ? sendBlockReason
                   : remoteBlocked
-                    ? 'Radio unavailable. Check Device, Radio.'
+                    ? connection.radioInfo?.reason === 'network-not-chosen' ||
+                      connection.radioInfo?.reason === 'team-key-needed'
+                      ? 'This radio is not on a network yet. Check Device, Radio network.'
+                      : 'Radio unavailable. Check Device, Radio.'
                     : ''))),
   );
   const sendBlocked =

@@ -103,7 +103,7 @@ export class FieldDevice {
   #rx = 48;
   #discovery: string | undefined;
   #pairingOpenedAt = 0;
-  #network = new SimulatedNetwork();
+  network = new SimulatedNetwork();
   #scenarioStarted = false;
   #drop: (() => void) | undefined;
   #live = false;
@@ -316,7 +316,7 @@ export class FieldDevice {
           boot,
           request: message.request,
           state: this.config.radioMode === 'off' ? 'off' : 'ready',
-          reason: this.config.radioMode === 'off' ? 'disabled' : 'ready',
+          reason: this.config.radioMode === 'off' ? 'disabled' : (this.network.reason ?? 'ready'),
           probe: 1,
           transmitted: this.#tx,
           received: this.#rx,
@@ -384,7 +384,7 @@ export class FieldDevice {
       case 'networkFill':
       case 'teamLoad':
       case 'networkErase':
-        send({ ...this.#network.handle(message), boot });
+        send({ ...this.network.handle(message), boot });
         return;
       case 'pairingRequest': {
         if (message.open === 1) this.#pairingOpenedAt = Date.now();

@@ -10,6 +10,12 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: team setup in the web portal (D51)
+
+The portal gains a Radio network page: create or join a team by QR code, add the radio as a member or relay, share the code, leave the team, and choose Open mode. It loads the team key automatically when a radio needs it. No firmware change. Clicked through in a browser against the simulated radio: create, add as member, member to relay and back, the share QR, leave, and rejoin by pasted code. Moving a member to relay erases and refills the radio, because only that clears the team key from its memory.
+
+Not tested: any real board or radio traffic through this page, the camera scanner with a team code, the mobile app, and Bluetooth with the button window. The simulator forgets its network on reload, so reconnecting to a radio that is already on the team has not been exercised in the browser.
+
 ## November 4: payloads firmware does not understand and the inbox alert (`v0.9.0`), completing D50 step 1
 
 Firmware now carries any message of 1–1,024 bytes without checking that it is text or a known envelope, so new message formats need no firmware change (D41, Q5 direction). This exposed a real fault: the agent core set a permanent error on bytes that were not valid text and stopped reading its inbox, so one such message could have frozen an app. It now keeps them as payloads for the app to label and reads on. Agents declare this in a new optional `hello` field, `agentFeatures`. One that does not, such as the mobile app as it stands, receives the text `Unsupported message` in that item's place, under the same identity. A retention gap was rejected for this, because agents do not skip past a missing item that is still in range. The firmware also adds `inboxChanged`, sent only to an agent that asks for it, only on the owning link and once per new message. It is a hint and changes no message outcome.

@@ -163,6 +163,9 @@ export class Connection {
    * and repeating the same fill is harmless on the device. The device refuses fills and erases
    * without physical access, and that refusal is reported in `network.state`.
    */
+  get networkBusy() {
+    return this.#networkPending !== 0;
+  }
   chooseOpenMode(now: number) {
     this.#sendNetwork({ type: 'networkFill', networkMode: 1, generation: 0, epoch: 0 }, now);
   }

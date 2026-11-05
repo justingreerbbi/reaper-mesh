@@ -54,31 +54,7 @@ function keepCustomOption(select: HTMLSelectElement, value: string, label: strin
   select.value = value;
 }
 
-const NETWORK_REFUSALS: Record<string, string> = {
-  refused: 'The device refused. Changing its network needs USB or the device button.',
-  'storage-failed': 'The device could not save this. Its network did not change.',
-  invalid: 'The device rejected those settings.',
-};
-function renderNetwork() {
-  const { connection } = current().adapter;
-  const status = connection.supportsNetwork ? connection.network : undefined;
-  element('network-card').hidden = !status;
-  if (!status) return;
-  text(
-    'network-summary',
-    NETWORK_REFUSALS[status.state] ??
-      (status.networkMode === 0
-        ? 'Not chosen. This radio sends nothing until a network is chosen.'
-        : status.networkMode === 1
-          ? 'Open: anyone can read this, including positions and who is talking to whom.'
-          : status.teamLoaded
-            ? `Team network, key generation ${status.generation}.`
-            : `Team network, key generation ${status.generation}. Relaying only, until its team key is loaded.`),
-  );
-  element('network-open').hidden = status.networkMode === 1;
-}
 export function renderRadio() {
-  renderNetwork();
   const model = current();
   const { connection } = model.adapter;
   const { sync } = connection;
@@ -581,15 +557,6 @@ export function initSettings() {
     }
   });
 
-  element('network-open').addEventListener('click', () => {
-    try {
-      clearError();
-      current().adapter.chooseOpenMode();
-    } catch (error) {
-      showError(error);
-    }
-    render();
-  });
   element('pairing-start').addEventListener('click', () => {
     try {
       clearError();

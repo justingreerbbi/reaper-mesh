@@ -55,3 +55,22 @@ export function readQr(data: Uint8ClampedArray, width: number, height: number) {
   ) => { data: string } | null;
   return read(data, width, height, { inversionAttempts: 'attemptBoth' })?.data || undefined;
 }
+
+/** A QR code as an SVG element, drawn dark on white whatever the theme. */
+export function qrSvg(value: string, label: string) {
+  const { path, total } = qrPath(value);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${total} ${total}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', label);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  const paper = document.createElementNS(svg.namespaceURI, 'rect');
+  paper.setAttribute('width', String(total));
+  paper.setAttribute('height', String(total));
+  paper.setAttribute('fill', '#FFFFFF');
+  const modules = document.createElementNS(svg.namespaceURI, 'path');
+  modules.setAttribute('d', path);
+  modules.setAttribute('fill', '#050505');
+  svg.append(paper, modules);
+  return svg;
+}

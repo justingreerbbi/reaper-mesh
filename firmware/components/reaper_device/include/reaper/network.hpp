@@ -5,8 +5,8 @@
 // live in their own flash area. The team chain is memory only, so a radio that reboots with no
 // agent attached is a relay. Single serialized execution context, no allocation.
 namespace reaper::device {
-// Two flash sectors. Updates go to the unused one, then the old one is erased, so a power cut leaves
-// one valid record and no update leaves an old key behind.
+// Two flash sectors. Updates go to the unused one, then the old one is erased, so a power cut
+// leaves one valid record and no update leaves an old key behind.
 class KeySectors {
  public:
   static constexpr unsigned kSectors = 2;

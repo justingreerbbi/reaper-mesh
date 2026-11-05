@@ -5,6 +5,7 @@ import { element, text } from './dom.ts';
 import { invalidateThread } from './messages-ui.ts';
 import { endSession } from './connection-ui.ts';
 import { closeSecrets } from './channels-ui.ts';
+import { closeTeamSecrets } from './network-ui.ts';
 import { onPageChange } from './nav.ts';
 
 let localAppStopped = false;
@@ -26,6 +27,7 @@ export function renderAccess(active: boolean): boolean {
     element('message-history').replaceChildren();
     invalidateThread();
     closeSecrets();
+    closeTeamSecrets();
     text(
       'app-unlock-submit',
       access?.setup ? 'Set PIN' : access?.migration ? 'Save PIN' : 'Unlock app',

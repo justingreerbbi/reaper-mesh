@@ -26,7 +26,8 @@ import { preparePublicClear, publicHistoryCount } from './messages-ui.ts';
 import { currentPage, isShowing, onPageChange, openPage, backPage } from './nav.ts';
 import { saveConfig, type SaveOutcome } from './config-save.ts';
 import { confirmSheet, downloadBlob, icon, setNotice } from './ui.ts';
-import { qrPath, qrPixels, readQr } from './qr.ts';
+import { qrPixels, qrSvg, readQr } from './qr.ts';
+import { TEAM_PREFIX } from './team.ts';
 
 const CHANNEL_NAME = /^[A-Za-z0-9_-]{1,8}$/;
 const SCAN_INTERVAL_MS = 250;
@@ -251,21 +252,7 @@ function renderShare() {
   text('share-copy-label', hasKey ? 'Copy key as text' : 'Copy as text');
   if (code === qrCode) return;
   qrCode = code;
-  const { path, total } = qrPath(code);
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 ${total} ${total}`);
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `QR code for ${channel.name}`);
-  svg.setAttribute('shape-rendering', 'crispEdges');
-  const paper = document.createElementNS(svg.namespaceURI, 'rect');
-  paper.setAttribute('width', String(total));
-  paper.setAttribute('height', String(total));
-  paper.setAttribute('fill', '#FFFFFF');
-  const modules = document.createElementNS(svg.namespaceURI, 'path');
-  modules.setAttribute('d', path);
-  modules.setAttribute('fill', '#050505');
-  svg.append(paper, modules);
-  element('share-qr').replaceChildren(svg);
+  element('share-qr').replaceChildren(qrSvg(code, `QR code for ${channel.name}`));
 }
 
 function renderScan() {
@@ -304,9 +291,21 @@ function stopCamera() {
   element('scan-idle').hidden = false;
 }
 
+let teamCodeHandler: ((value: string) => Promise<void>) | undefined;
+/** Team codes are scanned here too, and handled by the radio network page. */
+export function setTeamCodeHandler(handler: (value: string) => Promise<void>) {
+  teamCodeHandler = handler;
+}
+
 function readCode(value: string | undefined) {
   if (!value || value === lastRead || found) return;
   lastRead = value;
+  if (value.trim().startsWith(TEAM_PREFIX) && teamCodeHandler) {
+    stopCamera();
+    setNotice('scan-error', undefined);
+    teamCodeHandler(value).catch(error => showError('scan-error', error));
+    return;
+  }
   try {
     const code = parseChannelCode(value);
     setNotice('scan-error', undefined);

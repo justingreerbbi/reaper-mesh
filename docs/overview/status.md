@@ -84,7 +84,7 @@ suite, both firmware target builds and shell script lint; see
   plugin isolation decision first).
 - EU transmission, other boards. No mobile app is in this repository, and iOS and Android are untested (D48). 
 - Signed releases, automatic rollback and a published support policy.
-- The rest of the trusted-device security model (D50, approved November 4). Step 1 is built and passes on two boards; see [Security architecture](../contributing/security-architecture.md). Not built: rotation and rekeying (step 2), background delivery in the mobile app (step 3), identity and private direct messages (step 4), channel rotation (step 5), creating or joining a team in the portal (step 6), so team keys can only be loaded with tools, and the host key and release hardening (step 7). An independent security review has not started.
+- The rest of the trusted-device security model (D50, approved November 4). Step 1 is built and passes on two boards; see [Security architecture](../contributing/security-architecture.md). Not built: rotation and rekeying (step 2), background delivery in the mobile app (step 3), identity and private direct messages (step 4), channel rotation (step 5), the full team flows in the portal (step 6; a first version is built, D51, and checked against the simulator only), and the host key and release hardening (step 7). An independent security review has not started.
 
 ## Hardware observations to keep in mind
 
