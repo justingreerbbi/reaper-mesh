@@ -76,7 +76,7 @@ These are intended applications and evaluation scenarios, not performance or dep
 | --- | --- | --- |
 | Web portal | Messaging, the map (nodes, positions and shared map items), channel management, key provisioning, plugins and local privacy controls | Must not imply browser preferences are device-wide policy |
 | Shared agent core | Negotiation, state synchronization, command lifecycle, messaging and recovery | Transport-independent behavior with explicit connection/session context |
-| Device firmware | Authoritative persisted device settings, bounded queues, radio operation and inbox retention | Does not receive channel encryption keys or the app PIN |
+| Device firmware | Authoritative persisted device settings, bounded queues, radio operation and inbox retention | Does not receive channel encryption keys or the app PIN. Under D50 (planned) it stores a relay key and holds a team key in memory |
 | Radio network | Carry bounded message fragments, acknowledgments and discovery reports | Delivery and observations are constrained by airtime, loss and topology |
 | Local browser storage | Agent journals, message metadata, encryption policies, key records, map items and installed plugins | Scoped to browser origin/profile; separate from device storage |
 | Build and update tooling | Validate target, schema, provenance, images and installation outcomes | Hardware qualification cannot be inferred from host tests |
@@ -131,9 +131,9 @@ In this draft, **MUST** defines a proposed mandatory requirement, **SHOULD** def
 - The initial model supports eight numeric channel slots, 0–7. Slot 0 is Public. Names are labels; channel identity depends on the numeric slot.
 - Management MUST show configured channels, provide creation only when capacity remains, and open one selected channel's settings independently.
 - Channel naming is device configuration. Encryption policy and keys are agent-local and MUST be presented as such.
-- Creating or importing a key MUST NOT send that key to firmware or over the radio. Sharing keys with other agents MUST be deliberate.
+- Creating or importing a key MUST NOT send that key to firmware or over the radio. Sharing keys with other agents MUST be deliberate. Under D50 (planned), a deliberate rekey may send a key over the radio only when wrapped to a verified member.
 - An agent requiring encryption MUST fail closed when the key is absent or unavailable. It MUST NOT silently send plaintext instead.
-- Rotation MUST retain the ability to decrypt retained older epochs locally where supported and require deliberate distribution of the new key.
+- Rotation MUST retain the ability to decrypt retained older epochs locally where supported and require deliberate distribution of the new key. Under D50 (planned), keys ratchet automatically, old keys are erased, and history stays readable from the local vault instead.
 - Direct routes currently use the selected channel's group key. The UI and documentation MUST NOT describe this as pairwise privacy or individual sender authentication.
 
 ### 5.4 Discovery, positions and assets
@@ -164,7 +164,7 @@ In this draft, **MUST** defines a proposed mandatory requirement, **SHOULD** def
 
 ### 5.5 Optional local PIN
 
-- PIN protection MUST be optional and off by default for a new agent profile.
+- PIN protection MUST be optional and off by default for a new agent profile. Under D50 (planned), it is required in team mode.
 - Users MUST be able to enable a 4–6 digit PIN and remove it in Privacy settings without losing channel keys or replay records.
 - With protection enabled, a device connection MUST require one app-wide unlock. Channel editors MUST NOT introduce separate PINs or vault unlocks.
 - The PIN MUST remain agent-local. It MUST NOT be sent to a device, stored in firmware or described as device authentication.
@@ -194,6 +194,8 @@ External input, radio observations, browser storage, configuration files and con
 
 The current channel design protects message bodies using shared group keys. It does not provide individual sender authentication, forward secrecy, metadata anonymity or protection from a compromised unlocked agent. Discovery and position information are not implicitly protected by channel message encryption. Device acknowledgments confirm transport behavior, not successful decryption.
 
+The owner approved the [security architecture](../contributing/security-architecture.md) (D50) as the direction for trusted devices: radios outside a team cannot read, inject or relay team traffic, and Open operation stays an explicit choice. The paragraph above describes today's behavior until that is built.
+
 No cloud account is required for core operation. Map tiles may require a network and disclose ordinary network requests to a tile provider; local radio messages and history MUST NOT be uploaded as a side effect of portal operation.
 
 ## 8. User experience and design standard
@@ -213,7 +215,7 @@ Explanatory copy SHOULD be short and task-specific. Security limitations and con
 | Firmware | ESP-IDF and C++17; a shared application (`firmware/app/`) with board-specific drivers behind shared protocol/service boundaries | Additional boards require validated hardware profiles, resource budgets and physical qualification |
 | Web agent | TypeScript, Vite, native DOM, shared agent core and Web Serial | A UI framework is optional only when justified by maintainability; it is not a product requirement |
 | Transport | Capability-negotiated device connection over USB, or Bluetooth with physical-access pairing (D47) | Mobile/native and simultaneous multi-device agents require separately approved contracts |
-| Cryptography | Agent-side XChaCha20-Poly1305 group-key envelope; Argon2id for protected local key storage | Pairwise keys and sender authentication require protocol/security design and review |
+| Cryptography | Agent-side XChaCha20-Poly1305 group-key envelope; Argon2id for protected local key storage | Pairwise keys and sender authentication are designed in D50 and still require independent review |
 | Location | Explicit fixed position; GPS acquisition deferred | GPS requires verified wiring, power, bounded parsing and freshness rules before inclusion |
 | Portal extensions | Declarative JSON plugins (manifest v1) for map item types, fields and settings | Code plugins such as Weather Radar, Reaper ADS-B and APRS bridges run in sandboxed iframes (D40) after the plugin API and permissions design is approved |
 | Regional operation | Initial US hardware and profile | EU or other regions require intended-country, hardware and regulatory validation before transmission |

@@ -1,10 +1,11 @@
-# Security architecture proposal
+# Security architecture
 
-Status: **Proposed** (D50), awaiting owner approval. Nothing here is implemented. Until it is
-approved, [Channel encryption](../guides/encryption.md) and the
-[specification](../overview/project-specification.md#7-security-privacy-and-trust) still describe
-how the system behaves. This design needs an independent security review before any release
-claims it. Byte counts are design estimates, and no timing or airtime has been measured. The
+Status: **Confirmed** by the owner on November 4, 2026 (D50). This is the agreed direction. What is
+built so far is in [Status](../overview/status.md), and until each step ships,
+[Channel encryption](../guides/encryption.md) and the
+[specification](../overview/project-specification.md#7-security-privacy-and-trust) describe how the
+system behaves. This design has not had an independent security review, and no release may claim it
+until it has. Byte counts are design estimates, and no timing or airtime has been measured. The
 relay-only design and background delivery are the newest parts and have had the least scrutiny.
 
 ## Goal
@@ -13,10 +14,9 @@ Reaper Mesh is a network of trusted devices. A radio that was not set up by the 
 be able to read, inject or relay traffic, or locate team members from their broadcasts. A team may
 still choose to run openly, and the protection must not make everyday use harder than it has to be.
 
-## Owner direction so far
+## Owner direction
 
-These came from the owner on November 4 and shape the design. They are not yet recorded as a
-confirmed decision.
+These came from the owner on November 4 and shape the design.
 
 - A radio with no app attached does not beacon. Most radios will be relays that report nothing.
 - Encryption networking stays optional, and a team can keep using today's channel keys.
@@ -179,8 +179,8 @@ This replaces radio version 1 outright, with no compatibility layer (D42).
 - **Short relay tag.** Four bytes is a deliberate choice for review. A successful forgery only gets
   one junk frame forwarded, and an attacker pays airtime for each try. Team radios still reject that
   frame on the team tag.
-- **Cipher.** Both chips accelerate AES and SHA. `CONFIG_MBEDTLS_CCM_C` is already on, and
-  `CONFIG_MBEDTLS_HKDF_C` is one setting away.
+- **Cipher.** Both chips accelerate AES and SHA, and `CONFIG_MBEDTLS_CCM_C` is already on. The exact
+  construction is in the [radio protocol](../reference/radio-protocol.md#radio-version-2-draft).
 - **Hops** stay outside the relay tag because relays change them. The hop limit is covered by the
   tag, so an attacker cannot raise hops above what the sender allowed.
 - **Nonces** come from a random generator seeded with true entropy at boot.
@@ -381,7 +381,7 @@ Each of these is cheap before core v1 and expensive after it.
 
 ## Changes to existing commitments
 
-Approval would record these. Nothing changes before that.
+Each change takes effect when its step ships. Until then the existing commitment stands.
 
 | Commitment | Change |
 | --- | --- |
@@ -393,8 +393,8 @@ Approval would record these. Nothing changes before that.
 | D47: a paired phone has the same access as USB | Still true for daily use, but a fill needs a cable or a button-opened window, and sessions need a host key |
 | D34: PIN optional | Required in team mode, optional in Open mode |
 | D16 and Q10: ROM updater, signing undecided | ROM updater stays for development, and signed dual-slot updates become the field route |
-| D37: portal features paused | Steps 3 to 6 below are agent features, so they need an owner exception like D49 |
-| [Connect a mobile app](../guides/mobile-apps.md): background use not designed | Replaced by the contract in this proposal once it is approved |
+| D37: portal features paused | Stands. Step 1 comes before the field tests; steps 3 to 6 are agent features that follow them, unless the owner grants an exception like D49 |
+| [Connect a mobile app](../guides/mobile-apps.md): background use not designed | Replaced by the contract here when the alert ships |
 | Radio protocol fixtures | Replaced deliberately with owner approval (D42), never silently |
 
 ## Delivery order
@@ -405,7 +405,7 @@ after step 1 beyond one reflash.
 
 | Step | Work | Touches | Done when |
 | --- | --- | --- | --- |
-| 0 | Owner decisions below, then an independent look at this design | Docs | D50 confirmed, with specification, D33 and roadmap updated |
+| 0 | Owner decisions below, then an independent look at this design | Docs | Owner decisions done on November 4, with specification, D33 and roadmap updated. The independent look is still open |
 | 1 | Frame version 2, relay and team keys, opaque payloads, partition table, key store, fill, Open mode, beacons only while attached, inbox changed alert | Firmware, protocol, agent | Host tests and two boards: a radio not set up is silent, an outsider radio can neither read nor inject, a radio with no agent relays and sends nothing of its own |
 | 2 | Relay key ratchet and rekey, relay status | Firmware, agent | A radio that was off catches up alone; a removed radio is locked out; separated groups converge |
 | 3 | Background delivery in the mobile app, against the alert from step 1 | Mobile app (outside this repository), guide | Tested on real iPhones and Android phones, with the actual limits recorded |
@@ -456,7 +456,9 @@ addition to two- and three-board checks.
 
 ## Owner decisions
 
-| # | Decision | Recommendation |
+The owner accepted all six recommendations on November 4.
+
+| # | Decision | Confirmed choice |
 | --- | --- | --- |
 | 1 | Allow radios to store a relay key and hold the team key in memory, amending D33 | Yes. Accept that a radio rebooted while its phone is away misses messages sent to it, in exchange for a stolen radio exposing far less |
 | 2 | Trust root | One authority per team with a signed roster, optional deputies and a sealed backup, plus QR scanning between individuals |

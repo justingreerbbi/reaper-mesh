@@ -51,4 +51,4 @@ The bytes are the same as USB: COBS frames separated by zero bytes, each with a 
 - One host at a time. The newest `hello` takes over, and opening the USB port resets the board, which drops your link.
 - Expect lost connections. A connection that is not trusted within 5 seconds is dropped, or 60 seconds while pairing is open.
 - A device holds four paired phones. A full list refuses new pairings until the user holds the button for 15 seconds, which forgets them all and changes the device's Bluetooth address.
-- Background use has not been designed or tested. iOS and Android both limit Bluetooth in the background.
+- Background use has not been built or tested. iOS and Android both limit Bluetooth in the background. The planned approach is in [Security architecture](../contributing/security-architecture.md#background-delivery-to-the-phone).

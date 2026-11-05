@@ -69,9 +69,9 @@ New portal features are paused (November 3) until these pass; see the
 
 ## Automated checks
 
-`npm run check` passes all 316 tests on macOS as of November 4 (strict TypeScript,
+`npm run check` passes all 332 tests on macOS as of November 4 (strict TypeScript,
 generated-schema and vendor checks, compiler-backed host tests and the web build). The
-standalone firmware CTest suite passes 91 tests. Both board target builds pass. CI runs the host checks, the CTest
+standalone firmware CTest suite passes 97 tests. Both board target builds pass. CI runs the host checks, the CTest
 suite, both firmware target builds and shell script lint; see
 [Development and CI](../contributing/development.md).
 
@@ -83,6 +83,7 @@ suite, both firmware target builds and shell script lint; see
   plugin isolation decision first).
 - EU transmission, other boards. No mobile app is in this repository, and iOS and Android are untested (D48). 
 - Signed releases, automatic rollback and a published support policy.
+- The trusted-device security model (D50): approved November 4; see [Security architecture](../contributing/security-architecture.md). Only the [radio version 2 codec](../reference/radio-protocol.md#radio-version-2-draft) exists, tested on the host. Nothing uses it, so radios still send version 1 frames in plaintext. An independent security review has not started.
 
 ## Hardware observations to keep in mind
 

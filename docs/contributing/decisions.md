@@ -14,7 +14,6 @@ Questions that need a decision now:
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
 | Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.2 reviewed against current docs and code on November 3; awaiting owner approval |
-| Q12 | Approve, revise or reject the [security architecture proposal](security-architecture.md) (D50), including its owner decisions | Further radio protocol work and the core v1 review | Written November 4; awaiting owner approval |
 
 ## Parked questions
 
@@ -23,13 +22,13 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 | # | Question | Revisit when |
 | --- | --- | --- |
 | Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | After the outdoor range test in the [field qualification plan](field-qualification.md), from measured airtime and delivery rates |
-| Q5 | Define the application payload type for core v1: typed payloads that firmware carries, relays and acknowledges without understanding them, so features such as map items live in agents and older agents ignore unknown types (D39, D41). Includes a compact encoding for map items, replacing `RMAP1` JSON in text | In the core v1 protocol review after field qualification, together with Q3 |
+| Q5 | Define the application payload type for core v1: typed payloads that firmware carries, relays and acknowledges without understanding them, so features such as map items live in agents and older agents ignore unknown types (D39, D41). Includes a compact encoding for map items, replacing `RMAP1` JSON in text | Direction set by D50: firmware carries opaque typed payloads, built in its step 1. The content types and map encoding stay for the core v1 protocol review, together with Q3 |
 | Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | When the owner resumes GPS work (D26) |
 | Q8 | Formal performance targets (range, throughput, battery), set from the [field qualification plan](field-qualification.md) results | After field qualification, before publishing any range, throughput or battery figures |
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
-| Q10 | Signed releases, rollback and stable-release support policy | Before the first public release or public updater |
+| Q10 | Signed releases, rollback and stable-release support policy. D50 sets the direction: signed dual-slot updates, flash encryption and Secure Boot V2 on release builds | Before the first public release or public updater |
 
-Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs).
+Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs), Q12 → D50 (security architecture).
 
 ## Product and scope
 
@@ -131,7 +130,8 @@ Nov 1 · **Adopted**; the status rows were replaced by the screen pages in D44. 
 outside protocol state. Display failures disable the display without blocking USB.
 
 ### D16. Firmware installation
-Nov 1 · **Adopted**. A manifest-validating ROM serial updater that checks provenance, target,
+Nov 1 · **Adopted**; [D50](#d50-trusted-device-security-model) keeps this for development and makes
+signed dual-slot updates the field route. A manifest-validating ROM serial updater that checks provenance, target,
 layout, hashes and ROM security state, stages immutable images and preserves NVS. A single
 factory app with no rollback is the prototype recovery route. Signed releases and rollback are
 open (Q10). See [flashing firmware](../guides/flashing-firmware.md).
@@ -198,7 +198,8 @@ threads and direct messages appear in peer threads; v1 remains readable. See
 [inbox](../reference/inbox.md).
 
 ### D24. Discovery v1
-Nov 1 · **Adopted**. A separate control namespace, so text/ACK bytes are unchanged. Beacons,
+Nov 1 · **Adopted**; [D50](#d50-trusted-device-security-model) will also require an attached agent
+for beacons and replies, and move them under the team key. A separate control namespace, so text/ACK bytes are unchanged. Beacons,
 discovery responses and location sharing are independent settings, all off by default. A
 presence reply acknowledges discovery only; replies never trigger replies. Manual requests are
 rate-limited with jitter and at most six replies per minute. See
@@ -213,8 +214,8 @@ control payload v2; manual requests stay name-only v1 so older nodes still respo
 Nov 2 · **Confirmed**. T-Beam GPS (Phase 2.2b) is deferred. Fixed positions serve the map. See Q7.
 
 ### D50. Trusted-device security model
-Nov 4 · **Proposed**; not implemented, and D33 stays in force until the owner decides (Q12). Four
-key layers: a relay key on every radio that admits and forwards team frames without reading them; a
+Nov 4 · **Confirmed** by the owner, with all six recommendations accepted (closes Q12). Not yet
+built, so existing behavior stands until each step ships. Four key layers: a relay key on every radio that admits and forwards team frames without reading them; a
 team key that agents load into their radio's memory, protecting headers, beacons and ACKs; channel
 keys on agents; and pairwise direct-message keys on agents using Noise pattern K. A radio with no
 agent attached is a relay and sends nothing of its own (owner direction). Trust starts from
@@ -222,8 +223,10 @@ in-person setup by a team authority, with optional deputies and a sealed backup;
 freezes membership and does not stop communications. Keys rotate automatically with a hash ratchet,
 and removing a member needs an explicit rekey. Open operation stays available with today's channel
 keys and the same frame format, and a radio stays silent until a mode is chosen. A small firmware
-alert lets a backgrounded mobile app learn of new messages. Would amend D16, D24, D33, D34, D45 and
-D47 and answer Q5 and Q10. See the [security architecture proposal](security-architecture.md).
+alert lets a backgrounded mobile app learn of new messages. Amends D16, D24, D33, D34, D45 and D47
+as each step ships, and sets the direction for Q5 and Q10. The new radio format comes before field
+qualification (D37 otherwise stands). An independent security review is still outstanding. See
+[Security architecture](security-architecture.md).
 
 ### D38. Keep the schema-driven TLV encoding
 Nov 3 · **Confirmed** (closes Q4). The USB protocol keeps its schema-driven TLV encoding, with
@@ -264,13 +267,15 @@ Nov 2 · **Confirmed**. Routine setup first, technical maintenance under *Advanc
 actions beside their section.
 
 ### D33. Agent-side channel encryption
-Nov 2 · **Adopted**. XChaCha20-Poly1305 envelopes created in the agent; devices carry
+Nov 2 · **Adopted**; **superseded in part by [D50](#d50-trusted-device-security-model)** once built:
+radios will hold a relay key and, in memory, a team key, while channel and direct keys stay off radios. XChaCha20-Poly1305 envelopes created in the agent; devices carry
 ciphertext only and never see keys. Direct messages use the channel group key: not pairwise
 private, members can forge, no forward secrecy. Plaintext stays the default unless an agent
 requires encryption on a channel. See [channel encryption](../guides/encryption.md).
 
 ### D34. Optional browser PIN and local wipe
-Nov 2 · **Confirmed**. Supersedes the per-key vault screen. An optional, off-by-default 4–6
+Nov 2 · **Confirmed**; [D50](#d50-trusted-device-security-model) will require the PIN in team mode
+and stay optional in Open mode. Supersedes the per-key vault screen. An optional, off-by-default 4–6
 digit PIN unlocks all keys in this browser; it does not authenticate a device. A typed-`WIPE`
 reset deletes this browser's local data only.
 
@@ -321,7 +326,8 @@ Sharing also changes: the user must pick the channel explicitly, with no presele
 See the [specification, section 5.4.1](../overview/project-specification.md#541-shared-map-items-and-plugins).
 
 ### D45. Channel identity independent of slot numbers
-Nov 3 · **Confirmed** (owner chose options 1 and 2 and approved the breaking change before core
+[D50](#d50-trusted-device-security-model) will encrypt channel IDs on air and relay all frames of a
+team; the rest stands. Nov 3 · **Confirmed** (owner chose options 1 and 2 and approved the breaking change before core
 v1, D42). Built in firmware `v0.3.0`. A channel was only its slot number (0–7) on air and keys were
 tied to slots, so a node joining later had to match everyone's slot layout, and unrelated groups
 using the same slot shared a channel.
@@ -365,7 +371,8 @@ portal, and documents how a mobile app connects; it contains no mobile app (D41)
 [Connect a mobile app](../guides/mobile-apps.md).
 
 ### D47. Bluetooth link with physical-access pairing
-Nov 4 · **Confirmed**. Owner request, so a mobile app can act as an agent. Bluetooth carries the
+Nov 4 · **Confirmed**; [D50](#d50-trusted-device-security-model) will require a cable or a
+button-opened window for key fills, and a host key for sessions on provisioned radios. Owner request, so a mobile app can act as an agent. Bluetooth carries the
 same framed bytes as USB, because a phone cannot use USB and no agent or plugin can add a transport
 to the device (D41). There is no radio protocol, USB schema or settings record change. The owner
 requires that a device is never open to random connections: creating a connection needs physical
@@ -412,4 +419,5 @@ Nov 3 · **Confirmed**. Pause new portal features until three-node relay and an 
 test pass on real hardware. Portal work is limited to bug fixes and native QA meanwhile. Relay
 is the product's core promise and has only been simulated; problems found in the field could
 change the radio protocol, which is cheaper before more features depend on it. See the
-[field qualification plan](field-qualification.md). D49 is an owner-directed exception.
+[field qualification plan](field-qualification.md). D49 is an owner-directed exception. D50 places
+the new radio format ahead of these tests, so they describe the frames that ship.

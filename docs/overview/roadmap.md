@@ -2,7 +2,7 @@
 
 Owner-directed phases, set November 1, 2026 and last updated November 3. This is the canonical list of product priorities. Current implementation and verification state is in [Status](status.md); architecture is in the [development plan](../contributing/plan.md).
 
-**While waiting for a third board (owner direction, November 3):** device firmware work, starting with Phase 4 on-device screen and buttons. See [Phase 4 delivery order](#phase-4-delivery-order).
+**Security (owner direction, November 4):** the [security architecture](../contributing/security-architecture.md) (D50) is approved. Its step 1, the new radio format, comes next and takes the slot held for screen work while waiting for a third board, so field qualification runs on the frames that ship. Remaining Phase 4 work follows. See [Phase 4 delivery order](#phase-4-delivery-order).
 
 **Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
 
@@ -12,12 +12,14 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 
 Order of work:
 
-1. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
-2. Three-node relay test.
-3. Outdoor range test.
-4. Power-loss, interrupted-flash and soak tests.
-5. **Core v1 protocol review.** Using the test results, define the core to freeze: the application payload type for data the firmware carries without understanding (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
-6. Resume Phase 2.3 portal work, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
+1. Build D50 step 1: radio version 2, relay and team keys, opaque payloads, the partition table, key storage and fill, Open mode, beacons only while attached, and the inbox changed alert.
+2. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
+3. Three-node relay test.
+4. Outdoor range test.
+5. Power-loss, interrupted-flash and soak tests.
+6. Build D50 step 2: relay key rotation and rekey, which the freeze depends on.
+7. **Core v1 protocol review.** Using the test results, define the core to freeze: the content types carried in opaque payloads (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
+8. Resume Phase 2.3 portal work and D50 steps 3 to 6, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
 
 Channel identity was settled early, ahead of the core v1 review, by owner decision (D45).
 
@@ -25,7 +27,7 @@ Channel identity was settled early, ahead of the core v1 review, by owner decisi
 | --- | --- | --- | --- |
 | 1 — Working communications | Two supported devices communicate reliably through the independent Reaper protocol | Heltec V3 and T-Beam V1.2 firmware; USB console; persistent configuration; public/named channels; 1024-byte messages; fragmentation; bounded mesh/relay core; destination ACKs; RACE recovery; validated firmware installation | Complete: actual bidirectional direct RF/ACK/inbox checks pass. Three-node relay, power-cut and field qualification remain release gates. |
 | 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: 2.1 discovery and 2.2a fixed position are verified on two boards; GPS is deferred; the messaging and map portal is the current focus. |
-| 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without keys | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Rotation, interrupted-upload recovery and a security review are pending. See [Channel encryption](../guides/encryption.md). |
+| 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without channel or direct keys. D50 widens this to the trusted-device model | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Rotation, interrupted-upload recovery and a security review are pending; D50 sets how rotation and direct messages are built. See [Channel encryption](../guides/encryption.md) and [Security architecture](../contributing/security-architecture.md). |
 | 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | In progress: step 1 (screen pages, buttons, 30 s timeout) verified on the T-Beam; screen settings and the T-Beam battery indicator built in `v0.2.0`. Optional board-local features; they must not change the radio protocol (D41). |
 
 ## Planned after qualification
@@ -66,7 +68,7 @@ Show node name plus stable ID, last-heard age, reported location source and age,
 
 All phases follow the stable-core principle (D41): the firmware and protocol core stays small, and new features are built in agents and plugins wherever possible. Before core v1, breaking changes are allowed with owner approval (D42).
 
-Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry, cloud accounts, MQTT, remote administration or device-screen features. Discovery/location is plaintext and unauthenticated until the relevant protection is implemented; the portal must display that plainly. Phase 3 must define whether/how discovery metadata is protected, rather than implying channel encryption automatically hides beacons.
+Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry, cloud accounts, MQTT, remote administration or device-screen features. Discovery/location is plaintext and unauthenticated until the relevant protection is implemented; the portal must display that plainly. D50 settles how discovery metadata is protected: under the team key, with beacons only while an agent is attached.
 
 Phase 3 uses the implemented agent-side group-key profile described in [Channel encryption](../guides/encryption.md). Acceptance includes tamper/replay rejection, wrong keys, rotation, unsupported peers, explicit no-downgrade behavior, RACE recovery, both target builds and two-board checks. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
 

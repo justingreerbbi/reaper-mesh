@@ -1,6 +1,6 @@
 # Phase 3 agent-side channel encryption
 
-Status: the first implementation is in the web portal and shared firmware transport. It passes 240 automated checks, both target builds, and a live Heltec V3 ↔ T-Beam V1.2 direct-message test in both directions. It has not received an independent security audit or full release/field qualification.
+Status: the first implementation is in the web portal and shared firmware transport. It passes 240 automated checks, both target builds, and a live Heltec V3 ↔ T-Beam V1.2 direct-message test in both directions. It has not received an independent security audit or full release/field qualification. The approved direction for hiding headers and beacons, rotation and private direct messages is in [Security architecture](../contributing/security-architecture.md); this page describes what is built today.
 
 ## Data path
 

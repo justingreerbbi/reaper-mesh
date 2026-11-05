@@ -10,6 +10,16 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 4: trusted-device security approved, radio version 2 codec
+
+The owner approved the [security architecture](../contributing/security-architecture.md) (D50), accepting all six recommendations, and the affected decisions, specification, roadmap and guides now point to it. Existing behavior stands until each step ships.
+
+This adds the first part of step 1: the [radio version 2 contract](../reference/radio-protocol.md#radio-version-2-draft), a `reaper_crypto` interface backed by mbedTLS on boards, and a portable frame codec with key derivation, the ratchet and Open mode. Nothing calls the codec yet, so radios still send version 1 frames and no firmware was installed.
+
+Evidence: `npm run check` passes (332 tests, 9 of them new), the firmware CTest suite passes 97 tests, and `npm run format:check` passes. A separate Node implementation of the contract, using Node's own crypto, produced the frames in the new fixture `packages/protocol/fixtures/frame-v2.json`, and the C++ codec reproduces them. Tests cover a relay forwarding without the team key, team members rejecting a relay-key forgery, every changed bit being rejected except current hops within the limit, all truncations, and invalid fields publishing nothing. A one-off local run of the same scenarios and vectors against the mbedTLS source in the pinned ESP-IDF, built for the host, also passed; CI does not repeat this because it uses test-only host crypto. Both board targets build with the pinned ESP-IDF, with images the same size as before (Heltec 543,488 bytes, T-Beam 519,984 bytes).
+
+Not tested: the codec on a real chip, including hardware AES and SHA and the time they take; any radio transmission; relay; or airtime. The design has had no independent security review.
+
 ## November 4: web portal catches up with the mobile app's quality-of-life changes
 
 Keeping the portal in step with the mobile app (D49), this ports what the app gained after the portal's redesign, taken from its latest commit and its uncommitted working copy. A sent message, a direct conversation or a channel can now be deleted, Public excepted, and a heard node or a remembered device can be forgotten. A thread's menu links to channel settings and the map. Smaller changes: connection problems can be dismissed, the pairing steps show only when needed, the node count stops saying "of 32" once past it, the New channel field says when all slots are used, the message-gap notice moves from the thread to Diagnostics, and an old error clears on editing a setting or, for a failed send, on opening another conversation. There is no firmware, wire format or fixture change. New local storage is one key per device, `reaper-mesh.nodes-forgotten.v1.*`.

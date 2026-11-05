@@ -46,9 +46,12 @@ Put examples under `examples/` at the path of the component they target (for exa
 Write documentation in plain, complete sentences. Do not drop spaces or articles to save tokens
 ("Heltec usb-prototype-8, revision 38", not "Heltec8 revision38").
 
-## Current focus (November 3, 2026)
+## Current focus (November 4, 2026)
 
-- While waiting for a third board, the owner directs device firmware work: Phase 4 screen and
+- The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).
+  Its step 1, the new radio format, is the next firmware work and comes before field qualification.
+  Existing behavior stands until each step ships, and an independent security review is still open.
+- Phase 4 device firmware work follows D50 step 1: screen and
   buttons (step 1 done on the T-Beam; screen settings in the portal and the T-Beam battery
   indicator built in `v0.2.0`). The device has no settings page; device settings are changed
   in the portal. See the roadmap's Phase 4 delivery order and

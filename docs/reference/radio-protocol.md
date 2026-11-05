@@ -39,3 +39,45 @@ Deterministic simulations execute this actual C++ core and byte codec for line/h
 ## Fixed-position control payloadv2
 
 Packet header/version1 and Data1/ACK2 bytes remain unchanged. Beacon3 and Presence5 may carry payloadversion2 only when fixed-position sharing is enabled. Keep the v1 name and optional presence parentboot16/sequenceLE32 in their original positions, then append source1 byte, offset latitudeLE32, offset longitudeLE32, fixed ageMsLE32=0. Maximum payload99 bytes fits one datagram. Reject invalid ranges, unsupported sources, nonzero fixed age, malformed lengths and v2 Discover4. Manual requests always stay name-only payloadv1 so older responders can answer. Name-only controls remain v1; v1-only discovery peers reject v2 reports but still handle text/ACK. This is plaintext unauthenticated location, not channel encryption. Privacy/source/coordinate changes cancel queued/selected controls before subsequent TX; prior emitted RF cannot be recalled. Exact fields/bounds are in protocol.md and tests in discovery/mesh-service targets.
+
+## Radio version 2 (draft)
+
+Status: draft contract for [D50](../contributing/decisions.md#d50-trusted-device-security-model). The codec and its tests exist, but no radio sends or accepts this format yet, and it has had no independent review. It replaces version 1 outright when it ships (D42). All multibyte integers are unsigned little endian.
+
+| Offset | Bytes | Protected by | Meaning |
+| --- | --- | --- | --- |
+| 0 | 1 | Relay tag | Version `2` in the low four bits; the high four bits are flags and must be zero |
+| 1 | 2 | Relay tag | Network hint, which changes every epoch |
+| 3 | 2 | Relay tag | Epoch |
+| 5 | 1 | Relay tag, except hops | Remaining hops in bits 0–2, hop limit in bits 4–6, other bits zero; hops may not exceed the limit |
+| 6 | 8 | Relay tag | Random nonce, unique per frame |
+| 14 | 1 | Team key | Kind, as in version 1 |
+| 15 | 4 | Team key | Channel ID; any value except `ffffffff` |
+| 19 | 8 | Team key | Original sender node ID |
+| 27 | 8 | Team key | Original destination ID, or all-ones broadcast |
+| 35 | 4 | Team key | Sender boot counter; nonzero |
+| 39 | 4 | Team key | Sender sequence; nonzero |
+| 43 | 1 | Team key | Fragment count in the high four bits, zero-based index in the low four bits |
+| 44 | 2 | Team key | Whole message length |
+| 46 | N | Team key | Fragment body, 0–160 bytes |
+| 46+N | 8 | Relay tag | Team tag |
+| 54+N | 4 | Itself | Relay tag |
+
+The overhead is 58 bytes, so a maximum frame is 218 bytes. N comes from the frame length. Unknown versions, set flag bits, impossible hop values and lengths outside 58–218 bytes are rejected before any cryptography runs.
+
+**Keys.** Each generation starts from two independent random 32-byte seeds, one for the relay chain and one for the team chain, so a relay key reveals nothing about the team key. All derivations use HMAC-SHA-256, keyed with the chain key, over an ASCII label:
+
+| Output | Chain | Label |
+| --- | --- | --- |
+| Next chain key | Either | `reaper-v2 ratchet` |
+| Relay tag key | Relay | `reaper-v2 relay tag` |
+| Network hint (first 2 bytes) | Relay | `reaper-v2 hint` |
+| Frame key | Team | `reaper-v2 frame` |
+
+Open mode uses published chains at epoch 0: HMAC-SHA-256 keyed with the ASCII string `reaper-v2 open` over `relay` and over `team`. These provide no secrecy.
+
+**Sealing.** The additional data is the 14 clear bytes with the hops bits set to zero. Encrypt bytes 14 to 46+N with AES-256-CCM using the frame key, an 8-byte tag and a 13-byte nonce made of the frame nonce, the epoch and three zero bytes. The relay tag is the first 4 bytes of HMAC-SHA-256, keyed with the relay tag key, over the additional data, the ciphertext and the team tag.
+
+**Receiving.** A radio checks the layout, then the hint and relay tag. A radio holding only the relay key stops there and may forward the frame, decrementing hops. A radio holding the team key then authenticates and decrypts, and validates every field before publishing any of it. A valid relay tag proves only that the sender holds the relay key, so a stolen relay can get junk forwarded but cannot produce a frame that passes the team tag.
+
+Field rules match version 1: nonzero sender that is not broadcast, nonzero destination, consistent fragment fields, ACKs with no body and a unicast destination, and controls on channel 0 in a single fragment. The boot counter replaces the 16-byte boot nonce, so firmware must persist it before transmitting. The frozen vectors are in `packages/protocol/fixtures/frame-v2.json`.
