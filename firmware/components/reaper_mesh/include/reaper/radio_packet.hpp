@@ -4,12 +4,14 @@
 #include <cstddef>
 #include <limits>
 namespace reaper::mesh {
-inline constexpr std::size_t kFragmentBytes = 160, kMaxMessageBytes = 1024, kMaxPacketBytes = 214;
+// Radio version 2 frames: 58 bytes of overhead plus the fragment body (see frame.hpp).
+inline constexpr std::size_t kFragmentBytes = 160, kMaxMessageBytes = 1024, kMinPacketBytes = 58,
+                             kMaxPacketBytes = kMinPacketBytes + kFragmentBytes;
 inline constexpr std::uint64_t kBroadcast = std::numeric_limits<std::uint64_t>::max();
 enum class PacketKind : std::uint8_t { Data = 1, Ack = 2, Beacon = 3, Discover = 4, Presence = 5 };
 struct MessageKey {
   std::uint64_t origin = 0;
-  std::array<std::uint8_t, 16> boot{};
+  std::uint32_t boot = 0;  // Persisted counter; a new value after every reboot.
   std::uint32_t sequence = 0;
   bool operator==(const MessageKey& other) const {
     return origin == other.origin && boot == other.boot && sequence == other.sequence;
@@ -51,8 +53,12 @@ struct PositionReport {
 // Call only after valid_packet: v1 has no position; v2 appends one fixed-position report.
 PositionReport position_report(const Packet&);
 bool valid_packet(const Packet&);
-bool encrypted_payload(const std::uint8_t*, std::size_t, std::uint32_t channel);
-bool valid_message_payload(const std::uint8_t*, std::size_t, std::uint32_t channel);
-bool encode_packet(const Packet&, std::uint8_t*, std::size_t capacity, std::size_t& size);
-bool decode_packet(const std::uint8_t*, std::size_t size, Packet&);
+// A radio version 2 frame's layout, before any cryptography. Radio drivers use this to drop noise.
+bool valid_frame_layout(const std::uint8_t*, std::size_t);
+// Firmware carries any message of a legal size without understanding it (D41, D50). What the bytes
+// mean is for agents to decide.
+bool valid_message_payload(const std::uint8_t*, std::size_t);
+// Plain text or the one envelope an agent can be assumed to understand. An agent that does not
+// declare it handles unknown payloads gets a placeholder for anything else.
+bool readable_by_any_agent(const std::uint8_t*, std::size_t, std::uint32_t channel);
 }  // namespace reaper::mesh

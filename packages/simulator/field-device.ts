@@ -1,3 +1,4 @@
+import { SimulatedNetwork } from './network-device.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
 import { encodeMap } from '../protocol/map-item.ts';
@@ -102,6 +103,7 @@ export class FieldDevice {
   #rx = 48;
   #discovery: string | undefined;
   #pairingOpenedAt = 0;
+  #network = new SimulatedNetwork();
   #scenarioStarted = false;
   #drop: (() => void) | undefined;
   #live = false;
@@ -253,7 +255,7 @@ export class FieldDevice {
           maxVersion: 1,
           configSchema: 1,
           // Every feature through Bluetooth pairing, or only the read-only minimum.
-          features: this.readOnly ? 2 : 16383,
+          features: this.readOnly ? 2 : 32767,
           maxPayload: 2048,
           receiptCapacity: 32,
           ownerCapacity: 8,
@@ -261,7 +263,7 @@ export class FieldDevice {
           regions: 7,
           maxLabelBytes: 64,
           firmware: 'simulator-field-1',
-          radioVersion: 1,
+          radioVersion: 2,
           messageVersion: 1,
           maxMessageBytes: 1024,
           messageCapacity: 8,
@@ -377,6 +379,12 @@ export class FieldDevice {
         return;
       case 'nodeQuery':
         this.#nodeQuery(message, send);
+        return;
+      case 'networkQuery':
+      case 'networkFill':
+      case 'teamLoad':
+      case 'networkErase':
+        send({ ...this.#network.handle(message), boot });
         return;
       case 'pairingRequest': {
         if (message.open === 1) this.#pairingOpenedAt = Date.now();

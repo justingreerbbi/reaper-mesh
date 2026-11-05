@@ -173,14 +173,13 @@ This replaces radio version 1 outright, with no compatibility layer (D42).
 - **Size.** About 58 bytes against 54 today, because the 16-byte boot nonce and the CRC-32 are no
   longer needed. Shortening node IDs to 4 bytes would give about 50. Settle this together with Q3.
 - **Relay behavior.** A radio with only the relay key checks the relay tag, suppresses duplicates on
-  the nonce, decrements hops and forwards. It cannot tell a message from an ACK, so forwarding rules
-  must no longer depend on the frame kind. [`mesh.cpp:105`](../../firmware/components/reaper_mesh/mesh.cpp)
-  treats ACK hops differently today, so this needs a design check and tests.
+  the nonce, decrements hops and forwards. It cannot tell a message from an ACK, so forwarding treats
+  them the same.
 - **Short relay tag.** Four bytes is a deliberate choice for review. A successful forgery only gets
   one junk frame forwarded, and an attacker pays airtime for each try. Team radios still reject that
   frame on the team tag.
 - **Cipher.** Both chips accelerate AES and SHA, and `CONFIG_MBEDTLS_CCM_C` is already on. The exact
-  construction is in the [radio protocol](../reference/radio-protocol.md#radio-version-2-draft).
+  construction is in the [radio protocol](../reference/radio-protocol.md#frame).
 - **Hops** stay outside the relay tag because relays change them. The hop limit is covered by the
   tag, so an attacker cannot raise hops above what the sender allowed.
 - **Nonces** come from a random generator seeded with true entropy at boot.
@@ -199,7 +198,9 @@ This replaces radio version 1 outright, with no compatibility layer (D42).
 - **Beacons** are normal frames under the team key, and only go out while an agent is attached. The
   off-by-default rule for beaconing and location sharing does not change. All team members can see a
   shared position. To share with a subset, an agent sends the position as a channel message instead.
-- **Attached** means a trusted Bluetooth connection is up, or USB traffic arrived recently.
+- **Attached** means a trusted Bluetooth connection is up, or USB traffic arrived within the last 8
+  seconds. After an agent attaches, the first beacon waits one configured interval, so a link that keeps
+  dropping delays beacons.
   Focus does not matter, so a backgrounded phone that is still connected keeps its radio operating
   normally. The existing [`HostLinks::ready`](../../firmware/components/reaper_device/host_links.cpp)
   check cannot define this over Bluetooth, because it goes false after 8 seconds without a reply and
@@ -316,7 +317,7 @@ of a new message only by asking. A sleeping phone has nothing to wake it.
 
 | Where | Change |
 | --- | --- |
-| Firmware | A small capability-gated **inbox changed** alert over a trusted, subscribed link, carrying only the latest sequence. An app cannot produce this itself, which is the reason D41 asks for |
+| Firmware | A small **inbox changed** alert, built in `v0.9.0`, sent only to an agent that asks for it in `hello`, carrying only the latest sequence. An app cannot produce this itself, which is the reason D41 asks for |
 | iOS app | Use the `bluetooth-central` background mode and Core Bluetooth state restoration, so iOS wakes the app when the alert arrives |
 | Android app | Use a `connectedDevice` foreground service, which shows a permanent notification while running |
 | Both apps | A quieter background session, because the 2-second ping cannot run in the background. Show the alert first, then fetch messages as time allows |

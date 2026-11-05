@@ -13,3 +13,6 @@ The board radio adapter uses a pinned Semtech driver behind bounded busy/SPI ope
 Inbox protocol version 2 appends the original RF destination to each received item (`broadcast` or the addressed node identity). This lets agents keep channel broadcasts out of direct-message threads while preserving channel IDs. Version-1 firmware remains readable; those older inbox items lack destination metadata and are shown only in their channel view because their original route cannot be reconstructed. The web portal groups configured channel slots separately from peer conversations. Version-2 firmware source advertises inboxVersion 2; boards must be updated before inbound direct messages can be classified accurately.
 
 The OLED shows effective RADIO OFF/RX/TX/FAULT, storage health and USB activity. Diagnostics expose probe failures even when the requested mode is off. User-confirmed antenna facts are recorded in the board profile; no timezone-based region inference is allowed.
+
+An inbox item may hold bytes that are neither text nor a known envelope. See [Agent features, payloads and inbox alert](protocol.md#agent-features-payloads-and-inbox-alert-d50).
+

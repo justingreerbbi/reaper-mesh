@@ -49,9 +49,10 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 ## Current focus (November 4, 2026)
 
 - The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).
-  Its step 1, the new radio format, is the next firmware work and comes before field qualification.
+  Its step 1 is built as firmware `v0.9.0` and passes on two boards, so field qualification runs on
+  these frames. Both boards are in Open mode, which protects nothing.
   Existing behavior stands until each step ships, and an independent security review is still open.
-- Phase 4 device firmware work follows D50 step 1: screen and
+- Phase 4 device firmware work can continue while waiting for a third board: screen and
   buttons (step 1 done on the T-Beam; screen settings in the portal and the T-Beam battery
   indicator built in `v0.2.0`). The device has no settings page; device settings are changed
   in the portal. See the roadmap's Phase 4 delivery order and

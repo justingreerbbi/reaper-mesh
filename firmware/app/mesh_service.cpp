@@ -40,8 +40,7 @@ std::uint64_t destination(const d::Text<64>& text) {
   }
   return value == m::kBroadcast ? 0 : value;
 }
-m::MessageKey key(const d::Text<64>& id, std::uint64_t node,
-                  const std::array<std::uint8_t, 16>& boot) {
+m::MessageKey key(const d::Text<64>& id, std::uint64_t node, std::uint32_t boot) {
   m::MessageKey k{};
   k.origin = node;
   k.boot = boot;
@@ -61,9 +60,9 @@ m::MessageKey key(const d::Text<64>& id, std::uint64_t node,
 }
 d::Text<64> message_id(const m::MessageKey& key) {
   char id[64]{};
-  for (std::size_t i = 0; i < 16; ++i)
-    std::snprintf(id + i * 2, 3, "%02x", key.boot[i]);
-  std::snprintf(id + 32, sizeof(id) - 32, "_%lu", static_cast<unsigned long>(key.sequence));
+  // USB keeps its 32-digit form, so agents see the same message ID shape as before.
+  std::snprintf(id, sizeof(id), "%032lx_%lu", static_cast<unsigned long>(key.boot),
+                static_cast<unsigned long>(key.sequence));
   d::Text<64> value{};
   literal(value, id);
   return value;
@@ -89,13 +88,15 @@ void increment(std::uint32_t& n) {
 }
 }  // namespace
 MeshService::MeshService(d::MessageQueue& messages, d::Inbox& inbox, d::RadioInfo& info,
-                         d::Text<64> device, std::array<std::uint8_t, 16> boot, std::uint64_t node,
-                         bool verified)
+                         d::Network& network, d::Text<64> device, std::uint32_t boot,
+                         const reaper::crypto::Key& seed, std::uint64_t node, bool verified)
     : messages_(messages),
       inbox_(inbox),
       info_(info),
+      network_(network),
       device_(device),
       boot_(boot),
+      nonce_seed_(seed),
       node_(node),
       antenna_verified_(verified),
       radio_(bus_),
@@ -106,6 +107,7 @@ MeshService::MeshService(d::MessageQueue& messages, d::Inbox& inbox, d::RadioInf
   info_.tx_boost = Driver::kHasBoost;
 }
 void MeshService::begin() {
+  mesh_.link().seed(nonce_seed_);
   info_.probe = bus_.begin() && radio_.configure(m::TxLevel::Low, false, false, false);
   radio_.stop();
   if (!info_.probe) {
@@ -117,9 +119,21 @@ void MeshService::begin() {
     literal(info_.reason, reason);
   }
 }
-void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
+void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now, bool attached) {
+  // New keys cancel everything queued under the old ones, then the radio restarts below.
+  if (applied_network_ != network_.revision()) {
+    applied_network_ = network_.revision();
+    if (configured_)
+      messages_.quiesce();
+    mesh_.quiesce();
+    network_.apply(mesh_.link());
+    configured_ = false;
+  }
+  // Relaying needs only the radio. Sending anything of its own also needs the team key.
+  const auto may_transmit = [this] { return boot_ && radio_.healthy() && antenna_verified_; };
+  const auto may_originate = [&] { return may_transmit() && mesh_.link().can_originate(); };
   discovery_.policy(snapshot ? &snapshot->settings : nullptr,
-                    snapshot && radio_.healthy() && antenna_verified_, now);
+                    snapshot && attached && may_originate(), now);
   if (!snapshot) {
     radio_.stop();
     mesh_.quiesce();
@@ -183,9 +197,12 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
     literal(info_.state, radio_.transmitting() ? "transmitting" : "receiving");
     literal(info_.reason, settings_.radio.mode == d::RadioMode::Receive ? "receive-only"
                           : !antenna_verified_                          ? "antenna-unconfirmed"
+                          : !boot_                                      ? "frame-keys-unavailable"
+                          : network_.mode() == d::NetworkMode::Unset    ? "network-not-chosen"
+                          : !mesh_.link().can_originate()               ? "team-key-needed"
                                                                         : "ready");
   }
-  discovery_.policy(&snapshot->settings, radio_.healthy() && antenna_verified_, now);
+  discovery_.policy(&snapshot->settings, attached && may_originate(), now);
   settings_.position = snapshot->settings.position;
   settings_.discovery = snapshot->settings.discovery;
   settings_.label = snapshot->settings.label;
@@ -202,12 +219,9 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
   }
   if (event.received) {
     increment(info_.received);
-    m::Packet packet{};
-    if (m::decode_packet(event.bytes.data(), event.size, packet) &&
-        packet.kind != m::PacketKind::Data && packet.kind != m::PacketKind::Ack)
-      discovery_.receive(packet, now);
-    else
-      mesh_.receive(event.bytes.data(), event.size, now);
+    m::Packet control{};
+    if (mesh_.receive(event.bytes.data(), event.size, now, control) == m::Received::Control)
+      discovery_.receive(control, now);
   }
   const auto& incoming = mesh_.incoming();
   for (std::size_t i = 0; i < incoming.size(); ++i) {
@@ -236,7 +250,7 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
       messages_.fail(message.message_id, "invalid-destination");
       continue;
     }
-    if (!radio_.healthy() || settings_.radio.mode != d::RadioMode::Mesh || !antenna_verified_) {
+    if (!may_originate() || settings_.radio.mode != d::RadioMode::Mesh) {
       char reason[65]{};
       std::memcpy(reason, info_.reason.bytes.data(), info_.reason.length);
       messages_.fail(message.message_id, reason);
@@ -262,30 +276,32 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now) {
         messages_.acknowledge(message.message_id, message.destination, now);
     }
   }
-  if (radio_.healthy() && settings_.radio.mode == d::RadioMode::Mesh && antenna_verified_ && !tx_) {
+  if (may_transmit() && settings_.radio.mode == d::RadioMode::Mesh && !tx_) {
     if (!pending_) {
       control_ = false;
-      if (mesh_.next_tx(now, packet_)) {
+      m::Packet report{};
+      if (mesh_.next_tx(now, frame_)) {
         pending_ = true;
         pending_at_ = now;
-      } else if (discovery_.next_tx(now, packet_)) {
+      } else if (discovery_.next_tx(now, report)) {
         control_ = true;
-        pending_ = true;
-        pending_at_ = now;
+        if (mesh_.link().seal(report, frame_)) {
+          pending_ = true;
+          pending_at_ = now;
+        } else {
+          discovery_.complete_tx(false, now);
+        }
       }
     }
     if (pending_) {
-      std::array<std::uint8_t, m::kMaxPacketBytes> bytes{};
-      std::size_t size = 0;
-      if (!m::encode_packet(packet_, bytes.data(), bytes.size(), size) ||
-          (control_ ? now >= discovery_.flight_deadline() : now - pending_at_ >= 10000)) {
+      if (control_ ? now >= discovery_.flight_deadline() : now - pending_at_ >= 10000) {
         if (control_)
           discovery_.complete_tx(false, now);
         else
           mesh_.complete_tx(false, now);
         pending_ = false;
       } else {
-        const auto result = radio_.transmit(bytes.data(), size, now);
+        const auto result = radio_.transmit(frame_.bytes.data(), frame_.size, now);
         if (result == r::Start::Started) {
           tx_ = true;
           pending_ = false;

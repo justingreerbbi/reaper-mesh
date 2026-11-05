@@ -1,7 +1,9 @@
 #pragma once
-#include "reaper/radio_packet.hpp"
+#include "reaper/frame.hpp"
 namespace reaper::mesh {
 enum class SendState { Queued, Transmitted, Acknowledged, Failed };
+// Handled includes frames relayed without being read. Control hands discovery traffic back.
+enum class Received { Dropped, Handled, Control };
 struct Outbound {
   bool used = false;
   MessageKey key{};
@@ -32,8 +34,13 @@ class Mesh {
       : node_(node), relay_(relay), channels_(channels), hops_(hops <= 7 ? hops : 0) {}
   bool enqueue(const MessageKey&, std::uint64_t destination, std::uint32_t channel,
                const std::uint8_t*, std::size_t, std::uint64_t now);
-  bool receive(const std::uint8_t*, std::size_t, std::uint64_t now);
-  bool next_tx(std::uint64_t now, Packet&);
+  Received receive(const std::uint8_t*, std::size_t, std::uint64_t now, Packet& control);
+  bool receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
+    Packet ignored{};
+    return receive(bytes, size, now, ignored) == Received::Handled;
+  }
+  bool next_tx(std::uint64_t now, Frame&);
+  FrameLink& link() { return link_; }
   void complete_tx(bool success, std::uint64_t now);
   void tick(std::uint64_t now);
   void quiesce();
@@ -48,16 +55,15 @@ class Mesh {
  private:
   struct Forward {
     bool used = false;
-    Packet packet{};
+    Frame frame{};
     std::uint64_t due = 0;
   };
   struct Seen {
     bool used = false;
-    MessageKey key{};
-    PacketKind kind{};
-    std::uint8_t index = 0;
+    std::array<std::uint8_t, 8> nonce{};
     std::uint64_t until = 0;
   };
+  FrameLink link_{};
   std::uint64_t node_;
   bool relay_;
   ChannelSet channels_;
@@ -67,14 +73,15 @@ class Mesh {
   std::array<Forward, 16> forward_{};
   std::array<Seen, 64> seen_{};
   bool boot_set_ = false;
-  std::array<std::uint8_t, 16> boot_{};
+  std::uint32_t boot_ = 0;
   std::uint32_t highest_ = 0;
   std::uint64_t submitted_ = 0;
   bool in_flight_ = false;
   int flight_index_ = -1;
   std::size_t next_out_ = 0;
-  bool forward(const Packet&, std::uint64_t now, bool ack = false);
-  bool seen(const Packet&, std::uint64_t now);
+  bool queue_frame(const Frame&, std::uint64_t now);
+  bool relay_frame(const std::uint8_t*, std::size_t, std::uint64_t now);
+  bool seen(const std::uint8_t* frame, std::uint64_t now);
   void ack(Inbound&, std::uint64_t now);
 };
 }  // namespace reaper::mesh

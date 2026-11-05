@@ -57,7 +57,8 @@ execFileSync(
   { stdio: 'pipe', timeout: 30000 },
 );
 for (const [scenario, description] of Object.entries({
-  receive: 'configures receive-only without transmitting and rejects bad CRC packets',
+  receive:
+    'configures receive-only without transmitting and rejects packets that are not version 2 frames',
   tx: 'requires explicit TX admission, budgets airtime and waits for TX_DONE',
   faults: 'fails closed on calibration, SPI and busy faults without false TX success',
 })) {

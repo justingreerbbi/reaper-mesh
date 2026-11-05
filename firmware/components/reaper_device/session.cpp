@@ -1,4 +1,5 @@
 #include "reaper/session.hpp"
+#include "reaper/crypto.hpp"
 #include "reaper/version.hpp"
 #include <cstring>
 #include <cstdio>
@@ -47,15 +48,34 @@ const char* outcome(Outcome value) {
       return "unknown";
   }
 }
+// A key from its USB form: exactly 32 bytes as lowercase hex.
+bool hex_key(const p::FieldValue& field, crypto::Key& key) {
+  if (field.length != key.size() * 2)
+    return false;
+  const auto digit = [](std::uint8_t c) {
+    return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
+  };
+  for (std::size_t i = 0; i < key.size(); ++i) {
+    const int high = digit(field.text[i * 2]), low = digit(field.text[i * 2 + 1]);
+    if (high < 0 || low < 0)
+      return false;
+    key[i] = static_cast<std::uint8_t>(high << 4 | low);
+  }
+  return true;
+}
+// The bits of hello's agentFeatures.
+constexpr std::uint32_t kAgentWantsAlerts = 1, kAgentHandlesPayloads = 2;
 }  // namespace
 Session::Session(Configuration& authority, Text<64> device, Text<64> boot, MessageQueue* messages,
-                 RadioInfo* radio, Inbox* inbox, Discovery* discovery, PairingControl* pairing)
+                 RadioInfo* radio, Inbox* inbox, Discovery* discovery, PairingControl* pairing,
+                 NetworkControl* network)
     : authority_(authority),
       messages_(messages),
       radio_(radio),
       inbox_(inbox),
       discovery_(discovery),
       pairing_(pairing),
+      network_(network),
       device_(device),
       boot_(boot) {}
 void Session::reset() {
@@ -69,6 +89,21 @@ void Session::error(p::Message& reply) const {
   set(reply.fields[p::kErrorLink], link_);
   set(reply.fields[p::kErrorBoot], boot_);
   literal(reply.fields[p::kErrorCode], "storage-unavailable");
+}
+bool Session::take_alert(p::Message& alert) {
+  if (!(agent_features_ & kAgentWantsAlerts) || !inbox_ || !synchronized_ ||
+      inbox_->latest() == alerted_)
+    return false;
+  alert = {};
+  alert.type = p::MessageType::InboxChanged;
+  set(alert.fields[p::kInboxChangedLink], link_);
+  set(alert.fields[p::kInboxChangedBoot], boot_);
+  number(alert.fields[p::kInboxChangedLatest], inbox_->latest());
+  return true;
+}
+void Session::alert_sent() {
+  if (inbox_)
+    alerted_ = inbox_->latest();
 }
 bool Session::take_error(p::Message& reply) {
   if (!fault_)
@@ -94,6 +129,9 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     }
     compatible_ = request.fields[p::kHelloMinVersion].number <= 1 &&
                   request.fields[p::kHelloMaxVersion].number >= 1;
+    agent_features_ = request.fields[p::kHelloAgentFeatures].present
+                          ? request.fields[p::kHelloAgentFeatures].number
+                          : 0;
     const auto& owner = request.fields[p::kHelloOwner];
     if (owner.present && compatible_) {
       owner_.assign(owner.text.data(), owner.length);
@@ -110,7 +148,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeFeatures],
            23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) |
                (discovery_ ? 384 : 0) | 512 | 1024 | 2048 |
-               (radio_ && radio_->tx_boost ? 4096 : 0) | (pairing_ ? 8192 : 0));
+               (radio_ && radio_->tx_boost ? 4096 : 0) | (pairing_ ? 8192 : 0) |
+               (network_ ? 16384 : 0) | (inbox_ ? 32768 : 0));
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -118,7 +157,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     number(reply.fields[p::kWelcomeRegions], 3);
     number(reply.fields[p::kWelcomeMaxLabelBytes], 64);
     literal(reply.fields[p::kWelcomeFirmware], kFirmwareVersion);
-    number(reply.fields[p::kWelcomeRadioVersion], radio_ ? 1 : 0);
+    number(reply.fields[p::kWelcomeRadioVersion], radio_ ? 2 : 0);
     number(reply.fields[p::kWelcomeRadioSchema], 1);
     number(reply.fields[p::kWelcomeMaxChannels], 8);
     number(reply.fields[p::kWelcomeScreenVersion], 1);
@@ -200,8 +239,8 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
         char node[32]{}, nonce[33]{};
         std::snprintf(node, sizeof(node), "node-%016llx",
                       static_cast<unsigned long long>(peer->key.origin));
-        for (std::size_t i = 0; i < 16; ++i)
-          std::snprintf(nonce + i * 2, 3, "%02x", peer->key.boot[i]);
+        // USB keeps its 32-digit form, so agents see the same field as before.
+        std::snprintf(nonce, sizeof(nonce), "%032lx", static_cast<unsigned long>(peer->key.boot));
         literal(reply.fields[p::kNodeReplyNode], node);
         literal(reply.fields[p::kNodeReplyPeerBoot], nonce);
         number(reply.fields[p::kNodeReplyPeerSequence], peer->key.sequence);
@@ -245,6 +284,62 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
       literal(reply.fields[p::kPairingStatusName], view.name);
     return true;
   }
+  if (request.type == p::MessageType::NetworkQuery || request.type == p::MessageType::NetworkFill ||
+      request.type == p::MessageType::TeamLoad || request.type == p::MessageType::NetworkErase) {
+    if (!network_ || !synchronized_ || !same(request.fields[1], boot_))
+      return false;
+    const auto number_at = request.fields[2].number;
+    const char* state = "ok";
+    // Replacing or erasing keys needs physical access: a cable, or the window opened with the
+    // button. A paired phone must not be able to move a radio to another network.
+    const bool window = pairing_ && !std::strcmp(pairing_->view(now_).state, "open");
+    if (request.type == p::MessageType::NetworkFill) {
+      crypto::Key relay{}, device{};
+      const bool has_relay = request.fields[p::kNetworkFillRelayChain].present,
+                 has_device = request.fields[p::kNetworkFillDeviceKey].present;
+      if (!admitted_ || (!physical_ && !window))
+        state = "refused";
+      else if ((has_relay && !hex_key(request.fields[p::kNetworkFillRelayChain], relay)) ||
+               (has_device && !hex_key(request.fields[p::kNetworkFillDeviceKey], device)))
+        state = "invalid";
+      else
+        state = network_->fill(request.fields[p::kNetworkFillNetworkMode].number,
+                               request.fields[p::kNetworkFillGeneration].number,
+                               request.fields[p::kNetworkFillEpoch].number,
+                               has_relay ? &relay : nullptr, has_device ? &device : nullptr);
+      crypto::wipe(relay.data(), relay.size());
+      crypto::wipe(device.data(), device.size());
+    } else if (request.type == p::MessageType::TeamLoad) {
+      // Any admitted agent may load it: the team key is memory only and changes no stored state.
+      crypto::Key team{};
+      if (!admitted_)
+        state = "refused";
+      else if (!hex_key(request.fields[p::kTeamLoadTeamChain], team))
+        state = "invalid";
+      else
+        state = network_->load_team(request.fields[p::kTeamLoadGeneration].number,
+                                    request.fields[p::kTeamLoadEpoch].number, team);
+      crypto::wipe(team.data(), team.size());
+    } else if (request.type == p::MessageType::NetworkErase) {
+      state = !admitted_ || (!physical_ && !window) ? "refused" : network_->erase();
+    }
+    const auto view = network_->view();
+    reply.type = p::MessageType::NetworkStatus;
+    set(reply.fields[p::kNetworkStatusLink], link_);
+    set(reply.fields[p::kNetworkStatusBoot], boot_);
+    number(reply.fields[p::kNetworkStatusRequest], number_at);
+    literal(reply.fields[p::kNetworkStatusState],
+            !view.healthy && !std::strcmp(state, "ok") ? "storage-failed" : state);
+    number(reply.fields[p::kNetworkStatusNetworkMode], view.mode);
+    number(reply.fields[p::kNetworkStatusGeneration], view.generation);
+    number(reply.fields[p::kNetworkStatusEpoch], view.epoch);
+    number(reply.fields[p::kNetworkStatusTeamLoaded], view.team_loaded ? 1 : 0);
+    if (*view.relay_fingerprint)
+      literal(reply.fields[p::kNetworkStatusRelayFingerprint], view.relay_fingerprint);
+    if (*view.team_fingerprint)
+      literal(reply.fields[p::kNetworkStatusTeamFingerprint], view.team_fingerprint);
+    return true;
+  }
   if (request.type == p::MessageType::RadioQuery || request.type == p::MessageType::InboxQuery ||
       request.type == p::MessageType::InboxRead) {
     if (!synchronized_ || !same(request.fields[1], boot_))
@@ -280,7 +375,17 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     const auto sequence = request.fields[p::kInboxReadSequence].number;
     const auto part = request.fields[p::kInboxReadPart].number;
     const auto* item = inbox_->find(sequence);
-    if (!item || part >= 32 || part * 32 >= item->size) {
+    // An agent that has not declared it handles unknown payloads could stop reading its inbox on
+    // one. It gets readable text in that message's place, with the same identity.
+    static constexpr char kPlaceholder[] = "Unsupported message";
+    const bool placeholder =
+        item && !(agent_features_ & kAgentHandlesPayloads) &&
+        !mesh::readable_by_any_agent(item->bytes.data(), item->size, item->channel);
+    const auto* item_bytes = !item         ? nullptr
+                             : placeholder ? reinterpret_cast<const std::uint8_t*>(kPlaceholder)
+                                           : item->bytes.data();
+    const std::size_t item_size = !item ? 0 : placeholder ? sizeof(kPlaceholder) - 1 : item->size;
+    if (!item || part >= 32 || part * 32 >= item_size) {
       reply.type = p::MessageType::InboxMissing;
       set(reply.fields[p::kInboxMissingLink], link_);
       set(reply.fields[p::kInboxMissingBoot], boot_);
@@ -297,16 +402,16 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     set(reply.fields[p::kInboxItemMessageId], item->message_id);
     number(reply.fields[p::kInboxItemChannel], item->channel);
     number(reply.fields[p::kInboxItemPart], part);
-    number(reply.fields[p::kInboxItemCount], (item->size + 31) / 32);
+    number(reply.fields[p::kInboxItemCount], (item_size + 31) / 32);
     set(reply.fields[p::kInboxItemDestination], item->destination);
-    const auto remaining = item->size - part * 32;
+    const auto remaining = item_size - part * 32;
     const auto size = remaining < 32 ? remaining : 32;
     auto& data = reply.fields[p::kInboxItemData];
     data.present = true;
     data.length = size * 2;
     constexpr char digits[] = "0123456789abcdef";
     for (std::size_t i = 0; i < size; ++i) {
-      auto byte = item->bytes[part * 32 + i];
+      auto byte = item_bytes[part * 32 + i];
       data.text[2 * i] = digits[byte >> 4];
       data.text[2 * i + 1] = digits[byte & 15];
     }
@@ -367,6 +472,9 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     return true;
   }
   if (request.type == p::MessageType::Sync) {
+    // Alerts are for messages from here on. The agent reads what is already waiting by query.
+    if (!synchronized_ && inbox_)
+      alerted_ = inbox_->latest();
     reply.type = p::MessageType::Snapshot;
     set(reply.fields[p::kSnapshotLink], link_);
     set(reply.fields[p::kSnapshotBoot], boot_);

@@ -102,6 +102,8 @@ int routing() {
   send(d::HostLink::Ble, sync("ble-1"), 110);
   CHECK(wire.writes[kBle] == 2 && session.synchronized());
   CHECK(links.ready(d::HostLink::Ble, 120) && !links.ready(d::HostLink::Usb, 120));
+  // A background app may stay quiet for minutes and is still attached while its link is up.
+  CHECK(links.attached(120) && links.attached(110 + 100 * d::HostLinks::kActiveMs));
   CHECK(!links.ready(d::HostLink::Ble, 110 + d::HostLinks::kActiveMs));
 
   // A link that does not own the session gets no answer and cannot end it.
@@ -201,6 +203,51 @@ bool is(const p::FieldValue& field, const char* value) {
   return field.length == std::strlen(value) &&
          std::memcmp(field.text.data(), value, field.length) == 0;
 }
+int alerts() {
+  Store store;
+  d::Configuration authority(store, text<64>("boot-A"));
+  d::Inbox inbox;
+  d::MessageQueue messages(text<64>("boot-A"));
+  d::RadioInfo info{};
+  d::Session session(authority, text<64>("device-A"), text<64>("boot-A"), &messages, &info, &inbox);
+  Wire wire;
+  static d::HostLinks links(session, write, &wire);
+  const auto send = [&](d::HostLink link, const std::vector<std::uint8_t>& bytes,
+                        std::uint64_t now) { links.feed(link, bytes.data(), bytes.size(), now); };
+  p::Message asking{};
+  asking.type = p::MessageType::Hello;
+  const auto put = [](p::FieldValue& field, const char* value) {
+    field.present = true;
+    field.length = std::strlen(value);
+    std::memcpy(field.text.data(), value, field.length);
+  };
+  const auto number = [](p::FieldValue& field, std::uint32_t value) {
+    field.present = true;
+    field.number = value;
+  };
+  put(asking.fields[p::kHelloLink], "ble-1");
+  put(asking.fields[p::kHelloOwner], "agent-A");
+  number(asking.fields[p::kHelloMinVersion], 1);
+  number(asking.fields[p::kHelloMaxVersion], 1);
+  number(asking.fields[p::kHelloAgentFeatures], 1);
+  std::array<std::uint8_t, p::kMaxEncoded + 1> encoded{};
+  std::size_t size = 0;
+  CHECK(p::encode_frame(asking, encoded.data(), encoded.size(), size));
+  send(d::HostLink::Ble, std::vector<std::uint8_t>(encoded.begin(), encoded.begin() + size), 10);
+  send(d::HostLink::Ble, sync("ble-1"), 20);
+  CHECK(session.synchronized());
+  const auto before = wire.writes[kBle];
+  links.tick(30);
+  CHECK(wire.writes[kBle] == before);  // Nothing new.
+  const std::uint8_t body[] = {'h', 'i'};
+  CHECK(inbox.append(text<64>("node-B"), text<64>("m1"), text<64>("broadcast"), 0, body, 2));
+  links.tick(40);
+  // Goes to the owner's link only, once.
+  CHECK(wire.writes[kBle] == before + 1 && wire.writes[kUsb] == 0);
+  links.tick(50);
+  CHECK(wire.writes[kBle] == before + 1);
+  return 0;
+}
 int pairing() {
   Store store;
   d::Configuration authority(store, text<64>("boot-A"));
@@ -219,7 +266,10 @@ int pairing() {
   CHECK(captured.last.fields[p::kWelcomeFeatures].number & 8192);
   send(d::HostLink::Usb, pairing_request("usb-1", 1), 20);
   CHECK(!captured.seen && control.opens == 0);
+  CHECK(!links.attached(25));
   send(d::HostLink::Usb, sync("usb-1"), 30);
+  // A UART shows no disconnect, so USB counts as attached only with recent traffic.
+  CHECK(links.attached(31) && !links.attached(30 + d::HostLinks::kActiveMs));
 
   // USB can read the state without opening, then open, and sees the passkey.
   send(d::HostLink::Usb, pairing_request("usb-1", 0), 40);
@@ -313,6 +363,8 @@ int main(int argc, char** argv) {
   const std::string scenario = argv[1];
   if (scenario == "routing")
     return routing();
+  if (scenario == "alerts")
+    return alerts();
   if (scenario == "pairing")
     return pairing();
   if (scenario == "window")

@@ -15,17 +15,50 @@ namespace m = reaper::mesh;
 m::MessageKey key(std::uint32_t seq = 1, std::uint64_t origin = 1) {
   m::MessageKey k{};
   k.origin = origin;
-  k.boot[0] = 42;
+  k.boot = 42;
   k.sequence = seq;
   return k;
 }
+reaper::crypto::Key filled(std::uint8_t value) {
+  reaper::crypto::Key k{};
+  k.fill(value);
+  return k;
+}
+// A node in Open mode, with a fixed nonce seed so each run is the same.
+struct Node : m::Mesh {
+  template <typename... Args>
+  explicit Node(Args... args) : m::Mesh(args...) {
+    static std::uint8_t next_seed = 100;
+    link().seed(filled(next_seed++));
+    if (!link().use_open_mode())
+      std::abort();
+  }
+};
+// Plays the part of any other radio on the air.
+m::FrameLink& air() {
+  static m::FrameLink link = [] {
+    m::FrameLink made;
+    made.seed(filled(1));
+    if (!made.use_open_mode())
+      std::abort();
+    return made;
+  }();
+  return link;
+}
 std::vector<std::uint8_t> wire(const m::Packet& p) {
-  std::vector<std::uint8_t> bytes(m::kMaxPacketBytes);
-  std::size_t size = 0;
-  if (!m::encode_packet(p, bytes.data(), bytes.size(), size))
+  m::Frame frame{};
+  if (!air().seal(p, frame))
     std::abort();
-  bytes.resize(size);
-  return bytes;
+  return {frame.bytes.begin(), frame.bytes.begin() + frame.size};
+}
+// Takes the next frame a node sends, both as bytes and as the packet inside it.
+bool pull(m::Mesh& node, std::uint64_t now, m::Packet& p, std::vector<std::uint8_t>& bytes) {
+  m::Frame frame{};
+  if (!node.next_tx(now, frame))
+    return false;
+  bytes.assign(frame.bytes.begin(), frame.bytes.begin() + frame.size);
+  p = {};
+  return air().receive(bytes.data(), bytes.size(), p) == m::FrameResult::Opened;
 }
 unsigned completed(const m::Mesh& node) {
   unsigned n = 0;
@@ -40,10 +73,96 @@ int main(int argc, char** argv) {
   const std::string scenario = argv[1];
   std::array<std::uint8_t, 1024> body{};
   body.fill('x');
-  if (scenario == "line" || scenario == "loss" || scenario == "asymmetric" ||
-      scenario == "broadcast" || scenario == "hops") {
-    m::Mesh a(1, true, {}, scenario == "hops" ? 0 : 3), b(2, true), c(3, true);
-    m::Mesh* nodes[] = {&a, &b, &c};
+  if (scenario == "relayonly") {
+    // The team's sender and receiver are out of range of each other. The relay between them holds
+    // only the relay key.
+    const auto relay_chain = filled(0x11), team_chain = filled(0x22), other = filled(0x33);
+    m::Mesh a(1, false), relay(2, true), c(3, false), outsider(4, true);
+    a.link().seed(filled(1));
+    c.link().seed(filled(3));
+    relay.link().seed(filled(2));
+    outsider.link().seed(filled(4));
+    CHECK(a.link().set_chains(relay_chain, &team_chain, 0));
+    CHECK(c.link().set_chains(relay_chain, &team_chain, 0));
+    CHECK(relay.link().set_chains(relay_chain, nullptr, 0));
+    CHECK(outsider.link().set_chains(other, &other, 0));
+    m::Mesh* line[] = {&a, &relay, &c};
+    CHECK(a.enqueue(key(), 3, 0, body.data(), 400, 0));
+    CHECK(!relay.enqueue(key(1, 2), 3, 0, body.data(), 2, 0));
+    bool relay_sent = false;
+    for (std::uint64_t now = 0; now <= 8000 && a.outgoing()[0].state != m::SendState::Acknowledged;
+         now += 5)
+      for (int from = 0; from < 3; ++from) {
+        m::Frame frame{};
+        if (!line[from]->next_tx(now, frame))
+          continue;
+        line[from]->complete_tx(true, now);
+        relay_sent = relay_sent || from == 1;
+        if (from == 1) {
+          a.receive(frame.bytes.data(), frame.size, now);
+          c.receive(frame.bytes.data(), frame.size, now);
+        } else {
+          relay.receive(frame.bytes.data(), frame.size, now);
+        }
+        // An outsider hears everything and can neither read nor relay it.
+        CHECK(!outsider.receive(frame.bytes.data(), frame.size, now));
+        m::Frame nothing{};
+        CHECK(!outsider.next_tx(now + 200, nothing));
+      }
+    CHECK(relay_sent && completed(c) == 1 && completed(relay) == 0);
+    CHECK(a.outgoing()[0].state == m::SendState::Acknowledged);
+    for (const auto& r : relay.incoming())
+      CHECK(!r.used);
+    // An outsider's own frame goes nowhere.
+    CHECK(outsider.link().use_open_mode());
+    CHECK(outsider.enqueue(key(1, 4), 3, 0, body.data(), 2, 9000));
+    m::Frame injected{};
+    CHECK(outsider.next_tx(9000, injected));
+    CHECK(!relay.receive(injected.bytes.data(), injected.size, 9001));
+    CHECK(!c.receive(injected.bytes.data(), injected.size, 9001));
+    m::Frame nothing{};
+    CHECK(!relay.next_tx(10000, nothing));
+    // A thief with the relay key gets junk forwarded, but team members reject and do not forward
+    // it.
+    m::Mesh thief(5, false), member(6, true);
+    thief.link().seed(filled(5));
+    member.link().seed(filled(6));
+    CHECK(thief.link().set_chains(relay_chain, &other, 0));
+    CHECK(member.link().set_chains(relay_chain, &team_chain, 0));
+    CHECK(thief.enqueue(key(1, 5), 3, 0, body.data(), 2, 11000));
+    m::Frame forged{};
+    CHECK(thief.next_tx(11000, forged));
+    CHECK(relay.receive(forged.bytes.data(), forged.size, 11001));
+    CHECK(relay.next_tx(12000, nothing));
+    CHECK(!member.receive(forged.bytes.data(), forged.size, 11001));
+    CHECK(!member.next_tx(12000, nothing));
+    CHECK(completed(c) == 1);
+  } else if (scenario == "unjoined") {
+    // A team radio relays a channel it has not joined, and does not deliver it.
+    const std::uint32_t channel = 0x1a2b3c4d;
+    m::ChannelSet members{};
+    CHECK(members.add(channel));
+    Node a(1, false, members), b(2, true), c(3, false, members);
+    CHECK(a.enqueue(key(), 3, channel, body.data(), 2, 0));
+    m::Packet p{};
+    std::vector<std::uint8_t> bytes;
+    CHECK(pull(a, 0, p, bytes));
+    a.complete_tx(true, 0);
+    CHECK(b.receive(bytes.data(), bytes.size(), 1));
+    CHECK(completed(b) == 0);
+    CHECK(pull(b, 200, p, bytes));
+    CHECK(p.hops == 2 && p.channel == channel);
+    b.complete_tx(true, 200);
+    CHECK(c.receive(bytes.data(), bytes.size(), 201));
+    CHECK(completed(c) == 1);
+    // A duplicate is not relayed twice.
+    CHECK(b.receive(bytes.data(), bytes.size(), 202));
+    CHECK(!pull(b, 400, p, bytes));
+  } else if (scenario == "line" || scenario == "loss" || scenario == "asymmetric" ||
+             scenario == "broadcast" || scenario == "hops") {
+    Node a(1, true, m::ChannelSet{}, std::uint8_t(scenario == "hops" ? 0 : 3)), b(2, true),
+        c(3, true);
+    Node* nodes[] = {&a, &b, &c};
     const bool broadcast = scenario == "broadcast";
     CHECK(a.enqueue(key(), broadcast ? m::kBroadcast : 3, 0, body.data(), body.size(), 0));
     struct Event {
@@ -67,12 +186,12 @@ int main(int argc, char** argv) {
       }
       for (int from = 0; from < 3; ++from) {
         m::Packet p{};
-        if (!nodes[from]->next_tx(now, p))
+        std::vector<std::uint8_t> bytes;
+        if (!pull(*nodes[from], now, p, bytes))
           continue;
         transmissions++;
         if (p.kind == m::PacketKind::Ack)
           acks++;
-        auto bytes = wire(p);
         nodes[from]->complete_tx(true, now);
         for (int to = 0; to < 3; ++to) {
           if (to == from || (!broadcast && std::abs(to - from) != 1))
@@ -120,29 +239,38 @@ int main(int argc, char** argv) {
     envelope[17] = 1;
     m::ChannelSet members{};
     CHECK(members.add(channel));
-    m::Mesh sender(1, false, members), receiver(2, false, members), outsider(3, false);
+    Node sender(1, false, members), receiver(2, false, members), outsider(3, false);
     auto identity = key();
     CHECK(!sender.enqueue(identity, 2, 0x1a2b3c4e, envelope.data(), envelope.size(), 0));
-    auto rme1 = envelope;
-    rme1[3] = 1;
-    CHECK(!sender.enqueue(identity, 2, channel, rme1.data(), rme1.size(), 0));
     CHECK(sender.enqueue(identity, 2, channel, envelope.data(), envelope.size(), 0));
     m::Packet packet{};
-    CHECK(sender.next_tx(0, packet));
+    std::vector<std::uint8_t> bytes;
+    CHECK(pull(sender, 0, packet, bytes));
     CHECK(packet.channel == channel && packet.bytes[0] == 'R' && packet.bytes[2] == 'E');
-    auto bytes = wire(packet);
     CHECK(!outsider.receive(bytes.data(), bytes.size(), 1));
     CHECK(receiver.receive(bytes.data(), bytes.size(), 1));
     sender.complete_tx(true, 2);
     const auto& received = receiver.incoming()[0];
     CHECK(received.complete && received.size == envelope.size());
     CHECK(std::memcmp(received.bytes.data(), envelope.data(), envelope.size()) == 0);
-    CHECK(receiver.next_tx(200, packet) && packet.kind == m::PacketKind::Ack);
+    CHECK(pull(receiver, 200, packet, bytes) && packet.kind == m::PacketKind::Ack);
+  } else if (scenario == "opaque") {
+    // Bytes that are neither text nor a known envelope cross the mesh unchanged.
+    Node a(1), b(2);
+    const std::array<std::uint8_t, 4> binary{0xff, 0x00, 0xfe, 0x01};
+    CHECK(a.enqueue(key(), 2, 0, binary.data(), binary.size(), 0));
+    m::Packet p{};
+    std::vector<std::uint8_t> bytes;
+    CHECK(pull(a, 0, p, bytes));
+    CHECK(b.receive(bytes.data(), bytes.size(), 1));
+    CHECK(completed(b) == 1);
+    CHECK(!std::memcmp(b.incoming()[0].bytes.data(), binary.data(), binary.size()));
   } else if (scenario == "races") {
-    m::Mesh a(1);
+    Node a(1);
     CHECK(a.enqueue(key(), 3, 0, body.data(), 2, 0));
     m::Packet p{};
-    CHECK(a.next_tx(0, p));
+    std::vector<std::uint8_t> sent;
+    CHECK(pull(a, 0, p, sent));
     auto ack = p;
     ack.kind = m::PacketKind::Ack;
     ack.total = ack.count = ack.index = ack.size = 0;
@@ -152,17 +280,17 @@ int main(int argc, char** argv) {
     CHECK(a.outgoing()[0].state == m::SendState::Acknowledged);
     a.tick(60000);
     CHECK(a.outgoing()[0].state == m::SendState::Acknowledged);
-    m::Mesh b(1);
+    Node b(1);
     CHECK(b.enqueue(key(), 3, 0, body.data(), 2, 0));
-    CHECK(b.next_tx(0, p));
+    CHECK(pull(b, 0, p, sent));
     b.complete_tx(true, 1);
     CHECK(!b.receive(bytes.data(), bytes.size(), 60000));
     CHECK(b.outgoing()[0].state == m::SendState::Failed);
   } else if (scenario == "bounds") {
-    m::Mesh reordered(1);
+    Node reordered(1);
     CHECK(reordered.enqueue(key(2), 3, 0, body.data(), 2, 0));
     CHECK(reordered.enqueue(key(1), 3, 0, body.data(), 2, 0));
-    m::Mesh a(1);
+    Node a(1);
     for (unsigned seq = 1; seq <= 8; ++seq)
       CHECK(a.enqueue(key(seq), 3, 0, body.data(), 2, 0));
     CHECK(!a.enqueue(key(9), 3, 0, body.data(), 2, 0));
@@ -172,7 +300,7 @@ int main(int argc, char** argv) {
     a.quiesce();
     for (const auto& r : a.outgoing())
       CHECK(!r.used || r.state == m::SendState::Failed);
-    m::Mesh b(2);
+    Node b(2);
     m::Packet p{};
     p.key = key();
     p.destination = 2;
@@ -191,8 +319,8 @@ int main(int argc, char** argv) {
     CHECK(!b.receive(bytes.data(), bytes.size(), 2));
     CHECK(completed(b) == 0);
   } else if (scenario == "soak") {
-    m::Mesh a(1, true), b(2, true), c(3, true);
-    m::Mesh* nodes[] = {&a, &b, &c};
+    Node a(1, true), b(2, true), c(3, true);
+    Node* nodes[] = {&a, &b, &c};
     struct Event {
       std::uint64_t at;
       int to;
@@ -231,7 +359,8 @@ int main(int argc, char** argv) {
         }
         for (int from = 0; from < 3; ++from) {
           m::Packet packet{};
-          if (!nodes[from]->next_tx(now, packet))
+          std::vector<std::uint8_t> sent;
+          if (!pull(*nodes[from], now, packet, sent))
             continue;
           ++transmissions;
           const bool success = next() % 100 >= 2 || sequence % 10 == 0;
@@ -243,9 +372,9 @@ int main(int argc, char** argv) {
               continue;
             if (next() % 100 < 10 && sequence % 10)
               continue;
-            auto bytes = wire(packet);
+            auto bytes = sent;
             if (next() % 100 < 5 && sequence % 10)
-              bytes.back() ^= 1;  // CRC-rejected corruption.
+              bytes.back() ^= 1;  // Rejected by the relay tag.
             events.push_back({now + 5 + next() % 150, to, bytes});
             if (next() % 4 == 0)
               events.push_back({now + 200, to, bytes});

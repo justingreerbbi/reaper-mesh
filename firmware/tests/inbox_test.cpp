@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     CHECK(session.handle(request, reply));
     CHECK(reply.fields[p::kWelcomeInboxVersion].number == 2 &&
           reply.fields[p::kWelcomeInboxCapacity].number == 8 &&
-          reply.fields[p::kWelcomeRadioVersion].number == 1);
+          reply.fields[p::kWelcomeRadioVersion].number == 2);
     request = {};
     request.type = p::MessageType::Sync;
     set(request.fields[0], "link-A");

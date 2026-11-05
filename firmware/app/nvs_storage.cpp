@@ -29,6 +29,23 @@ d::ReadStatus NvsStorage::read(std::uint8_t* output, std::size_t capacity,
   size = stored;
   return d::ReadStatus::Loaded;
 }
+std::uint32_t NvsStorage::next_boot_counter(std::uint32_t first) noexcept {
+  if (!ready_ || !first)
+    return 0;
+  std::uint32_t counter = 0;
+  std::size_t stored = sizeof(counter);
+  const auto status = nvs_get_blob(handle_, "boot", &counter, &stored);
+  if (status == ESP_ERR_NVS_NOT_FOUND)
+    counter = first;
+  else if (status != ESP_OK || stored != sizeof(counter) || counter == 0xffffffff)
+    return 0;
+  else
+    ++counter;
+  if (nvs_set_blob(handle_, "boot", &counter, sizeof(counter)) != ESP_OK ||
+      nvs_commit(handle_) != ESP_OK)
+    return 0;
+  return counter;
+}
 d::CommitStatus NvsStorage::commit(const std::uint8_t* data, std::size_t size) noexcept {
   if (!ready_ || !data || size == 0 || size > d::kMaxRecord)
     return d::CommitStatus::NotCommitted;

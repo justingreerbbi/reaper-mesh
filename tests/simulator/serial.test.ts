@@ -256,6 +256,7 @@ test('reopening after cleanup sends only a fresh handshake to the next port', as
       minVersion: 1,
       maxVersion: 1,
       owner: first.adapter.connection.commands.incarnation,
+      agentFeatures: 3,
     },
   ]);
   assert.equal(first.writes.length, 1);

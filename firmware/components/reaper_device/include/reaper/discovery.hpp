@@ -9,7 +9,7 @@ struct Peer {
   Text<64> name{};
   std::uint64_t seen = 0;
   std::uint32_t replied_to = 0;
-  std::array<std::array<std::uint8_t, 16>, 4> retired{};
+  std::array<std::uint32_t, 4> retired{};
   std::uint8_t next_retired = 0;
 };
 struct DiscoveryResult {
@@ -18,7 +18,7 @@ struct DiscoveryResult {
 };
 class Discovery {
  public:
-  Discovery(std::uint64_t node, std::array<std::uint8_t, 16> boot) : node_(node), boot_(boot) {}
+  Discovery(std::uint64_t node, std::uint32_t boot) : node_(node), boot_(boot) {}
   void policy(const Settings*, bool may_transmit, std::uint64_t now);
   DiscoveryResult request(const Text<64>& owner, const Text<75>& id, bool start, std::uint64_t now);
   DiscoveryResult query(const Text<75>& id, std::uint64_t now) const;
@@ -52,7 +52,7 @@ class Discovery {
     std::uint64_t due = 0, until = 0;
   };
   std::uint64_t node_;
-  std::array<std::uint8_t, 16> boot_{};
+  std::uint32_t boot_ = 0;
   Settings settings_{};
   bool configured_ = false, allowed_ = false, flight_ = false;
   mesh::Packet flight_packet_{};

@@ -5,7 +5,8 @@
       "link": "id",
       "minVersion": "u32",
       "maxVersion": "u32",
-      "owner": "id?"
+      "owner": "id?",
+      "agentFeatures": "u32?"
     }
   },
   "welcome": {
@@ -352,6 +353,69 @@
       "bonds": "u32",
       "passkey": "u32?",
       "name": "id?"
+    }
+  },
+  "networkQuery": {
+    "tag": 28,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32"
+    }
+  },
+  "networkStatus": {
+    "tag": 29,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "state": "id",
+      "networkMode": "u32",
+      "generation": "u32",
+      "epoch": "u32",
+      "teamLoaded": "u32",
+      "relayFingerprint": "hex?",
+      "teamFingerprint": "hex?"
+    }
+  },
+  "networkFill": {
+    "tag": 30,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "networkMode": "u32",
+      "generation": "u32",
+      "epoch": "u32",
+      "relayChain": "hex?",
+      "deviceKey": "hex?"
+    }
+  },
+  "teamLoad": {
+    "tag": 31,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32",
+      "generation": "u32",
+      "epoch": "u32",
+      "teamChain": "hex"
+    }
+  },
+  "networkErase": {
+    "tag": 32,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "request": "u32"
+    }
+  },
+  "inboxChanged": {
+    "tag": 33,
+    "fields": {
+      "link": "id",
+      "boot": "id",
+      "latest": "u32"
     }
   }
 }

@@ -45,6 +45,7 @@ execFileSync(
     '-Ifirmware/app',
     '-Ifirmware/tests/radio_stubs',
     '-Ifirmware/components/reaper_mesh/include',
+    '-Ifirmware/components/reaper_crypto/include',
     '-Ifirmware/components/reaper_radio/include',
     '-Ifirmware/components/reaper_radio/vendor',
     'firmware/components/reaper_protocol/protocol.cpp',
@@ -53,8 +54,11 @@ execFileSync(
     'firmware/components/reaper_radio/radio.cpp',
     'firmware/components/reaper_radio/hal.cpp',
     'firmware/app/mesh_service.cpp',
+    'firmware/components/reaper_mesh/frame.cpp',
+    'firmware/tests/crypto_host/crypto_host.cpp',
     'firmware/components/reaper_mesh/mesh.cpp',
     'firmware/components/reaper_device/discovery.cpp',
+    'firmware/components/reaper_device/network.cpp',
     'firmware/components/reaper_device/messages.cpp',
     'firmware/components/reaper_device/inbox.cpp',
     'firmware/tests/mesh_service_test.cpp',
@@ -72,6 +76,11 @@ for (const [scenario, description] of Object.entries({
   gate: 'refuses remote transmit admission while the antenna is unconfirmed',
   tx: 'publishes TX_DONE then accepts only the matching destination ACK',
   policy: 'cancels in-flight work when radio policy changes',
+  noboot: 'sends nothing when the boot counter could not be saved',
+  identity: 'gives a message the same ID on the sender and the receiver',
+  unset: 'stays silent until a network is chosen',
+  teamrelay: 'relays with only the relay key, and needs the team key to read or send',
+  detached: 'sends no beacons or discovery replies without an agent attached',
 })) {
   test(`Board mesh service ${description}`, () => {
     assert.equal(

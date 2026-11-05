@@ -49,7 +49,7 @@ manifest = {
     "usb_protocol": 1,
     "config_schema": 1,
     "record_schema": 6,
-    "radio_protocol": 1,
+    "radio_protocol": 2,
     "uart": {"baud": 115200, "tx_gpio": 1 if tbeam else 43, "rx_gpio": 3 if tbeam else 44},
     "radio": {
         "protocol": 1,

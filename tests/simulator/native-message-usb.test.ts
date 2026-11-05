@@ -29,6 +29,7 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_mesh/include',
+    '-Ifirmware/components/reaper_crypto/include',
     '-Ifirmware/components/reaper_device/include',
     'firmware/components/reaper_protocol/protocol.cpp',
     'firmware/components/reaper_device/configuration.cpp',
@@ -54,6 +55,7 @@ test('actual TypeScript message agent uploads 1024 bytes and queries a lost nati
     minVersion: 1,
     maxVersion: 1,
     owner: 'agent-A',
+    agentFeatures: 3,
   };
   const sync: Message = { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 };
   const body = 'x'.repeat(31) + '📻' + 'z'.repeat(989);
@@ -139,7 +141,14 @@ test('map application text passes unchanged native firmware message admission wi
   const bytes = Buffer.from(body),
     count = Math.ceil(bytes.length / 32);
   const requests: Message[] = [
-    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-A',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
     ...Array.from({ length: count }, (_, part): Message => ({
       type: 'submit',

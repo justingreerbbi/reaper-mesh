@@ -41,7 +41,7 @@ for (const [scenario, description] of Object.entries({
   expiry: 'expires partial messages at the exact deadline without reexecution',
   ack: 'distinguishes destination ACK, expiry and broadcast transmission',
   capacity: 'bounds queues and prevents execution after receipt eviction',
-  validation: 'rejects invalid text, wrong owners and owner exhaustion',
+  validation: 'carries bytes that are not text, and rejects wrong owners and owner exhaustion',
 })) {
   test(`C++ message queue ${description}`, () => {
     assert.equal(

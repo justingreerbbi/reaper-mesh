@@ -103,7 +103,7 @@ test('inbox read retries are bounded and do not execute commands', () => {
   assert.equal(reader.tick(10000, { ...context, session: 2 })?.type, 'inboxQuery');
   assert.equal(reader.error, undefined);
 });
-test('inbox rejects malformed heads, conflicting fragments and invalid complete UTF-8', () => {
+test('inbox rejects malformed heads and keeps reading past bytes that are not text', () => {
   const reader = new InboxReader();
   const query = reader.tick(0, context)!;
   reader.receive(
@@ -132,9 +132,12 @@ test('inbox rejects malformed heads, conflicting fragments and invalid complete 
     1000,
   );
   const read = reader.tick(1000, context)!;
+  // Not UTF-8, so it is kept as a payload for the app to label, and reading carries on.
   reader.receive(1, item(read.request, 1, 0, 1, 'c080'), 1000);
-  assert.equal(reader.history.length, 0);
-  assert.match(reader.error!, /UTF-8/);
+  assert.equal(reader.error, undefined);
+  assert.equal(reader.history.length, 1);
+  assert.equal(reader.history[0].text, '');
+  assert.equal(reader.history[0].payloadHex, 'c080');
 });
 test('inbox history is bounded and same-boot counter rollback cannot overwrite it', () => {
   const reader = new InboxReader();

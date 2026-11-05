@@ -26,6 +26,7 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_mesh/include',
+    '-Ifirmware/components/reaper_crypto/include',
     '-Ifirmware/components/reaper_device/include',
     'firmware/components/reaper_protocol/protocol.cpp',
     'firmware/components/reaper_device/configuration.cpp',
@@ -47,6 +48,9 @@ for (const [scenario, description] of Object.entries({
   reconnect: 'retains receipts across reconnect for query-only recovery',
   storage: 'emits unknown then a storage error without serving stale snapshots',
   version: 'does not admit incompatible agents or consume their owner slots',
+  alerts: 'alerts only an agent that asked, once, about messages after it synchronized',
+  opaque: 'gives an agent that declared nothing a placeholder, and others the exact bytes',
+  network: 'requires a cable or the button window to change keys, and never returns them',
 })) {
   test(`C++ session ${description}`, () => {
     assert.equal(

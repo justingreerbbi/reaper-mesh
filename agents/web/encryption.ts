@@ -460,7 +460,7 @@ export class EncryptionVault {
     if (!header)
       return {
         state: 'unsupported',
-        text: 'Encrypted message · unsupported or malformed envelope',
+        text: 'Unsupported message · this app cannot read its format',
       };
     if (header.channel !== channel)
       return { state: 'invalid', text: 'Encrypted message · channel mismatch' };

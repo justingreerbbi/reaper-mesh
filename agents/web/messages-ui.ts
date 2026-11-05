@@ -105,7 +105,7 @@ const CRYPTO_NOTES: Record<string, string> = {
   'key-needed': "Encrypted message. This browser doesn't have the key.",
   invalid: 'Encrypted message that failed its security check. Not shown.',
   replay: 'Duplicate of an earlier encrypted message. Not shown.',
-  unsupported: "Encrypted in a format this app doesn't support.",
+  unsupported: "In a format this app doesn't support. Not shown.",
   'plaintext-rejected': 'Unencrypted message rejected. This channel requires encryption.',
   locked: 'Encrypted message. Unlock the app to read it.',
 };
@@ -547,7 +547,7 @@ export function renderMessages() {
   const sendBlockReason = connection.messaging.sendBlockReason;
   const remoteBlocked =
     destination.value !== connection.device &&
-    connection.capabilities?.radioVersion === 1 &&
+    !!connection.capabilities?.radioVersion &&
     connection.radioInfo?.reason !== 'ready';
   text(
     'message-support',

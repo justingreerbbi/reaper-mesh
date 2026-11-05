@@ -68,16 +68,16 @@ std::vector<std::uint8_t> packet() {
   m::Packet p{};
   p.key.origin = 1;
   p.destination = 2;
-  p.key.boot[0] = 42;
+  p.key.boot = 42;
   p.key.sequence = 1;
   p.count = 1;
   p.size = p.total = 160;
   p.bytes.fill('x');
-  std::vector<std::uint8_t> bytes(m::kMaxPacketBytes);
-  std::size_t size = 0;
-  if (!m::encode_packet(p, bytes.data(), bytes.size(), size))
-    std::abort();
-  bytes.resize(size);
+  // The driver carries bytes without reading them, so this only needs a frame's size.
+  std::vector<std::uint8_t> bytes(m::kFragmentBytes + m::kMinPacketBytes);
+  std::memcpy(bytes.data(), p.bytes.data(), p.size);
+  bytes[0] = 2;
+  bytes[5] = 0x33;
   return bytes;
 }
 int main(int argc, char** argv) {
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     auto event = radio.poll(2);
     CHECK(event.received && event.size == bytes.size());
     CHECK(std::memcmp(event.bytes.data(), bytes.data(), bytes.size()) == 0);
-    bus.incoming.back() ^= 1;
+    bus.incoming[0] ^= 1;  // Not a version 2 frame. Authentication happens above the driver.
     bus.irq = SX126X_IRQ_RX_DONE;
     CHECK(!radio.poll(3).received);
   } else if (scenario == "tx") {

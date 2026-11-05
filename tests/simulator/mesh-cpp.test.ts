@@ -26,8 +26,11 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_mesh/include',
+    '-Ifirmware/components/reaper_crypto/include',
     'firmware/components/reaper_protocol/protocol.cpp',
     'firmware/components/reaper_mesh/radio_packet.cpp',
+    'firmware/components/reaper_mesh/frame.cpp',
+    'firmware/tests/crypto_host/crypto_host.cpp',
     'firmware/components/reaper_mesh/mesh.cpp',
     'firmware/tests/mesh_test.cpp',
     '-o',
@@ -36,6 +39,10 @@ execFileSync(
   { stdio: 'pipe', timeout: 30000 },
 );
 for (const [scenario, description] of Object.entries({
+  relayonly:
+    'lets a relay-key-only radio forward what it cannot read, and refuses outsiders and forgeries',
+  unjoined: 'relays a channel a team radio has not joined without delivering it',
+  opaque: 'carries bytes that are neither text nor a known envelope',
   line: 'reassembles and acknowledges across a hidden-link three-node topology',
   loss: 'recovers lost, reordered and duplicated fragments without duplicate delivery',
   asymmetric: 'does not claim destination delivery when ACK return path is lost',

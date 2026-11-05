@@ -28,6 +28,14 @@ export class Connection {
   radioInfo: Extract<Message, { type: 'radioStatus' }> | undefined;
   /** Held in memory only: it can carry a live passkey, so it is never journaled. */
   pairing: Extract<Message, { type: 'pairingStatus' }> | undefined;
+  /** Which network the radio belongs to (D50). It never carries a key, only fingerprints. */
+  network: Extract<Message, { type: 'networkStatus' }> | undefined;
+  /** How many times the device said a new message arrived. A hint: the inbox is read by query. */
+  inboxAlerts = 0;
+  #networkRequest = 0;
+  #networkPending = 0;
+  #networkDeadline = 0;
+  #nextNetwork = 0;
   #pairingWatched = false;
   #pairingRequest = 0;
   #pairingPending = 0;
@@ -145,6 +153,50 @@ export class Connection {
   /** Channels are identified by on-air ID rather than slot number (D45). */
   get supportsPairing() {
     return !!(this.capabilities && this.capabilities.features & 8192);
+  }
+  get supportsNetwork() {
+    return !!(this.capabilities && this.capabilities.features & 16384);
+  }
+  /**
+   * Network commands (D50). Keys pass straight through to the device and are kept nowhere here, not
+   * even in the journal. They are never retried: a lost reply is settled by the next status query,
+   * and repeating the same fill is harmless on the device. The device refuses fills and erases
+   * without physical access, and that refusal is reported in `network.state`.
+   */
+  chooseOpenMode(now: number) {
+    this.#sendNetwork({ type: 'networkFill', networkMode: 1, generation: 0, epoch: 0 }, now);
+  }
+  fillTeam(
+    keys: { generation: number; epoch: number; relayChain: string; deviceKey: string },
+    now: number,
+  ) {
+    this.#sendNetwork({ type: 'networkFill', networkMode: 2, ...keys }, now);
+  }
+  loadTeamKey(key: { generation: number; epoch: number; teamChain: string }, now: number) {
+    this.#sendNetwork({ type: 'teamLoad', ...key }, now);
+  }
+  eraseNetwork(now: number) {
+    this.#sendNetwork({ type: 'networkErase' }, now);
+  }
+  #sendNetwork(command: Record<string, unknown> & { type: string }, now: number) {
+    this.#time(now);
+    this.sync.mutationContext();
+    if (this.#expired(now) || !this.supportsNetwork)
+      throw new Error('This device cannot change its radio network');
+    if (this.#networkPending) throw new Error('The device is still answering');
+    this.#networkPending = ++this.#networkRequest;
+    this.#networkDeadline = now + 3000;
+    this.#send({
+      ...command,
+      link: this.#link,
+      boot: this.sync.boot!,
+      request: this.#networkPending,
+    } as Message);
+  }
+  #clearNetwork() {
+    this.network = undefined;
+    this.inboxAlerts = 0;
+    this.#networkRequest = this.#networkPending = this.#nextNetwork = 0;
   }
   /** Opens the device's pairing window. The device accepts this over USB only (D47). */
   openPairing(now: number) {
@@ -343,6 +395,8 @@ export class Connection {
         minVersion: 1,
         maxVersion: 1,
         owner: this.commands.incarnation,
+        // Bit 0 asks for inbox alerts, and bit 1 says this agent handles unknown message payloads.
+        agentFeatures: 3,
       }),
     );
     this.close();
@@ -374,6 +428,7 @@ export class Connection {
 
   close(reason?: string) {
     this.#clearPairing();
+    this.#clearNetwork();
     this.sync.disconnect();
     this.commands.tick(this.#now);
     this.inbox.tick(this.#now);
@@ -468,6 +523,20 @@ export class Connection {
         }
       }
     }
+    if (this.supportsNetwork) {
+      if (this.#networkPending && now >= this.#networkDeadline) this.#networkPending = 0;
+      if (!this.#networkPending && now >= this.#nextNetwork) {
+        this.#networkPending = ++this.#networkRequest;
+        this.#networkDeadline = now + 3000;
+        this.#nextNetwork = now + 3000;
+        this.#send({
+          type: 'networkQuery',
+          link: this.#link,
+          boot: this.sync.boot!,
+          request: this.#networkPending,
+        });
+      }
+    }
     if (this.#pairingWatched && this.supportsPairing) {
       if (this.#pairingPending && now >= this.#pairingDeadline) {
         this.#pairingPending = 0;
@@ -505,6 +574,21 @@ export class Connection {
         this.#radioPending = this.#radioTimeouts = 0;
         this.radioError = undefined;
         this.#nextRadio = this.#now + 2000;
+      }
+      return;
+    }
+    if (message.type === 'inboxChanged') {
+      if (message.boot === this.sync.boot) {
+        this.inboxAlerts++;
+        this.inbox.wake(this.#now);
+      }
+      return;
+    }
+    if (message.type === 'networkStatus') {
+      if (message.boot === this.sync.boot && message.request === this.#networkPending) {
+        this.network = message;
+        this.#networkPending = 0;
+        this.#nextNetwork = this.#now + 10000;
       }
       return;
     }

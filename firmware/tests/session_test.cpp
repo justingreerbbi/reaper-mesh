@@ -83,6 +83,59 @@ p::Message configure(const char* link = "link-A", const char* id = "agent-A:1") 
   set(request.fields[p::kConfigureRegion], "US");
   return request;
 }
+struct FakeNetwork final : d::NetworkControl {
+  unsigned fills = 0, loads = 0, erases = 0;
+  bool had_relay = false;
+  d::NetworkView view() const override {
+    d::NetworkView v{};
+    v.mode = fills ? 2 : 0;
+    v.generation = fills ? 1 : 0;
+    v.team_loaded = loads > 0;
+    v.healthy = true;
+    if (fills)
+      std::strcpy(v.relay_fingerprint, "0011223344556677");
+    return v;
+  }
+  const char* fill(std::uint32_t, std::uint32_t, std::uint32_t,
+                   const std::array<std::uint8_t, 32>* relay,
+                   const std::array<std::uint8_t, 32>*) override {
+    ++fills;
+    had_relay = relay && (*relay)[0] == 0xab;
+    return "ok";
+  }
+  const char* load_team(std::uint32_t, std::uint32_t,
+                        const std::array<std::uint8_t, 32>&) override {
+    ++loads;
+    return "ok";
+  }
+  const char* erase() override {
+    ++erases;
+    return "ok";
+  }
+};
+struct FakePairing final : d::PairingControl {
+  bool window = false;
+  void open(std::uint64_t) override {}
+  d::PairingView view(std::uint64_t) const override {
+    d::PairingView v{};
+    v.state = window ? "open" : "closed";
+    return v;
+  }
+};
+constexpr char kKeyHex[] = "abababababababababababababababababababababababababababababababab";
+p::Message network_fill() {
+  p::Message request{};
+  request.type = p::MessageType::NetworkFill;
+  set(request.fields[p::kNetworkFillLink], "link-A");
+  set(request.fields[p::kNetworkFillBoot], "boot-A");
+  num(request.fields[p::kNetworkFillRequest], 7);
+  num(request.fields[p::kNetworkFillNetworkMode], 2);
+  num(request.fields[p::kNetworkFillGeneration], 1);
+  num(request.fields[p::kNetworkFillEpoch], 0);
+  set(request.fields[p::kNetworkFillRelayChain], kKeyHex);
+  set(request.fields[p::kNetworkFillDeviceKey], kKeyHex);
+  return request;
+}
 int main(int argc, char** argv) {
   if (argc != 2)
     return 2;
@@ -94,7 +147,125 @@ int main(int argc, char** argv) {
   CHECK(session.handle(hello(), reply) && reply.type == p::MessageType::Welcome);
   CHECK(reply.fields[p::kWelcomeOwnerAdmitted].number == 1);
   CHECK(!session.synchronized());
-  if (scenario == "sync") {
+  if (scenario == "alerts") {
+    d::Inbox inbox;
+    Store other;
+    d::Configuration other_authority(other, text<64>("boot-A"));
+    d::MessageQueue messages(text<64>("boot-A"));
+    d::RadioInfo info{};
+    d::Session s(other_authority, text<64>("device-A"), text<64>("boot-A"), &messages, &info,
+                 &inbox);
+    const std::uint8_t body[] = {'h', 'i'};
+    const auto append = [&](const char* id) {
+      return inbox.append(text<64>("node-B"), text<64>(id), text<64>("broadcast"), 0, body, 2);
+    };
+    // An agent that did not ask gets no alert, so it never sees a message type it does not know.
+    CHECK(s.handle(hello(), reply) && (reply.fields[p::kWelcomeFeatures].number & 32768));
+    CHECK(s.handle(sync(), reply));
+    CHECK(append("a") && !s.take_alert(reply));
+    // One that asks hears about messages from here on, not those already waiting.
+    auto asking = hello();
+    num(asking.fields[p::kHelloAgentFeatures], 1);
+    CHECK(s.handle(asking, reply));
+    CHECK(!s.take_alert(reply));  // Not synchronized.
+    CHECK(s.handle(sync(), reply) && !s.take_alert(reply));
+    CHECK(append("b") && s.take_alert(reply));
+    CHECK(reply.type == p::MessageType::InboxChanged);
+    CHECK(reply.fields[p::kInboxChangedLatest].number == 2);
+    CHECK(is(reply.fields[p::kInboxChangedLink], "link-A"));
+    // It stays pending until it was written, and is then sent once.
+    CHECK(s.take_alert(reply));
+    s.alert_sent();
+    CHECK(!s.take_alert(reply));
+  } else if (scenario == "opaque") {
+    d::Inbox inbox;
+    Store other;
+    d::Configuration other_authority(other, text<64>("boot-A"));
+    d::MessageQueue messages(text<64>("boot-A"));
+    d::RadioInfo info{};
+    d::Session s(other_authority, text<64>("device-A"), text<64>("boot-A"), &messages, &info,
+                 &inbox);
+    const std::uint8_t binary[] = {0xff, 0x00, 0xfe, 0x01};
+    CHECK(inbox.append(text<64>("node-B"), text<64>("opaque_1"), text<64>("broadcast"), 0, binary,
+                       sizeof(binary)));
+    const auto read = [&](const char* expected_hex) {
+      p::Message request{};
+      request.type = p::MessageType::InboxRead;
+      set(request.fields[p::kInboxReadLink], "link-A");
+      set(request.fields[p::kInboxReadBoot], "boot-A");
+      num(request.fields[p::kInboxReadRequest], 1);
+      num(request.fields[p::kInboxReadSequence], 1);
+      num(request.fields[p::kInboxReadPart], 0);
+      return s.handle(request, reply) && reply.type == p::MessageType::InboxItem &&
+             is(reply.fields[p::kInboxItemData], expected_hex) &&
+             is(reply.fields[p::kInboxItemMessageId], "opaque_1");
+    };
+    // An agent that declared nothing gets readable text in its place, under the same identity.
+    CHECK(s.handle(hello(), reply) && s.handle(sync(), reply));
+    CHECK(read("556e737570706f72746564206d657373616765"));  // "Unsupported message"
+    CHECK(reply.fields[p::kInboxItemCount].number == 1);
+    // One that handles payloads gets the exact bytes.
+    auto declaring = hello();
+    num(declaring.fields[p::kHelloAgentFeatures], 2);
+    CHECK(s.handle(declaring, reply) && s.handle(sync(), reply));
+    CHECK(read("ff00fe01"));
+  } else if (scenario == "network") {
+    FakeNetwork network;
+    FakePairing pairing;
+    Store other;
+    d::Configuration other_authority(other, text<64>("boot-A"));
+    d::Session keyed(other_authority, text<64>("device-A"), text<64>("boot-A"), nullptr, nullptr,
+                     nullptr, nullptr, &pairing, &network);
+    CHECK(keyed.handle(hello(), reply) && (reply.fields[p::kWelcomeFeatures].number & 16384));
+    CHECK(!(session.synchronized()));
+    // Nothing is answered before the session is synchronized.
+    CHECK(!keyed.handle(network_fill(), reply) && network.fills == 0);
+    CHECK(keyed.handle(sync(), reply));
+    // A paired phone cannot change keys or erase them.
+    keyed.set_physical(false);
+    CHECK(keyed.handle(network_fill(), reply) && reply.type == p::MessageType::NetworkStatus);
+    CHECK(is(reply.fields[p::kNetworkStatusState], "refused") && network.fills == 0);
+    CHECK(reply.fields[p::kNetworkStatusRequest].number == 7);
+    p::Message erase{};
+    erase.type = p::MessageType::NetworkErase;
+    set(erase.fields[p::kNetworkEraseLink], "link-A");
+    set(erase.fields[p::kNetworkEraseBoot], "boot-A");
+    num(erase.fields[p::kNetworkEraseRequest], 8);
+    CHECK(keyed.handle(erase, reply) && is(reply.fields[p::kNetworkStatusState], "refused"));
+    CHECK(network.erases == 0);
+    // It can load the team key, which is memory only.
+    p::Message load{};
+    load.type = p::MessageType::TeamLoad;
+    set(load.fields[p::kTeamLoadLink], "link-A");
+    set(load.fields[p::kTeamLoadBoot], "boot-A");
+    num(load.fields[p::kTeamLoadRequest], 9);
+    num(load.fields[p::kTeamLoadGeneration], 1);
+    num(load.fields[p::kTeamLoadEpoch], 0);
+    set(load.fields[p::kTeamLoadTeamChain], kKeyHex);
+    CHECK(keyed.handle(load, reply) && is(reply.fields[p::kNetworkStatusState], "ok"));
+    CHECK(network.loads == 1);
+    // The button-opened window lets that phone fill.
+    pairing.window = true;
+    CHECK(keyed.handle(network_fill(), reply) && is(reply.fields[p::kNetworkStatusState], "ok"));
+    CHECK(network.fills == 1 && network.had_relay);
+    pairing.window = false;
+    // A cable needs no window.
+    keyed.set_physical(true);
+    CHECK(keyed.handle(network_fill(), reply) && network.fills == 2);
+    CHECK(keyed.handle(erase, reply) && network.erases == 1);
+    // A malformed key never reaches the store.
+    auto bad = network_fill();
+    set(bad.fields[p::kNetworkFillRelayChain], "abcd");
+    CHECK(keyed.handle(bad, reply) && is(reply.fields[p::kNetworkStatusState], "invalid"));
+    CHECK(network.fills == 2);
+    // A wrong boot is ignored.
+    auto stale = network_fill();
+    set(stale.fields[p::kNetworkFillBoot], "boot-B");
+    CHECK(!keyed.handle(stale, reply) && network.fills == 2);
+    // The reply carries fingerprints, never keys.
+    CHECK(keyed.handle(network_fill(), reply));
+    CHECK(is(reply.fields[p::kNetworkStatusRelayFingerprint], "0011223344556677"));
+  } else if (scenario == "sync") {
     CHECK(session.handle(configure(), reply) && is(reply.fields[p::kResultOutcome], "rejected"));
     CHECK(store.writes == 0);
     CHECK(session.handle(sync(), reply) && reply.type == p::MessageType::Snapshot);

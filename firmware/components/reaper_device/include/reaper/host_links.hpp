@@ -27,6 +27,9 @@ class HostLinks {
   // The link failed or went away. Ends the session only if that link owns it.
   void closed(HostLink);
   bool ready(HostLink, std::uint64_t now) const;
+  // An agent is attached. Over Bluetooth that means the session's link is up, because a background
+  // app may stay quiet for minutes. A UART shows no disconnect, so USB needs recent traffic.
+  bool attached(std::uint64_t now) const;
 
  private:
   struct Slot {

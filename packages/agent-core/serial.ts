@@ -83,6 +83,26 @@ export class SerialAdapter {
     this.connection.openPairing(this.#now());
     this.#flush(this.#run!);
   }
+  chooseOpenMode() {
+    this.#readyRun();
+    this.connection.chooseOpenMode(this.#now());
+    this.#flush(this.#run!);
+  }
+  fillTeam(keys: { generation: number; epoch: number; relayChain: string; deviceKey: string }) {
+    this.#readyRun();
+    this.connection.fillTeam(keys, this.#now());
+    this.#flush(this.#run!);
+  }
+  loadTeamKey(key: { generation: number; epoch: number; teamChain: string }) {
+    this.#readyRun();
+    this.connection.loadTeamKey(key, this.#now());
+    this.#flush(this.#run!);
+  }
+  eraseNetwork() {
+    this.#readyRun();
+    this.connection.eraseNetwork(this.#now());
+    this.#flush(this.#run!);
+  }
 
   recoverMessage(id: string) {
     this.#readyRun();

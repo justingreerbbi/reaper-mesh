@@ -2,7 +2,7 @@
 
 Firmware images are named `{device}-reaper-mesh-v{semver}` (decision D8), starting at `tbeam-reaper-mesh-v0.1.0` and `heltec-reaper-mesh-v0.1.0`. Keep that ID consistent in the on-device firmware identity, generated manifest, package name and documentation.
 
-The prototype uses the ESP32-S3 ROM loader and a single factory application. A failed/interrupted update can require BOOT/RESET and reinstall; automatic rollback and authenticated release signing are later public-release gates. Checksums detect corruption, not a malicious publisher. Use builds from your reviewed source tree. Do not flash this prototype on encrypted or secure-boot devices.
+The prototype uses the ESP32-S3 ROM loader. Since `v0.8.0` the application runs from the first of two slots at the same address as the earlier factory application, and the second slot is reserved for signed updates (D50). Each install writes four images, including a blank OTA data area so the bootloader takes the first slot. Device settings, Bluetooth pairings and network keys are kept, because `reaper_nvs`, `nvs` and `reaper_keys` are not written. A failed/interrupted update can require BOOT/RESET and reinstall; automatic rollback and authenticated release signing are later public-release gates. Checksums detect corruption, not a malicious publisher. Use builds from your reviewed source tree. Do not flash this prototype on encrypted or secure-boot devices.
 
 From the repository root, build committed source and validate without opening a device:
 
@@ -17,7 +17,7 @@ Disconnect the web console, keep USB power connected, then install:
 python3 tools/update-firmware.py --flash --port /dev/cu.usbserial-0001
 ```
 
-The updater checks clean source identity, supported protocol/storage schemas, pinned SDK, exact board/target, three artifact paths/offsets/sizes/SHA256 hashes, ESP image checksums/digests, and the fixed partition table/MD5. It stages the verified bytes before opening the port. ROM preflight checks processor/flash size, esptool 4.12.0 and disabled security/encryption flags. It installs only bootloader, partition table and app; NVS is preserved. It never issues erase-all or eFuse writes. Esptool prints progress and verifies each image. Local flash-result.json records ROM verification separately from application qualification.
+The updater checks clean source identity, supported protocol/storage schemas, pinned SDK, exact board/target, four artifact paths/offsets/sizes/SHA256 hashes, ESP image checksums/digests, and the fixed partition table/MD5. It stages the verified bytes before opening the port. ROM preflight checks processor/flash size, esptool 4.12.0 and disabled security/encryption flags. It installs only bootloader, partition table and app; NVS is preserved. It never issues erase-all or eFuse writes. Esptool prints progress and verifies each image. Local flash-result.json records ROM verification separately from application qualification.
 
 Clean committed source is required by default. For a local hardware-development iteration only, `--allow-dirty` permits a dirty-tree build after all artifact/target/ROM checks still pass. It prints a warning and is not a reproducible release build or a replacement for reviewed, clean provenance. Do not use this override for public bundles/releases.
 

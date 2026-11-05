@@ -1,5 +1,6 @@
 #include "reaper/session.hpp"
 #include "nvs_storage.hpp"
+#include "key_partition.hpp"
 #include "status_display.hpp"
 #include "board_input.hpp"
 #include "board_power.hpp"
@@ -91,8 +92,10 @@ static void run(void*) {
 
   // Use the non-RF entropy source before ADC/radio use. No radio is initialized.
   std::array<std::uint8_t, 16> random{};
+  reaper::crypto::Key nonce_seed{};
   bootloader_random_enable();
   esp_fill_random(random.data(), random.size());
+  esp_fill_random(nonce_seed.data(), nonce_seed.size());
   bootloader_random_disable();
   char boot_string[33]{};
   for (std::size_t i = 0; i < random.size(); ++i)
@@ -115,7 +118,12 @@ static void run(void*) {
   device.assign(reinterpret_cast<const std::uint8_t*>(device_string), device_length);
   static NvsStorage storage;
   static d::Configuration authority(storage, boot);
-  static d::MessageQueue messages(boot);
+  // Starts well below the maximum, and differs after storage is erased.
+  std::uint32_t first_boot = 1;
+  for (unsigned i = 0; i < 4; ++i)
+    first_boot |= std::uint32_t(random[i]) << (i * 8);
+  const auto boot_counter = storage.next_boot_counter(first_boot & 0x7fffffff);
+  static d::MessageQueue messages(d::boot_identity(boot_counter));
   static d::Inbox inbox;
   static d::RadioInfo radio_info;
   static StatusDisplay display;
@@ -131,10 +139,16 @@ static void run(void*) {
   std::uint64_t node = 0;
   for (auto byte : mac)
     node = (node << 8) | byte;
-  static MeshService mesh(messages, inbox, radio_info, device, random, node,
+  static KeyPartition key_partition;
+  static d::Network network(key_partition);
+  // A missing or unreadable key area leaves the radio with no network, which keeps it silent.
+  if (key_partition.begin())
+    network.begin();
+  static MeshService mesh(messages, inbox, radio_info, network, device, boot_counter, nonce_seed,
+                          node,
                           reaper::board::kUsBandOwnerConfirmed && reaper::board::kAntennaVerified);
   static d::Session session(authority, device, boot, &messages, &radio_info, &inbox,
-                            &mesh.discovery(), &ble);
+                            &mesh.discovery(), &ble, &network);
   static d::HostLinks links(session, write_link, nullptr);
   mesh.begin();
   ble.begin();
@@ -163,8 +177,8 @@ static void run(void*) {
     ble.tick(static_cast<std::uint64_t>(esp_timer_get_time() / 1000), links);
     d::Snapshot current{};
     const bool storage_ok = authority.snapshot(current);
-    mesh.tick(storage_ok ? &current : nullptr,
-              static_cast<std::uint64_t>(esp_timer_get_time() / 1000));
+    const auto mesh_now = static_cast<std::uint64_t>(esp_timer_get_time() / 1000);
+    mesh.tick(storage_ok ? &current : nullptr, mesh_now, links.attached(mesh_now));
     radio_info.heap_free = esp_get_free_heap_size();
     radio_info.stack_free = uxTaskGetStackHighWaterMark(nullptr);  // ESP-IDF reports bytes.
     const auto now = esp_timer_get_time();

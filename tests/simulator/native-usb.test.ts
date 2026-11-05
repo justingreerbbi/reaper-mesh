@@ -29,6 +29,7 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_mesh/include',
+    '-Ifirmware/components/reaper_crypto/include',
     '-Ifirmware/components/reaper_device/include',
     'firmware/components/reaper_protocol/protocol.cpp',
     'firmware/components/reaper_device/configuration.cpp',
@@ -51,6 +52,7 @@ const hello = (link: string): Message => ({
   minVersion: 1,
   maxVersion: 1,
   owner: 'agent-A',
+  agentFeatures: 3,
 });
 const sync = (link: string, request: number): Message => ({
   type: 'sync',

@@ -24,7 +24,7 @@ struct Bus : r::Bus {
   bool reset() override { return !failed; }
   void off() override { off_called = true; }
   bool transfer(const std::uint8_t* input, std::uint8_t* output, std::size_t size) override {
-    if (failed || size < 2 || size > 215)
+    if (failed || size < 2 || size > m::kMaxPacketBytes + 1)
       return false;
     output[0] = 0;
     const auto address = input[0] & 0x7f;
@@ -53,17 +53,17 @@ struct Bus : r::Bus {
 std::vector<std::uint8_t> bytes() {
   m::Packet p{};
   p.key.origin = 1;
-  p.key.boot[0] = 42;
+  p.key.boot = 42;
   p.key.sequence = 1;
   p.destination = 2;
   p.count = 1;
   p.total = p.size = 160;
   p.bytes.fill('x');
-  std::vector<std::uint8_t> out(m::kMaxPacketBytes);
-  std::size_t n = 0;
-  if (!m::encode_packet(p, out.data(), out.size(), n))
-    std::abort();
-  out.resize(n);
+  // The driver carries bytes without reading them, so this only needs a frame's size.
+  std::vector<std::uint8_t> out(m::kFragmentBytes + m::kMinPacketBytes);
+  std::memcpy(out.data(), p.bytes.data(), p.size);
+  out[0] = 2;
+  out[5] = 0x33;
   return out;
 }
 int main(int argc, char** argv) {
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     auto result = radio.poll(2);
     CHECK(result.received && result.size == packet.size());
     CHECK(std::memcmp(result.bytes.data(), packet.data(), packet.size()) == 0);
-    bus.fifo[20] ^= 1;
+    bus.fifo[0] ^= 1;  // Not a version 2 frame. Authentication happens above the driver.
     bus.registers[0x12] = 0x40;
     CHECK(!radio.poll(3).received);
   } else if (scenario == "tx") {

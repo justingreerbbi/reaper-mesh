@@ -34,6 +34,7 @@ execFileSync(
     '-fno-omit-frame-pointer',
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_mesh/include',
+    '-Ifirmware/components/reaper_crypto/include',
     '-Ifirmware/components/reaper_device/include',
     'firmware/components/reaper_protocol/protocol.cpp',
     'firmware/components/reaper_device/configuration.cpp',
@@ -52,7 +53,14 @@ const wire = (message: Message) => encodeFrame(encodeMessage(message));
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 test('actual TypeScript agent retrieves diagnostics and complete UTF-8 inbox from native Session without writes', () => {
   const requests: Message[] = [
-    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-A',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
     { type: 'inboxQuery', link: 'link-A', boot: 'boot-A', request: 1 },
     { type: 'radioQuery', link: 'link-A', boot: 'boot-A', request: 1 },
@@ -105,7 +113,14 @@ test('actual TypeScript agent retrieves diagnostics and complete UTF-8 inbox fro
 
 test('native Session capability-gates discovery, deduplicates starts and pages an independent node snapshot', () => {
   const requests: Message[] = [
-    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-A',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
     { type: 'discover', link: 'link-A', boot: 'boot-A', id: 'agent-A:1', action: 1 },
     { type: 'discover', link: 'link-A', boot: 'boot-A', id: 'agent-A:1', action: 1 },
@@ -151,7 +166,14 @@ test('native Session capability-gates discovery, deduplicates starts and pages a
 
 test('position settings cross TS/native USB, survive lost replies and legacy writes, and reject partial updates', () => {
   const requests: Message[] = [
-    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-A',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
     {
       type: 'configure',
@@ -166,7 +188,14 @@ test('position settings cross TS/native USB, survive lost replies and legacy wri
       latitude: 900000000,
       longitude: 1800000000,
     },
-    { type: 'hello', link: 'link-B', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-B',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-B', boot: 'boot-A', request: 2 },
     { type: 'query', link: 'link-B', boot: 'boot-A', id: 'agent-A:1' },
     { type: 'sync', link: 'link-B', boot: 'boot-A', request: 3 },
@@ -244,7 +273,14 @@ test('position settings cross TS/native USB, survive lost replies and legacy wri
 
 test('native node paging freezes position with identity while a later name-only RF report arrives', () => {
   const requests: Message[] = [
-    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-A',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
     { type: 'nodeQuery', link: 'link-A', boot: 'boot-A', request: 1, generation: 0, cursor: 0 },
     { type: 'nodeQuery', link: 'link-A', boot: 'boot-A', request: 2, generation: 1, cursor: 0 },
@@ -272,7 +308,14 @@ test('native node paging freezes position with identity while a later name-only 
 
 test('screen settings cross TS/native USB, persist with the revision and reject partial or invalid updates', () => {
   const requests: Message[] = [
-    { type: 'hello', link: 'link-A', minVersion: 1, maxVersion: 1, owner: 'agent-A' },
+    {
+      type: 'hello',
+      link: 'link-A',
+      minVersion: 1,
+      maxVersion: 1,
+      owner: 'agent-A',
+      agentFeatures: 3,
+    },
     { type: 'sync', link: 'link-A', boot: 'boot-A', request: 1 },
     {
       type: 'configure',
@@ -375,6 +418,7 @@ test('a joined channel ID crosses TS/native USB, persists and gates native messa
     minVersion: 1,
     maxVersion: 1,
     owner: 'agent-A',
+    agentFeatures: 3,
   };
   const run = (requests: Message[]) => {
     const lines = execFileSync(binary, ['messages'], {

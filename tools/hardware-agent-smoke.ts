@@ -107,7 +107,7 @@ for (let run = 0; run < 3; run++) {
         reject(new Error(error || 'serial bridge exited'));
       });
     });
-    assert.ok([0, 1].includes(agent.capabilities?.radioVersion ?? -1));
+    assert.ok([0, 2].includes(agent.capabilities?.radioVersion ?? -1));
     if (expectedFirmware) assert.equal(agent.capabilities?.firmware, expectedFirmware);
     const readyAt = now();
     if (messageTest === '--local-test' || messageTest === '--tbeam-test') {

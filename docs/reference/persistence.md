@@ -76,3 +76,14 @@ off, so a board upgraded from earlier firmware moves to medium. Medium without b
 the earlier applicable format; any other choice writes record 7. Readers accept records 1–7, and a
 level above 2 fails closed without erasing. Firmware that reads only records 1–6 fails closed on a
 record 7 after a downgrade.
+
+## Boot counter
+
+The application keeps a 4-byte boot counter in `reaper_nvs` under the key `boot`, separate from the configuration record, and raises it once per boot before the radio can transmit (D50). A read, write or commit failure, or a counter at its maximum, returns zero, and the radio then transmits nothing. The counter is not part of configuration revisions or snapshots. A board with no saved counter starts from a random value, so erasing the partition does not repeat old message IDs. See [radio protocol](radio-protocol.md#identity-and-boot-counter).
+
+## Network keys
+
+The relay chain, device key, network mode, generation and epoch are stored in the `reaper_keys` partition at `0x218000`, which is two 4 KiB flash sectors, not NVS, because deleted NVS entries can stay readable in flash. The team key is never stored.
+
+A record is 80 bytes: magic `RK`, version 1, mode, a little-endian u32 sequence, u16 generation and epoch, the two 32-byte keys and a CRC-32. An update erases the unused sector, writes and reads back the new record there, then erases the old sector, so a power cut leaves one valid record. If both survive, boot uses the higher sequence and erases the other. An invalid or blank area means no network was chosen. A read failure leaves the radio with no network and refuses changes until a reboot reads it cleanly. The CRC detects corruption, and flash is not encrypted until release hardening (D50).
+

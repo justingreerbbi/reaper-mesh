@@ -2,7 +2,7 @@ import { Synchronizer } from './sync.ts';
 import type { Message } from '../protocol/messages.ts';
 import * as recovery from './recovery-data.ts';
 import { encodeMessage, validateField } from '../protocol/messages.ts';
-import { isEncryptedPayload, isMessagePayload } from '../protocol/encrypted-message.ts';
+import { isMessagePayload, MAX_MESSAGE_BYTES } from '../protocol/encrypted-message.ts';
 type Status = Extract<Message, { type: 'messageStatus' }>;
 export type Upload = Omit<Extract<Message, { type: 'submit' }>, 'link'>;
 export type MessageQuery = Omit<Extract<Message, { type: 'messageQuery' }>, 'link'>;
@@ -118,10 +118,10 @@ export class Messaging {
       const payload = payloadHex === undefined ? undefined : fromHex(payloadHex);
       const text = payload ? '' : recovery.string(item.text);
       const chunks = payload
-        ? isEncryptedPayload(payload, channel)
+        ? payload.length && payload.length <= MAX_MESSAGE_BYTES
           ? payloadChunksUnchecked(payload)
           : (() => {
-              throw new Error('invalid saved encrypted payload');
+              throw new Error('invalid saved message payload');
             })()
         : messageChunks(text);
       const boot = recovery.id(item.boot);
@@ -173,8 +173,8 @@ export class Messaging {
     device: string,
     now: number,
   ): Upload {
-    if (!isEncryptedPayload(payload, channel))
-      throw new Error('encrypted message envelope is invalid or too large');
+    if (!payload.length || payload.length > MAX_MESSAGE_BYTES)
+      throw new Error('message payload is empty or too large');
     const hex = Array.from(payload, value => value.toString(16).padStart(2, '0')).join('');
     return this.#send('', hex, destination, channel, device, now);
   }

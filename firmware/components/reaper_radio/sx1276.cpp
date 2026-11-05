@@ -65,8 +65,7 @@ bool Sx1276::configure(mesh::TxLevel level, bool boost, bool receive, bool trans
 Start Sx1276::transmit(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   if (!healthy_)
     return Start::Fault;
-  mesh::Packet decoded{};
-  if (!allow_tx_ || !mesh::decode_packet(bytes, size, decoded))
+  if (!allow_tx_ || !mesh::valid_frame_layout(bytes, size))
     return Start::Rejected;
   if (transmitting_)
     return Start::Wait;
@@ -97,10 +96,9 @@ Event Sx1276::poll(std::uint64_t now) {
       listen();
   } else if (!transmitting_ && (irq & 0x40) && !(irq & 0x20)) {
     std::uint8_t size = 0, start = 0;
-    if (read(0x13, size) && size >= 54 && size <= mesh::kMaxPacketBytes && read(0x10, start) &&
-        write(0x0d, start) && transfer(0, nullptr, event.bytes.data(), size)) {
-      mesh::Packet decoded{};
-      if (mesh::decode_packet(event.bytes.data(), size, decoded)) {
+    if (read(0x13, size) && size >= mesh::kMinPacketBytes && size <= mesh::kMaxPacketBytes &&
+        read(0x10, start) && write(0x0d, start) && transfer(0, nullptr, event.bytes.data(), size)) {
+      if (mesh::valid_frame_layout(event.bytes.data(), size)) {
         event.received = true;
         event.size = size;
       }

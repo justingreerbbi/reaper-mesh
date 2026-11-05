@@ -28,6 +28,8 @@ execFileSync(
     '-Ifirmware/components/reaper_protocol/include',
     '-Ifirmware/components/reaper_mesh/include',
     '-Ifirmware/components/reaper_crypto/include',
+    'firmware/components/reaper_protocol/protocol.cpp',
+    'firmware/components/reaper_mesh/radio_packet.cpp',
     'firmware/components/reaper_mesh/frame.cpp',
     'firmware/tests/crypto_host/crypto_host.cpp',
     'firmware/tests/frame_test.cpp',
@@ -137,6 +139,7 @@ for (const [scenario, description] of Object.entries({
   keys: 'separates epochs and chains',
   tamper: 'rejects every changed bit, leaving only current hops changeable within the limit',
   malformed: 'rejects truncation and invalid fields without publishing partial output',
+  link: 'keeps relays from reading or originating, and team members from forwarding forgeries',
 })) {
   test(`Radio version 2 ${description}`, () => {
     assert.equal(

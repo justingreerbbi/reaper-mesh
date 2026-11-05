@@ -79,9 +79,10 @@ int main(int argc, char** argv) {
     CHECK(queue.submit(owner, text<75>("owner:9"), 0, dest, 0, 1, chunk.data(), 2, 60002).state ==
           d::MessageState::Unknown);
   } else if (scenario == "validation") {
+    // Firmware carries bytes that are not text. Only agents decide what they mean.
     chunk[0] = 0xc0;
     chunk[1] = 0x80;
-    CHECK(submit(0, 1, 2).state == d::MessageState::Rejected);
+    CHECK(submit(0, 1, 2).state == d::MessageState::Queued);
     CHECK(queue.submit(owner, text<75>("other:2"), 0, dest, 0, 1, chunk.data(), 2, 0).state ==
           d::MessageState::Rejected);
     chunk.fill('x');

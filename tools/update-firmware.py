@@ -16,16 +16,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SDK = "735507283d5b2f9fb363a1901172dbd9e847945d"
+OTADATA = 0x21A000
 FILES = {
     0: ("bootloader/bootloader.bin", 0x8000),
     0x8000: ("partition_table/partition-table.bin", 0x1000),
-    0x10000: ("reaper_mesh_usb.bin", 0x200000),
+    # Also has to fit the smaller second slot, which a later signed update installs into.
+    0x10000: ("reaper_mesh_usb.bin", 0x1E0000),
+    # Blank, so the bootloader takes the first slot, which is the one just written.
+    OTADATA: ("ota_data_initial.bin", 0x2000),
 }
 PARTITIONS = [
     (1, 2, 0x9000, 0x5000, b"reaper_nvs"),
     (1, 1, 0xF000, 0x1000, b"phy_init"),
-    (0, 0, 0x10000, 0x200000, b"factory"),
+    (0, 0x10, 0x10000, 0x200000, b"ota_0"),
     (1, 2, 0x210000, 0x8000, b"nvs"),
+    (1, 0x40, 0x218000, 0x2000, b"reaper_keys"),
+    (1, 0, 0x21A000, 0x2000, b"otadata"),
+    (0, 0x11, 0x220000, 0x1E0000, b"ota_1"),
 ]
 
 
@@ -132,7 +139,8 @@ def validate(path, allow_dirty=False):
     )
     records = manifest.get("artifacts")
     require(
-        isinstance(records, list) and len(records) == 3, "expected exactly three flash artifacts"
+        isinstance(records, list) and len(records) == len(files),
+        "expected exactly four flash artifacts",
     )
     artifacts = {}
     for entry in records:
@@ -149,9 +157,12 @@ def validate(path, allow_dirty=False):
         data = artifact.read_bytes()
         require(type(entry["size"]) is int and entry["size"] == len(data), "artifact size mismatch")
         require(hashlib.sha256(data).hexdigest() == entry["sha256"], "artifact SHA256 mismatch")
-        partitions(data) if offset == 0x8000 else image(
-            data, 0 if tbeam else 9, 0x20 if tbeam else 0x30
-        )
+        if offset == 0x8000:
+            partitions(data)
+        elif offset == OTADATA:
+            require(data == b"\xff" * 0x2000, "OTA data must be blank")
+        else:
+            image(data, 0 if tbeam else 9, 0x20 if tbeam else 0x30)
         artifacts[offset] = data
     return manifest, artifacts
 
@@ -331,19 +342,22 @@ def main():
             *staged,
             chip=manifest["target"],
         )
-        require(written.count("Hash of data verified.") == 3, "ROM did not verify all three images")
+        require(
+            written.count("Hash of data verified.") == len(artifacts),
+            "ROM did not verify all images",
+        )
     receipt = {
         "time_utc": datetime.now(timezone.utc).isoformat(),
         "firmware": manifest["firmware"],
         "source_commit": manifest["source_commit"],
         "artifacts": manifest["artifacts"],
-        "verified_images": 3,
+        "verified_images": len(artifacts),
         "application_qualified": False,
     }
     receipt_path = options.manifest.resolve().parent / "flash-result.json"
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
     print(
-        f"ROM verified three images. Reconnect the console and verify firmware/settings. Receipt: {receipt_path}"
+        f"ROM verified all {len(artifacts)} images. Reconnect the console and verify firmware/settings. Receipt: {receipt_path}"
     )
 
 

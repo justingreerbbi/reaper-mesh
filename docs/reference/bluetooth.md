@@ -32,7 +32,7 @@ Creating a connection requires physical access to the device.
 - **Paired keys cannot be replaced remotely.** A repeat pairing from a known address is ignored unless the window is open, so an impostor using a paired phone's address cannot overwrite its keys.
 - **At most 4 paired devices.** A full list refuses new pairings rather than dropping an existing phone. Holding the main button for 15 seconds forgets all of them and changes the device's Bluetooth address.
 
-A paired phone has the same access as USB: messages, inbox, discovery and all settings. Channel keys stay in agents, so devices still carry ciphertext only (D33).
+A paired phone has the same access as USB: messages, inbox, discovery and all settings. The exception is changing keys: replacing or erasing a [radio network](protocol.md#radio-network-d50) over Bluetooth also needs the window opened with the button, so a paired phone cannot move a radio to another network. Channel keys stay in agents, so devices still carry ciphertext only for channel messages (D33).
 
 ## What a nearby observer can see
 

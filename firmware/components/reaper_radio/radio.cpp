@@ -79,8 +79,7 @@ bool Radio::configure(mesh::TxLevel level, bool boost, bool receive, bool transm
 Start Radio::transmit(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   if (!healthy_)
     return Start::Fault;
-  mesh::Packet decoded{};
-  if (!allow_tx_ || !mesh::decode_packet(bytes, size, decoded))
+  if (!allow_tx_ || !mesh::valid_frame_layout(bytes, size))
     return Start::Rejected;
   if (transmitting_)
     return Start::Wait;
@@ -115,12 +114,12 @@ Event Radio::poll(std::uint64_t now) {
   } else if (!transmitting_ && (irq & SX126X_IRQ_RX_DONE) &&
              !(irq & (SX126X_IRQ_CRC_ERROR | SX126X_IRQ_HEADER_ERROR))) {
     sx126x_rx_buffer_status_t buffer{};
-    if (check(sx126x_get_rx_buffer_status(&bus_, &buffer)) && buffer.pld_len_in_bytes >= 54 &&
+    if (check(sx126x_get_rx_buffer_status(&bus_, &buffer)) &&
+        buffer.pld_len_in_bytes >= mesh::kMinPacketBytes &&
         buffer.pld_len_in_bytes <= mesh::kMaxPacketBytes &&
         check(sx126x_read_buffer(&bus_, buffer.buffer_start_pointer, event.bytes.data(),
                                  buffer.pld_len_in_bytes))) {
-      mesh::Packet decoded{};
-      if (mesh::decode_packet(event.bytes.data(), buffer.pld_len_in_bytes, decoded)) {
+      if (mesh::valid_frame_layout(event.bytes.data(), buffer.pld_len_in_bytes)) {
         event.size = buffer.pld_len_in_bytes;
         event.received = true;
       }

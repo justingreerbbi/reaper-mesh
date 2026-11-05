@@ -35,6 +35,12 @@ bool HostLinks::write(const p::Message& message) {
          writer_(current_, output_.data(), size, context_);
 }
 void HostLinks::tick(std::uint64_t now) {
+  // Goes only to the link that owns the session. A full queue just means trying again next tick.
+  if (owned_ && session_.take_alert(reply_)) {
+    current_ = owner_;
+    if (write(reply_))
+      session_.alert_sent();
+  }
   for (const auto link : {HostLink::Usb, HostLink::Ble}) {
     auto& from = slot(link);
     const auto limit = link == HostLink::Usb ? kUsbStallMs : kBleStallMs;
@@ -58,5 +64,10 @@ void HostLinks::release(HostLink link) {
 bool HostLinks::ready(HostLink link, std::uint64_t now) const {
   const auto& from = slot(link);
   return owns(link) && session_.synchronized() && from.replied && now - from.last_reply < kActiveMs;
+}
+bool HostLinks::attached(std::uint64_t now) const {
+  if (!owned_ || !session_.synchronized())
+    return false;
+  return owner_ == HostLink::Ble || ready(HostLink::Usb, now);
 }
 }  // namespace reaper::device

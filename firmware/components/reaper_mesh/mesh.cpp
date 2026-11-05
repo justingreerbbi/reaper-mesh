@@ -1,5 +1,4 @@
 #include "reaper/mesh.hpp"
-#include "reaper/protocol.hpp"
 #include <cstring>
 namespace reaper::mesh {
 namespace {
@@ -31,7 +30,7 @@ bool Mesh::enqueue(const MessageKey& key, std::uint64_t destination, std::uint32
                    const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
   tick(now);
   if (!node_ || node_ == kBroadcast || key.origin != node_ || destination == node_ ||
-      !channels_.contains(channel) || !valid_message_payload(bytes, size, channel))
+      !link_.can_originate() || !channels_.contains(channel) || !valid_message_payload(bytes, size))
     return false;
   Packet p{};
   p.key = key;
@@ -79,37 +78,47 @@ bool Mesh::enqueue(const MessageKey& key, std::uint64_t destination, std::uint32
   // The bounded local sequence window prevents reexecution after record reclamation.
   return false;
 }
-bool Mesh::seen(const Packet& p, std::uint64_t now) {
+bool Mesh::seen(const std::uint8_t* frame, std::uint64_t now) {
+  const auto* nonce = frame + 6;
   Seen* free = nullptr;
   for (auto& s : seen_) {
     if (s.used && now >= s.until)
       s.used = false;
-    if (s.used && s.key == p.key && s.kind == p.kind && s.index == p.index)
+    if (s.used && !std::memcmp(s.nonce.data(), nonce, s.nonce.size()))
       return true;
     if (!s.used)
       free = &s;
   }
   if (!free)
     return true;  // Saturation drops traffic; it never allocates/evicts active marks.
-  *free = {true, p.key, p.kind, p.index, now + 750};
+  free->used = true;
+  std::memcpy(free->nonce.data(), nonce, free->nonce.size());
+  free->until = now + 750;
   return false;
 }
-bool Mesh::forward(const Packet& p, std::uint64_t now, bool ack_packet) {
-  for (const auto& f : forward_)
-    if (f.used && f.packet.key == p.key && f.packet.kind == p.kind && f.packet.index == p.index)
-      return true;
+bool Mesh::queue_frame(const Frame& frame, std::uint64_t now) {
+  std::uint64_t jitter = node_;
+  for (unsigned i = 0; i < 8; ++i)
+    jitter ^= std::uint64_t(frame.bytes[6 + i]) << (i * 8);
   for (auto& f : forward_)
     if (!f.used) {
       f.used = true;
-      f.packet = p;
-      if (!ack_packet)
-        --f.packet.hops;
-      const auto jitter =
-          (p.key.origin ^ p.key.sequence ^ node_ ^ (std::uint64_t(p.index) << 12)) % 91;
-      f.due = now + 10 + jitter;
+      f.frame = frame;
+      f.due = now + 10 + jitter % 91;
       return true;
     }
   return false;
+}
+bool Mesh::relay_frame(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
+  if (seen(bytes, now))
+    return true;
+  FrameRoute route{};
+  if (!relay_ || !parse_route(bytes, size, route) || !route.hops)
+    return true;
+  Frame frame{};
+  std::memcpy(frame.bytes.data(), bytes, size);
+  frame.size = size;
+  return decrement_hops(frame.bytes.data(), size) && queue_frame(frame, now);
 }
 void Mesh::ack(Inbound& r, std::uint64_t now) {
   if (!r.complete || r.destination == kBroadcast || now < r.next_ack)
@@ -120,17 +129,37 @@ void Mesh::ack(Inbound& r, std::uint64_t now) {
   p.key = r.key;
   p.destination = r.destination;
   p.hops = hops_;
-  if (forward(p, now, true))
+  Frame frame{};
+  if (!link_.seal(p, frame))
+    return;
+  seen(frame.bytes.data(), now);  // An ACK names the original sender, so an echo needs this mark.
+  if (queue_frame(frame, now))
     r.next_ack = now + 1000;
 }
-bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t now) {
+Received Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t now,
+                       Packet& control) {
   tick(now);
+  if (!node_ || node_ == kBroadcast)
+    return Received::Dropped;
   Packet p{};
-  if (!node_ || node_ == kBroadcast || !decode_packet(bytes, size, p) ||
-      !channels_.contains(p.channel))
-    return false;
-  if (p.kind != PacketKind::Data && p.kind != PacketKind::Ack)
-    return false;
+  const auto result = link_.receive(bytes, size, p);
+  if (result == FrameResult::Rejected)
+    return Received::Dropped;
+  const auto relayed = [&] {
+    return relay_frame(bytes, size, now) ? Received::Handled : Received::Dropped;
+  };
+  if (result == FrameResult::RelayOnly)
+    return relayed();
+  if (p.kind != PacketKind::Data && p.kind != PacketKind::Ack) {
+    control = p;
+    return Received::Control;
+  }
+  // Channel membership decides delivery, not relaying: channel content is end-to-end encrypted.
+  if (!channels_.contains(p.channel)) {
+    if (!relay_)
+      return Received::Dropped;
+    return relayed();
+  }
   if (p.kind == PacketKind::Ack && p.key.origin == node_) {
     for (auto& r : out_)
       if (r.used && r.key == p.key && r.destination == p.destination && r.channel == p.channel &&
@@ -141,12 +170,12 @@ bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t no
           r.state = SendState::Acknowledged;
         else if (in_flight_ && flight_index_ >= 0 && &out_[flight_index_] == &r)
           r.early_ack = true;
-        return true;
+        return Received::Handled;
       }
-    return false;
+    return Received::Dropped;
   }
   if (p.kind == PacketKind::Data && p.key.origin == node_)
-    return false;
+    return Received::Dropped;
   if (p.kind == PacketKind::Data && (p.destination == node_ || p.destination == kBroadcast)) {
     Inbound* record = nullptr;
     for (auto& r : in_)
@@ -169,17 +198,17 @@ bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t no
           break;
         }
     if (!record)
-      return false;
+      return Received::Dropped;
     auto& r = *record;
     if (r.poisoned || r.destination != p.destination || r.channel != p.channel ||
         r.size != p.total || r.count != p.count)
-      return false;
+      return Received::Dropped;
     auto* target = r.bytes.data() + p.index * kFragmentBytes;
     if (r.received & (1u << p.index)) {
       if (std::memcmp(target, p.bytes.data(), p.size)) {
         if (!r.complete)
           r.poisoned = true;
-        return false;
+        return Received::Dropped;
       }
       if (r.complete)
         ack(r, now);
@@ -187,9 +216,9 @@ bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t no
       std::memcpy(target, p.bytes.data(), p.size);
       r.received |= 1u << p.index;
       if (r.received == (1u << r.count) - 1) {
-        if (!valid_message_payload(r.bytes.data(), r.size, r.channel)) {
+        if (!valid_message_payload(r.bytes.data(), r.size)) {
           r.poisoned = true;
-          return false;
+          return Received::Dropped;
         }
         r.complete = true;
         r.deadline = now + 120000;
@@ -197,21 +226,17 @@ bool Mesh::receive(const std::uint8_t* bytes, std::size_t size, std::uint64_t no
       }
     }
     if (p.destination == node_)
-      return true;
+      return Received::Handled;
   }
-  if (seen(p, now))
-    return true;
-  if (relay_ && p.hops)
-    return forward(p, now);
-  return true;
+  return relayed();
 }
-bool Mesh::next_tx(std::uint64_t now, Packet& p) {
+bool Mesh::next_tx(std::uint64_t now, Frame& frame) {
   tick(now);
   if (in_flight_)
     return false;
   for (auto& f : forward_)
     if (f.used && now >= f.due) {
-      p = f.packet;
+      frame = f.frame;
       f.used = false;
       in_flight_ = true;
       flight_index_ = -1;
@@ -222,7 +247,7 @@ bool Mesh::next_tx(std::uint64_t now, Packet& p) {
     auto& r = out_[index];
     if (!r.used || terminal(r) || r.rounds >= 3 || now < r.due)
       continue;
-    p = {};
+    Packet p{};
     p.key = r.key;
     p.destination = r.destination;
     p.channel = r.channel;
@@ -233,6 +258,10 @@ bool Mesh::next_tx(std::uint64_t now, Packet& p) {
     const auto offset = r.part * kFragmentBytes;
     p.size = r.size - offset < kFragmentBytes ? r.size - offset : kFragmentBytes;
     std::memcpy(p.bytes.data(), r.bytes.data() + offset, p.size);
+    if (!link_.seal(p, frame)) {
+      r.state = SendState::Failed;  // Fails closed: nothing goes out without its keys.
+      continue;
+    }
     in_flight_ = true;
     flight_index_ = static_cast<int>(index);
     next_out_ = (index + 1) % out_.size();

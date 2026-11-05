@@ -1,3 +1,4 @@
+import { SimulatedNetwork } from './network-device.ts';
 import { ConfigDevice } from './config-device.ts';
 import { FrameDecoder, encodeFrame } from '../protocol/framing.ts';
 import { decodeMessage, encodeMessage, type Message } from '../protocol/messages.ts';
@@ -37,6 +38,9 @@ export class SimulatedDevice {
 
   /** Acts as if a phone starts pairing five seconds after the window opens. */
   pairingOpenedAt = 0;
+  network = new SimulatedNetwork();
+  /** Sends an inbox alert to the connected agent, if it asked for alerts. */
+  alertInbox: (latest: number) => void = () => {};
 
   createPort(): SerialPortLike {
     let input!: ReadableStreamDefaultController<Uint8Array>;
@@ -73,6 +77,10 @@ export class SimulatedDevice {
               link = message.link;
               owner = message.owner;
               admitted = !!owner && this.config.admit(owner);
+              this.alertInbox = latest => {
+                if ((message.agentFeatures ?? 0) & 1)
+                  reply({ type: 'inboxChanged', link: message.link, boot, latest });
+              };
               reply({
                 type: 'welcome',
                 link,
@@ -83,7 +91,7 @@ export class SimulatedDevice {
                 configSchema: 1,
                 features: this.readOnly
                   ? 2
-                  : 7 | 16 | 1024 | 2048 | 8192 | (this.txBoost ? 4096 : 0),
+                  : 7 | 16 | 1024 | 2048 | 8192 | 16384 | (this.txBoost ? 4096 : 0),
                 radioSchema: 1,
                 maxChannels: 8,
                 channelIdVersion: 1,
@@ -120,6 +128,8 @@ export class SimulatedDevice {
                 channelIds: this.radio.channelIds,
                 preset: this.radio.preset,
               } as Message);
+            const network = this.network.handle(message);
+            if (network) reply({ ...network, link, boot } as Message);
             if (message.type === 'pairingRequest') {
               if (message.open === 1) this.pairingOpenedAt = Date.now();
               const seconds = this.pairingOpenedAt

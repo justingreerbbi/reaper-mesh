@@ -10,6 +10,8 @@ unsigned set_calls = 0, commit_calls = 0, close_calls = 0, get_calls = 0;
 bool missing = false, second_get_fails = false;
 std::size_t stored_size = 16;
 bool arguments_valid = true;
+bool boot_saved = false;
+std::uint32_t boot_value = 0;
 }  // namespace
 esp_err_t nvs_flash_init_partition(const char* partition) {
   arguments_valid &= std::strcmp(partition, "reaper_nvs") == 0;
@@ -27,6 +29,15 @@ void nvs_close(nvs_handle_t handle) {
   ++close_calls;
 }
 esp_err_t nvs_get_blob(nvs_handle_t handle, const char* key, void* output, std::size_t* size) {
+  if (!std::strcmp(key, "boot")) {
+    if (get_error)
+      return get_error;
+    if (!boot_saved)
+      return ESP_ERR_NVS_NOT_FOUND;
+    std::memcpy(output, &boot_value, sizeof(boot_value));
+    *size = sizeof(boot_value);
+    return ESP_OK;
+  }
   arguments_valid &= handle == 1 && std::strcmp(key, "config") == 0;
   ++get_calls;
   if (missing)
@@ -41,7 +52,15 @@ esp_err_t nvs_get_blob(nvs_handle_t handle, const char* key, void* output, std::
   *size = stored_size;
   return ESP_OK;
 }
-esp_err_t nvs_set_blob(nvs_handle_t handle, const char* key, const void*, std::size_t) {
+esp_err_t nvs_set_blob(nvs_handle_t handle, const char* key, const void* data, std::size_t size) {
+  if (!std::strcmp(key, "boot")) {
+    ++set_calls;
+    if (set_error)
+      return set_error;
+    std::memcpy(&boot_value, data, size);
+    boot_saved = true;
+    return ESP_OK;
+  }
   arguments_valid &= handle == 1 && std::strcmp(key, "config") == 0;
   ++set_calls;
   return set_error;
@@ -105,6 +124,24 @@ int main(int argc, char** argv) {
       CHECK(storage.commit(record.data(), 16) == d::CommitStatus::Committed);
     }
     CHECK(set_calls == 1 && commit_calls == 1 && close_calls == 1);
+  } else if (scenario == "bootcounter") {
+    NvsStorage storage;
+    CHECK(storage.next_boot_counter(0) == 0);
+    CHECK(storage.next_boot_counter(500) == 500);
+    CHECK(commit_calls == 1);
+    CHECK(storage.next_boot_counter(900) == 501);  // Only a board with no saved value uses it.
+    // Any failure to save returns zero, and the radio then refuses to transmit.
+    set_error = -1;
+    CHECK(storage.next_boot_counter(1) == 0);
+    set_error = 0;
+    commit_error = -1;
+    CHECK(storage.next_boot_counter(1) == 0);
+    commit_error = 0;
+    get_error = -1;
+    CHECK(storage.next_boot_counter(1) == 0);
+    get_error = 0;
+    boot_value = 0xffffffff;  // It never wraps around to a value used before.
+    CHECK(storage.next_boot_counter(1) == 0);
   } else if (scenario == "uncertain") {
     NvsStorage storage;
     set_error = -1;

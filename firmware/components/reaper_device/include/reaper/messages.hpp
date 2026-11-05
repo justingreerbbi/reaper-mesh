@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include "reaper/configuration.hpp"
 #include "reaper/radio_packet.hpp"
 #include <cstdint>
@@ -22,6 +23,15 @@ struct MessageRecord {
   Text<64> reason{};
 };
 // Single serialized execution context, no allocation, no implicit radio success.
+// The boot part of a message ID. Sender and receiver must build the same ID from a frame's boot
+// counter, so agents on both ends can correlate a message. USB keeps its 32-digit form.
+inline Text<64> boot_identity(std::uint32_t boot) {
+  char text[33]{};
+  std::snprintf(text, sizeof(text), "%032lx", static_cast<unsigned long>(boot));
+  Text<64> identity{};
+  identity.assign(reinterpret_cast<const std::uint8_t*>(text), 32);
+  return identity;
+}
 class MessageQueue {
  public:
   static constexpr std::size_t kCapacity = 8;

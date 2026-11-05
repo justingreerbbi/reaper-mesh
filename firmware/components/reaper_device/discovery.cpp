@@ -72,7 +72,7 @@ void Discovery::policy(const Settings* settings, bool may_transmit, std::uint64_
     }
     if (settings)
       next_beacon_ = now + std::uint64_t(settings->discovery.interval) * 1000 +
-                     (node_ ^ boot_[0]) % (std::uint64_t(settings->discovery.interval) * 100 + 1);
+                     (node_ ^ boot_) % (std::uint64_t(settings->discovery.interval) * 100 + 1);
     else
       next_beacon_ = 0;
   }
@@ -92,15 +92,15 @@ bool Discovery::queue(mesh::PacketKind kind, std::uint64_t destination,
       p.kind = kind;
       p.key = {node_, boot_, ++sequence_};
       p.destination = destination;
-      p.hops = p.count = 1;
+      p.count = 1;  // Hops stay zero, so controls are never relayed.
       p.bytes[0] = 1;
       p.bytes[1] = settings_.label.length;
       std::memcpy(p.bytes.data() + 2, settings_.label.bytes.data(), settings_.label.length);
       p.size = 2 + settings_.label.length;
       if (parent) {
-        std::memcpy(p.bytes.data() + p.size, parent->boot.data(), 16);
-        write32(p.bytes.data() + p.size + 16, parent->sequence);
-        p.size += 20;
+        write32(p.bytes.data() + p.size, parent->boot);
+        write32(p.bytes.data() + p.size + 4, parent->sequence);
+        p.size += 8;
       }
       const auto& position = settings_.position;
       if (kind != mesh::PacketKind::Discover && position.share && position.source == 1 &&
@@ -214,8 +214,8 @@ bool Discovery::receive(const mesh::Packet& packet, std::uint64_t now) {
     const auto* parent = packet.bytes.data() + 2 + packet.bytes[1];
     Receipt* receipt = nullptr;
     for (auto& r : receipts_)
-      if (r.sequence && r.sent && !r.failed && now < r.end &&
-          !std::memcmp(parent, boot_.data(), 16) && read32(parent + 16) == r.sequence) {
+      if (r.sequence && r.sent && !r.failed && now < r.end && read32(parent) == boot_ &&
+          read32(parent + 4) == r.sequence) {
         receipt = &r;
         break;
       }
@@ -254,7 +254,7 @@ bool Discovery::receive(const mesh::Packet& packet, std::uint64_t now) {
   if (reply_count_ >= reply_times_.size() && now < reply_times_[next_reply_] + 60000)
     return observed;
   const auto jitter =
-      250 + ((node_ ^ packet.key.origin ^ packet.key.sequence ^ boot_[0]) * 2654435761ULL) % 4751;
+      250 + ((node_ ^ packet.key.origin ^ packet.key.sequence ^ boot_) * 2654435761ULL) % 4751;
   if (queue(mesh::PacketKind::Presence, packet.key.origin, &packet.key, now + jitter, now + 9000)) {
     reply_times_[next_reply_] = now;
     next_reply_ = (next_reply_ + 1) % reply_times_.size();
@@ -269,7 +269,7 @@ bool Discovery::next_tx(std::uint64_t now, mesh::Packet& out) {
   if (settings_.discovery.beacon && next_beacon_ && now >= next_beacon_) {
     queue(mesh::PacketKind::Beacon, mesh::kBroadcast, nullptr, now, now + 5000);
     const auto interval = std::uint64_t(settings_.discovery.interval) * 1000;
-    next_beacon_ = now + interval + (node_ ^ sequence_ ^ boot_[0]) % (interval / 10 + 1);
+    next_beacon_ = now + interval + (node_ ^ sequence_ ^ boot_) % (interval / 10 + 1);
   }
   for (auto& p : pending_) {
     if (p.used && now >= p.until) {

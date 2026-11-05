@@ -42,6 +42,7 @@ for (const [scenario, description] of Object.entries({
   bounds: 'rejects oversized reads and invalid writes before calling storage',
   commit: 'acknowledges only after set and commit succeed and closes its handle',
   uncertain: 'classifies set or commit failures as indeterminate',
+  bootcounter: 'saves a rising boot counter from a random start, and returns zero on any failure',
 })) {
   test(`NVS adapter ${description}`, () => {
     assert.equal(

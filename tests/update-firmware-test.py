@@ -61,7 +61,14 @@ class UpdateTests(unittest.TestCase):
             "artifacts": [],
         }
         for offset, (name, _) in updater.FILES.items():
-            self.artifact(offset, partition_table() if offset == 0x8000 else esp_image())
+            self.artifact(
+                offset,
+                partition_table()
+                if offset == 0x8000
+                else b"\xff" * 0x2000
+                if offset == updater.OTADATA
+                else esp_image(),
+            )
         self.path = self.root / "manifest.json"
 
     def artifact(self, offset, data):
@@ -169,6 +176,13 @@ class UpdateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.validate()
 
+    def test_rejects_ota_data_that_is_not_blank(self):
+        data = bytearray(b"\xff" * 0x2000)
+        data[0] = 0
+        self.artifact(updater.OTADATA, bytes(data))
+        with self.assertRaisesRegex(ValueError, "OTA data must be blank"):
+            self.validate()
+
     def test_partition_change_rejected_even_with_new_checksums(self):
         data = bytearray(partition_table())
         struct.pack_into("<I", data, 8, 0x6000)
@@ -211,7 +225,7 @@ class UpdateTests(unittest.TestCase):
         for entry in self.manifest["artifacts"]:
             if entry["offset"] == "0x0":
                 entry["offset"] = "0x1000"
-            if entry["file"].endswith("partition-table.bin"):
+            if entry["file"].endswith(("partition-table.bin", "ota_data_initial.bin")):
                 continue
             path = self.root / entry["file"]
             data = bytearray(esp_image())

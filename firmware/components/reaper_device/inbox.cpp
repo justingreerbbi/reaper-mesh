@@ -23,7 +23,7 @@ bool equal(const Text<64>& a, const Text<64>& b) {
 bool Inbox::append(const Text<64>& origin, const Text<64>& id, const Text<64>& destination,
                    std::uint32_t channel, const std::uint8_t* bytes, std::size_t size) {
   if (!identity(origin) || !identity(id) || !identity(destination) ||
-      !mesh::valid_message_payload(bytes, size, channel))
+      !mesh::valid_message_payload(bytes, size))
     return false;
   for (const auto& item : items_)
     if (item.used && equal(item.origin, origin) && equal(item.message_id, id))

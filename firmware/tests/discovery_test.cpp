@@ -19,10 +19,8 @@ d::Text<N> text(const char* s) {
   t.assign(reinterpret_cast<const std::uint8_t*>(s), std::strlen(s));
   return t;
 }
-std::array<std::uint8_t, 16> boot(unsigned n) {
-  std::array<std::uint8_t, 16> b{};
-  b[0] = n;
-  return b;
+std::uint32_t boot(unsigned n) {
+  return n;
 }
 d::Settings settings(const char* name, bool respond = false, bool beacon = false) {
   d::Settings s{};
@@ -39,7 +37,7 @@ m::Packet control(std::uint64_t node, unsigned nonce, unsigned seq,
   p.kind = kind;
   p.key = {node, boot(nonce), seq};
   p.destination = m::kBroadcast;
-  p.count = p.hops = 1;
+  p.count = 1;
   p.size = p.total = 3;
   p.bytes[0] = p.bytes[1] = 1;
   p.bytes[2] = 'N';
@@ -105,15 +103,12 @@ int main(int argc, char** argv) {
     auto beacon = out;
     beacon.kind = m::PacketKind::Beacon;
     beacon.destination = m::kBroadcast;
-    std::memmove(beacon.bytes.data() + 2 + beacon.bytes[1], out.bytes.data() + 22 + out.bytes[1],
+    std::memmove(beacon.bytes.data() + 2 + beacon.bytes[1], out.bytes.data() + 10 + out.bytes[1],
                  13);
-    beacon.size -= 20;
+    beacon.size -= 8;
     beacon.total = beacon.size;
-    std::array<std::uint8_t, 214> bytes{};
-    std::size_t size = 0;
-    m::Packet decoded{};
-    CHECK(m::encode_packet(beacon, bytes.data(), bytes.size(), size) &&
-          m::decode_packet(bytes.data(), size, decoded));
+    const auto decoded = beacon;
+    CHECK(m::valid_packet(decoded));
     CHECK(a.receive(decoded, 18000));
     CHECK(a.peer(0)->position.latitude == 900000000);  // (0,0) is valid.
     auto old = decoded;
@@ -149,17 +144,13 @@ int main(int argc, char** argv) {
     CHECK(b.next_tx(400001, out) && out.kind == m::PacketKind::Discover && out.bytes[0] == 1);
   } else if (scenario == "codec") {
     auto q = control(2, 2, 1, m::PacketKind::Discover);
-    std::array<std::uint8_t, 214> bytes{};
-    std::size_t size = 0;
-    m::Packet decoded{};
-    CHECK(m::encode_packet(q, bytes.data(), bytes.size(), size) &&
-          m::decode_packet(bytes.data(), size, decoded));
+    CHECK(m::valid_packet(q));
     q.bytes[2] = '\n';
-    CHECK(!m::encode_packet(q, bytes.data(), bytes.size(), size));
-    q = control(2, 2, 1);
-    q.hops = 2;
     CHECK(!m::valid_packet(q));
-    q.hops = 1;
+    q = control(2, 2, 1);
+    q.hops = 1;  // Controls are never relayed.
+    CHECK(!m::valid_packet(q));
+    q.hops = 0;
     q.count = 2;
     CHECK(!m::valid_packet(q));
   } else if (scenario == "bounds") {

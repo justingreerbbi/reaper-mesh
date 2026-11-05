@@ -18,6 +18,27 @@ export type ReceivedMessage = Readonly<{
   payloadHex?: string;
 }>;
 /** Separate inbox sequence; never shares configuration event counters or executes mutations. */
+/** The message as text, or undefined if its bytes are not readable text. */
+function readableText(bytes: Uint8Array, channel: number) {
+  if (isEncryptedPayload(bytes, channel)) return undefined;
+  // Any envelope version counts as an envelope, so an unknown one is not shown as text.
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x4d &&
+    bytes[2] === 0x45 &&
+    bytes[3] < 32
+  )
+    return undefined;
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    if (/[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) return undefined;
+    messageChunks(text);
+    return text;
+  } catch {
+    return undefined;
+  }
+}
 export class InboxReader {
   #history: ReceivedMessage[] = [];
   get history(): readonly ReceivedMessage[] {
@@ -63,14 +84,8 @@ export class InboxReader {
         item.payloadHex === undefined ? undefined : recovery.string(item.payloadHex);
       let text = '';
       if (payloadHex) {
-        if (
-          !/^(?:[0-9a-f]{2})+$/u.test(payloadHex) ||
-          !isEncryptedPayload(
-            Uint8Array.from(payloadHex.match(/../g)!, byte => Number.parseInt(byte, 16)),
-            channel,
-          )
-        )
-          throw new Error('invalid saved encrypted inbox payload');
+        if (!/^(?:[0-9a-f]{2})+$/u.test(payloadHex) || payloadHex.length > 2048)
+          throw new Error('invalid saved inbox payload');
       } else {
         text = recovery.string(item.text);
         messageChunks(text);
@@ -100,6 +115,10 @@ export class InboxReader {
       history.push(entry);
     }
     this.#history = history;
+  }
+  /** Looks for new messages now rather than at the next poll. */
+  wake(now: number) {
+    this.#next = now;
   }
   tick(now: number, context?: Context): Query | Read | undefined {
     this.#time(now);
@@ -238,25 +257,21 @@ export class InboxReader {
     if (part.part === part.count) {
       try {
         const bytes = Uint8Array.from(part.data.match(/../g) ?? [], hex => parseInt(hex, 16));
-        const isEncrypted = isEncryptedPayload(bytes, part.channel);
-        const text = isEncrypted
-          ? undefined
-          : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-        if (
-          !bytes.length ||
-          (text !== undefined && /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text))
-        )
-          throw new Error();
-        if (!isEncrypted && text !== undefined) messageChunks(text);
+        if (!bytes.length) throw new Error();
+        // Firmware carries bytes it does not understand, and so may anyone with the keys. Whatever
+        // is not readable text is kept as a payload for the app to label, so one such message can
+        // never stop the rest of the inbox from being read.
+        const text = readableText(bytes, part.channel);
         const previous = this.#history.find(
           item =>
             item.device === this.#context!.device &&
             item.origin === part.origin &&
             item.messageId === part.messageId,
         );
-        const payloadHex = isEncrypted
-          ? Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
-          : undefined;
+        const payloadHex =
+          text === undefined
+            ? Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
+            : undefined;
         if (
           previous &&
           (previous.channel !== part.channel ||
@@ -284,7 +299,7 @@ export class InboxReader {
           );
         }
       } catch {
-        this.error = 'invalid received UTF-8 message';
+        this.error = 'invalid received message';
         return;
       }
       this.#cursor = part.sequence;

@@ -48,7 +48,9 @@ The bytes are the same as USB: COBS frames separated by zero bytes, each with a 
 
 ## Behavior to design for
 
+- **Choosing a network.** Since firmware `v0.8.0` a radio sends nothing until a network is chosen, and radio status reports `network-not-chosen`. Check feature bit 14, read `networkStatus`, and send `networkFill` with Open mode or team keys, which needs USB or the window opened with the button. A team radio also needs `teamLoad` after each reboot, and reports `team-key-needed` until then. See [Radio network](../reference/protocol.md#radio-network-d50). Never store these keys in a journal or a log.
 - One host at a time. The newest `hello` takes over, and opening the USB port resets the board, which drops your link.
 - Expect lost connections. A connection that is not trusted within 5 seconds is dropped, or 60 seconds while pairing is open.
 - A device holds four paired phones. A full list refuses new pairings until the user holds the button for 15 seconds, which forgets them all and changes the device's Bluetooth address.
-- Background use has not been built or tested. iOS and Android both limit Bluetooth in the background. The planned approach is in [Security architecture](../contributing/security-architecture.md#background-delivery-to-the-phone).
+- **Background delivery.** Firmware `v0.9.0` can alert an app that asked for it in `hello`, which is what lets iOS wake a background app. The app side has not been built or tested, and iOS and Android both limit Bluetooth in the background. See [Agent features, payloads and inbox alert](../reference/protocol.md#agent-features-payloads-and-inbox-alert-d50) and [Background delivery](../contributing/security-architecture.md#background-delivery-to-the-phone).
+- **Unknown payloads.** Before declaring `agentFeatures` bit 1, make sure the app keeps reading its inbox past bytes it cannot read. Until then, the device sends such messages as the text `Unsupported message`.

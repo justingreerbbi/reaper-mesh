@@ -21,8 +21,8 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 
 | # | Question | Revisit when |
 | --- | --- | --- |
-| Q3 | Is 1,024 bytes the right message cap? Each fragment carries a 54-byte header for 160 bytes of payload (about 25% overhead), and a full message is 7 fragments | After the outdoor range test in the [field qualification plan](field-qualification.md), from measured airtime and delivery rates |
-| Q5 | Define the application payload type for core v1: typed payloads that firmware carries, relays and acknowledges without understanding them, so features such as map items live in agents and older agents ignore unknown types (D39, D41). Includes a compact encoding for map items, replacing `RMAP1` JSON in text | Direction set by D50: firmware carries opaque typed payloads, built in its step 1. The content types and map encoding stay for the core v1 protocol review, together with Q3 |
+| Q3 | Is 1,024 bytes the right message cap? Each fragment carries 58 bytes of overhead for 160 bytes of payload (about 27% of the frame), and a full message is 7 fragments | After the outdoor range test in the [field qualification plan](field-qualification.md), from measured airtime and delivery rates |
+| Q5 | Define the application payload type for core v1: typed payloads that firmware carries, relays and acknowledges without understanding them, so features such as map items live in agents and older agents ignore unknown types (D39, D41). Includes a compact encoding for map items, replacing `RMAP1` JSON in text | Firmware carrying bytes it does not understand was built for D50 step 1. The content types and map encoding stay for the core v1 protocol review, together with Q3 |
 | Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | When the owner resumes GPS work (D26) |
 | Q8 | Formal performance targets (range, throughput, battery), set from the [field qualification plan](field-qualification.md) results | After field qualification, before publishing any range, throughput or battery figures |
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
@@ -181,7 +181,8 @@ preserve newer settings so older agents can still edit. Storage records 1–4 st
 newer record is written only when needed. Policy changes quiesce queued messages first.
 
 ### D21. Radio frame and mesh
-Nov 1 · **Adopted**. An independent radio frame with a 54-byte header and CRC, up to 160 payload
+Nov 1 · **Adopted**; [D50](#d50-trusted-device-security-model) replaced the frame layout with radio
+version 2 (58 bytes of overhead, no CRC-32). An independent radio frame with a 54-byte header and CRC, up to 160 payload
 bytes per fragment and 7 fragments per message. Bounded managed flooding with duplicate
 suppression and hop limits. TX completion is distinct from destination ACK. See
 [radio protocol](../reference/radio-protocol.md) and Q3.

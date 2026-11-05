@@ -193,7 +193,7 @@ MessageReceipt MessageQueue::submit(const Text<64>& owner, const Text<75>& id,
     r.size = part * 32 + size;
   const auto complete = count == 32 ? 0xffffffffu : (1u << count) - 1;
   if (r.received == complete) {
-    if (!mesh::valid_message_payload(r.bytes.data(), r.size, r.channel)) {
+    if (!mesh::valid_message_payload(r.bytes.data(), r.size)) {
       r.state = MessageState::Rejected;
       literal(r.reason, "invalid-payload");
     } else {
