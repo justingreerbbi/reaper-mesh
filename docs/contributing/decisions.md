@@ -14,7 +14,6 @@ Questions that need a decision now:
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
 | Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.2 reviewed against current docs and code on November 3; awaiting owner approval |
-| Q13 | Approve, revise or reject the [rotation and rekey design](rotation-design.md) for D50 step 2. It has five decisions, including replacing "highest authenticated epoch wins" for relays with epoch proofs, because a stolen relay key could otherwise strand relays | Building step 2 | Drafted November 4; awaiting owner decisions |
 
 ## Parked questions
 
@@ -29,7 +28,7 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
 | Q10 | Signed releases, rollback and stable-release support policy. D50 sets the direction: signed dual-slot updates, flash encryption and Secure Boot V2 on release builds | Before the first public release or public updater |
 
-Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs), Q12 → D50 (security architecture).
+Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs), Q12 → D50 (security architecture), Q13 → D52 (rotation and rekey design).
 
 ## Product and scope
 
@@ -232,6 +231,9 @@ qualification (D37 otherwise stands). An independent security review is still ou
 
 ### D51. Team setup in the portal before field qualification
 Nov 4 · **Confirmed**. Owner direction: the owner tests through the web app, so team setup cannot wait behind D37, and test tools are not the way to use it. This is an exception to the pause on portal features, like D49. The portal's Radio network page creates or joins a team by an `RMTEAM1` QR code, adds a radio as a member or relay, and reloads the team key when a radio needs it. It needs no firmware change. This first version has no roster, deputies, rotation or member removal, so anyone with the code can join, and removing someone means creating a new team. A missing PIN only shows a warning for now, although D50 calls for requiring one in team mode. See the [web portal guide](../guides/web-portal.md).
+
+### D52. Rotation and rekey design
+Nov 5 · **Confirmed** by the owner, with all five recommendations accepted (closes Q13). Not yet built, and it has had no independent security review. Amends D50 for relays: a radio holding only the relay key forwards frames within an epoch window but erases old keys only on an epoch proof, a value from a one-way chain that agents hold and a relay key cannot produce, because a stolen relay key could otherwise strand relays. A flagged network frame carries proofs, rekeys and relay status to radios with no team key. Until step 4, a rekey reaches only the radios the issuing browser filled, and the portal calls it **Replace relay key**, because it locks out a radio and not a person. The rotation half (2a) is built before the three-node relay test so that test covers epoch changes, and rekey and status (2b) follow it, which changes the roadmap's order. Portal controls for this work are an exception to D37, like D49 and D51. The rotation interval is limited to between 6 hours and 7 days. See the [rotation and rekey design](rotation-design.md).
 
 ### D38. Keep the schema-driven TLV encoding
 Nov 3 · **Confirmed** (closes Q4). The USB protocol keeps its schema-driven TLV encoding, with

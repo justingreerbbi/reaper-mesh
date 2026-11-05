@@ -60,8 +60,12 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 - Field qualification comes first: new portal features are paused until three-node relay and
   an outdoor range test pass on hardware (owner direction, November 3). Portal work is limited
   to bug fixes and native QA. See the
-  [field qualification plan](docs/contributing/field-qualification.md). The one exception is
-  keeping the portal in step with the mobile app, which the owner directed on November 4 (D49).
+  [field qualification plan](docs/contributing/field-qualification.md). The exceptions are
+  keeping the portal in step with the mobile app (D49), team setup (D51), and the portal controls
+  for key rotation and rekeying (D52).
+- D50 step 2a, automatic key rotation, comes next and is built before the three-node relay test.
+  Rekey and relay status (2b) follow qualification. See the
+  [rotation and rekey design](docs/contributing/rotation-design.md).
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.

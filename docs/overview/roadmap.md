@@ -2,7 +2,7 @@
 
 Owner-directed phases, set November 1, 2026 and last updated November 3. This is the canonical list of product priorities. Current implementation and verification state is in [Status](status.md); architecture is in the [development plan](../contributing/plan.md).
 
-**Security (owner direction, November 4):** the [security architecture](../contributing/security-architecture.md) (D50) is approved. Its step 1, the new radio format, is built, so field qualification runs on the frames that ship. Remaining Phase 4 work can continue while waiting for a third board. See [Phase 4 delivery order](#phase-4-delivery-order).
+**Security (owner direction, November 4):** the [security architecture](../contributing/security-architecture.md) (D50) is approved. Its step 1, the new radio format, is built, so field qualification runs on the frames that ship. Key rotation comes next, before the relay test (D52, November 5). Remaining Phase 4 work can continue while waiting for a third board. See [Phase 4 delivery order](#phase-4-delivery-order).
 
 **Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
 
@@ -13,13 +13,14 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 Order of work:
 
 1. **Done (November 4, firmware `v0.9.0`):** D50 step 1: radio version 2, relay and team keys, opaque payloads, the partition table, key storage and fill, Open mode, beacons only while attached, and the inbox changed alert. Verified on two boards; relay is not.
-2. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
-3. Three-node relay test.
-4. Outdoor range test.
-5. Power-loss, interrupted-flash and soak tests.
-6. Build D50 step 2: relay key rotation and rekey, which the freeze depends on. A [draft design](../contributing/rotation-design.md) awaits owner decisions (Q13), including whether to build part of it before the three-node test.
-7. **Core v1 protocol review.** Using the test results, define the core to freeze: the content types carried in opaque payloads (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
-8. Resume Phase 2.3 portal work and D50 steps 3 to 6, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
+2. Build D50 step 2a: automatic key rotation with epoch proofs, with its portal controls, so the relay test covers epoch changes (D52). See the [rotation and rekey design](../contributing/rotation-design.md).
+3. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
+4. Three-node relay test.
+5. Outdoor range test.
+6. Power-loss, interrupted-flash and soak tests.
+7. Build D50 step 2b: relay key rekey and relay status, with their portal controls, which the freeze depends on.
+8. **Core v1 protocol review.** Using the test results, define the core to freeze: the content types carried in opaque payloads (Q5), fragment and message size (Q3), and removal of compatibility layers kept for earlier prototype builds. With owner approval, reflash both boards, reset the fixtures to the new baseline and declare core v1 (D41, D42).
+9. Resume Phase 2.3 portal work and D50 steps 3 to 6, building new features in agents and plugins on top of core v1. First planned item: per-channel auto-add for shared map items and an explicit channel choice when sharing (D43). Then the items in [Planned after qualification](#planned-after-qualification).
 
 Channel identity was settled early, ahead of the core v1 review, by owner decision (D45).
 

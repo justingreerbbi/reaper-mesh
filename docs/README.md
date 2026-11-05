@@ -61,7 +61,7 @@ you want to do.
 | [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
 | [Field qualification plan](contributing/field-qualification.md) | Three-node relay, outdoor range, power-loss and soak tests |
 | [Security architecture](contributing/security-architecture.md) | Confirmed trusted-device direction (D50): relay, team, channel and direct-message keys, rotation, optional setup, background delivery and delivery order |
-| [Rotation and rekey design](contributing/rotation-design.md) | Draft design for D50 step 2: epoch proofs, network frames, rekeying and relay status, awaiting owner decisions |
+| [Rotation and rekey design](contributing/rotation-design.md) | Confirmed design for D50 step 2 (D52): epoch proofs, network frames, rekeying and relay status |
 | [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 

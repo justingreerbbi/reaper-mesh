@@ -220,9 +220,7 @@ That maps directly to a hash ratchet, and it is the right tool for automatic rot
 limit that matters: **whoever holds today's key can compute every future key**, so it cannot remove
 anyone. Removal needs a second mechanism.
 
-The [rotation and rekey design](rotation-design.md) is a draft for building this. It proposes changes
-to the rules below, because a stolen relay key could use them to strand relays. Until the owner
-decides ([Q13](decisions.md#open-questions)), this section stands.
+The [rotation and rekey design](rotation-design.md) (D52) holds the details for the relay key.
 
 | | Ratchet (the fob) | Rekey (over-the-air rekeying) |
 | --- | --- | --- |
@@ -240,13 +238,17 @@ The rules are the same on every layer:
 
 1. Agents advance on a schedule from their own clock. The boards have no battery-backed clock, so
    firmware never decides time. A connected agent tells its radio to advance.
-2. The highest authenticated epoch wins. A radio that hears a valid frame from a newer epoch derives
-   forward and follows it. This is how unattended relays keep up, and how separated groups converge
+2. A radio follows only what it can verify. A member radio that hears a valid team tag from a newer
+   epoch derives forward and follows it. A radio with only the relay key forwards frames from newer
+   epochs within a window, but moves forward and erases old keys only on an epoch proof, which a relay
+   key cannot produce (D52). This is how unattended relays keep up, and how separated groups converge
    when they meet again.
-3. A frame moves a receiver forward only after its tag verifies. The look-ahead is bounded and rate
-   limited, so junk frames cannot burn CPU, and it is large enough for a relay that was off for months.
-4. Radios keep the current and previous epoch only. A sender that is further behind is dropped, then
-   hears newer traffic, catches up and retries under the normal message rules.
+3. A team tag or epoch proof moves a receiver forward only after it verifies. The look-ahead is
+   bounded and rate limited, so junk frames cannot burn CPU, and it is large enough for a relay that
+   was off for months.
+4. Member radios keep the current and previous epoch only. A relay keeps the epoch before the newest
+   one it has seen proven, which may be older if it missed a proof. A sender that is further behind is
+   dropped, then hears newer traffic, catches up and retries under the normal message rules.
 
 ### Rekey
 
@@ -254,7 +256,7 @@ The flow is the same for every key, and only the wrapping differs:
 
 | Key | Issued by | Wrapped with | Estimated cost |
 | --- | --- | --- | --- |
-| Relay key | Authority or deputy | Each radio's device key | About 58 bytes each, so about 17 radios fit in one maximum-size message |
+| Relay key | Authority or deputy | Each radio's device key | One 100-byte frame per radio |
 | Team key | Authority or deputy | Each member's identity key, handled by agents with no firmware involved | About one frame each |
 | Channel key | Channel owner or authority | Each channel member's identity key | About one frame each |
 
@@ -263,10 +265,12 @@ The flow is the same for every key, and only the wrapping differs:
    project's rule on honest outcomes. The issuer sees who would be stranded before switching.
 3. **Switch.** The issuer starts using the new generation, and holders switch when they hear it. A
    removed member never received it.
-4. **Retire.** Erase the old generation. A member who missed the rekey is shown as locked out and
-   needs a retry or an in-person fill.
+4. **Retire.** Erase the old generation. A member who missed the rekey is shown as locked out. An
+   agent that missed a team or channel key needs a retry or an in-person exchange. A radio that missed
+   a relay key needs an in-person fill, because radios that have switched reject the old generation.
 
-Rekey messages are signed by the issuer. A rekey only reaches radios within radio range, so a relay
+Team and channel rekey messages are signed by the issuer. A relay key wrap relies on the device key,
+because firmware verifies no signatures. A rekey only reaches radios within radio range, so a relay
 that misses one leaves a silent hole in the mesh until it is reached or visited. That is why the
 Confirm step comes before the switch.
 
@@ -398,7 +402,7 @@ Each change takes effect when its step ships. Until then the existing commitment
 | D47: a paired phone has the same access as USB | Still true for daily use, but a fill needs a cable or a button-opened window, and sessions need a host key |
 | D34: PIN optional | Required in team mode, optional in Open mode |
 | D16 and Q10: ROM updater, signing undecided | ROM updater stays for development, and signed dual-slot updates become the field route |
-| D37: portal features paused | Stands. Step 1 comes before the field tests; steps 3 to 6 are agent features that follow them, unless the owner grants an exception like D49 |
+| D37: portal features paused | Stands. Step 1 comes before the field tests, and step 2a and the portal controls for step 2 are an exception (D52); steps 3 to 6 are agent features that follow them, unless the owner grants an exception like D49 |
 | [Connect a mobile app](../guides/mobile-apps.md): background use not designed | Replaced by the contract here when the alert ships |
 | Radio protocol fixtures | Replaced deliberately with owner approval (D42), never silently |
 
@@ -412,18 +416,18 @@ after step 1 beyond one reflash.
 | --- | --- | --- | --- |
 | 0 | Owner decisions below, then an independent look at this design | Docs | Owner decisions done on November 4, with specification, D33 and roadmap updated. The independent look is still open |
 | 1 | Frame version 2, relay and team keys, opaque payloads, partition table, key store, fill, Open mode, beacons only while attached, inbox changed alert | Firmware, protocol, agent | Host tests and two boards: a radio not set up is silent, an outsider radio can neither read nor inject, a radio with no agent relays and sends nothing of its own |
-| 2 | Relay key ratchet and rekey, relay status | Firmware, agent | A radio that was off catches up alone; a removed radio is locked out; separated groups converge |
+| 2a | Relay and team key ratchet with epoch proofs ([design](rotation-design.md), D52) | Firmware, agent | A radio that was off catches up alone; separated groups converge; a relay key alone cannot strand a relay |
+| 2b | Relay key rekey and relay status ([design](rotation-design.md), D52) | Firmware, agent | A removed radio is locked out; relay status works in both directions |
 | 3 | Background delivery in the mobile app, against the alert from step 1 | Mobile app (outside this repository), guide | Tested on real iPhones and Android phones, with the actual limits recorded |
 | 4 | Identity, roster, deputies, verification, team key rekey, direct messages | Agent | Noise test vectors pass; another member cannot read a direct message; an unverified key is refused visibly |
 | 5 | Channel ratchet, rekey and signed senders | Agent | A removed member cannot read new messages; forgeries are rejected; old history stays readable from the vault |
 | 6 | Create team, Join team and Add relay flows, no-downgrade policy | Agent | The setup table above works in the portal and the mobile app; plaintext cannot be sent by accident; the interface states the real protection level |
 | 7 | Host key, zeroize, signed updates, flash encryption and Secure Boot | Firmware, tools | Hardened release test boards only, with owner approval for each eFuse step; independent security review complete |
 
-**Recommended timing.** Build step 1 now, in the slot held for screen work while waiting on the third
-board, then run field qualification on frame version 2. The relay test tool does not exist yet, so
-nothing is lost, and the range results will then describe the frames that ship. Otherwise the tests
-must be repeated after the frame changes. Steps 2 onward can follow qualification. Core v1 freezes
-only after step 2.
+**Timing.** Step 1 came first, so field qualification runs on frame version 2 and the range results
+describe the frames that ship. Step 2a also comes before the three-node relay test, so that test
+covers epoch changes and needn't be repeated (D52). Step 2b and the later steps follow qualification.
+Core v1 freezes only after step 2b.
 
 ## Tests to add
 
@@ -456,6 +460,8 @@ addition to two- and three-board checks.
   the team must rekey it. A running operator radio also gives up the team key.
 - A stolen authority or deputy agent compromises every device key it holds, and the team must set up
   its radios again.
+- It cannot rotate keys while no agent is online, because firmware never decides time. Delivery is
+  unaffected, but the current key keeps aging.
 - It cannot guarantee delivery to a phone. A force-quit app, a killed process, a rebooted radio or a
   full inbox all delay or lose messages, and agents must report that honestly.
 
@@ -468,6 +474,6 @@ The owner accepted all six recommendations on November 4.
 | 1 | Allow radios to store a relay key and hold the team key in memory, amending D33 | Yes. Accept that a radio rebooted while its phone is away misses messages sent to it, in exchange for a stolen radio exposing far less |
 | 2 | Trust root | One authority per team with a signed roster, optional deputies and a sealed backup, plus QR scanning between individuals |
 | 3 | Timing | Frame version 2 before field qualification |
-| 4 | Ratchet interval | Every 24 hours by default, configurable per team, with history kept in the local vault |
+| 4 | Ratchet interval | Every 24 hours by default, configurable per team between 6 hours and 7 days (D52), with history kept in the local vault |
 | 5 | Default and Open mode | Radios stay silent until a mode is chosen, Open stays available with today's channel keys, and each radio joins one team in core v1 |
 | 6 | Background delivery | Add the inbox changed alert in step 1, and build background delivery in the mobile app after it |

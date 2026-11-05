@@ -1,7 +1,7 @@
 # Rotation and rekey design (D50 step 2)
 
-Status: **Draft, awaiting owner decisions** ([Q13](decisions.md#open-questions)). Nothing here is
-built. Until it ships, the [radio protocol](../reference/radio-protocol.md) and the
+Status: **Confirmed** by the owner on November 5, 2026
+([D52](decisions.md#d52-rotation-and-rekey-design)). Nothing here is built. Until it ships, the [radio protocol](../reference/radio-protocol.md) and the
 [USB protocol](../reference/protocol.md#radio-network-d50) describe how radios behave. This design
 has had no independent security review. Sizes and airtime are calculated, and nothing has been
 measured.
@@ -9,14 +9,13 @@ measured.
 This fills in step 2 of the [security architecture](security-architecture.md#delivery-order): the
 relay key ratchet, rekeying and relay status. It builds on the
 [key layers](security-architecture.md#the-core-decision) and
-[rotation model](security-architecture.md#rotation-two-separate-mechanisms) there, and changes them
-only where [listed below](#changes-to-the-security-architecture).
+[rotation model](security-architecture.md#rotation-two-separate-mechanisms) there.
 
 ## Summary
 
-| Problem | Proposal |
+| Problem | Decision |
 | --- | --- |
-| Under D50's "highest authenticated epoch wins", a stolen relay key can walk relays forward until they can no longer hear the team | Relays forward any valid frame in a window, but erase old keys only when they hear an **epoch proof**, which a relay key cannot produce |
+| Under D50's original rule, "highest authenticated epoch wins", a stolen relay key can walk relays forward until they can no longer hear the team | Relays forward any valid frame in a window, but erase old keys only when they hear an **epoch proof**, which a relay key cannot produce |
 | Relays cannot read a rekey or a status request, because a frame's kind is encrypted under the team key | Add a **network frame**, marked by a flag bit in the existing header, which relays can read |
 | A radio's device key exists only in the browser that filled it (D51), so no one agent can reach every radio | Until step 4, an agent rekeys the radios it filled and the portal says plainly which others need the new team code by hand |
 | The frame's epoch is shared by the relay and team chains, so the relay ratchet cannot ship alone | The team chain ratchets in the same work, which needs firmware |
@@ -28,8 +27,8 @@ frame.
 ## The stranded relay problem
 
 A relay can check only the relay tag. The relay chain is a forward ratchet, so anyone holding today's
-relay key can compute every future one and produce frames that pass that check. This is what the
-present rule does with such a thief:
+relay key can compute every future one and produce frames that pass that check. This is what D50's
+original rule would do with such a thief:
 
 1. The thief sends a frame tagged for an epoch far ahead, inside the look-ahead bound.
 2. Relays in range follow it and erase older keys. Repeating this walks them any distance.
@@ -37,17 +36,17 @@ present rule does with such a thief:
 4. Relays now reject every honest frame as too old, and they cannot go back. The mesh has silently
    split, until the team rekeys or visits each relay.
 
-The security architecture counts this thief's cost as injected junk that relays forward. With the
-ratchet, it becomes a one-frame way to take the relays away from the team.
+D50 counted this thief's cost as injected junk that relays forward. Under that rule, the ratchet
+would have added a one-frame way to take the relays away from the team.
 
 The options:
 
 | Option | Result with a stolen relay key | Cost |
 | --- | --- | --- |
-| Follow the highest valid tag (D50 as written) | Relays stranded until rekey or a visit | None |
+| Follow the highest valid tag (D50 as first written) | Relays stranded until rekey or a visit | None |
 | Members chase the relays upward | No split, but with a look-ahead of 1,024 the 16-bit epoch runs out after 64 frames, about 2 seconds of airtime. Every radio stops until a rekey | None |
 | Never erase on unattended relays | No split, but anyone with no keys at all can replay old frames through relays indefinitely | None |
-| **Epoch proof (proposed)** | Forwarded junk only, which is the limit D50 already accepts | 32 bytes of flash, one 51-byte frame per epoch |
+| **Epoch proof (chosen)** | Forwarded junk only, which is the limit D50 already accepts | 32 bytes of flash, one 51-byte frame per epoch |
 
 **Keeping a relay chain longer costs little.** A relay key reveals no traffic, so what erasing it
 buys is an end to replays and a change of network hint. A relay whose floor lags can therefore be
@@ -180,7 +179,7 @@ This replaces the relay chain and the proof chain, for a lost radio or a chain n
 | Switch | The operator approves. The agent sends a proof frame under the new generation, which only a holder of the new chain can tag | Switching |
 | Retire | A radio holding that pending generation promotes it on hearing any valid frame under it, and erases the old chain in the same flash write | Done, or locked out |
 
-- **One wrap per frame.** The architecture estimated 17 wraps in one maximum-size message. Relays do
+- **One wrap per frame.** An earlier estimate fitted 17 wraps in one maximum-size message. Relays do
   not reassemble messages, and losing one fragment would lose everyone's wrap, so a wrap is one
   frame with no fragments.
 - **No retry after the switch.** Promoted radios reject the old generation, so a radio that missed
@@ -227,7 +226,8 @@ unconsumed "from a radio" frames for its agent, for 60 seconds after that agent 
 
 ## Changes to contracts
 
-These need owner approval under D42. Both boards need a reflash and a new fill.
+The owner approved these breaking changes under D42 (D52), and they take effect as each slice ships.
+Both boards will need a reflash and a new fill.
 
 | Contract | Change |
 | --- | --- |
@@ -248,8 +248,8 @@ it stays at epoch 0 and rejects network frames.
 ## The portal
 
 The owner tests through the portal, so a feature that only works through a tool does not count as
-delivered. This work needs an exception to the pause on portal features, as D49 and D51 had. All of
-it goes on the existing Radio network page:
+delivered. This work is an exception to the pause on portal features (D52). All of it goes on the
+existing Radio network page, and agents limit the rotation interval to between 6 hours and 7 days:
 
 - Key age, the next automatic rotation, and a **Rotate now** button.
 - A warning when the network runs ahead of this browser's schedule, or the proof chain is near its end.
@@ -260,7 +260,8 @@ it goes on the existing Radio network page:
 
 ## Delivery
 
-Each slice works by itself, and core v1 waits for both.
+Each slice works by itself, and core v1 waits for both. 2a comes before the three-node relay test, so
+that test covers epoch changes. 2b comes after qualification.
 
 | Slice | Work | Done when |
 | --- | --- | --- |
@@ -291,24 +292,14 @@ Host tests use the existing deterministic fault approach.
 | Rotation, catch-up, convergence, relay-key thief, lockout, power cut during a key write, derivation time on both chips | Two |
 | Forwarding across an epoch change, a rekey through a relay, airtime and collisions during a flood | Three |
 
-## Changes to the security architecture
+## Owner decisions
 
-If this is approved, these parts of the [security architecture](security-architecture.md) change:
+The owner accepted all five recommendations on November 5.
 
-| Section | Change |
-| --- | --- |
-| [Ratchet](security-architecture.md#ratchet), rule 2 | Radios with only the relay key forward the highest epochs but erase on a proof. Member radios still follow a valid team tag |
-| [Ratchet](security-architecture.md#ratchet), rule 4 | The floor keeps the previous epoch, and a relay may hold an older one until it hears a proof |
-| [Rekey](security-architecture.md#rekey), cost table | One 100-byte frame per radio, in place of about 58 bytes each inside one message |
-| [Rekey](security-architecture.md#rekey), Retire and signatures | No retry over the air after the switch, and relay wraps rely on the device key alone |
-| [What this cannot do](security-architecture.md#what-this-cannot-do) | Adds that the team has no key rotation while no agent is online |
-
-## Decisions needed
-
-| # | Decision | Recommendation |
+| # | Decision | Confirmed choice |
 | --- | --- | --- |
-| 1 | Use epoch proofs in place of "highest authenticated epoch wins" for relays | Yes. Without them, one stolen relay can take the relays away from the team |
-| 2 | Accept that, before step 4, a rekey reaches only the radios this browser filled, and call the action **Replace relay key** | Yes. The alternative is moving identity keys ahead of this work |
-| 3 | When to build | Build 2a before the three-node relay test, so that test covers epoch changes and needn't be repeated. Build 2b after it, as the roadmap has it. This changes the roadmap's order |
-| 4 | Allow a portal exception for this work, as with D49 and D51 | Yes, since it can't otherwise be used or tested |
-| 5 | Limit the interval to between 6 hours and 7 days | Yes. Shorter intervals shrink how long a relay can stay off, and a 1-hour interval would lock out a relay after 6 weeks |
+| 1 | How relays follow epochs | Epoch proofs, in place of "highest authenticated epoch wins" |
+| 2 | Rekey reach before step 4 | Only the radios the issuing browser filled, with the action called **Replace relay key** |
+| 3 | When to build | 2a before the three-node relay test, and 2b after qualification |
+| 4 | Portal work | An exception to the pause on portal features |
+| 5 | Rotation interval | Between 6 hours and 7 days, because shorter intervals shrink how long a relay can stay off |
