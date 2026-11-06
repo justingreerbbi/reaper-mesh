@@ -13,7 +13,7 @@ Owner-directed phases, set November 1, 2026 and last updated November 3. This is
 Order of work:
 
 1. **Done (November 4, firmware `v0.9.0`):** D50 step 1: radio version 2, relay and team keys, opaque payloads, the partition table, key storage and fill, Open mode, beacons only while attached, and the inbox changed alert. Verified on two boards; relay is not.
-2. **Built (November 5, firmware `v0.10.0`):** D50 step 2a: automatic key rotation with epoch proofs, with its portal controls, so the relay test covers epoch changes (D52). Passes on two boards with a test tool; the portal on real boards is next. See the [rotation and rekey design](../contributing/rotation-design.md).
+2. **Built (November 5, firmware `v0.10.0`):** D50 step 2a: automatic key rotation with epoch proofs, with its portal controls, so the relay test covers epoch changes (D52). Passes on two boards, with a test tool and through the portal. See the [rotation and rekey design](../contributing/rotation-design.md).
 3. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
 4. Three-node relay test.
 5. Outdoor range test.

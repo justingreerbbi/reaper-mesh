@@ -10,6 +10,30 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 5: interrupted encrypted uploads on the T-Beam
+
+First hardware run of roadmap Phase 3, step 3, with the new `tools/hardware-upload-recovery.ts`, which stands between the agent and the board to drop chosen frames and to cut the link, restart the board or reload the agent at chosen moments. This run used the T-Beam alone on `v0.10.0` in Open mode, sending encrypted messages to its own node, because the Heltec was not visible on USB. So it exercises the upload, its recovery and the inbox over USB, and nothing went over the air. No code in the firmware or portal changed, and no faults were found.
+
+All 11 scenarios passed:
+
+| Fault | Result |
+| --- | --- |
+| A chunk lost on a working link | Sent again with identical bytes, and one copy arrived |
+| A chunk's reply lost | One copy arrived |
+| Link cut mid-upload | Nothing resent, no copy, and the board later reported `failed: expired` |
+| Agent reloaded mid-upload | Nothing resent, no copy, ciphertext kept in the journal, and plaintext not saved |
+| Board restarted mid-upload | Nothing resent, no copy, and the outcome stayed `unknown` |
+| Serial port closed and reopened mid-upload | This restarted the board. Nothing resent, no copy |
+| Final acceptance lost | Asking settled it as `acknowledged`, with nothing resent and one copy |
+| Board restarted just after accepting | Nothing resent, no copy, and the outcome stayed `unknown` |
+| Inbox read interrupted, then reconnected and reloaded | Exactly one exact copy, which decrypted |
+| Board restarted before the inbox was read | No copy, and none invented. The sender still saw `acknowledged`, which means the radio accepted it and not that anyone read it |
+| Largest message afterward (1,024 bytes) | One copy, which decrypted |
+
+A scan of all 1,690 decoded frames and the journal found none of the 11 plaintexts, as text or hex.
+
+Not tested: any of this with delivery over the radio, on the Heltec, or in team mode (the tool covers all three and needs both boards); a cable physically pulled mid-upload; a real browser reload. The tool has not yet run in two-board mode.
+
 ## November 5: automatic key rotation (`v0.10.0`), D50 step 2a
 
 Keys now rotate automatically (D52). A relay forwards any valid frame in a window of epochs, and erases old keys only on an epoch proof, which a stolen relay key cannot produce. The Radio network page shows the keys' age, sets the interval from 6 hours to 7 days, and has **Rotate now**. Team codes become `RMTEAM2`. The key record changes format, so a board reads as no network after this install and needs its network chosen again. The design and what changed while building it are in the [rotation and rekey design](../contributing/rotation-design.md).
@@ -34,7 +58,9 @@ Keys now rotate automatically (D52). A relay forwards any valid frame in a windo
 
 Host checks: `npm run check` passes 377 tests, the firmware CTest suite passes 125, and both boards build. New frozen vectors for the proof chain and proof frames come from a separate Node calculation.
 
-**Not tested:** rotation through the portal on real boards, which has only been clicked through against the simulated radio; a relay-key thief over the air, because firmware won't send a frame it can't verify, so only host tests cover it; forwarding across an epoch change, which needs a third board; lockout after more than 1,024 epochs on hardware; a power cut during an advance on hardware; radio frames lost during a long walk; Bluetooth; the mobile app. The security review has not started.
+**Through the portal.** The owner then ran this on both boards, in native Brave over USB with one browser profile per radio, and reported that all of it worked: setting up a team with an `RMTEAM2` code, **Rotate now** with the other radio following, messages both ways, the Heltec reconnecting with its key reloaded at the current epoch and messages still working, and changing the interval. No logs were kept.
+
+**Not tested:** a rotation firing by itself when the interval elapses, on real boards; a relay-key thief over the air, because firmware won't send a frame it can't verify, so only host tests cover it; forwarding across an epoch change, which needs a third board; lockout after more than 1,024 epochs on hardware; a power cut during an advance on hardware; radio frames lost during a long walk; Bluetooth; the mobile app. The security review has not started.
 
 ## November 5: team page on two real boards
 
