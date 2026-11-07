@@ -357,10 +357,72 @@ int passkey() {
   return 0;
 }
 }  // namespace
+// Hosts competing over a link must only cost them their session. Sanitizers fail the run on any
+// memory or arithmetic fault, and the pseudo-random order repeats exactly from its seed.
+int competing() {
+  Store store;
+  d::Configuration authority(store, text<64>("boot-A"));
+  d::Session session(authority, text<64>("device-A"), text<64>("boot-A"));
+  Wire wire;
+  static d::HostLinks links(session, write, &wire);
+  std::uint32_t state = 0x5eed1234;
+  const auto next = [&](std::uint32_t limit) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state % limit;
+  };
+  const auto hello_a = hello("ble-a"), hello_b = hello("ble-b"), sync_a = sync("ble-a"),
+             sync_b = sync("ble-b");
+  std::uint64_t now = 1000;
+  std::array<std::uint8_t, 2200> noise{};
+  for (unsigned step = 0; step < 200000; ++step) {
+    now += next(40);
+    const auto link = next(5) ? d::HostLink::Ble : d::HostLink::Usb;
+    const auto action = next(10);
+    const auto& bytes = action < 3   ? (next(2) ? hello_a : hello_b)
+                        : action < 6 ? (next(2) ? sync_a : sync_b)
+                                     : hello_a;
+    if (action < 6) {
+      // Split the way an ATT write can split a frame, so two hosts' pieces interleave.
+      const std::size_t cut = next(static_cast<std::uint32_t>(bytes.size()) + 1);
+      links.feed(link, bytes.data(), cut, now);
+      if (next(4))
+        links.feed(link, bytes.data() + cut, bytes.size() - cut, now);
+    } else if (action == 6) {
+      const std::size_t size = next(static_cast<std::uint32_t>(noise.size()) + 1);
+      for (std::size_t i = 0; i < size; ++i)
+        noise[i] = static_cast<std::uint8_t>(next(next(8) ? 256 : 2));
+      links.feed(link, noise.data(), size, now);
+    } else if (action == 7) {
+      links.closed(link);
+    } else if (action == 8) {
+      wire.fail[static_cast<std::size_t>(link)] = next(8) == 0;
+    } else if (next(16) == 0) {
+      now += d::HostLinks::kBleStallMs + 1;
+    }
+    links.tick(now);
+    session.tick(now);
+    CHECK(!(links.ready(d::HostLink::Ble, now) && links.ready(d::HostLink::Usb, now)));
+    if (links.attached(now))
+      CHECK(session.synchronized());
+  }
+  // A clean hello still gets a working session afterward.
+  wire.fail = {};
+  links.closed(d::HostLink::Ble);
+  links.closed(d::HostLink::Usb);
+  now += 1;
+  links.feed(d::HostLink::Ble, hello_a.data(), hello_a.size(), now);
+  links.feed(d::HostLink::Ble, sync_a.data(), sync_a.size(), now);
+  CHECK(session.synchronized() && links.ready(d::HostLink::Ble, now));
+  return 0;
+}
 int main(int argc, char** argv) {
   if (argc != 2)
     return 2;
   const std::string scenario = argv[1];
+  if (scenario == "competing")
+    return competing();
   if (scenario == "routing")
     return routing();
   if (scenario == "alerts")
