@@ -2,7 +2,7 @@
 
 A mobile app is an agent: an app that talks to a Reaper device. This guide explains how one connects and what it must do. This repository contains no mobile app. Exact contracts are in [Bluetooth link](../reference/bluetooth.md) and [Protocol](../reference/protocol.md).
 
-None of this has been run on a phone. Pairing, connecting and messaging have only been tested from a desktop browser, against the Heltec. Phone simulators have no Bluetooth, so test on real devices. The protocol can still change before core v1 (D42).
+The mobile app is built and tested outside this repository (D48), so results from it are not recorded here. The evidence kept here for pairing, connecting and messaging comes from a desktop browser. Phone simulators have no Bluetooth, so test on real devices. The protocol can still change before core v1 (D42).
 
 ## What a phone can do
 

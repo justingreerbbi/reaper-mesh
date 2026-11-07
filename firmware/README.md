@@ -8,11 +8,11 @@ This directory contains the portable C++17 protocol/configuration/session compon
 | Path | Contents |
 | --- | --- |
 | `components/` | Portable components shared by every board and by host tests |
-| `app/` | Shared board application: `main.cpp`, NVS storage, mesh service, and the `radio_bus.hpp`/`status_display.hpp` interfaces |
-| `heltec-v3/`, `tbeam-v12/` | One ESP-IDF project per board: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's `radio_bus.cpp` and `status_display.cpp`; its `CMakeLists.txt` compiles them together with `app/` |
+| `app/` | Shared board application: `main.cpp`, NVS storage, mesh service, Bluetooth link, device UI, and the `radio_bus.hpp`, `status_display.hpp`, `board_input.hpp` and `board_power.hpp` interfaces |
+| `heltec-v3/`, `tbeam-v12/` | One ESP-IDF project per board: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's implementations of those interfaces; its `CMakeLists.txt` compiles them together with `app/` |
 | `tests/` | Host tests and stubs for the standalone CMake/CTest build |
 
-Board differences that remain inside `app/` are selected with `REAPER_TBEAM_V12`. A new board gets its own project folder with a profile and the two board implementations; it should not need to copy `app/`.
+Board differences that remain inside `app/` are selected with `REAPER_TBEAM_V12`. A new board gets its own project folder with a profile and the board implementations; it should not need to copy `app/`.
 
 ## Build and test
 
@@ -44,15 +44,15 @@ The CLI bridge allocates host input/output storage; it is excluded from codec al
 - Stream callbacks receive a temporary const message valid only during the callback. Copy into a bounded queue if needed. Calls are single-threaded and non-reentrant; the board adapter must synchronize access and reset framing on connection changes.
 - Measured on the macOS arm64 host ABI: `sizeof(Message)=1,448`, `sizeof(FrameDecoder)=2,088` bytes. Nested calls also consume stack scratch storage. These are not ESP32 measurements; choose task-stack/queue budgets after target compilation and measurement.
 
-`packages/protocol/fixtures/messages-v1.json` freezes examples for all ten types, including capability metadata and boundary counters. Generation does not rewrite these fixtures. Change them only through an explicit reviewed protocol-version decision, not to make failing tests green. Cross-language tests cover optional/unknown/reordered fields, truncation, bit corruption, invalid Unicode/IDs, overflow, framing recovery, and seeded malformed traffic. They do not establish released firmware compatibility because none exists yet.
+`packages/protocol/fixtures/messages-v1.json` freezes examples of the message types, including capability metadata and boundary counters. Generation does not rewrite these fixtures. Change them only through an explicit reviewed protocol-version decision, not to make failing tests green. Cross-language tests cover optional/unknown/reordered fields, truncation, bit corruption, invalid Unicode/IDs, overflow, framing recovery, and seeded malformed traffic. They do not establish released firmware compatibility because none exists yet.
 
 ## Qualification still required
 
-The board adapter, atomic NVS authority, independent mesh core and SX1262 integration are implemented. USB configuration/recovery and local delivery are physically checked; full-size RF TX is checked separately from destination reception. Actual two-node delivery, three-node relays, RF coexistence, interrupted flash/power loss and extended field soak remain qualification gates. No simulation substitutes for these measurements.
+The board adapter, atomic NVS authority, independent mesh core and both radio drivers are implemented, and two-board delivery passes on hardware. Three-node relays, range, RF coexistence, interrupted flash/power loss and extended field soak remain qualification gates. No simulation substitutes for these measurements. See [Status](../docs/overview/status.md).
 
 ## Target build
 
-Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and ../docs/guides/first-flash.md before any hardware write. The app uses UART0 GPIO43/44 at 115200, initializes the status OLED and probes SX1262 over bounded DMA-backed SPI. Radio is off by default; explicit mesh mode requires the confirmed US band/antenna facts. It uses a single factory application partition; OTA rollback is not implemented.
+Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from the repository root. The pinned SDK/tools and build artifacts are ignored. Review build/heltec-v3/reaper-manifest.json and [Flashing firmware](../docs/guides/flashing-firmware.md) before any hardware write. The Heltec app uses UART0 GPIO43/44 at 115200, initializes the status OLED and probes SX1262 over bounded DMA-backed SPI. Radio is off by default; explicit mesh mode requires the confirmed US band/antenna facts and a chosen network. The partition table has two application slots and the application runs from the first; OTA updates and rollback are not implemented.
 
 ## Device screen and buttons
 

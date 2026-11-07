@@ -2,7 +2,7 @@
 
 Firmware images are named `{device}-reaper-mesh-v{semver}` (decision D8), starting at `tbeam-reaper-mesh-v0.1.0` and `heltec-reaper-mesh-v0.1.0`. Keep that ID consistent in the on-device firmware identity, generated manifest, package name and documentation.
 
-The prototype uses the ESP32-S3 ROM loader. Since `v0.8.0` the application runs from the first of two slots at the same address as the earlier factory application, and the second slot is reserved for signed updates (D50). Each install writes four images, including a blank OTA data area so the bootloader takes the first slot. Device settings, Bluetooth pairings and network keys are kept, because `reaper_nvs`, `nvs` and `reaper_keys` are not written. A failed/interrupted update can require BOOT/RESET and reinstall; automatic rollback and authenticated release signing are later public-release gates. Checksums detect corruption, not a malicious publisher. Use builds from your reviewed source tree. Do not flash this prototype on encrypted or secure-boot devices.
+The prototype uses the chip's ROM loader. Since `v0.8.0` the application runs from the first of two slots at the same address as the earlier factory application, and the second slot is reserved for signed updates (D50). Each install writes four images, including a blank OTA data area so the bootloader takes the first slot. Device settings, Bluetooth pairings and network keys are kept, because `reaper_nvs`, `nvs` and `reaper_keys` are not written. A failed/interrupted update can require BOOT/RESET and reinstall; automatic rollback and authenticated release signing are later public-release gates. Checksums detect corruption, not a malicious publisher. Use builds from your reviewed source tree. Do not flash this prototype on encrypted or secure-boot devices.
 
 From the repository root, build committed source and validate without opening a device:
 
@@ -17,7 +17,7 @@ Disconnect the web console, keep USB power connected, then install:
 python3 tools/update-firmware.py --flash --port /dev/cu.usbserial-0001
 ```
 
-The updater checks clean source identity, supported protocol/storage schemas, pinned SDK, exact board/target, four artifact paths/offsets/sizes/SHA256 hashes, ESP image checksums/digests, and the fixed partition table/MD5. It stages the verified bytes before opening the port. ROM preflight checks processor/flash size, esptool 4.12.0 and disabled security/encryption flags. It installs only bootloader, partition table and app; NVS is preserved. It never issues erase-all or eFuse writes. Esptool prints progress and verifies each image. Local flash-result.json records ROM verification separately from application qualification.
+The updater checks clean source identity, supported protocol/storage schemas, pinned SDK, exact board/target, four artifact paths/offsets/sizes/SHA256 hashes, ESP image checksums/digests, and the fixed partition table/MD5. It stages the verified bytes before opening the port. ROM preflight checks processor/flash size, esptool 4.12.0 and disabled security/encryption flags. It installs only the bootloader, partition table, OTA data and application; settings, Bluetooth pairings and network keys are preserved. It never issues erase-all or eFuse writes. Esptool prints progress and verifies each image. Local flash-result.json records ROM verification separately from application qualification.
 
 Clean committed source is required by default. For a local hardware-development iteration only, `--allow-dirty` permits a dirty-tree build after all artifact/target/ROM checks still pass. It prints a warning and is not a reproducible release build or a replacement for reviewed, clean provenance. Do not use this override for public bundles/releases.
 
@@ -26,22 +26,28 @@ The default interpreter is the pinned SDK environment. `--python /absolute/path/
 After installation, reconnect the console. Confirm the expected firmware, synchronized persisted label/region/radio settings, fresh boot identity, probe status, and stable USB health. Old uncertain outcomes stay unknown after a reboot and are never resent. For the physical TS adapter regression:
 
 ```sh
-node tools/hardware-agent-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 usb-prototype-6
+node tools/hardware-agent-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 heltec-reaper-mesh-v0.10.0
 ```
+
+The last argument is the firmware ID you expect the board to report.
 
 If automatic ROM entry fails, hold PRG/BOOT, tap RESET, release PRG, and rerun the same updater with known-good artifacts. If an update stops after writing begins, assume the application may be incomplete until reinstalled and verified. Do not clear NVS to fix a connection failure. The detailed historical first-flash record is in first-flash.md.
 
 ## Validation
 
-Host tests reject wrong targets, dirty/incompatible builds, altered paths/offsets, artifact size/hash mismatches, rehashed-but-invalid ESP images, changed partition layouts, symlink escapes, and secured/unexpected ROM targets. On November 1, 2026 the updater reinstalled usb-prototype-4 from commit 6692d12 on the development board: all three image hashes verified, followed by three TS agent/adapter reconnects in 649/648/643 ms with revision 14 preserved. Actual power loss during flashing remains unqualified.
+Host tests reject wrong targets, dirty/incompatible builds, altered paths/offsets, artifact size/hash mismatches, rehashed-but-invalid ESP images, changed partition layouts, symlink escapes, and secured/unexpected ROM targets. Install evidence is in the [changelog](../overview/changelog.md). Actual power loss during flashing remains unqualified.
 
 ## Local prototype bundle
 
-`python3 tools/package-firmware.py --output build/heltec-v3/reaper-mesh-usb-prototype-6.zip` creates a validated archive of the three images, manifest, standalone updater, exact source archive, SHA256SUMS, recovery instructions and retained SDK/Semtech notices. It refuses to overwrite an existing package. Nothing is uploaded. An extracted package was validated and every file hash checked; corrupt extracted images were rejected. Project licensing and authenticated public releases remain deferred. The web console also offers Export device settings for a readable snapshot before updating.
+`python3 tools/package-firmware.py --output build/heltec-v3/heltec-reaper-mesh-v0.10.0.zip` creates a validated archive of the images, manifest, standalone updater, exact source archive, SHA256SUMS, recovery instructions and retained SDK/Semtech notices. It refuses to overwrite an existing package. Nothing is uploaded. An extracted package was validated and every file hash checked; corrupt extracted images were rejected. Authenticated public releases remain deferred. The web console also offers Export device settings for a readable snapshot before updating.
 
 ## T-Beam V1.2
 
 Use `bash tools/build-firmware.sh tbeam-v12` and explicitly select `--manifest build/tbeam-v12/reaper-manifest.json` for validation/installation. The updater requires ESP32/4MB and bootloader0x1000; Heltec requires ESP32-S3/8MB and bootloader0. Wrong targets fail closed. ESP32 security uses a read-only named-eFuse summary because that ROM lacks get_security_info. See t-beam-v12.md for the identified port, confirmed hardware, first install and actual two-board RF evidence. Package generation accepts the board-specific manifest and writes matching hardware instructions.
+
+## Earlier builds (historical)
+
+Current record formats are in [Persistence](../reference/persistence.md). The rest of this section describes builds from early November.
 
 Discovery builds Heltec7/T-Beam2 read records1/2/3. Nondefault discovery settings use record3; old firmware that only reads1/2 must fail closed on it. A future downgrade needs explicit configuration compatibility handling, never automatic NVS erasure. Returning discovery to its default off/off/300 policy writes the applicable older record format while preserving the other configuration. See ../contributing/phase-2.md for installed-image and hardware-test evidence.
 

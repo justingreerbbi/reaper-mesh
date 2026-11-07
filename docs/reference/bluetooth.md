@@ -4,24 +4,6 @@ Since firmware `v0.5.0` (D47), a paired phone or computer can act as an agent ov
 
 ## Security rules
 
-In `v0.6.2`, output has a bounded 8 KiB queue. The device consumes input one byte at a time
-only while room remains for two maximum-sized reply frames. Congestion therefore pauses
-request processing before a reply could be lost, and local backpressure does not expire a
-partially received frame. Pairing and session negotiation requirements are unchanged.
-Notification allocation/resource failures retry for at most five seconds; permanent errors
-or persistent resource exhaustion explicitly close the broken BLE transport rather than
-silently resetting its protocol session or retrying forever. Normal reconnect starts fresh
-framing and queues. The Debug screen retains the last disconnect (`D`), host reset (`S`) and
-notification (`N`) reason codes until device reboot. Bluetooth address initialization state
-shared by the host callback and application task is atomic.
-
-Since `v0.6.1`, a full receive buffer rejects the entire current ATT write with an
-insufficient-resources error, without disconnecting the authenticated client or accepting part
-of that write. A client may retry those same bytes once capacity is available; it must never
-replay an ambiguously accepted message submission. The firmware drains queued notifications
-between input batches and limits each tick to 4,096 input bytes so a busy client cannot starve
-radio/display work. This changes neither pairing security nor the framed protocol.
-
 Creating a connection requires physical access to the device.
 
 - **Off until first paired.** With nothing paired, the Bluetooth stack does not start and the device does not advertise.
@@ -65,6 +47,25 @@ Agents keep this state in memory only and never journal it. The web portal polls
 Later connections skip pairing. The stream is the same as USB: COBS frames separated by zero bytes, with no relation between frames and Bluetooth packets. Split writes to the current ATT limit and wait for each write's response. The device requests an ATT MTU of 247 and follows whatever the phone negotiates.
 
 The session is single-owner. The newest hello on either link takes over, and the previous host stops getting replies. Opening the USB port resets these boards, which also ends the Bluetooth connection. Never replay a send after a lost connection; recover by query, as over USB.
+
+## Flow control
+
+Since `v0.6.1`, a full receive buffer rejects the entire current ATT write with an
+insufficient-resources error, without disconnecting the authenticated client or accepting part
+of that write. A client may retry those same bytes once capacity is available; it must never
+replay an ambiguously accepted message submission. The firmware drains queued notifications
+between input batches and limits each tick to 4,096 input bytes so a busy client cannot starve
+radio/display work.
+
+Since `v0.6.2`, output has a bounded 8 KiB queue. The device consumes input one byte at a time
+only while room remains for two maximum-sized reply frames. Congestion therefore pauses
+request processing before a reply could be lost, and local backpressure does not expire a
+partially received frame. Notification allocation/resource failures retry for at most five
+seconds; permanent errors or persistent resource exhaustion explicitly close the broken BLE
+transport rather than silently resetting its protocol session or retrying forever. Normal
+reconnect starts fresh framing and queues. The Debug screen retains the last disconnect (`D`),
+host reset (`S`) and notification (`N`) reason codes until device reboot. Bluetooth address
+initialization state shared by the host callback and application task is atomic.
 
 ## Firmware layout
 

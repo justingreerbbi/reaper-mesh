@@ -1,6 +1,6 @@
 # Reaper Mesh protocol: synchronization draft
 
-Status: independent Reaper Mesh protocol, confirmed by the owner. USB framing, capability negotiation, authoritative configuration, bounded message submission, live diagnostics and inbox retrieval are implemented in TypeScript/C++ and exercised on the Heltec. Native browser connect/save/reconnect and local-history reload are checked. The independent radio protocol and three-node fault simulator are implemented; single-board TX completion does not qualify recipient delivery or relays. This remains a development protocol, with frozen compatibility fixtures and separate protocol/config/radio versions.
+Status: independent Reaper Mesh protocol, confirmed by the owner. USB framing, capability negotiation, authoritative configuration, bounded message submission, live diagnostics and inbox retrieval are implemented in TypeScript/C++ and exercised on both boards. Native browser connect/save/reconnect and local-history reload are checked. The independent radio protocol and three-node fault simulator are implemented; two-board delivery does not qualify relays. This remains a development protocol, with frozen compatibility fixtures and separate protocol/config/radio versions.
 
 ## USB envelope draft v1
 

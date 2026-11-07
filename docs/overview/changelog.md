@@ -10,6 +10,12 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 7: Bluetooth cause and documentation review
+
+The owner reported the cause of the Heltec Bluetooth disconnects from November 4: a misaligned Bluetooth buffer in the mobile app that could break the connection. It was fixed in the app, in a session outside this repository. This is the owner's report. Nothing here reproduced the fault or tested the fix, and no firmware changed. The firmware's flow control from `v0.6.1` and `v0.6.2` stays in place.
+
+The documentation was reviewed against the code and corrected where it had gone stale: Bluetooth described as future work, a single factory partition, licensing described as undecided, a test count from an old build, and the portal described as the current focus. The compatibility table now reaches `v0.10.0`. Historical records stay and are labeled as historical. Test counts that were superseded were removed from the portal guide, and those from November 2 remain in this changelog.
+
 ## November 5: interrupted encrypted uploads
 
 First hardware run of roadmap Phase 3, step 3, with the new `tools/hardware-upload-recovery.ts`, which stands between the agent and the board to drop chosen frames, and cuts the link, restarts the board or reloads the agent at chosen moments. The other radio shows what really arrived. Both boards on `v0.10.0`, delivering encrypted direct messages over the radio. No firmware or portal code changed, and no faults were found.

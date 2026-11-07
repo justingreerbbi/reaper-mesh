@@ -13,7 +13,7 @@ Questions that need a decision now:
 
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
-| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.2 reviewed against current docs and code on November 3; awaiting owner approval |
+| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.3 reviewed against current docs and code on November 7; awaiting owner approval |
 
 ## Parked questions
 
@@ -134,7 +134,9 @@ Nov 1 · **Adopted**; [D50](#d50-trusted-device-security-model) keeps this for d
 signed dual-slot updates the field route. A manifest-validating ROM serial updater that checks provenance, target,
 layout, hashes and ROM security state, stages immutable images and preserves NVS. A single
 factory app with no rollback is the prototype recovery route. Signed releases and rollback are
-open (Q10). See [flashing firmware](../guides/flashing-firmware.md).
+open (Q10). See [flashing firmware](../guides/flashing-firmware.md). Since `v0.8.0` the partition
+table has two application slots and the application runs from the first; nothing writes the second
+slot yet, so there is still no rollback.
 
 ### D44. Device screen and buttons
 Nov 3 · **Confirmed**. Phase 4 step 1, owner-directed while waiting for a third board. Every
@@ -154,7 +156,7 @@ agent connected, which an agent or plugin cannot do (D41). The top-right corner 
 shows the battery percent and a bolt when plugged in, or the bolt and `USB` with no battery
 (owner direction: plugged-in state must show even without a battery), only when measured: the
 T-Beam reads its AXP2101 without writing; the Heltec shows nothing until its battery input is
-verified.
+verified. Since `v0.6.1` the Heltec shows a measured battery-rail voltage and icon.
 These features never change the radio protocol (D41). See
 [device screen and buttons](../reference/device-display.md).
 
@@ -375,11 +377,12 @@ See the [web portal guide](../guides/web-portal.md).
 ### D48. Mobile apps are built outside this repository
 Nov 4 · **Confirmed**. Owner direction. This repository holds firmware, the protocol and the web
 portal, and documents how a mobile app connects; it contains no mobile app (D41). See
-[Connect a mobile app](../guides/mobile-apps.md).
+[Connect a mobile app](../guides/mobile-apps.md). The app's fixes and test results are kept with the
+app, so this repository records a phone result only when the owner reports it.
 
 ### D47. Bluetooth link with physical-access pairing
-Nov 4 · **Confirmed**; [D50](#d50-trusted-device-security-model) will require a cable or a
-button-opened window for key fills, and a host key for sessions on provisioned radios. Owner request, so a mobile app can act as an agent. Bluetooth carries the
+Nov 4 · **Confirmed**; [D50](#d50-trusted-device-security-model) requires a cable or a
+button-opened window for key fills, built in `v0.8.0`, and will require a host key for sessions on provisioned radios. Owner request, so a mobile app can act as an agent. Bluetooth carries the
 same framed bytes as USB, because a phone cannot use USB and no agent or plugin can add a transport
 to the device (D41). There is no radio protocol, USB schema or settings record change. The owner
 requires that a device is never open to random connections: creating a connection needs physical

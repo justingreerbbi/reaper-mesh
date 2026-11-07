@@ -12,7 +12,7 @@ Firmware uses pinned ESP-IDF v5.5.4. Preserve its Apache-2.0 license and applica
 
 ## Web agent map library
 
-The field portal bundles Leaflet 1.9.4 (BSD-2-Clause) for the interactive position map. Preserve Leaflet copyright and license notices when redistributing the web agent build. Map tiles are loaded at runtime from Esri’s publicly reachable World Dark Gray Canvas service; the agent remains usable when tiles cannot load. Leaflet does not select a license for Reaper Mesh.
+The field portal bundles Leaflet 1.9.4 (BSD-2-Clause) for the interactive position map. Preserve Leaflet copyright and license notices when redistributing the web agent build. Map tiles are loaded at runtime from Esri’s publicly reachable Dark, Topo and Satellite services; the agent remains usable when tiles cannot load. Leaflet does not select a license for Reaper Mesh.
 
 ## Web agent encryption library
 

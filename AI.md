@@ -46,26 +46,22 @@ Put examples under `examples/` at the path of the component they target (for exa
 Write documentation in plain, complete sentences. Do not drop spaces or articles to save tokens
 ("Heltec usb-prototype-8, revision 38", not "Heltec8 revision38").
 
-## Current focus (November 4, 2026)
+## Current focus (November 7, 2026)
 
-- The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).
-  Its step 1 is built as firmware `v0.9.0` and passes on two boards, so field qualification runs on
-  these frames. Both boards are in Open mode, which protects nothing.
-  Existing behavior stands until each step ships, and an independent security review is still open.
-- Phase 4 device firmware work can continue while waiting for a third board: screen and
-  buttons (step 1 done on the T-Beam; screen settings in the portal and the T-Beam battery
-  indicator built in `v0.2.0`). The device has no settings page; device settings are changed
-  in the portal. See the roadmap's Phase 4 delivery order and
-  [device screen and buttons](docs/reference/device-display.md).
 - Field qualification comes first: new portal features are paused until three-node relay and
   an outdoor range test pass on hardware (owner direction, November 3). Portal work is limited
   to bug fixes and native QA. See the
   [field qualification plan](docs/contributing/field-qualification.md). The exceptions are
   keeping the portal in step with the mobile app (D49), team setup (D51), and the portal controls
-  for key rotation and rekeying (D52).
-- D50 step 2a, automatic key rotation, is built as firmware `v0.10.0` and passes on two boards, ahead
-  of the three-node relay test. Rekey and relay status (2b) follow qualification. See the
-  [rotation and rekey design](docs/contributing/rotation-design.md).
+  for key rotation and rekeying (D52). The third board is expected on November 7.
+- Phase 4 device firmware work continues until the third board is ready: LED indication is next. The
+  device has no settings page; device settings are changed in the portal. See the roadmap's
+  Phase 4 delivery order and [device screen and buttons](docs/reference/device-display.md).
+- The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).
+  Step 1 and step 2a (automatic key rotation, D52) are built and pass on two boards, so field
+  qualification runs on the frames that ship. Rekey and relay status (2b) follow qualification. See
+  the [rotation and rekey design](docs/contributing/rotation-design.md). Existing behavior stands
+  until each later step ships, and an independent security review is still open.
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.
@@ -115,9 +111,9 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 - Never invoke the local data wipe against the owner's real browser data to test it.
 - Never claim multi-device RF, relay, range or security results from one board or the simulator.
   Record what was not tested.
-- Firmware naming: the next firmware change renames images to `{device}-reaper-mesh-v{semver}`
-  (for example `heltec-reaper-mesh-v8.0.2`, `tbeam-reaper-mesh-v8.0.2`) across firmware
-  identification, manifests, packages and docs. Do not reflash only to rename.
+- Firmware naming: images are `{device}-reaper-mesh-v{semver}` (D8), for example
+  `heltec-reaper-mesh-v0.10.0` and `tbeam-reaper-mesh-v0.10.0`, across firmware identification,
+  manifests, packages and docs.
 
 ## Working process
 
