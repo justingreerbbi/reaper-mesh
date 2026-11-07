@@ -10,6 +10,14 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 7: GCC build error in the firmware unit tests
+
+`network.cpp` compared a signed value with an unsigned one in `hear_proof`, from the `v0.10.0` rotation work. Apple clang accepts this, and GCC with `-Werror` does not, so the CI job that builds the firmware unit tests with GCC cannot pass with it. The comparison now uses an unsigned gap, and behavior is unchanged. No firmware was installed for this.
+
+Evidence: with Homebrew GCC 14 on macOS, using a shim for the system headers, the CMake build has no errors or warnings and passes all 127 tests, and the host suite passes all 382 with its sanitizer flags removed. The normal `npm run check` passes all 382 with Apple clang, and both boards build.
+
+Not tested: the CI run itself, because this session could not read the pull request's logs or push; Ubuntu's own GCC; AddressSanitizer, which stalls on this Mac; and Node 24.
+
 ## November 7: status LED off by default (`v0.11.1`)
 
 At the owner's direction the LED is now off by default, which also turns off its startup flash, and **Status light** in the portal turns it on. Record 8 is now written only while the LED is on, and earlier records load as off, so a board that never turned it on needs no migration.
