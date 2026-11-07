@@ -1,12 +1,12 @@
 # Reaper Mesh roadmap
 
-Owner-directed phases, set November 1, 2026 and last updated November 3. This is the canonical list of product priorities. Current implementation and verification state is in [Status](status.md); architecture is in the [development plan](../contributing/plan.md).
+Owner-directed phases, set November 1, 2026 and last updated November 7. This is the canonical list of product priorities. Current implementation and verification state is in [Status](status.md); architecture is in the [development plan](../contributing/plan.md).
 
 **Security (owner direction, November 4):** the [security architecture](../contributing/security-architecture.md) (D50) is approved. Its step 1, the new radio format, is built, so field qualification runs on the frames that ship. Key rotation, step 2a, is built, and comes before the relay test (D52, November 5). Remaining Phase 4 work can continue while waiting for a third board. See [Phase 4 delivery order](#phase-4-delivery-order).
 
 **Current focus (owner direction, November 3):** field qualification. New portal features are paused until three-node relay and an outdoor range test pass on real hardware; portal work is limited to bug fixes and native QA of existing features. Results from these tests could change the radio protocol, which is cheaper before more features depend on it. See the [field qualification plan](../contributing/field-qualification.md). GPS (2.2b) remains deferred.
 
-**Bluetooth (owner direction, November 4):** firmware support for a mobile agent is being built ahead of qualification (D47). It adds a link, not a radio change, so it does not affect the tests below. Mobile apps are built outside this repository (D48).
+**Bluetooth (owner direction, November 4):** firmware support for a mobile agent is built, ahead of qualification (D47). It adds a link, not a radio change, so it does not affect the tests below. Mobile apps are built outside this repository (D48).
 
 **Web portal and mobile app (owner direction, November 4):** the portal now follows the mobile app in look and features, as an exception to the pause on portal features (D49). It changes no firmware or protocol, so it does not affect the tests below. Other new portal features stay paused.
 
@@ -14,7 +14,7 @@ Order of work:
 
 1. **Done (November 4, firmware `v0.9.0`):** D50 step 1: radio version 2, relay and team keys, opaque payloads, the partition table, key storage and fill, Open mode, beacons only while attached, and the inbox changed alert. Verified on two boards; relay is not.
 2. **Built (November 5, firmware `v0.10.0`):** D50 step 2a: automatic key rotation with epoch proofs, with its portal controls, so the relay test covers epoch changes (D52). Passes on two boards, with a test tool and through the portal. See the [rotation and rekey design](../contributing/rotation-design.md).
-3. Get a third board (a second US/915 Heltec V3 is simplest) and build the three-board relay test tool.
+3. **Next.** Get a third board (a second US/915 Heltec V3 is simplest; the owner expects one on November 7) and build the three-board relay test tool. Phase 4 LED work runs until the board is ready.
 4. Three-node relay test.
 5. Outdoor range test.
 6. Power-loss, interrupted-flash and soak tests.
@@ -27,9 +27,9 @@ Channel identity was settled early, ahead of the core v1 review, by owner decisi
 | Phase | Outcome | Included features | Status |
 | --- | --- | --- | --- |
 | 1 — Working communications | Two supported devices communicate reliably through the independent Reaper protocol | Heltec V3 and T-Beam V1.2 firmware; USB console; persistent configuration; public/named channels; 1024-byte messages; fragmentation; bounded mesh/relay core; destination ACKs; RACE recovery; validated firmware installation | Complete: actual bidirectional direct RF/ACK/inbox checks pass. Three-node relay, power-cut and field qualification remain release gates. |
-| 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: 2.1 discovery and 2.2a fixed position are verified on two boards; GPS is deferred; the messaging and map portal is the current focus. |
-| 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without channel or direct keys. D50 widens this to the trusted-device model | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Rotation, interrupted-upload recovery and a security review are pending; D50 sets how rotation and direct messages are built. See [Channel encryption](../guides/encryption.md) and [Security architecture](../contributing/security-architecture.md). |
-| 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | In progress: step 1 (screen pages, buttons, 30 s timeout) verified on the T-Beam; screen settings and the T-Beam battery indicator built in `v0.2.0`. Optional board-local features; they must not change the radio protocol (D41). |
+| 2 — Discovery and field portal | Know who has been heard, where they report being, and message them | Configurable beacons and discovery requests/replies; node names and last-heard state; optional GPS/fixed position; map, nodes and messaging workspace; management from the portal | Active: 2.1 discovery and 2.2a fixed position are verified on two boards; GPS is deferred; the messaging and map portal is built, and its new features are paused until relay and range pass. |
+| 3 — Encrypted channels | Encrypt at agents while devices route ciphertext without channel or direct keys. D50 widens this to the trusted-device model | Reviewed agent-side envelope and crypto library; agent key vault/provisioning; explicit encrypted/plaintext state; channel epochs/rotation; RACE-safe retries; compatibility and compromise tests | First implementation is in place and encrypted direct messages are verified on two boards. Channel rotation and a security review are pending, and interrupted-upload recovery passes on two boards; D50 sets how rotation and direct messages are built. See [Channel encryption](../guides/encryption.md) and [Security architecture](../contributing/security-architecture.md). |
+| 4 — Device presentation and power visibility | Useful, configurable on-device status | Screen management/layout; sleep timeout/wake behavior; RX/TX indication; battery indication with unsupported/unknown states | In progress: screen pages, buttons, screen settings and battery display are built; LED indication is next, then sleep modes. See the [delivery order](#phase-4-delivery-order). Optional board-local features; they must not change the radio protocol (D41). |
 
 ## Planned after qualification
 
@@ -73,13 +73,13 @@ Phase 2 adds GPS/position reporting explicitly; it does not add broad telemetry,
 
 Phase 3 uses the implemented agent-side group-key profile described in [Channel encryption](../guides/encryption.md). Acceptance includes tamper/replay rejection, wrong keys, rotation, unsupported peers, explicit no-downgrade behavior, RACE recovery, both target builds and two-board checks. Phase 4 battery state must come from supported hardware measurements; do not invent percentages on USB-only or unsupported devices.
 
-EU transmit support, mobile/native agents, additional boards, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
+EU transmit support, native desktop agents, additional boards, signed public releases, rollback and field qualification remain separately tracked work. The product phases do not waive existing compatibility, regional or RACE requirements.
 
 ## Phase 3 delivery order
 
 1. Verify protocol, browser and firmware automated checks; retain the frozen RME1 binary envelope and ciphertext-only recovery behavior.
 2. Build both targets, connect both boards, confirm keys never cross USB/radio, verify same-key decryption and wrong-key/rotation outcomes, and confirm device ACK still reports transport delivery only.
-3. Test disconnect/reconnect and reboot at partial upload and inbox recovery boundaries. Require exact ciphertext retry semantics and no plaintext downgrade.
+3. **Passes on two boards (November 5):** disconnect, reconnect and reboot at partial upload and inbox recovery boundaries, with exact ciphertext retries and no plaintext downgrade. A reboot during over-the-air sending and a physical cable pull remain. See the [evidence](changelog.md#november-5-interrupted-encrypted-uploads).
 4. Review browser dependency provenance, security limitations, current direct-message group-key semantics and the in-process plugin boundary before general release.
 
 ## Phase 4 delivery order
@@ -87,8 +87,8 @@ EU transmit support, mobile/native agents, additional boards, signed public rele
 Board-local features only (D41). Design and rules: [device screen and buttons](../reference/device-display.md), decision D44.
 
 1. **Done (November 3):** startup icon and title, main/nodes/debug pages, main-button gestures, T-Beam PWR page shortcut, 30-second screen timeout. Verified on the T-Beam; the Heltec builds but is not yet checked on hardware.
-2. Check step 1 on the Heltec V3.
+2. Check step 1 on the Heltec V3. The owner has confirmed its screen timeout and wake on message; its page gestures are not checked.
 3. **Built (November 3):** screen settings stored on the device and set from the portal's Screen tab: timeout and optional wake on a new message. There is no settings page on the device. Settings round trip and reboot persistence verified over USB on both boards; the owner confirmed a 10 s timeout and wake on message on the Heltec.
-4. LED indication for TX/RX and new messages.
+4. **Next.** LED indication for TX/RX and new messages.
 5. **Built:** T-Beam measured battery percent and a plugged-in indicator; Heltec `v0.6.1` adds a calibrated battery-rail voltage and battery icon. The Heltec has no fuel gauge or USB-sense input, so it shows voltage rather than inventing percent or plugged-in state. Measurement accuracy still needs hardware qualification.
 6. Processor sleep modes for real battery savings, without missing radio traffic.

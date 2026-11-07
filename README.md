@@ -2,8 +2,8 @@
 
 **Long-range text messaging over LoRa radio — no internet, no cell service, no cloud.**
 
-Reaper Mesh is custom firmware for inexpensive LoRa boards plus a desktop browser agent
-that talks to them over USB. It is built for organizations that need stability: a small,
+Reaper Mesh is custom firmware for inexpensive LoRa boards plus a browser agent that talks to
+them over USB or Bluetooth. It is built for organizations that need stability: a small,
 stable firmware and protocol core, with new features added in agents and plugins so boards
 rarely need firmware updates.
 
@@ -25,9 +25,14 @@ is used only as a functional reference, not for interoperability.
   a Heltec V3 and a LILYGO T-Beam V1.2.
 - Node discovery, fixed-position sharing, a local inbox, and recovery after disconnects.
 - A first implementation of agent-side channel encryption (verified on two boards, not audited).
+- Team radio networks with automatic key rotation, set up from the portal (verified on two
+  boards, not audited).
+- A Bluetooth link with physical-access pairing, used from the portal (owner-reported). Mobile
+  apps are built outside this repository.
+- An on-device screen with pages, button gestures and battery display.
 
 Still outstanding: three-node relaying, field range, power-loss durability, EU transmission,
-BLE/mobile agents, signed releases, and a security audit.
+signed releases, and a security audit.
 
 ## Documentation
 
@@ -64,7 +69,7 @@ recovery without a board. Full walkthrough: [Getting started](docs/guides/gettin
 
 ```text
 firmware/              Embedded C++ components and board applications (heltec-v3, tbeam-v12)
-agents/web/            Desktop browser agent (field portal), USB first
+agents/web/            Browser agent (field portal), over USB or Bluetooth
 packages/protocol/     Shared schemas, generated bindings, compatibility fixtures
 packages/agent-core/   Transport-independent connection and message state
 packages/simulator/    Simulated devices for tests and the portal's simulated device
@@ -77,7 +82,7 @@ docs/                  All documentation (see docs/README.md)
 
 ## Project status and scope
 
-The USB/local-messaging slice and two-board direct RF delivery work on hardware. Relay,
+Two-board direct delivery, encryption and team networks work on hardware. Relay, range,
 power-cut, and field-soak qualification remain release gates. The Git repository tracks
 `origin/main`; remote CI is configured but should be verified separately from local checks.
 

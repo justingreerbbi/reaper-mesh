@@ -1,7 +1,7 @@
 # Reaper Mesh documentation
 
 Reaper Mesh is a small, dependable LoRa mesh messaging system: custom firmware for
-hobbyist LoRa boards plus a desktop browser agent that talks to them over USB.
+hobbyist LoRa boards plus a browser agent that talks to them over USB or Bluetooth.
 
 This folder is the full documentation set. Start with the section that matches what
 you want to do.
@@ -33,13 +33,13 @@ you want to do.
 | [Web portal](guides/web-portal.md) | Using the field portal: messaging, map, settings, recovery |
 | [Channel encryption](guides/encryption.md) | Setting up agent-side encryption and its security limits |
 | [Web agent plugins](guides/plugins.md) | Installing and managing declarative JSON plugins |
+| [Connect a mobile app](guides/mobile-apps.md) | How a mobile app pairs with and talks to a device |
 
 ## Reference — how it works in detail
 
 | Document | What it covers |
 | --- | --- |
 | [Protocol](reference/protocol.md) | USB framing, typed payloads, negotiation, and the synchronization contract |
-| [Connect a mobile app](guides/mobile-apps.md) | How a mobile app pairs with and talks to a device |
 | [Bluetooth link](reference/bluetooth.md) | Pairing rules, GATT service, and the client sequence for mobile agents |
 | [Radio protocol](reference/radio-protocol.md) | The over-the-air datagram, routing, and resource bounds |
 | [Radio configuration](reference/radio-configuration.md) | Modes, channels, transmit power, and the regional profile |

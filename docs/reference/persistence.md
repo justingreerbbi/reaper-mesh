@@ -1,6 +1,6 @@
 # Device configuration authority and storage boundary
 
-`firmware/components/reaper_device/` is the portable C++ configuration authority intended for the USB-only firmware. It is compiled and fault-tested on the host; the ESP-IDF/NVS adapter and UART application now build, with real hardware validation pending.
+`firmware/components/reaper_device/` is the portable C++ configuration authority. It is compiled and fault-tested on the host and runs on both boards through the ESP-IDF/NVS adapter. Power-cut behavior on hardware is not yet tested; see [Status](../overview/status.md).
 
 ## Serialized command behavior
 
@@ -22,17 +22,15 @@ The initial missing record yields revision 0, an empty label, and an unset regio
 
 An uncertain write never becomes a success just because a read might show matching bytes. The application must return/retain an unknown result when possible, end the logical connection, and expose a storage-recovery condition. It must not serve a possibly stale snapshot, keep advertising writable readiness, auto-reboot, or auto-format NVS. A later actual boot with a fresh identity loads whichever valid complete record survived; the old command outcome remains unknown because its receipt did not survive. Tests cover both old-record and new-record survival, not actual flash power cuts.
 
-The backend must implement atomic replacement of one record and accurately classify failures. An NVS adapter must use indeterminate for any error that cannot prove no change. Its implementation and real storage guarantees need review/testing before hardware flashing.
+The backend must implement atomic replacement of one record and accurately classify failures. An NVS adapter must use indeterminate for any error that cannot prove no change.
 
 ## Stored record v1
 
 The internal record format is independent of USB/radio protocol versions. It contains magic `RC`, one-byte schema version 1, little-endian u32 config revision, region byte (0 unset / 1 US / 2 EU), one-byte UTF-8 label length, label bytes, and a little-endian CRC-32/ISO-HDLC over all preceding bytes. Total size is 13–77 bytes. Unknown versions, invalid lengths/text/region, corruption, and truncation are rejected before publishing state. CRC detects corruption; it is not authentication or encryption. A future migration must explicitly support prior storage schemas and downgrade behavior.
 
-## Evidence and remaining integration
+## Evidence
 
-Thirteen compiler-backed scenarios test commit ordering, lost-response duplicates, revision conflict, definite failure, uncertain old/new survival, reboot identity, receipt eviction, owner exhaustion, corruption/read failure, record bounds/revision exhaustion, malformed commands, and the framed-message-to-authority boundary. The full host check uses UBSan locally; Linux CI is configured for ASan too. Storage is a fault-injecting in-memory fake. No test here establishes NVS durability, ESP32 task-stack budgets, actual USB behavior, display output, or RF behavior.
-
-Next implement the ESP-IDF app and NVS backend, with UART-only communications and radio transmission disabled. Preserve binary UART framing, supply authoritative snapshots through the serialized loop, and keep boot/debug logs off the protocol stream. Verify board/flash details, prepare recovery/backup instructions, and obtain first-flash authorization only after the image is built and reviewable.
+Compiler-backed scenarios test commit ordering, lost-response duplicates, revision conflict, definite failure, uncertain old/new survival, reboot identity, receipt eviction, owner exhaustion, corruption/read failure, record bounds/revision exhaustion, malformed commands, and the framed-message-to-authority boundary. The full host check uses UBSan locally; Linux CI is configured for ASan too. Storage is a fault-injecting in-memory fake. No test here establishes NVS durability or ESP32 task-stack budgets.
 
 ## ESP-IDF backend
 
@@ -44,7 +42,7 @@ Record 2 is now supported alongside record 1, with a maximum 151-byte blob. Exis
 
 ## Fixed-position record4
 
-The current reader accepts records1–4. Record4 keeps the complete record3 layout and inserts10 bytes immediately before CRC32: share0/1 byte, source0(none)/1(fixed) byte, latitudeLE32, longitudeLE32. Coordinates use degree*10^7 offsets+90/+180 (see protocol.md), including a valid geographic0,0. Maximum record166 bytes. Default position policy continues writing the applicable earlier format; nondefault saved coordinates/source/sharing require4. Unsupported older readers fail closed without erasing. All fields commit with label/region/radio/discovery under the existing CAS and durable-publication boundary. Legacy mutations omitting all position fields preserve them. Failed commits preserve prior policy; indeterminate commits block authority/snapshots and require reboot reconciliation. The actual Heltec8/T-Beam3 NVS record retained fixed coordinates across separately verified fresh boot identities with sharing disabled; see ../contributing/phase-2.md. This does not qualify power-cut atomicity at every commit phase.
+Record4 keeps the complete record3 layout and inserts10 bytes immediately before CRC32: share0/1 byte, source0(none)/1(fixed) byte, latitudeLE32, longitudeLE32. Coordinates use degree*10^7 offsets+90/+180 (see protocol.md), including a valid geographic0,0. Maximum record166 bytes. Default position policy continues writing the applicable earlier format; nondefault saved coordinates/source/sharing require4. Unsupported older readers fail closed without erasing. All fields commit with label/region/radio/discovery under the existing CAS and durable-publication boundary. Legacy mutations omitting all position fields preserve them. Failed commits preserve prior policy; indeterminate commits block authority/snapshots and require reboot reconciliation. The actual Heltec8/T-Beam3 NVS record retained fixed coordinates across separately verified fresh boot identities with sharing disabled; see ../contributing/phase-2.md. This does not qualify power-cut atomicity at every commit phase.
 
 ## Screen settings record 5
 

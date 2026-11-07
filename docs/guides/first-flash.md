@@ -1,5 +1,10 @@
 # First USB-only Heltec V3 flash: review and recovery
 
+> [!NOTE]
+> This is a historical record of the November 1 bring-up, and its description of the firmware and
+> partition table is out of date. Use [Flashing firmware](flashing-firmware.md) for installs and
+> [Status](../overview/status.md) for what runs now.
+
 The target is the owner-confirmed Heltec WiFi LoRa 32 V3 with display, using its CP2102 USB/UART bridge. ROM inspection on November 1, 2026 identified ESP32-S3 revision v0.2, 8 MB GD flash, 40 MHz crystal, quad flash wiring, secure boot disabled, and flash encryption disabled. These queries temporarily reset the device and used a RAM loader; they did not write flash or eFuses. RF band remains owner-confirmed US; the prototype performs no RF transmission.
 
 ## What the prototype does

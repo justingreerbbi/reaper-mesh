@@ -82,6 +82,7 @@ The Device tab shows the device with its link state, Radio, Power, Nodes heard, 
 - **Position:** Off, Fixed point or This browser. A fixed point has its own Share switch. **This browser** saves the browser's location to the device as its fixed position, which it then announces. Because each change restarts the device's beacon timer and writes to its flash, it updates only after 25 m of movement, no sooner than one beacon interval plus 10% and 5 seconds, and ignores fixes worse than 100 m. It stops when the page closes and keeps the last location. Locations go over the radio unencrypted, even on encrypted channels. Sharing defaults off, and a stored position alone never authorizes transmission.
 - **Discovery:** independent opt-in announcements and replies, every 1, 5 or 15 minutes or 1 hour. A value set elsewhere stays selectable. Both default off in firmware. A peer must be in mesh mode with replies on to answer.
 - **Screen:** how long the device's own screen stays on, and whether a message wakes it, for firmware that advertises `screenVersion` 1. See [device screen and buttons](../reference/device-display.md#screen-settings).
+- **Radio network:** Open mode or a team, adding this radio as a member or relay, and key rotation. See [below](#radio-network).
 - **Bluetooth:** start pairing over USB, see the passkey, and pair this browser. See [below](#bluetooth).
 - **Diagnostics, Plugins and Storage:** technical status, JSON plugins, and history export, retry and reset.
 - **This app:** appearance, distance units, coordinate format, Rejoin on load, your devices, PIN protection and erasing local data.
@@ -111,27 +112,21 @@ Drafts are preserved while editing. If the boot, device identity, or revision ch
 
 Each connection source retains its own agent manager for this page session. Port-chooser results arriving after cancellation are ignored. Page exit requests disconnect cleanup, but browsers do not guarantee completion during page teardown. USB history/incarnation survives reload in plaintext local storage, with a Web Lock preventing simultaneous writers in this browser bucket. Other browsers/profiles have separate identities. Device owner marks are not silently evicted; exhausted admission is read-only until an explicit device reboot, which loses volatile receipts/queues. Export/query pending history first. The UI must not solve capacity exhaustion by resetting a real device or silently rotating IDs.
 
-## Validation recorded
-
-131 host/cross-language tests, strict TypeScript checks, generated declarations, and the production web build pass locally. Six tests cover the UI draft model and shared simulator, including stale edits, lost results, disconnect recovery, read-only behavior, and history release.
-
-Manual in-app browser QA verified simulator connection, label save/revision update, disconnect-after-commit, reconnect/query recovery, read-only disabled editing, and return to writable mode. No browser console errors were observed. The default narrow viewport rendered the responsive single-column layout. Native USB connection/save/reconnect is now verified as recorded below; browser reload recovery and RF remain unverified.
-
 ## Message composer
 
 The composer accepts up to 1024 UTF-8 bytes, less for an encrypted channel. It requires message capability v1 and displays upload/queue/transmit/ACK/failure/unknown separately. Status queries never resend text. Clearing uncertain or active queue history requires explicit abandonment; it does not cancel device work.
 
 ## Inbox, local testing and diagnostics
 
-The integrated firmware supports local delivery by selecting This device. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The agent reads the inbox with independent bounded cursors, reports retention gaps in Diagnostics and keeps received history to 32 entries. Live radio state and RX/TX counters appear on the Device tab; memory and stack headroom are under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
+The firmware delivers a message addressed to the connected node locally. An acknowledged local result explicitly says no radio transmission; the same text appears in Received messages. The agent reads the inbox with independent bounded cursors, reports retention gaps in Diagnostics and keeps received history to 32 entries. Live radio state and RX/TX counters appear on the Device tab; memory and stack headroom are under Diagnostics. Remote submission is disabled while the radio reports a blocking reason. Configuration and inbox history counters remain independent.
 
 ## Reload recovery
 
-USB identity, monotonic request counters and bounded command/message/inbox history are checkpointed before dispatch. Reload restores unfinished work as unknown and never resumes partial sends. Query status after reconnecting to the same device/boot. The recovery panel exports history, retries unavailable storage, or explicitly resets disconnected history. Reset/cleared browser data allocates a new identity and can consume another device owner slot. Invalid saved JSON remains exportable; it is not silently discarded. A second tab is read-only. Native Brave local delivery and both outgoing/inbox retention across reload passed on usb-prototype-4.
+USB identity, monotonic request counters and bounded command/message/inbox history are checkpointed before dispatch. Reload restores unfinished work as unknown and never resumes partial sends. Query status after reconnecting to the same device/boot. The recovery panel exports history, retries unavailable storage, or explicitly resets disconnected history. Reset/cleared browser data allocates a new identity and can consume another device owner slot. Invalid saved JSON remains exportable; it is not silently discarded. A second tab is read-only.
 
-## Portal verification / data limits (November 2)
+## Data limits
 
-223 host tests and the production build pass. Browser checked at390px and1440px: settings, navigation, offline drafts and conversation switching; no horizontal overflow or observed console errors. No USB/RF regression was repeated for presentation-only changes. The inbox protocol supplies sender/channel but no original destination or timestamp. Channel views therefore show traffic received by this device, including potentially direct traffic; peer views group by sender. No fake sent time/read status is displayed. Cross-direction order after restoring history is reconstructed because the device does not provide a common timestamp/order. All content is rendered as text, including map names/tooltips. Basemap failure keeps local asset/message functions available. GPS remains deferred.
+The inbox protocol supplies sender/channel but no original destination or timestamp. Channel views therefore show traffic received by this device, including potentially direct traffic; peer views group by sender. No fake sent time/read status is displayed. Cross-direction order after restoring history is reconstructed because the device does not provide a common timestamp/order. All content is rendered as text, including map names/tooltips. Basemap failure keeps local asset/message functions available. GPS remains deferred.
 
 ## Message management and unread indicators
 
@@ -143,7 +138,6 @@ Unread UI state is separate from delivery state. Unique incoming identities incr
 
 Metadata uses `reaper-mesh.message-ui.v1`, under the existing portal writer lock, separately from transport request counters. Storage failures/read-only tabs disable destructive actions without altering protocol state; malformed saved metadata is preserved. Each record may carry the time this browser first saw the message; records saved before that have none. Bounds are 4096 message identities (sent messages with a time count too)/1024 hidden conversation keys/2MiB; exhaustion fails closed rather than evicting deletions. Local deletion is published only after metadata storage succeeds, then the ordinary history checkpoint removes bodies. A crash between those steps is reconciled on the next render without replaying work.
 
-Verification:232 host tests, generated/type checks and production build pass. An isolated5174 browser origin with synthetic messages verified title/badges, read-on-opening, individual received deletion, reload suppression, conversation removal, and a new arrival reopening the conversation with count1 while earlier deleted messages remain hidden. No user's history, radio settings, firmware or ACK logic was changed for QA. Temporary fixture pages/server were removed. Previews in ignored build/message-management-preview.png and message-unread-preview.png contain only labeled QA messages.
 ### Channel and direct-message separation
 
 Configured channels always appear as channel rows. Peer conversations remain scoped to their channel ID. Received inbox items use the RF destination to distinguish broadcast traffic from messages addressed to the connected node. Inbox protocol version 2 carries this metadata; version-1 devices have no route field, so legacy received traffic stays in the channel view rather than being duplicated into a peer thread. This affects presentation only; ACKs and RF routing are unchanged.

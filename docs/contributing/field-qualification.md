@@ -23,8 +23,10 @@ test durations around this limit, or use short messages for delivery-rate runs.
 
 ## Hardware needed
 
-- **A third board.** A second US/915 Heltec V3 is the simplest choice because the Heltec
-  firmware is already qualified. Any third supported board works.
+- **A third board.** A second US/915 Heltec V3 is the simplest choice, because it runs the same
+  image as a board that already passes the two-board tests. Any third supported board works. A new
+  board needs a first install (see [Flashing firmware](../guides/flashing-firmware.md)), its region
+  set and its antenna confirmed, and a network chosen, because a radio sends nothing until one is.
 - An antenna for every board.
 - One computer with three USB ports for the bench test. The browser agent handles one device
   at a time, so the tests use command-line tools, like `tools/hardware-pair-smoke.ts` does
@@ -50,8 +52,9 @@ it does not exist. Adding it is a firmware and protocol-scope decision.
 
 **Procedure**
 
-1. Configure all three boards: mesh mode, same channel, same power. B has relay enabled; A
-   and C have relay disabled.
+1. Configure all three boards: same network, mesh mode, same channel, same power. B has relay
+   enabled; A and C have relay disabled. Run this once in Open mode and once on a team, with B
+   also tried holding only the relay key.
 2. **Control run:** disable relay on B. Send 10 short unicast messages from A to C. Expected:
    no destination ACKs, which shows A and C cannot hear each other directly. If any message is
    acknowledged, the nodes are too close; increase separation and repeat.

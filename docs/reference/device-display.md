@@ -11,8 +11,8 @@ works. Hardware evidence is in the [changelog](../overview/changelog.md).
 - Screen logic, pages and drawing are shared by all boards in `firmware/app/device_ui.*` and are
   tested on the host. A board only provides the panel setup, the main button level and any
   optional extra button.
-- The screen shows what the device itself knows. It never shows message text; the device never
-  holds encryption keys.
+- The screen shows what the device itself knows. It never shows message text or keys, and the
+  device never holds channel encryption keys.
 
 ## Buttons
 
@@ -48,7 +48,7 @@ The USB link and radio start at the same time; nothing waits for the screen.
 | --- | --- |
 | Main | Device name (the node ID if no name is set), radio state `RX`, `TX`, `OFF` or `FAULT`, `NEW n` (inbox messages that arrived after the screen last turned off), `NODES n` (nodes heard), and the firmware version in the bottom-right corner. Top right: the battery (see below), when measured. The name is drawn at 2× when it fits beside the battery (10 characters with no battery shown), otherwise at 1× on the battery's line. |
 | Nodes | Up to five heard nodes: name (or node ID), `*` when it shared a position, and last-heard age. |
-| Debug | Node ID, USB state and configuration revision, NVS health, radio mode and transmit power in dBm, RX/TX counters, free heap and minimum stack, uptime and the ESP-IDF reset reason (`R1` power-on, `R3` software, `R4` panic, `R5`/`R6`/`R7` watchdog, `R9` brownout). |
+| Debug | Node ID, USB state and configuration revision, NVS health, radio mode and transmit power in dBm, RX/TX counters, free heap and minimum stack, uptime and the ESP-IDF reset reason (`R1` power-on, `R3` software, `R4` panic, `R5`/`R6`/`R7` watchdog, `R9` brownout). After a Bluetooth failure, a `BLE` line shows the last disconnect (`D`), host reset (`S`) and notification (`N`) reason codes. |
 
 **Power:** the screen turns off after the configured timeout (30 s by default) counted from
 the last button press. Off means display off and

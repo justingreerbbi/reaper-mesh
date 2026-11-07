@@ -12,6 +12,12 @@ There is no stable/public release yet. Firmware identifiers describe development
 | tbeam-usb-prototype-1 | Same USB v1 | 1 | 1, 2 | ESP32/4MB, AXP2101/SX1276; real direct RF with Heltec6 passed |
 | usb-prototype-6 | Same wire/schema | 1 | 1, 2 | DMA-backed full-fragment transfer; owner-confirmed US board/antenna |
 | heltec/tbeam-reaper-mesh-v0.4.0 | `txLevel` replaces `txPower`, adds `txBoost` | 1 | 1–7 | Low, medium and high power; T-Beam boost |
+| v0.5.0, v0.6.0 | Same framing; `pairingRequest` and `pairingStatus` in v0.6.0 | 1 | 1–7 | Bluetooth link with the same bytes as USB (D47); pairing over USB |
+| v0.6.1, v0.6.2 | Unchanged | 1 | 1–7 | Bluetooth flow control; Heltec battery voltage |
+| v0.7.0 | Unchanged; `radioVersion` becomes 2 | 1 | 1–7 | Radio version 2 replaces version 1 (D50, D42), so older firmware cannot share traffic with it |
+| v0.8.0 | Adds `networkQuery`, `networkStatus`, `networkFill`, `teamLoad`, `networkErase` | 1 | 1–7 | Team keys and Open mode; a new partition table with four images; silent until a network is chosen |
+| v0.9.0 | Adds `agentFeatures` in `hello` and `inboxChanged` | 1 | 1–7 | Opaque payloads and the inbox alert |
+| v0.10.0 | `networkFill` needs the epoch proof, `networkStatus` adds rotation fields | 1 | 1–7 | Epoch proofs and rotation (D52). The key record changes format, so a board reads as no network after this install. Team codes become `RMTEAM2` |
 
 Current agent to older firmware: missing message/radio/inbox capabilities disable those functions. Unknown optional fields are skipped by length; unsupported required behavior fails closed. Base agents editing label/region on newer firmware omit the five radio fields, preserving device-authoritative radio policy. A radio policy update is all-or-none, shares the revision CAS, and cancels stale queued work. Storage schema 1 remains readable; schema 2 is written only for nondefault radio policy. Downgrading to schema-1-only firmware with schema 2 on disk is unsupported: storage must fail closed, never erase itself.
 
@@ -29,7 +35,7 @@ Frozen envelopes/messages remain unchanged as additive fixtures are appended. Ge
 
 The endurance seed is 0x73550728. It spans over four virtual hours with 10% per-link drops, 5% corruption and 2% TX failures during faulted intervals, plus duplicate/reordered traffic. This deterministic run acknowledges 103/120 messages (all 12 clean intervals recover), checks every delivered body and never accepts an ACK without complete destination data. Faulted-message failure is explicit, not silently converted to success. These are bounded-recovery checks, not a promised RF delivery rate; there is no shared-air/coexistence model in this core test.
 
-Before a stable release, define the support window, qualify current/previous stable agent and firmware releases, sign artifacts, and run physical power-cut, two-node delivery, three-node relay and field-soak tests. Future EU transmission, BLE and encryption require separately negotiated capabilities and qualification; no present compatibility promise covers them.
+Before a stable release, define the support window, qualify current/previous stable agent and firmware releases, sign artifacts, and run physical power-cut, two-node delivery, three-node relay and field-soak tests. Future EU transmission requires separately negotiated capabilities and qualification. Bluetooth, encryption and team networks are negotiated by capability today, and no compatibility promise covers them until core v1 (D42).
 
 T-Beam V1.2 support was explicitly added by the owner. Actual 1024-byte direct RF reception/destination ACK/exact inbox verification passes in both directions with Heltec prototype-6, using two simultaneous USB ports. This does not extend the result to three-node relays or field conditions. See ../guides/t-beam-v12.md for exact hardware, image source, settings restoration and the initial first-write interruption observation.
 

@@ -50,8 +50,9 @@ Read-only USB inspection on November 1, 2026 found:
 | Flash | 8 MB, 40 MHz crystal, quad (DIO) wiring |
 | Secure boot / flash encryption | Both disabled |
 | Display | 0.96″ 128×64 SSD1306 OLED |
-| NVS partition | offset `0x9000`, size `0x5000` |
-| Bluetooth key partition | offset `0x210000`, size `0x8000` |
+| Settings partition (`reaper_nvs`) | offset `0x9000`, size `0x5000` |
+| Bluetooth key partition (`nvs`) | offset `0x210000`, size `0x8000` |
+| Network key partition (`reaper_keys`) | offset `0x218000`, size `0x2000` |
 | RF band | **Owner-reported US/915 MHz**, not electronically verified |
 
 > [!IMPORTANT]
@@ -70,9 +71,9 @@ These identify the expected board family, not an electronic verification of this
 
 ### Firmware posture
 
-The USB-only ESP-IDF v5.5.4 application integrates the portable session engine, framed UART0
-at 115200, fresh boot IDs, and a fail-closed NVS backend. The firmware preserves the existing
-NVS range and uses a separate namespace/key with no automatic erase fallback. The owner
+The ESP-IDF v5.5.4 application integrates the portable session engine, framed UART0 at 115200,
+a paired Bluetooth link, fresh boot IDs, and a fail-closed NVS backend. Firmware installs preserve
+the settings, Bluetooth and network key partitions, and there is no automatic erase fallback. The owner
 explicitly declined preserving the factory firmware/settings, so no backup gates the first
 flash; recovery means reinstalling a reviewed Reaper image through the ESP32-S3 ROM loader.
 See the [first-flash walkthrough](first-flash.md) and [Flashing firmware](flashing-firmware.md).
@@ -98,5 +99,6 @@ identities after reconnects. Details are in [T-Beam V1.2](t-beam-v12.md).
 
 RF transmission is disabled by default on both boards. The owner confirmed the US/915 MHz
 antennas are attached, which clears the board antenna gate recorded in each board profile.
-Transmission still requires explicit mesh mode plus confirmed region, board, antenna, and
-driver readiness — firmware never infers a regulatory region from the computer's timezone.
+Transmission still requires explicit mesh mode, a chosen radio network (Open mode or a team),
+and confirmed region, board, antenna, and driver readiness — firmware never infers a regulatory
+region from the computer's timezone.

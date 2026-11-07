@@ -1,6 +1,6 @@
 # Independent Reaper Mesh radio protocol v2
 
-This is a Reaper protocol, not Meshtastic interoperability. Hardware RF remains disabled until antenna/board/profile checks; simulation cannot establish legal operation or RF reliability.
+This is a Reaper protocol, not Meshtastic interoperability. A radio transmits only after its antenna, board and regional profile checks pass and a network is chosen; simulation cannot establish legal operation or RF reliability.
 
 Version 2 implements [D50](../contributing/decisions.md#d50-trusted-device-security-model) and replaced version 1 outright (D42). The format has had no independent security review.
 

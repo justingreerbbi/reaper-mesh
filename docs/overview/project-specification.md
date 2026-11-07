@@ -3,8 +3,8 @@
 | Document control | Value |
 | --- | --- |
 | Status | Draft for owner approval; not an approved release standard |
-| Version | 0.2 (consistency review against current docs and code, November 3) |
-| Date | November 3, 2026 |
+| Version | 0.3 (consistency review against current docs and code, November 7) |
+| Date | November 7, 2026 |
 | Scope | Project vision, product phases, system requirements and implementation direction |
 | Authority | Proposed project baseline; existing approved protocol contracts remain authoritative until explicitly revised |
 
@@ -76,17 +76,17 @@ These are intended applications and evaluation scenarios, not performance or dep
 | --- | --- | --- |
 | Web portal | Messaging, the map (nodes, positions and shared map items), channel management, key provisioning, plugins and local privacy controls | Must not imply browser preferences are device-wide policy |
 | Shared agent core | Negotiation, state synchronization, command lifecycle, messaging and recovery | Transport-independent behavior with explicit connection/session context |
-| Device firmware | Authoritative persisted device settings, bounded queues, radio operation and inbox retention | Does not receive channel encryption keys or the app PIN. Under D50 (planned) it stores a relay key and holds a team key in memory |
+| Device firmware | Authoritative persisted device settings, bounded queues, radio operation and inbox retention | Does not receive channel encryption keys or the app PIN. Since `v0.8.0` (D50) a radio on a team stores a relay key and holds a team key in memory |
 | Radio network | Carry bounded message fragments, acknowledgments and discovery reports | Delivery and observations are constrained by airtime, loss and topology |
 | Local browser storage | Agent journals, message metadata, encryption policies, key records, map items and installed plugins | Scoped to browser origin/profile; separate from device storage |
 | Build and update tooling | Validate target, schema, provenance, images and installation outcomes | Hardware qualification cannot be inferred from host tests |
 
-The initial agent supports one connected USB node at a time. Simultaneous multi-device browser operation requires separately designed device-scoped journals, ownership and selection behavior.
+The web agent supports one connected node at a time, over USB or Bluetooth. Simultaneous multi-device browser operation requires separately designed device-scoped journals, ownership and selection behavior.
 
 ### 3.1 Terminology
 
 - **Node:** a supported radio device running Reaper Mesh firmware.
-- **Agent:** software connected to a node; currently the desktop browser portal.
+- **Agent:** software connected to a node: the browser portal in this repository, or a mobile app built outside it (D48).
 - **Channel:** a numbered logical messaging group sharing the configured radio profile.
 - **Direct message:** a message routed to a specific node; not necessarily pairwise-private.
 - **Observed asset:** a node heard by the system, possibly with a last-known reported position.
@@ -100,8 +100,8 @@ Phase completion records product milestones. It does not waive outstanding secur
 | --- | --- | --- | --- |
 | 1 — Working communications | Supported nodes exchange messages through the independent protocol | Owner marks complete; two-board direct RF, destination ACK and inbox behavior have recorded evidence | Preserve configuration authority, compatibility, bounded transport and recovery; qualify three-node relay separately |
 | 2 — Discovery and field portal | Operators discover nodes, inspect shared positions and communicate through a usable portal | Active; discovery and fixed-position slices have hardware evidence; the messaging and map portal is implemented, with new features paused for field qualification | Complete end-to-end portal workflows, privacy controls, reconnect behavior and hardware/browser checks; GPS is explicitly deferred |
-| 3 — Encrypted channels | Agents encrypt message bodies while devices route ciphertext | Initial group-key implementation exists; direct encrypted exchanges on Heltec/T-Beam have recorded evidence | Validate key transfer/rotation, tamper/replay handling, no plaintext downgrade and interrupted encrypted upload recovery; independent security review remains outstanding |
-| 4 — Device presentation and power visibility | Clear on-device status and supported power information | In progress; screen pages, buttons and screen timeout are verified on the T-Beam; screen settings and the T-Beam battery indicator are built | Define screen management, sleep/wake, RX/TX indication and measured battery reporting with unknown/unsupported states |
+| 3 — Encrypted channels | Agents encrypt message bodies while devices route ciphertext | Initial group-key implementation exists; direct encrypted exchanges and interrupted-upload recovery on Heltec/T-Beam have recorded evidence | Validate key transfer/rotation, tamper/replay handling and no plaintext downgrade; independent security review remains outstanding |
+| 4 — Device presentation and power visibility | Clear on-device status and supported power information | In progress; screen pages, buttons, screen settings and battery display are built, with evidence in Status; LED indication and sleep modes are not built | Define screen management, sleep/wake, RX/TX indication and measured battery reporting with unknown/unsupported states |
 
 The current priority is field qualification: three-node relay, outdoor range, power loss and soak testing on real hardware (owner direction, November 3). New portal features are paused until relay and range pass. GPS acquisition is not the next automatic task.
 
@@ -194,7 +194,7 @@ External input, radio observations, browser storage, configuration files and con
 
 The current channel design protects message bodies using shared group keys. It does not provide individual sender authentication, forward secrecy, metadata anonymity or protection from a compromised unlocked agent. Discovery and position information are not implicitly protected by channel message encryption. Device acknowledgments confirm transport behavior, not successful decryption.
 
-The owner approved the [security architecture](../contributing/security-architecture.md) (D50) as the direction for trusted devices: radios outside a team cannot read, inject or relay team traffic, and Open operation stays an explicit choice. The paragraph above describes today's behavior until that is built.
+The owner approved the [security architecture](../contributing/security-architecture.md) (D50) as the direction for trusted devices: radios outside a team cannot read, inject or relay team traffic, and Open operation stays an explicit choice. Team networks and key rotation are built (steps 1 and 2a). The paragraph above still describes channel encryption until the later steps ship, and [Status](status.md) lists what remains.
 
 No cloud account is required for core operation. Map tiles may require a network and disclose ordinary network requests to a tile provider; local radio messages and history MUST NOT be uploaded as a side effect of portal operation.
 
@@ -214,7 +214,7 @@ Explanatory copy SHOULD be short and task-specific. Security limitations and con
 | --- | --- | --- |
 | Firmware | ESP-IDF and C++17; a shared application (`firmware/app/`) with board-specific drivers behind shared protocol/service boundaries | Additional boards require validated hardware profiles, resource budgets and physical qualification |
 | Web agent | TypeScript, Vite, native DOM, shared agent core and Web Serial | A UI framework is optional only when justified by maintainability; it is not a product requirement |
-| Transport | Capability-negotiated device connection over USB, or Bluetooth with physical-access pairing (D47) | Mobile/native and simultaneous multi-device agents require separately approved contracts |
+| Transport | Capability-negotiated device connection over USB, or Bluetooth with physical-access pairing (D47) | Mobile apps use this same contract and are built outside this repository (D48). Native desktop and simultaneous multi-device agents require separately approved contracts |
 | Cryptography | Agent-side XChaCha20-Poly1305 group-key envelope; Argon2id for protected local key storage | Pairwise keys and sender authentication are designed in D50 and still require independent review |
 | Location | Explicit fixed position; GPS acquisition deferred | GPS requires verified wiring, power, bounded parsing and freshness rules before inclusion |
 | Portal extensions | Declarative JSON plugins (manifest v1) for map item types, fields and settings | Code plugins such as Weather Radar, Reaper ADS-B and APRS bridges run in sandboxed iframes (D40) after the plugin API and permissions design is approved |
