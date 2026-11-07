@@ -204,8 +204,8 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   // Record 7 changes the meaning of the power byte (level and boost instead of dBm), so any
   // setting other than Medium without boost needs it. Earlier records load as Medium.
   const auto& tx = snapshot.settings.radio;
-  // Record 8 appends the LED flag; only an LED turned off needs it.
-  const bool led = !snapshot.settings.led;
+  // Record 8 appends the LED flag; only an LED turned on needs it. Earlier records load as off.
+  const bool led = snapshot.settings.led;
   const bool levels = led || tx.level != mesh::TxLevel::Medium || tx.boost;
   // Record 6 appends the slot channel IDs; IDs that match the slot numbers need no record 6.
   const bool ids = levels || snapshot.settings.radio.channel_ids !=

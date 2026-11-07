@@ -67,7 +67,7 @@ export class FieldDevice {
     longitude: fixed(-104.9903, 180),
     screenTimeout: 60,
     screenWake: 1,
-    ledEnabled: 1,
+    ledEnabled: 0,
   };
   nodes: Node[] = [
     {

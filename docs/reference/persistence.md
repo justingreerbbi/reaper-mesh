@@ -79,9 +79,10 @@ record 7 after a downgrade.
 
 Record 8 (`v0.11.0`, D53) keeps the complete record 7 layout and adds one byte before the CRC: 1 for
 LED on, 0 for off. The maximum record is 204 bytes. Readers accept records 1–8, and any other value
-fails closed without erasing. An LED left on keeps writing the earlier applicable format, so a board
-that never turns it off keeps its current record. Firmware that reads only records 1–7 fails closed
-on a record 8 after a downgrade, so turn the LED back on before installing earlier firmware.
+fails closed without erasing. Since `v0.11.1` earlier records load as off, and an LED left off keeps
+writing the earlier applicable format, so a board that never turns it on keeps its current record.
+Firmware that reads only records 1–7 fails closed on a record 8 after a downgrade, so turn the LED
+off before installing earlier firmware.
 
 ## Boot counter
 

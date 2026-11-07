@@ -262,13 +262,13 @@ int main(int argc, char** argv) {
     sample.settings.radio.channel_ids = {0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0xfffffffe};
     CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) &&
           size == d::kMaxRecord - 1 && encoded[2] == 7);
-    sample.settings.led = false;
+    sample.settings.led = true;
     CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) && size == d::kMaxRecord &&
           encoded[2] == 8);
     d::Snapshot largest{};
-    CHECK(d::decode_record(encoded.data(), size, largest) && !largest.settings.led &&
+    CHECK(d::decode_record(encoded.data(), size, largest) && largest.settings.led &&
           largest.settings.radio.channel_ids[7] == 0xfffffffe);
-    sample.settings.led = true;
+    sample.settings.led = false;
     // A level or boost value outside the range fails the configure message.
     auto invalid = command();
     invalid.has_radio = true;
@@ -517,15 +517,17 @@ int main(int argc, char** argv) {
           parsed.settings.screen.timeout == 10 && parsed.settings.screen.wake);
     CHECK(authority.apply(parsed).outcome == d::Outcome::Committed);
   } else if (scenario == "led") {
-    // The LED defaults on, and on keeps the earlier record format.
-    CHECK(authority.snapshot(snapshot) && snapshot.settings.led);
+    // The LED defaults off, and off keeps the earlier record format.
+    CHECK(authority.snapshot(snapshot) && !snapshot.settings.led);
     CHECK(authority.apply(command()).outcome == d::Outcome::Committed && store.data[2] == 1);
-    auto off = command(2, 1);
-    off.has_led = true;
-    off.settings.led = false;
-    CHECK(authority.apply(off).outcome == d::Outcome::Committed && store.data[2] == 8);
+    d::Configuration earlier(store, text<64>("boot-E"));
+    CHECK(earlier.snapshot(snapshot) && !snapshot.settings.led);
+    auto turn_on = command(2, 1);
+    turn_on.has_led = true;
+    turn_on.settings.led = true;
+    CHECK(authority.apply(turn_on).outcome == d::Outcome::Committed && store.data[2] == 8);
     d::Configuration rebooted(store, text<64>("boot-B"));
-    CHECK(rebooted.snapshot(snapshot) && !snapshot.settings.led &&
+    CHECK(rebooted.snapshot(snapshot) && snapshot.settings.led &&
           snapshot.settings.screen.timeout == 30 &&
           snapshot.settings.radio.level == reaper::mesh::TxLevel::Medium);
     for (std::size_t n = 0; n < store.size; ++n)
@@ -541,7 +543,7 @@ int main(int argc, char** argv) {
     other.settings.radio.channel_ids = {0, 0x9c41e2a7, 0, 0, 0, 0, 0, 0};
     CHECK(authority.apply(other).outcome == d::Outcome::Committed && store.data[2] == 8);
     d::Configuration reloaded(store, text<64>("boot-C"));
-    CHECK(reloaded.snapshot(snapshot) && !snapshot.settings.led &&
+    CHECK(reloaded.snapshot(snapshot) && snapshot.settings.led &&
           snapshot.settings.screen.timeout == 60 && snapshot.settings.screen.wake &&
           snapshot.settings.position.share && snapshot.settings.discovery.interval == 120 &&
           snapshot.settings.radio.level == reaper::mesh::TxLevel::High &&
@@ -553,12 +555,12 @@ int main(int argc, char** argv) {
     for (unsigned i = 0; i < 4; ++i)
       corrupt.data[corrupt.size - 4 + i] = static_cast<std::uint8_t>(crc >> (8 * i));
     CHECK(!d::decode_record(corrupt.data.data(), corrupt.size, snapshot));
-    // Turning it back on, with the other settings back at their defaults, leaves record 8.
-    auto on = command(4, 3, "on");
-    on.has_led = on.has_screen = on.has_position = on.has_discovery = on.has_radio = true;
-    CHECK(authority.apply(on).outcome == d::Outcome::Committed && store.data[2] == 1);
+    // Turning it back off, with the other settings back at their defaults, leaves record 8.
+    auto off = command(4, 3, "off");
+    off.has_led = off.has_screen = off.has_position = off.has_discovery = off.has_radio = true;
+    CHECK(authority.apply(off).outcome == d::Outcome::Committed && store.data[2] == 1);
     d::Configuration restored(store, text<64>("boot-D"));
-    CHECK(restored.snapshot(snapshot) && snapshot.settings.led);
+    CHECK(restored.snapshot(snapshot) && !snapshot.settings.led);
     // A framed command accepts only 0 or 1, and a repeat must match the original request.
     p::Message message{};
     message.type = p::MessageType::Configure;
@@ -576,8 +578,8 @@ int main(int argc, char** argv) {
     message.fields[p::kConfigureLedEnabled] = {true, 2};
     d::Command parsed{};
     CHECK(!d::decode_command(message, parsed));
-    message.fields[p::kConfigureLedEnabled] = {true, 0};
-    CHECK(d::decode_command(message, parsed) && parsed.has_led && !parsed.settings.led);
+    message.fields[p::kConfigureLedEnabled] = {true, 1};
+    CHECK(d::decode_command(message, parsed) && parsed.has_led && parsed.settings.led);
     CHECK(authority.apply(parsed).outcome == d::Outcome::Committed);
     auto repeat = parsed;
     repeat.has_led = false;

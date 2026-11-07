@@ -134,7 +134,7 @@ static void run(void*) {
   static BoardLed status_led;
   status_led.begin();
   static reaper::ui::Indicator indicator;
-  bool led_enabled = true;
+  bool led_enabled = false;
   static BoardPower power;
   const auto reset_reason = static_cast<unsigned>(esp_reset_reason());
   static reaper::ui::ButtonGestures gestures;

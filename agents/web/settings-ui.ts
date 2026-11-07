@@ -279,7 +279,7 @@ export function renderScreen() {
   if (!screenDirty && screen) {
     keepCustomOption(select, String(screen.timeout), `${screen.timeout} s`);
     element<HTMLInputElement>('screen-wake').checked = screen.wake;
-    element<HTMLInputElement>('screen-led').checked = sync.config?.led ?? true;
+    element<HTMLInputElement>('screen-led').checked = sync.config?.led ?? false;
     screenBase = context;
   }
   element('screen-led-row').hidden = !connection.supportsLed;

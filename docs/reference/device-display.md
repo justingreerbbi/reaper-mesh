@@ -66,7 +66,7 @@ configuration and work with no agent connected. There is no settings page on the
 | --- | --- | --- |
 | Turn the screen off after | 10 s, 30 s, 1 min, 5 min or never (the device accepts 0 for never, or 10–3600 s) | 30 s |
 | Wake the screen when a message arrives | On or off. When on, a new inbox message turns the screen on at the main page, or restarts the timeout if it is already on | Off |
-| Status light | On or off. See [Status LED](#status-led) | On |
+| Status light | On or off. See [Status LED](#status-led) | Off |
 
 They use the same revision-checked, atomic configuration writes as other settings, and a write
 that omits them keeps the stored values. Wire fields and storage are in the
@@ -108,12 +108,12 @@ T-Beam's PMU fuel gauge, USB sensing, extra PWR button and radio boost are hardw
 
 ## Status LED
 
-Since `v0.11.0` (D53), one LED shows activity with nothing else attached. Its policy is shared by all
+Since `v0.11.0` (D53), one LED can show activity with nothing else attached. Since `v0.11.1` it is off until you turn on **Status light** in the portal. Its policy is shared by all
 boards and tested on the host. A board only provides the pin.
 
 | Signal | Pattern |
 | --- | --- |
-| Startup | Lit for 1 s, so you can tell which light is the status LED |
+| Startup, with the setting on | Lit for 1 s, so you can tell which light is the status LED |
 | Radio frame sent or received | A 60 ms pulse. Under constant traffic the pulses are at least 60 ms apart, so it stays readable as blinks |
 | Messages waiting | A 200 ms flash every 2 s, until a main or extra button is pressed or an agent attaches. A restart clears it, because the inbox is held in memory |
 | Nothing to show, or the setting is off | Dark |

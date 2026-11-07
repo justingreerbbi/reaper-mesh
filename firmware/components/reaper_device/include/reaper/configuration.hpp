@@ -77,8 +77,8 @@ inline bool same_screen(const ScreenSettings& a, const ScreenSettings& b) {
 }
 struct Settings {
   ScreenSettings screen{};
-  // Board-local status LED (D53). Off keeps it dark; it never changes what the radio sends.
-  bool led = true;
+  // Board-local status LED (D53), off by default. It never changes what the radio sends.
+  bool led = false;
   PositionSettings position{};
   DiscoverySettings discovery{};
   RadioSettings radio{};

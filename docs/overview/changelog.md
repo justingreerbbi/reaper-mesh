@@ -10,6 +10,14 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 7: status LED off by default (`v0.11.1`)
+
+At the owner's direction the LED is now off by default, which also turns off its startup flash, and **Status light** in the portal turns it on. Record 8 is now written only while the LED is on, and earlier records load as off, so a board that never turned it on needs no migration.
+
+Evidence: `npm run check` passes 382 tests, the firmware CTest suite passes 127, and both boards build. Both boards took `v0.11.1` with all four images verified by ROM (`--allow-dirty`, on top of `9e17ca9`). On each board over USB, the setting read off after the install, then saved on and off, each kept across a restart, with other settings the same. `hardware-pair-smoke` then delivered 1,024-byte messages in both directions, with a destination ACK and an exact inbox body.
+
+Not tested: the owner has not looked at the boards on this build, so seeing no light by default and the light returning once turned on are not confirmed. The toggle has still not been used in a native browser.
+
 ## November 7: status LED (`v0.11.0`), D53
 
 A status LED now pulses on radio activity and blinks slowly while messages wait, until a button is pressed or an agent attaches. The owner chose an on/off setting, on by default, which the portal shows as **Status light** on the Device screen page. The wire adds `ledEnabled` with feature bit 17, and storage adds record 8, written only while the LED is off. The radio format is unchanged. The firmware manifest's record schema also moves from 6 to 8, because it had not been updated for record 7.
