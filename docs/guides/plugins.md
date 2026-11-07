@@ -1,17 +1,78 @@
-# Web agent plugins
+# Web portal plugins
 
-Open Device → Plugins, choose a definition under **Install or update from JSON** and review its identity, version, types and settings. Confirm to install. The manager supports enable/disable, settings, export and uninstall. Existing items survive disable/uninstall and render with a generic fallback. Definitions/settings persist in this browser; they are not installed on firmware or automatically distributed by radio.
+Plugins add new kinds of map items to the web portal, such as a survey observation or a hazard,
+with their own fields and settings. Today's plugins are **declarative JSON**: they describe
+data and never run code, load remote content or send messages.
 
-Try the [Field Survey example](../../examples/agents/web/plugins/field-survey/) (`field-survey.json`), which adds a survey observation type, a shared condition field, a local-only reference and a show-labels setting. Install the file through the manager; no source edit or rebuild is needed. The map now labels every item, as the mobile app does, so `show-labels` no longer changes anything. Other plugin settings are validated/stored configuration exposed through the registry; JSON does not supply new executable behavior.
+## Install a plugin
 
-## Manifest version 1
+1. Open **Device → Plugins**.
+2. Under **Install or update from JSON**, choose a plugin file.
+3. Review its name, version, item types and settings, then confirm.
 
-Required fields: `manifestVersion: 1`, stable namespaced `id` (3–63 lower-case letters/digits/dots/hyphens), human-readable `name` (64 UTF-8 bytes), semantic `version` (`major.minor.patch`), `types` and optional `settings` arrays. Maximum file size is 64 KiB, with 24 types per definition and 12 fields per type/settings collection. Core IDs cannot be replaced. Unknown top-level contributions fail explicitly.
+The manager can enable, disable, configure, export and uninstall plugins. Items you created stay
+on the map after a plugin is disabled or removed, shown with a generic icon. Plugins live in
+this browser only; they are not installed on the board or sent over the radio, and receiving an
+item of an unknown type never installs anything.
 
-Each type defines `id`, `name`, `geometry` (`point`/`rectangle`), `icon`, `defaultColor` and optional `fields`. Supported icons: pin, flag, camp, hazard, medical, observation, search. Colors use `#RRGGBB`. No HTML, URLs, remote assets, network requests or scripts are executed.
+Try the [Field Survey example](../../examples/agents/web/plugins/field-survey/): install
+`field-survey.json` through the manager. No rebuild is needed.
 
-Fields/settings define `id`, `label`, `type` (`text`, `number`, `boolean`, `select`), optional `default`, optional `shared` (default false), and `options` for select fields. IDs are lower-case letters/digits/underscore/hyphen, start with a letter and are at most 32 characters. Text values are bounded to 96 UTF-8 bytes, numbers must be finite and select values must belong to 1–16 declared options. Defaults are validated before installation. Shared metadata must still fit the map message budget.
+## Write a plugin (manifest version 1)
 
-Updates replace the same plugin ID only after review. Compatible setting values are retained; incompatible retained values block the update rather than silently reset settings. Existing item metadata is preserved, without automatic destructive migrations. Keep type/field IDs stable. Received types never auto-install plugins; unknown types retain core geometry/name/note/color and safe metadata for inspection.
+```json
+{
+  "manifestVersion": 1,
+  "id": "org.example.hazards",
+  "name": "Hazards",
+  "version": "1.0.0",
+  "types": [
+    {
+      "id": "hazard",
+      "name": "Hazard",
+      "geometry": "point",
+      "icon": "hazard",
+      "defaultColor": "#E5484D",
+      "fields": [
+        {
+          "id": "severity",
+          "label": "Severity",
+          "type": "select",
+          "options": ["low", "medium", "high"],
+          "default": "medium",
+          "shared": true
+        }
+      ]
+    }
+  ],
+  "settings": []
+}
+```
 
-The architecture separates parsing/type registration (`plugins.ts`), persistence/lifecycle (`map-store.ts`), and host UI/actions (`map-workspace.ts`). Version 1 contributes map types and settings. Future panel/action/data-source contributions require an explicit manifest and host implementation; unsupported contributions are not silently accepted. Executable integrations require a separate isolation/permission design. Plugins never receive crypto keys or plaintext callbacks.
+| Part | Rules |
+| --- | --- |
+| **File** | At most 64 KiB, 24 types, and 12 fields per type or settings list. Unknown top-level keys are rejected |
+| **`id`** | 3–63 lower-case letters, digits, dots and hyphens; namespaced, for example `org.example.hazards`. Core IDs cannot be replaced |
+| **`name`** | Up to 64 UTF-8 bytes |
+| **`version`** | `major.minor.patch` |
+| **Type** | `id`, `name`, `geometry` (`point` or `rectangle`), `icon` (`pin`, `flag`, `camp`, `hazard`, `medical`, `observation`, `search`), `defaultColor` (`#RRGGBB`) and optional `fields` |
+| **Field or setting** | `id` (starts with a letter; lower-case letters, digits, `_`, `-`; up to 32 characters), `label`, `type` (`text`, `number`, `boolean`, `select`), optional `default`, `shared` (default `false`), and 1–16 `options` for `select` |
+| **Values** | Text up to 96 UTF-8 bytes; numbers must be finite. Defaults are validated at install |
+
+Only fields marked `shared` are sent when an item is shared, and they must fit the map message
+size limit.
+
+**Updating** replaces a plugin with the same `id` after review. Compatible setting values are
+kept; an update that would invalidate a saved value is blocked rather than resetting it. Keep
+type and field IDs stable between versions.
+
+## How it fits together
+
+Parsing and type registration are in `agents/web/plugins.ts`, storage and lifecycle in
+`map-store.ts`, and the interface in `map-workspace.ts`. Version 1 contributes map types and
+settings only.
+
+**Code plugins** (for integrations such as weather radar, ADS-B or an APRS bridge) are planned.
+They will run in a sandboxed iframe on a separate origin, with permissions declared in the
+manifest and approved by the user, and will never receive channel keys (decision D40). They
+wait on an approved design for the plugin message API.

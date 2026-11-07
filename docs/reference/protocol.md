@@ -1,6 +1,13 @@
-# Reaper Mesh protocol: synchronization draft
+# Protocol: the app-to-board link
 
-Status: independent Reaper Mesh protocol, confirmed by the owner. USB framing, capability negotiation, authoritative configuration, bounded message submission, live diagnostics and inbox retrieval are implemented in TypeScript/C++ and exercised on both boards. Native browser connect/save/reconnect and local-history reload are checked. The independent radio protocol and three-node fault simulator are implemented; two-board delivery does not qualify relays. This remains a development protocol, with frozen compatibility fixtures and separate protocol/config/radio versions.
+This is the contract between an app (agent) and a board over USB or Bluetooth: how bytes are
+framed, how the two sides negotiate, and how settings and messages stay correct across lost
+links and reboots. The over-the-air format is separate; see [Radio protocol](radio-protocol.md).
+
+Everything here is implemented in TypeScript (`packages/protocol/`, `packages/agent-core/`) and
+C++ (`firmware/components/`) from one schema, `packages/protocol/schema.json`, and exercised on
+both boards. It is still a development protocol: protocol, configuration and radio versions are
+separate, and frozen fixtures in `packages/protocol/fixtures/` pin the exact bytes.
 
 ## USB envelope draft v1
 
@@ -130,19 +137,20 @@ A full owner table rejects new owners without evicting old marks; existing owner
 
 On reboot, config/revision survive in the simulation but receipts and high-water marks do not. A fresh boot identity rejects all old-boot commands, so receipt loss does not make their IDs executable in the new boot. Counter exhaustion must never wrap; create a new incarnation only under the defined owner-capacity policy. Real firmware must serialize high-water/receipt/commit bookkeeping and persist configuration atomically before success; flash atomicity, crash ordering, receipt persistence, power-loss behavior, and authenticated identities remain unimplemented.
 
-## Deferred contracts
+## Validation boundary
 
-Next qualify the built ESP-IDF UART/NVS application on hardware and implement session retirement/owner-exhaustion recovery UX. The portable configuration authority and storage boundary now pass fault-injection tests; see persistence.md. Embedded descriptors/codec now pass host tests; see firmware/README.md. The local web UI now exposes write-blocked diagnostics and query-only recovery; see ../guides/web-portal.md. Strict static checks, CI configuration, and handshake capabilities/resource admission are implemented; remote CI and hardware validation remain pending. Review the serialization and retention drafts before firmware integration. Retry-safe message submission, radio ACK/timeout behavior, and stable message IDs across reboot remain separate work; config-command tests do not establish radio delivery. USB acceptance, radio transmission, destination acceptance, and human reading remain separate states. Do not automatically resend uncertain messages during resync.
+USB acceptance, radio transmission, destination acceptance and human reading are separate
+states. Never resend an uncertain message automatically during resync.
 
 `Connection` dispatches only successfully decoded and validated typed negotiation/synchronization messages. Direct callers of `Synchronizer` and `Commands` must still supply validated objects. These components are not wire decoders.
 
-## Embedded compatibility evidence
+## Embedded codec
 
 The C++17 codec uses fixed buffers and caller-owned output, with no heap allocation in codec code. Cross-language tests compare canonical bytes and acceptance/rejection across all eleven message types, optional/unknown/reordered fields, truncated data, corruption, Unicode/ID boundaries, overflow/recovery, and seeded noise. Frozen messages-v1.json fixtures are not regenerated automatically. Local UBSan passes; Linux CI is configured for UBSan/ASan, while macOS ASan remains unverified because startup stalled. These checks establish the host codec contract, not target RAM/stack, NVS crash safety, or real serial/radio behavior.
 
 ## Device storage failures
 
-The portable authority publishes committed config only after the backend returns a durable success. Definite no-change errors retain a rejected result. Ambiguous errors retain unknown, block subsequent mutations/snapshots, and require the application to end the logical connection rather than present stale synchronized state. Corrupt/unreadable/unsupported stored records never trigger implicit defaults or formatting. The atomic record, storage status contract, reboot boundary, and remaining NVS qualification are documented in persistence.md.
+The portable authority publishes committed config only after the backend returns a durable success. Definite no-change errors retain a rejected result. Ambiguous errors retain unknown, block subsequent mutations/snapshots, and require the application to end the logical connection rather than present stale synchronized state. Corrupt/unreadable/unsupported stored records never trigger implicit defaults or formatting. The atomic record, storage status contract, reboot boundary, and remaining NVS qualification are documented in [Persistence](persistence.md).
 
 ## Target USB session and storage failure
 
@@ -150,19 +158,19 @@ The UART app serializes authority access. Hello negotiates version/capabilities 
 
 ## USB reset during port open
 
-USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. All 131 host tests and the web build pass. The actual TypeScript Connection reached ready on three consecutive physical serial opens in 647/646/650 ms using a Python byte bridge, with persisted revision 2 unchanged. This qualifies the agent protocol startup path; browser permission/stream behavior remains unverified on hardware.
+USB startup recovery is implemented: repeat the same hello at most once per 500 ms while negotiating, without extending the five-second deadline. Retries do not accumulate behind queued writes; welcome retires any unsent hello. No configuration mutation is replayed. This startup path is verified on hardware.
 
 ## Message USB extension
 
-Feature bit 3 advertises bounded message submission/query. All previous config safety bits/metadata remain required for mutation admission. Missing extension fields leave old firmware readable/configurable but block uploads. `hex` is 1–32 bytes represented by even-length lowercase hex; `messageState` is receiving/queued/transmitted/acknowledged/failed/rejected/unknown. Configuration and message request IDs occupy separate namespaces. Received is a 32-bit chunk bitmap. Full state, queue lifetimes, deduplication, and reboot semantics are specified in messaging.md. Agent polling is read-only, at most one query per 500 ms, with per-entry two-second spacing and a 70-second overall observation bound. No chunks are replayed on a new link.
+Feature bit 3 advertises bounded message submission/query. All previous config safety bits/metadata remain required for mutation admission. Missing extension fields leave old firmware readable/configurable but block uploads. `hex` is 1–32 bytes represented by even-length lowercase hex; `messageState` is receiving/queued/transmitted/acknowledged/failed/rejected/unknown. Configuration and message request IDs occupy separate namespaces. Received is a 32-bit chunk bitmap. Full state, queue lifetimes, deduplication, and reboot semantics are specified in [Messaging and inbox](messaging.md). Agent polling is read-only, at most one query per 500 ms, with per-entry two-second spacing and a 70-second overall observation bound. No chunks are replayed on a new link.
 
 ## Radio/channel settings extension
 
-Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the radio extension. Configure appends optional fields 8–12; snapshot appends 8–12, and event appends 7–11: radioMode, txLevel, relay, channels, preset. All are supplied together for a radio mutation; omission preserves device radio settings. Base config schema remains 1. The independent radio-config schema and record version must not be conflated with the radio packet version. See radio-configuration.md for channels, atomic persistence/migration, and policy-change queue invalidation.
+Welcome feature bit 4 and optional tags 19 radioSchema / 20 maxChannels gate the radio extension. Configure appends optional fields 8–12; snapshot appends 8–12, and event appends 7–11: radioMode, txLevel, relay, channels, preset. All are supplied together for a radio mutation; omission preserves device radio settings. Base config schema remains 1. The independent radio-config schema and record version must not be conflated with the radio packet version. See [Radio configuration](radio-configuration.md) for channels, atomic persistence/migration, and policy-change queue invalidation.
 
 ## Inbox and live hardware status extension
 
-Tags 15 radioQuery and 16 radioStatus carry correlated hardware diagnostics; status includes settings revision and bounded resource/counter fields. Tags 17 inboxQuery / 18 inboxHead and 19 inboxRead / 20 inboxItem / 21 inboxMissing form the read-only inbox stream. Welcome appends inboxVersion/inboxCapacity at tags 21/22. Features 5/6 gate diagnostics/inbox respectively. Radio packet version 2 advertises the implemented independent packet/mesh core, not measured RF reliability. See inbox.md for complete correlation, retention, local delivery and no-replay semantics. Existing frozen fixtures are unchanged; the new message kinds have appended fixtures.
+Tags 15 radioQuery and 16 radioStatus carry correlated hardware diagnostics; status includes settings revision and bounded resource/counter fields. Tags 17 inboxQuery / 18 inboxHead and 19 inboxRead / 20 inboxItem / 21 inboxMissing form the read-only inbox stream. Welcome appends inboxVersion/inboxCapacity at tags 21/22. Features 5/6 gate diagnostics/inbox respectively. Radio packet version 2 advertises the implemented independent packet/mesh core, not measured RF reliability. See [Messaging and inbox](messaging.md) for complete correlation, retention, local delivery and no-replay semantics. Existing frozen fixtures are unchanged; the new message kinds have appended fixtures.
 
 ## Browser journal (local format 1)
 
@@ -233,7 +241,7 @@ event append `channelIds`, a new field kind: eight 8-digit lowercase hex IDs joi
 bytes). It belongs to the radio group, so a radio configure carries it with the other radio
 fields. Message `channel` fields (submit, inbox items) now carry the channel ID rather than a slot
 number; the radio header's existing 4-byte channel field carries it on air, so the packet layout
-is unchanged. Encrypted payloads use the RME2 envelope ([Channel encryption](../guides/encryption.md#rme2-envelope)).
+is unchanged. Encrypted payloads use the RME2 envelope ([RME2 envelope](../guides/security.md#rme2-message-envelope)).
 This is a breaking change approved by the owner before core v1 (D42): earlier firmware drops
 packets whose channel ID is above 7 and rejects RME2, so both boards are updated together. The
 31 earlier fixtures are unchanged; three (welcome, configure, snapshot) are appended. Rules,

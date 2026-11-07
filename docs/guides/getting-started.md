@@ -1,77 +1,89 @@
 # Getting started
 
-You can explore Reaper Mesh with **no hardware at all**. The repository ships a simulated
-device and a full web console, so you can run the automated tests and click through the
-portal before you ever flash a board.
+You can try Reaper Mesh in about five minutes with **no radio hardware at all**. The repository
+includes a simulated device that speaks the real protocol, so the web portal behaves just as it
+would with a board plugged in.
 
-## Prerequisites
+## What you need
 
 | Tool | Version | Why |
 | --- | --- | --- |
-| [Node.js](https://nodejs.org/) | 24 (baseline) or 25 | Runs the host tests and builds the web agent |
-| Python | 3.9+ | Required by the cross-language host tests |
-| A C++17 compiler | `c++` on `PATH`, or set `CXX` | Compiles and runs the firmware codec tests |
+| [Node.js](https://nodejs.org/) | 24 or 25 | Runs the web portal and the tests |
+| [Git](https://git-scm.com/) | Any recent | To download the code |
+| A Chromium browser | Chrome, Edge or Brave | Needed later for USB (Web Serial) and Bluetooth. Any browser works with the simulator |
 
-Node 24 is the proposed baseline (see `.node-version`); local verification currently uses
-Node 25.9.0 on macOS arm64.
+To run the full test suite you also need **Python 3.9+** and a **C++17 compiler** (`c++` on your
+`PATH`, or set `CXX`). On macOS, `xcode-select --install` provides the compiler.
 
-## 1. Install dependencies
+## 1. Download and install
 
 ```sh
+git clone https://github.com/justingreerbbi/reaper-mesh.git
+cd reaper-mesh
 npm ci --ignore-scripts
 ```
 
-Install scripts are intentionally skipped — nothing is downloaded or built behind your back.
+`--ignore-scripts` is deliberate: installing never downloads or builds anything behind your back.
 
-## 2. Run the checks
-
-```sh
-npm run check
-```
-
-`check` runs strict TypeScript checking across every package, verifies the generated TS/C++
-protocol descriptors, runs the compiler-backed host suite, and builds the web agent. This is
-the one command to run before any change. For the full breakdown, see
-[Development & CI](../contributing/development.md).
-
-## 3. Open the web console
+## 2. Start the web portal
 
 ```sh
 npm run dev:web
 ```
 
-Open the printed localhost URL (normally `http://127.0.0.1:5173/`). The server binds to
-loopback only; nothing is deployed or published.
+Open the address it prints, normally <http://127.0.0.1:5173/>. The server listens on your own
+computer only; nothing is published.
 
-## 4. Try it with the simulator
+## 3. Connect the simulated device
 
-In the portal, select **Use simulated device**. It speaks the exact same framed, typed protocol
-and serial adapter as a real board, with channels, messages, nodes and positions, but only models
-protocol replies: no radio, no flash durability.
+On the connect screen, choose **Use simulated device**. You now have a board with two channels,
+three nodes it has "heard", positions on the map and a few incoming messages. Try:
 
-Walk through a recovery scenario to see the honesty guarantees in action:
+- **Comms:** open **Alpha 1** and reply. Watch the delivery icon change as the message moves
+  from queued to transmitted to delivered.
+- **Map:** see where nodes report being, drop a point, measure a distance, draw an area.
+- **Nodes:** see who has been heard, when, and how far away.
+- **Device:** browse every setting, from radio power to the team network.
 
-1. Open **Device → General**, change the device name, and **Save**. The revision advances.
-2. Under **Device → Storage**, set **Next save** to **Disconnect after commit**, change the name,
-   and save. The link drops and the change's outcome becomes **unknown**.
-3. The portal reconnects and queries the device for the outcome *without* resending the change.
-4. Repeat step 2, then **Reboot simulated device**. The receipt is gone, so the app says the
-   change may not have applied and shows the device's settings.
-5. **Lose result and change event** suppresses all replies for the next command (including its
-   retries); after the bounded retry window it becomes **unknown**, and the app queries it.
-6. **Read-only on next connect** demonstrates capability-based mutation blocking.
+The simulator models the protocol, not a radio. Nothing it shows tells you how a real radio
+performs.
 
-A page reload resets the simulator and agent history. A simulated reboot preserves config but
-clears receipts and owner marks and changes the boot identity.
+## 4. See recovery in action (optional)
 
-## Where to go next
+Reaper Mesh is designed so a lost connection never sends something twice or pretends something
+worked. The simulator can break things on purpose. Open **Device → Storage**:
 
-- Ready for real hardware? Read [Hardware](hardware.md), then
+1. Set **Next save** to **Disconnect after commit**, change the device name in
+   **Device → General** and save. The link drops, and the save's outcome becomes **unknown**.
+   The portal reconnects and *asks* the device what happened instead of saving again.
+2. Repeat step 1, then select **Reboot simulated device**. The device's record of the save is
+   gone, so the portal says the change may not have applied and shows what the device reports.
+3. **Lose result and change event** drops every reply to the next save. After its retry window
+   the outcome becomes unknown, and the portal queries it.
+4. **Drop the link** shows the lost-link banner and automatic reconnect. **Read-only on next
+   connect** shows how features are blocked when a device does not support them.
+
+A page reload resets the simulator.
+
+## 5. Run the checks (for contributors)
+
+```sh
+npm run check
+```
+
+This runs strict TypeScript checks, verifies the generated protocol code, runs the host test
+suite (including the real C++ firmware code compiled for your computer) and builds the portal.
+It is the one command to run before any change. See [Development and CI](../contributing/development.md).
+
+## Next steps
+
+- **Use real radios:** pick a board in [Hardware](hardware.md), then follow
   [Flashing firmware](flashing-firmware.md).
-- Want to use the portal in depth? See the [Web portal guide](web-portal.md).
-- Want to understand the protocol? Start with the [Protocol reference](../reference/protocol.md).
+- **Learn the portal:** [Web portal guide](web-portal.md).
+- **Understand the system:** [How Reaper Mesh works](../overview/how-it-works.md).
+- **Contribute:** [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 > [!NOTE]
-> Passing host checks does **not** establish browser permission behavior, native serial-driver
-> cleanup, firmware flash durability, or RF delivery. Those boundaries are covered in
-> [Serial adapter](../reference/serial-adapter.md) and [Hardware](hardware.md).
+> Passing tests on a computer does not prove how a browser handles USB permissions, how the
+> firmware survives power loss, or whether a radio message gets through. Those need real
+> hardware; see [Status](../overview/status.md) for what has been tested.

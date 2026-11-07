@@ -1,56 +1,134 @@
-# USB firmware updates
+# Flashing firmware
 
-Firmware images are named `{device}-reaper-mesh-v{semver}` (decision D8), starting at `tbeam-reaper-mesh-v0.1.0` and `heltec-reaper-mesh-v0.1.0`. Keep that ID consistent in the on-device firmware identity, generated manifest, package name and documentation.
+This guide builds Reaper Mesh firmware from source and installs it on a board over USB. It
+takes about 20 minutes the first time, most of it downloading the toolchain.
 
-The prototype uses the chip's ROM loader. Since `v0.8.0` the application runs from the first of two slots at the same address as the earlier factory application, and the second slot is reserved for signed updates (D50). Each install writes four images, including a blank OTA data area so the bootloader takes the first slot. Device settings, Bluetooth pairings and network keys are kept, because `reaper_nvs`, `nvs` and `reaper_keys` are not written. A failed/interrupted update can require BOOT/RESET and reinstall; automatic rollback and authenticated release signing are later public-release gates. Checksums detect corruption, not a malicious publisher. Use builds from your reviewed source tree. Do not flash this prototype on encrypted or secure-boot devices.
+> [!IMPORTANT]
+> Releases are not signed yet, so build from source you have reviewed. Installing replaces the
+> board's existing firmware. Your Reaper Mesh settings, Bluetooth pairings and network keys are
+> kept between Reaper Mesh installs. Do not flash boards that use secure boot or flash
+> encryption; the updater refuses them.
 
-From the repository root, build committed source and validate without opening a device:
+## What you need
+
+- A supported board and a USB data cable ([Hardware](hardware.md)).
+- macOS or Linux with Git, Python 3.9+ and Node.js 24 or 25.
+- About 3 GB of free disk space for the ESP-IDF toolchain.
+
+## 1. Install the toolchain (once)
+
+From the repository root:
 
 ```sh
-bash tools/build-firmware.sh
+bash tools/bootstrap-esp-idf.sh
+```
+
+This downloads ESP-IDF 5.5.4, pinned to an exact commit in `firmware/esp-idf.lock.json`, into
+the ignored `.tools/` folder. It does not touch anything outside the repository.
+
+## 2. Build
+
+| Board | Build command | Manifest |
+| --- | --- | --- |
+| Heltec V3 | `bash tools/build-firmware.sh` | `build/heltec-v3/reaper-manifest.json` |
+| T-Beam V1.2 | `bash tools/build-firmware.sh tbeam-v12` | `build/tbeam-v12/reaper-manifest.json` |
+
+The build writes a manifest that records each image's size, hash and flash address, the source
+commit, the SDK version and the protocol versions.
+
+## 3. Check the build
+
+Validate the build without opening any device:
+
+```sh
 python3 tools/update-firmware.py
 ```
 
-Disconnect the web console, keep USB power connected, then install:
+For the T-Beam, add `--manifest build/tbeam-v12/reaper-manifest.json`.
+
+## 4. Install
+
+Close the web portal (or disconnect it) so the USB port is free, keep the board on USB power,
+then run the same command with `--flash` and the board's port:
 
 ```sh
 python3 tools/update-firmware.py --flash --port /dev/cu.usbserial-0001
 ```
 
-The updater checks clean source identity, supported protocol/storage schemas, pinned SDK, exact board/target, four artifact paths/offsets/sizes/SHA256 hashes, ESP image checksums/digests, and the fixed partition table/MD5. It stages the verified bytes before opening the port. ROM preflight checks processor/flash size, esptool 4.12.0 and disabled security/encryption flags. It installs only the bootloader, partition table, OTA data and application; settings, Bluetooth pairings and network keys are preserved. It never issues erase-all or eFuse writes. Esptool prints progress and verifies each image. Local flash-result.json records ROM verification separately from application qualification.
+Find the port with `ls /dev/cu.*` on macOS or `ls /dev/ttyUSB* /dev/ttyACM*` on Linux. The
+Heltec's CP2102 usually shows as `usbserial-…`; the T-Beam's CH9102 as `wchusbserial…`.
 
-Clean committed source is required by default. For a local hardware-development iteration only, `--allow-dirty` permits a dirty-tree build after all artifact/target/ROM checks still pass. It prints a warning and is not a reproducible release build or a replacement for reviewed, clean provenance. Do not use this override for public bundles/releases.
+The updater shows progress and verifies every image after writing it.
 
-The default interpreter is the pinned SDK environment. `--python /absolute/path/to/python` can select another environment containing esptool 4.12.0. No shell command interpolation or automatic downloads are used. Validation needs Python 3.9+; installation additionally needs the serial tool environment. Board auto-detection cannot prove the Heltec RF variant or antenna: those remain separate documented facts.
+## 5. Confirm it worked
 
-After installation, reconnect the console. Confirm the expected firmware, synchronized persisted label/region/radio settings, fresh boot identity, probe status, and stable USB health. Old uncertain outcomes stay unknown after a reboot and are never resent. For the physical TS adapter regression:
+Open the web portal, connect over USB, and check on the **Device** tab that:
+
+- the firmware version is the one you built,
+- your settings (name, region, radio) are still there, and
+- the radio status reads **ready** (or tells you what it is waiting for, such as a network).
+
+A freshly flashed board is silent until you choose a radio network in
+**Device → Radio network**.
+
+## If something goes wrong
+
+| Problem | Fix |
+| --- | --- |
+| The updater cannot enter download mode | Hold **PRG/BOOT**, tap **RESET**, release PRG, then run the same command again |
+| The install stopped partway | Assume the app is incomplete. Run the same install again; this has recovered every interrupted install so far |
+| The port will not open | Close anything else using it (the portal, a serial monitor), unplug and replug the cable at the computer, and retry |
+| The board connects but storage reports an error | Do **not** erase the board. Read the error in **Device → Diagnostics** and open an issue |
+
+The board's ROM loader is always available, so a failed install can be reinstalled. There is
+no automatic rollback yet.
+
+## What the updater checks
+
+The updater (`tools/update-firmware.py`) refuses to write unless everything matches:
+
+- **Source:** the build is from a clean, committed tree, with supported protocol and storage
+  schemas and the pinned SDK.
+- **Target:** the board's chip and flash size match the manifest (ESP32-S3 with 8 MB for the
+  Heltec, ESP32 with 4 MB for the T-Beam). Wrong targets fail closed.
+- **Images:** every path, flash offset, size and SHA-256 hash, the ESP image checksums, and the
+  fixed partition table.
+- **Security:** secure boot and flash encryption are off, read without changing any eFuse.
+
+It writes four images (bootloader, partition table, OTA data and the application) and never the
+settings (`reaper_nvs`), Bluetooth (`nvs`) or key (`reaper_keys`) partitions. It never erases
+the whole chip. Checksums detect corruption; they do not prove who built the firmware.
+
+### Options
+
+| Option | Use |
+| --- | --- |
+| `--manifest PATH` | Choose a board's manifest (required for the T-Beam) |
+| `--flash --port PORT` | Install to that port |
+| `--allow-dirty` | Allow a build from uncommitted changes, for local development only. It prints a warning and is never a release build |
+| `--python PATH` | Use another Python environment that has esptool 4.12.0 |
+
+## Build a firmware bundle
+
+To hand someone a ready-to-flash package:
 
 ```sh
-node tools/hardware-agent-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python /dev/cu.usbserial-0001 heltec-reaper-mesh-v0.10.0
+python3 tools/package-firmware.py --output build/heltec-v3/heltec-reaper-mesh-v0.11.1.zip
 ```
 
-The last argument is the firmware ID you expect the board to report.
+The zip holds the images, manifest, a standalone updater, an exact source archive,
+`SHA256SUMS`, recovery instructions and the required SDK and Semtech notices. It refuses to
+overwrite an existing file and uploads nothing. For the T-Beam, pass its `--manifest`.
 
-If automatic ROM entry fails, hold PRG/BOOT, tap RESET, release PRG, and rerun the same updater with known-good artifacts. If an update stops after writing begins, assume the application may be incomplete until reinstalled and verified. Do not clear NVS to fix a connection failure. The detailed historical first-flash record is in first-flash.md.
+## Hardware test tools
 
-## Validation
+`tools/hardware-*.ts` and `tools/hardware-smoke.py` run checks against real boards, for example
+two-board delivery:
 
-Host tests reject wrong targets, dirty/incompatible builds, altered paths/offsets, artifact size/hash mismatches, rehashed-but-invalid ESP images, changed partition layouts, symlink escapes, and secured/unexpected ROM targets. Install evidence is in the [changelog](../overview/changelog.md). Actual power loss during flashing remains unqualified.
+```sh
+node tools/hardware-pair-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python \
+  /dev/cu.usbserial-0001 /dev/cu.wchusbserial57700003341
+```
 
-## Local prototype bundle
-
-`python3 tools/package-firmware.py --output build/heltec-v3/heltec-reaper-mesh-v0.10.0.zip` creates a validated archive of the images, manifest, standalone updater, exact source archive, SHA256SUMS, recovery instructions and retained SDK/Semtech notices. It refuses to overwrite an existing package. Nothing is uploaded. An extracted package was validated and every file hash checked; corrupt extracted images were rejected. Authenticated public releases remain deferred. The web console also offers Export device settings for a readable snapshot before updating.
-
-## T-Beam V1.2
-
-Use `bash tools/build-firmware.sh tbeam-v12` and explicitly select `--manifest build/tbeam-v12/reaper-manifest.json` for validation/installation. The updater requires ESP32/4MB and bootloader0x1000; Heltec requires ESP32-S3/8MB and bootloader0. Wrong targets fail closed. ESP32 security uses a read-only named-eFuse summary because that ROM lacks get_security_info. See t-beam-v12.md for the identified port, confirmed hardware, first install and actual two-board RF evidence. Package generation accepts the board-specific manifest and writes matching hardware instructions.
-
-## Earlier builds (historical)
-
-Current record formats are in [Persistence](../reference/persistence.md). The rest of this section describes builds from early November.
-
-Discovery builds Heltec7/T-Beam2 read records1/2/3. Nondefault discovery settings use record3; old firmware that only reads1/2 must fail closed on it. A future downgrade needs explicit configuration compatibility handling, never automatic NVS erasure. Returning discovery to its default off/off/300 policy writes the applicable older record format while preserving the other configuration. See ../contributing/phase-2.md for installed-image and hardware-test evidence.
-
-Fixed-position builds Heltec8/T-Beam3 read records1–4 and write record4 for nondefault saved position policy (max166 bytes). The updater accepts this exact schema/read-set pair while retaining older supported manifests. Unsupported downgrade storage fails closed; no erase is implied.
-
-Qualified fixed-position images use clean source420967909bb4693746620b76ca2d88ef7d0e4eb3. Local bundles (all internal checksums verified): Heltec8 SHA25641369fe1d2e905666835e5d90f7539c850fb078d7f4cc5cd835304a47584db1f; T-Beam3 SHA256f9ae32ed25d7f223c575305b3f5d2d383431f9d156a7618c173dfb48f06d7f56. The first Heltec write stopped at70% of the app; reinstalling the same validated three-image set recovered it, with ROM hashes verified and settings preserved. This observed failure/recovery does not establish automatic rollback or arbitrary power-loss safety.
+They are never run by `npm run check`. Some change board settings and restore them afterward,
+so read a tool's header before running it, and close the portal first.

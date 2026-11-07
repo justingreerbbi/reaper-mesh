@@ -2,7 +2,7 @@
 
 The on-device screen and buttons are board-local features (Phase 4). They never change the
 radio protocol (D41). The design and its rules are in decision D44; this page describes how it
-works. Hardware evidence is in the [changelog](../overview/changelog.md).
+works. What has been verified on hardware is in [Status](../overview/status.md).
 
 ## General approach
 

@@ -1,9 +1,10 @@
-# Development plan and architecture
+# Architecture and engineering standards
 
-This document describes how Reaper Mesh is built and the engineering standards it follows. It
-does not track progress: see [Status](../overview/status.md) for what works now, the
-[Roadmap](../overview/roadmap.md) for priorities, and the [Changelog](../overview/changelog.md)
-for dated evidence.
+This document describes how Reaper Mesh is built, the requirements it must meet, and the
+engineering standards it follows. It does not track progress: see
+[Status](../overview/status.md) for what works now and the [Roadmap](../overview/roadmap.md) for
+priorities. For a plain-language overview, start with
+[How Reaper Mesh works](../overview/how-it-works.md).
 
 ## Product boundary
 
@@ -106,6 +107,94 @@ The exact contract is in [Protocol](../reference/protocol.md) and
   The proposed support window is the current and previous stable agent/device minor versions
   within one major protocol version.
 
+## Product requirements
+
+These requirements apply across the system. **MUST** is mandatory, **SHOULD** is the default
+unless an exception is documented, and **MAY** is optional.
+
+### Connection and configuration
+
+- The agent MUST negotiate versions and capabilities before enabling the operations they gate.
+- The device MUST stay authoritative for its saved settings, with revision-checked, atomic
+  writes. A reconnect MUST read the device's state rather than apply stale browser settings.
+- Unsupported, disconnected, read-only and storage-failure states MUST be explicit and
+  actionable.
+- Channels, regional radio profiles, hardware capabilities and app privacy preferences MUST stay
+  separate concerns.
+
+### Messaging
+
+- The system MUST keep queued, transmitted, acknowledged, failed and unknown apart. USB
+  acceptance is not delivery, and an acknowledgment is not a read receipt.
+- Ambiguous sends MUST NOT be resent automatically after a reconnect or reboot; recovery MUST
+  query instead.
+- Broadcasts MUST NOT cause acknowledgment storms. Fragments, retries, queues, histories,
+  deduplication and reassembly MUST be bounded.
+- The UI MUST NOT invent timestamps, ordering, read receipts or connectivity.
+
+### Channels and encryption
+
+- Channel names and slots are device configuration. Encryption policy and keys are app-local and
+  MUST be presented that way.
+- Creating or importing a key MUST NOT send it to firmware or over the radio. Sharing a key MUST
+  be deliberate. (Under D50, a rekey may send a key over the radio only when wrapped to a
+  verified member.)
+- An app that requires encryption MUST fail closed when the key is missing, never fall back to
+  plaintext.
+- Direct messages on a shared channel key MUST NOT be described as private or as authenticating
+  the sender.
+
+### Discovery and position
+
+- Beacons, discovery replies and location sharing MUST be independent opt-in settings.
+- Stored coordinates or GPS hardware alone MUST NOT cause a position to be sent.
+- Map markers and the node list MUST agree, and nodes without a position MUST stay usable.
+- Map tile failures MUST NOT stop messaging or invent positions.
+
+Detailed rules: [Discovery and position](../reference/discovery.md).
+
+### Shared map items and plugins
+
+- Local map items MUST save without sending anything. Sharing MUST be an explicit action per
+  item, to an explicitly chosen channel.
+- A shared item belongs to the node that first shared it; only that sender's updates and
+  removals apply, and older revisions MUST be rejected.
+- Received items MUST NOT change the map until the user accepts them, except on channels with
+  the planned per-channel auto-add setting (D43), which MUST be off by default and available only
+  on channels where this app requires encryption and holds the key.
+- Deleting messages MUST NOT remove accepted map items. Encrypted shared items MUST stay
+  ciphertext at rest.
+- Plugin manifest v1 is declarative: it MAY add map item types, fields and settings and MUST NOT
+  run code, load remote content or send messages. Code plugins MUST run in a sandboxed iframe on
+  a separate origin with user-approved permissions and MUST NOT receive channel keys (D40).
+
+### Local privacy
+
+- The app PIN MUST be optional, off by default, local to the browser, and never sent to a
+  device. Protected key storage MUST use reviewed password derivation and authenticated
+  encryption, with a persisted, bounded unlock cooldown.
+- Wipe local data MUST be confirmed, reachable from the lock screen, report failures honestly,
+  and MUST NOT claim to erase the device, other browsers or backups.
+
+### Reliability
+
+- Connection, boot, request and revision identity MUST be preserved. Duplicate requests inside
+  their window MUST converge on one operation, and anything that cannot be established MUST stay
+  unknown.
+- Corrupt or unreadable stored state MUST fail closed without formatting or data loss.
+- New synchronization behavior requires deterministic race and recovery tests covering delayed,
+  duplicated, missing and out-of-order information.
+
+### Security and interface
+
+- All external input (radio, browser storage, files, device replies) MUST be validated and
+  bounded. Output MUST be escaped for its context; logs and errors MUST NOT expose secrets.
+- Local radio messages and history MUST NOT be uploaded anywhere as a side effect.
+- Every action SHOULD have one clear place in the interface. Controls MUST work with the
+  keyboard, show focus and have labels. Loading, empty, offline, read-only, error and success
+  states MUST be designed deliberately. Messaging and the map come first; diagnostics are
+  secondary.
+
 ## Verification standard
 
 Use a deterministic simulator with a fake clock, seeded scheduler, virtual radio and serial
@@ -154,26 +243,11 @@ Still to design and qualify before a public updater:
 Release artifacts carry a board-specific manifest with firmware version, USB and radio protocol
 ranges, config schema, size, hash, toolchain and release notes.
 
-## Engineering milestones (historical)
-
-These milestones organized the early engineering work. The owner's product phases in the
-[Roadmap](../overview/roadmap.md) now set priorities; the release-hardening gates in M5 still
-apply.
-
-| Milestone | Deliverable | Acceptance gate |
-| --- | --- | --- |
-| M0: foundations | Hardware and region confirmed, dependencies chosen, first schemas and compatibility policy, reproducible toolchains and CI | Reviewed protocol fixtures and race-test harness run on host |
-| M1: USB vertical slice | Firmware handshake, status and config storage; web connect/status/config UI | One board connects, reconnects safely, persists config, rejects incompatible peers and stale revisions |
-| M2: message model | Agent send/history/status with simulated peers and bounded firmware queues | Duplicate, retry and loss cases converge or report unknown |
-| M3: radio and mesh | Regional preset, public channel, fragmentation, unicast ACK, forwarding | Simulator topology suite passes; real two-node and three-node gates recorded separately |
-| M4: channels and release UX | Named channels, roles, transmit power; guided installer and recovery | Channel semantics documented; region enforcement and update interruption tested |
-| M5: release hardening | Resource and airtime measurements, soak tests, signed releases, published support policy | No unresolved release-critical race faults; remaining hardware gaps block related claims |
-
 ## Evidence standard
 
-Each piece of hardware evidence in the [Changelog](../overview/changelog.md) records what ran,
-against which firmware and agent versions, which simulation seed or hardware, the result and the
-remaining limits. Track firmware size, peak RAM, queue and reassembly capacity, latency, retry
+Hardware evidence goes in the pull request that adds the work, with a short summary in the
+[Changelog](../overview/changelog.md). It records what ran, against which firmware and agent
+versions, which simulation seed or hardware, the result and the remaining limits. Track firmware size, peak RAM, queue and reassembly capacity, latency, retry
 counts and airtime. Define numeric thresholds from measurements before declaring a release ready.
 
 ## References checked during planning

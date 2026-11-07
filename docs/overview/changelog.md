@@ -1,930 +1,137 @@
-# Changelog and hardware evidence
+# Changelog
 
-This is the chronological record of firmware builds and the hardware tests run against
-them. It is the single source for dated evidence; the guides and reference specs link here
-rather than repeating it.
+What changed in each release, newest first. Firmware images are named
+`{board}-reaper-mesh-v{version}`, for example `heltec-reaper-mesh-v0.11.1` (decision D8). Web
+portal changes are listed with the firmware they shipped alongside.
+
+Before core v1, a release can break compatibility with earlier builds when the owner approves
+it (D42). Releases that need both boards updated together are marked **Breaking**.
 
 > [!NOTE]
-> All dates are in 2026. "Host tests" qualify logic on a development machine, not radios.
-> A passing serial check does not verify visible OLED pixels or real RF behavior unless the
-> entry says so. Local screenshots and reports referenced below live under ignored `build/`
-> paths and are not committed.
+> Detailed hardware test logs for every entry up to November 7, 2026 (image hashes, timings,
+> commands run and what was not tested) are kept in Git history:
+> `git show a3c8a16:docs/overview/changelog.md`. New entries record a short summary here and
+> put detailed evidence in the pull request.
 
-## November 7: scanning a later code for the same team
+## How to add an entry
 
-The portal decided whether a scanned code was the team a browser already had by comparing chains, and since key rotation (D52) those change every epoch. A teammate's code from a later epoch therefore looked like a different team: the portal offered to replace the team, and accepting erased the role and device key of every radio that browser had set up. The bug was found by reading the code while porting rotation to the mobile app, and was not reproduced in a browser.
+Add a section at the top with the version and date, then three short parts: what changed,
+what was verified on hardware, and what was not. Link the decision (`Dnn`) when there is one.
 
-A team is now recognized by its proof seed and generation at any epoch. A code for the team a browser already has doesn't ask anything, keeps its radios and rotation interval, and takes the newer keys when its epoch is later. An older code changes nothing. A different team, including a different generation, still asks first.
+---
 
-Evidence: two new host tests in `tests/simulator/team.test.ts` cover these cases through the vault. With the old comparison put back, both fail, and the later-epoch code comes back as a new team. `npm run check` passes all 384 tests and the web build.
+## v0.11.1 — November 7, 2026
 
-Not tested: a real browser, the camera scanner or any radio. The radio then catching up to the newer keys uses the existing rotation path and was not run here.
+- **Changed:** the status LED is now off by default, including its startup flash. Turn it on
+  with **Status light** in the portal.
+- **Portal:** scanning a later team code for the team you already have now keeps your radios
+  and moves to the newer keys, instead of offering to replace the team.
+- **Fixed:** a signed/unsigned comparison in the rotation code that broke the GCC build of the
+  firmware unit tests.
+- **Verified:** on both boards over USB, the setting reads off after install and saved on and off
+  values survive a restart. 1,024-byte messages cross both ways with acknowledgment.
 
-## November 7: GCC build error in the firmware unit tests
+## v0.11.0 — November 7, 2026 · D53
 
-`network.cpp` compared a signed value with an unsigned one in `hear_proof`, from the `v0.10.0` rotation work. Apple clang accepts this, and GCC with `-Werror` does not, so the CI job that builds the firmware unit tests with GCC cannot pass with it. The comparison now uses an unsigned gap, and behavior is unchanged. No firmware was installed for this.
+- **Added:** a status LED that pulses on radio activity and blinks slowly while messages wait,
+  with an on/off setting in the portal (`ledEnabled`, feature bit 17, storage record 8).
+- **Verified:** the owner saw the LED on both boards. The portal toggle has only been clicked
+  against the simulated device.
 
-Evidence: with Homebrew GCC 14 on macOS, using a shim for the system headers, the CMake build has no errors or warnings and passes all 127 tests, and the host suite passes all 382 with its sanitizer flags removed. The normal `npm run check` passes all 382 with Apple clang, and both boards build.
+## v0.10.0 — November 5, 2026 · D52 · Breaking
 
-Not tested: the CI run itself, because this session could not read the pull request's logs or push; Ubuntu's own GCC; AddressSanitizer, which stalls on this Mac; and Node 24.
+- **Added:** automatic team key rotation with epoch proofs. The portal shows the keys' age,
+  sets the interval from 6 hours to 7 days, and has **Rotate now**. Team codes become
+  `RMTEAM2`.
+- **Fixed:** serial input during a flash write could overflow and end the session (9 of 22
+  stress runs on the Heltec). The same sequence then passed 20 of 20 on the Heltec and 12 of 12
+  on the T-Beam.
+- **Verified:** on two boards with a test tool and through the portal: radios follow a rotation,
+  messages cross it, wrong proofs are refused and a radio that was away catches up.
+- **Also tested:** interrupted encrypted uploads on two boards over radio. A message is never
+  resent or duplicated, a partial upload is never delivered and no plaintext reaches USB.
+- **Not verified:** the interval actually elapsing on hardware (only **Rotate now**), relay in
+  this format, and a power cut during a key change.
 
-## November 7: status LED off by default (`v0.11.1`)
+## v0.9.0 — November 4, 2026 · D50 step 1 complete
 
-At the owner's direction the LED is now off by default, which also turns off its startup flash, and **Status light** in the portal turns it on. Record 8 is now written only while the LED is on, and earlier records load as off, so a board that never turned it on needs no migration.
+- **Added:** firmware carries any 1–1,024-byte payload without needing to understand it, so new
+  message formats need no firmware update. An app can ask to be alerted when the inbox changes,
+  which lets a phone wake up in the background.
+- **Portal:** a **Radio network** page to create or join a team by QR code, add a radio as a
+  member or relay, and choose Open mode (D51). The owner ran team setup on two boards over USB.
 
-Evidence: `npm run check` passes 382 tests, the firmware CTest suite passes 127, and both boards build. Both boards took `v0.11.1` with all four images verified by ROM (`--allow-dirty`, on top of `9e17ca9`). On each board over USB, the setting read off after the install, then saved on and off, each kept across a restart, with other settings the same. `hardware-pair-smoke` then delivered 1,024-byte messages in both directions, with a destination ACK and an exact inbox body.
+## v0.8.0 — November 4, 2026 · Breaking
 
-Not tested: the owner has not looked at the boards on this build, so seeing no light by default and the light returning once turned on are not confirmed. The toggle has still not been used in a native browser.
+- **Added:** team keys. A radio stores a relay key, takes its team key from the app into memory,
+  and sends nothing until a network is chosen. Changing keys needs USB or the button-opened
+  window.
+- **Changed:** a new partition layout with two application slots (one reserved for signed
+  updates) and a `reaper_keys` partition.
 
-## November 7: status LED (`v0.11.0`), D53
+## v0.7.0 — November 4, 2026 · Breaking
 
-A status LED now pulses on radio activity and blinks slowly while messages wait, until a button is pressed or an agent attaches. The owner chose an on/off setting, on by default, which the portal shows as **Status light** on the Device screen page. The wire adds `ledEnabled` with feature bit 17, and storage adds record 8, written only while the LED is off. The radio format is unchanged. The firmware manifest's record schema also moves from 6 to 8, because it had not been updated for record 7.
+- **Changed:** radio format version 2 replaces version 1 (D50). Frames are sealed and opened in
+  one place, relays forward a frame's bytes without decoding them, and a saved boot counter
+  replaces the boot nonce. Boards on earlier firmware cannot share traffic with it.
 
-Evidence: `npm run check` passes 382 tests, the firmware CTest suite passes 127, formatting passes, and both boards build (application images of 577,248 bytes on the Heltec and 564,768 bytes on the T-Beam). New host tests cover the LED's timing, the setting's storage and recovery, and an agent refusing to write it without the feature bit. Three fixtures are appended and existing fixture bytes are unchanged. In the in-app browser against the simulated device, the toggle turned off, saved and stayed off with no console errors.
+## v0.6.2 — November 4, 2026
 
-Install: both boards took `v0.11.0` with all four images verified by ROM (`--allow-dirty`, on top of `6e6d723`). Over USB with a throwaway script, on each board, the setting saved off and read back off after the port reopened with a new boot, then saved on and read back on, with the other settings the same as at the start. Revisions moved from 60 to 62 on the Heltec and from 128 to 130 on the T-Beam. Both boards then read Open mode, and `hardware-pair-smoke` delivered 1,024-byte messages in both directions, each with a destination ACK and an exact inbox body. It does not qualify relay.
+- **Fixed:** Bluetooth output now reserves room for its replies before reading each request, so
+  a congested link cannot drop a reply or reset the session.
 
-The manufacturers' schematics confirm both pins and levels: on the Heltec, a white LED on GPIO35 lit by a high level, and on the T-Beam, a red LED on GPIO4 lit by a low level. The T-Beam also has a red GPS time-pulse light and a blue charge-output light, and the Heltec an orange charger light, none of which firmware controls.
+## v0.6.1 — November 4, 2026
 
-In the owner's first look nothing appeared to change, and the instructions had not said which light to watch. The screen stayed dark on a message because wake on message is off on both boards, which is correct. After a broadcast from the Heltec, the owner saw a red light behind the T-Beam's screen blinking, and a press of the middle button stopped it, which is the waiting-message behavior.
+- **Added:** the Heltec shows a calibrated battery voltage and battery icon. It has no fuel
+  gauge, so it shows voltage rather than an invented percentage.
+- **Fixed:** Bluetooth flow control under congestion.
 
-The owner then saw the same red light flash when the T-Beam received a message and when it sent one. With both boards connected over USB, three broadcasts from the Heltec all reached the T-Beam's inbox.
+## v0.6.0 — November 4, 2026 · D47
 
-The owner reported that the first button press also stopped the T-Beam's GPS light, and later that this light flashes at random. The schematic shows it on the GPS module's time pulse, with GPIO37 as an input on the same line, and firmware drives neither. So it does not follow the status LED, and its stopping on that press was most likely a coincidence.
+- **Added:** the portal connects over Web Bluetooth, and can start pairing, show the passkey and
+  pair a browser over USB (`pairingRequest`, `pairingStatus`).
+- **Portal:** redesigned to follow the mobile app (D49): Comms, Map, Nodes and Device tabs,
+  Night and Day themes, a connect screen, automatic reconnect and brevity phrases.
 
-The owner then reported seeing no white flash on the Heltec, only the light on while it is plugged in. Its setting read on, and nothing else in the firmware uses GPIO35. To settle whether the light responds at all, the LED now stays lit for one second at startup, unless the setting is off. Both boards took this build under the same version, `v0.11.0`, with all four images verified by ROM, and host checks pass as above.
+## v0.5.0 — November 4, 2026 · D47
 
-The owner saw the white light come on at startup, which shows the LED and pin work. In a test of 12 direct messages from the T-Beam to the unconnected Heltec, about 12 seconds apart, the owner then saw the white light flashing. Eleven were acknowledged within the 9 seconds the test waited, and message 9 was still `transmitted` when it moved on, so its outcome was not recorded. The T-Beam's transmit count shows retries from message 9 on, and the cause was not looked into. Why the earlier look showed no flash is not established. A board connected to an agent shows only the brief pulses, which may be the reason.
+- **Added:** a Bluetooth link for mobile apps. Holding the main button for 5 seconds opens
+  pairing, the passkey shows on the screen, and only bonded, authenticated devices can reach
+  the protocol. Up to four devices can pair.
 
-Not confirmed: the toggle in a native browser.
+## v0.4.0 — November 4, 2026 · D46
 
-## November 7: Bluetooth cause and documentation review
+- **Changed:** transmit power is low, medium or high instead of a dBm number, with an optional
+  boost on the T-Beam (storage record 7). Stored dBm values load as medium.
+- **Portal:** map cleanup with a placement crosshair, rectangle drawing and full-screen mode.
 
-The owner reported the cause of the Heltec Bluetooth disconnects from November 4: a misaligned Bluetooth buffer in the mobile app that could break the connection. It was fixed in the app, in a session outside this repository. This is the owner's report. Nothing here reproduced the fault or tested the fix, and no firmware changed. The firmware's flow control from `v0.6.1` and `v0.6.2` stays in place.
+## v0.3.0 — November 3, 2026 · D45 · Breaking
 
-The documentation was reviewed against the code and corrected where it had gone stale: Bluetooth described as future work, a single factory partition, licensing described as undecided, a test count from an old build, and the portal described as the current focus. The compatibility table now reaches `v0.10.0`. Historical records stay and are labeled as historical. Test counts that were superseded were removed from the portal guide, and those from November 2 remain in this changelog.
+- **Changed:** channels are identified on air by a 32-bit channel ID instead of a slot number,
+  so two boards can share a channel in different slots. Channels are shared with `RMCH1` QR
+  invites. Encrypted messages move to the `RME2` envelope.
+- **Portal:** remove a channel and reset Public; a more compact chat layout.
 
-## November 5: interrupted encrypted uploads
+## v0.2.0 — November 3, 2026
 
-First hardware run of roadmap Phase 3, step 3, with the new `tools/hardware-upload-recovery.ts`, which stands between the agent and the board to drop chosen frames, and cuts the link, restarts the board or reloads the agent at chosen moments. The other radio shows what really arrived. Both boards on `v0.10.0`, delivering encrypted direct messages over the radio. No firmware or portal code changed, and no faults were found.
+- **Added:** screen timeout and wake-on-message settings, set from the portal (storage
+  record 5), and the T-Beam's battery percent and plugged-in indicator.
 
-All 33 scenarios passed: the 11 below from the Heltec and from the T-Beam in Open mode, and from the Heltec on a team. An earlier run of the same 11 on the T-Beam alone, messaging itself over USB, also passed.
+## v0.1.0 — November 3, 2026 · D44
 
-| Fault | Result |
-| --- | --- |
-| A chunk lost on a working link | Sent again with identical bytes, and one copy arrived |
-| A chunk's reply lost | One copy arrived |
-| Link cut mid-upload | Nothing resent, no copy, and the board later reported `failed: expired` |
-| Agent reloaded mid-upload | Nothing resent, no copy, ciphertext kept in the journal, and plaintext not saved |
-| Board restarted mid-upload | Nothing resent, no copy, and the outcome stayed `unknown` |
-| Serial port closed and reopened mid-upload | This restarted the board on both types. Nothing resent, no copy |
-| Final acceptance lost | Asking settled it as `acknowledged`, with nothing resent and one copy |
-| Board restarted just after accepting | Nothing resent, no copy, and the outcome stayed `unknown` |
-| Receiver's inbox read interrupted, then reconnected and reloaded | Exactly one exact copy, which decrypted |
-| Receiver restarted before its inbox was read | No copy, and none invented. The sender still saw `acknowledged`, which means the radio accepted it and not that anyone read it |
-| Largest message afterward (1,024 bytes) | One copy, which decrypted |
+- **Added:** device screen pages (main, nodes, debug), button gestures and the T-Beam power-key
+  shortcut. Adopted the `{board}-reaper-mesh-v{version}` image names.
 
-Also on a team: a restarted radio that had lost its team key failed a send with `team-key-needed`, and nothing arrived. A scan of all 3,883 decoded USB frames and both journals found none of the 34 plaintexts, as text or hex.
+## Prototype builds — November 1–2, 2026
 
-The second run of the day. The first stopped at its first connection, because the Heltec had dropped off USB and the T-Beam's port was stuck with `termios.error 22`. Neither was caused by the test, and both cleared when their cables were properly reconnected.
+Before version numbers, the boards ran numbered prototype images (`usb-prototype-0` to `-8` on
+the Heltec, `tbeam-usb-prototype-1` to `-3` on the T-Beam). In two days they went from a first
+USB-only flash to:
 
-Not tested: a restart while a message is partway through going over the air, because in all of these runs the restart came before the first transmission; the team-mode faults from the T-Beam; a cable physically pulled mid-upload; a real browser reload, as opposed to rebuilding the agent from its journal; Bluetooth; relay. The plaintext scan covers USB and the journal, and nothing listened to the air. The tool has not been checked by breaking the code on purpose to confirm it fails.
-
-## November 5: automatic key rotation (`v0.10.0`), D50 step 2a
-
-Keys now rotate automatically (D52). A relay forwards any valid frame in a window of epochs, and erases old keys only on an epoch proof, which a stolen relay key cannot produce. The Radio network page shows the keys' age, sets the interval from 6 hours to 7 days, and has **Rotate now**. Team codes become `RMTEAM2`. The key record changes format, so a board reads as no network after this install and needs its network chosen again. The design and what changed while building it are in the [rotation and rekey design](../contributing/rotation-design.md).
-
-**Faults found and fixed along the way:**
-
-- **Serial session lost during flash writes.** Found by running it on hardware. A flash erase turns off the serial interrupt, traffic arriving then overflowed the chip's 128-byte buffer, and firmware closes the session on overflow. The board kept running but stopped answering. The Heltec failed a stress sequence in 9 of 22 runs. `CONFIG_UART_ISR_IN_IRAM=y` keeps the interrupt running, and the same sequence then passed 20 of 20 on the Heltec and 12 of 12 on the T-Beam. This was already possible on a settings save. Rotation made it matter, because a radio now writes to flash when it hears a proof, at a moment no agent chose.
-- **Proof frames would have been discarded.** Both radio drivers dropped anything under 58 bytes, and a proof frame is 51.
-- **Rotation would have disturbed traffic.** A key change cancels queued messages and restarts the radio, and a first version did this on every proof heard by a relay. Rotation now has its own path that does neither.
-- **A saved team locked the whole app.** A team from before this format read as damaged keys, which locks the app and offers only erasing local data. It is now removed on load with a notice, and channel keys are kept. Found in the in-app browser against the simulated radio.
-
-**Evidence on two boards**, `v0.10.0` over radio with throwaway keys, using `tools/hardware-team-smoke.ts`, all 14 checks passing:
-
-- A proof from one board reached the other, which moved its team key too, and fingerprints matched an independent calculation. The floor stayed one epoch behind.
-- Messages were acknowledged and in the inbox both ways after a proof.
-- A wrong proof was refused, with nothing moved.
-- With its radio off while the other board advanced twice, a board then read a message from the newer epoch and moved its team key by the team tag alone, with its proven epoch unchanged. One later proof covered the whole gap, and messages crossed both ways.
-- A restarted board kept its proven epoch, lost its team key, followed a proof with only the relay key, and delivered a message once its team key was reloaded at the current epoch.
-- The earlier checks still pass: nothing is sent with no network or with only the relay key, and a wrong team key or another network is not heard.
-
-**Measured through USB**, including a round trip of about 85 ms: 1,024 hashes took about 345 ms on the Heltec and 640 ms on the T-Beam, so about 0.25 ms and 0.55 ms each. The largest proof, including its flash write and both chain walks, took about 490 ms and 1,070 ms. A one-epoch proof took about 140 ms and 210 ms. The budget allows about one full walk per 16 seconds, so frames can hold a radio's main loop for up to about 3.5% of the time. Frames arriving during a walk may be lost, and normal retries cover them. Heap stayed above 120 KB, and stack above 15 KB.
-
-Host checks: `npm run check` passes 377 tests, the firmware CTest suite passes 125, and both boards build. New frozen vectors for the proof chain and proof frames come from a separate Node calculation.
-
-**Through the portal.** The owner then ran this on both boards, in native Brave over USB with one browser profile per radio, and reported that all of it worked: setting up a team with an `RMTEAM2` code, **Rotate now** with the other radio following, messages both ways, the Heltec reconnecting with its key reloaded at the current epoch and messages still working, and changing the interval. No logs were kept.
-
-**Not tested:** a rotation firing by itself when the interval elapses, on real boards; a relay-key thief over the air, because firmware won't send a frame it can't verify, so only host tests cover it; forwarding across an epoch change, which needs a third board; lockout after more than 1,024 epochs on hardware; a power cut during an advance on hardware; radio frames lost during a long walk; Bluetooth; the mobile app. The security review has not started.
-
-## November 5: team page on two real boards
-
-First use of the Radio network page (D51) on real radios, with the portal in native Brave over USB and both boards on `v0.9.0`: the T-Beam in one browser profile and the Heltec in another. No code changed. The owner ran these checks and reported that all six passed. No logs or reports were kept.
-
-1. Created a team and added the T-Beam, which showed the team as encrypted.
-2. Copied the team code, pasted it into the second profile to join, and added the Heltec.
-3. Sent messages on Public from each board, and each arrived once on the other. Discovered the T-Beam from the Heltec, and a direct message showed as delivered.
-4. Unplugged and reconnected the Heltec. Its team key reloaded by itself, and a message then arrived. This is the reconnect the simulator could not exercise.
-5. Moved the T-Beam to relay. Sending turned off there, and a message from the Heltec did not arrive on it. Moved it back to member, and messages arrived again.
-6. Left the team on both boards, which showed no network chosen, and chose Open mode, which is how both boards started.
-
-Not tested: relaying, because two boards can't show forwarding, so check 5 shows only that a relay stops reading and sending; what the radios actually transmit, with an independent receiver; a channel other than Public under a team; the camera scanner with a team code; Bluetooth with the button window; a radio refusing a move to relay, which the portal fix from November 4 handles and USB doesn't trigger; and the mobile app.
-
-## November 4: portal fixes for a refused relay move and unknown payloads
-
-Two portal faults, both found by reading the code while porting these features to the mobile app. Neither was reproduced in the portal itself. No firmware change.
-
-- A radio's new role was saved before the radio agreed. A member that refused the move to relay, for example with no button window over Bluetooth, stayed on the team with its key loaded but was recorded as a relay, so the portal called it a relay and stopped reloading its team key after a restart. The earlier role now comes back when a command fails and the radio still holds the key. A radio with no role recorded in this browser is recorded as a member in that case.
-- Any inbox item with `payloadHex` counted as proof that its channel was encrypted. Since `v0.9.0` that field is also set for bytes that are not an envelope, so one unknown payload on a channel with no key turned sending off there and wrongly called the channel encrypted. Only a valid envelope naming that channel counts now.
-
-Evidence: `npm run check` passes (360 tests). The two new tests each fail with their fix removed. The firmware source confirms that a refused erase changes nothing and that its reply still reports the team key as loaded.
-
-Not tested: either fix in a browser or on a board. The simulated radio cannot refuse a command, so the relay test uses a stand-in radio, and the firmware suite was not run because no firmware changed.
-
-## November 4: team setup in the web portal (D51)
-
-The portal gains a Radio network page: create or join a team by QR code, add the radio as a member or relay, share the code, leave the team, and choose Open mode. It loads the team key automatically when a radio needs it. No firmware change. Clicked through in a browser against the simulated radio: create, add as member, member to relay and back, the share QR, leave, and rejoin by pasted code. Moving a member to relay erases and refills the radio, because only that clears the team key from its memory.
-
-Not tested: any real board or radio traffic through this page, the camera scanner with a team code, the mobile app, and Bluetooth with the button window. The simulator forgets its network on reload, so reconnecting to a radio that is already on the team has not been exercised in the browser.
-
-## November 4: payloads firmware does not understand and the inbox alert (`v0.9.0`), completing D50 step 1
-
-Firmware now carries any message of 1–1,024 bytes without checking that it is text or a known envelope, so new message formats need no firmware change (D41, Q5 direction). This exposed a real fault: the agent core set a permanent error on bytes that were not valid text and stopped reading its inbox, so one such message could have frozen an app. It now keeps them as payloads for the app to label and reads on. Agents declare this in a new optional `hello` field, `agentFeatures`. One that does not, such as the mobile app as it stands, receives the text `Unsupported message` in that item's place, under the same identity. A retention gap was rejected for this, because agents do not skip past a missing item that is still in range. The firmware also adds `inboxChanged`, sent only to an agent that asks for it, only on the owning link and once per new message. It is a hint and changes no message outcome.
-
-Evidence: `npm run check` passes (352 tests) and the firmware CTest suite passes 116 tests. Exact `hello` expectations in four test files were updated for the new field; frozen fixtures were only appended. Both boards took `v0.9.0` with all four images verified by ROM (`--allow-dirty`, on top of `cce981e`). Over radio, new `hardware-payload-smoke` in both directions: the alert arrived, a 252-byte payload that is neither text nor an envelope was acknowledged and read back exactly, and later text was still read. `hardware-team-smoke`, `hardware-encryption-smoke`, `hardware-channel-smoke`, `hardware-discovery-smoke`, `hardware-position-smoke` and `hardware-power-smoke` all passed again on this build. Both boards were left in Open mode, and settings read the same before and after, apart from revisions.
-
-Not tested: the placeholder path on hardware (host tests only), any phone, including whether an operating system wakes an app on the alert, relay in this format, and airtime. No independent receiver has confirmed what is on the air, and no independent security review has been done.
-
-## November 4: team keys, key loading and new partition layout (`v0.8.0`)
-
-This adds the part of D50 step 1 that can protect traffic. A radio now holds a relay key and device key in a new `reaper_keys` partition, and takes its team key into memory from its agent. It sends nothing until a network is chosen. Replacing or erasing keys needs a USB cable or the window opened with the button, and no message ever returns a key. Beacons and discovery replies go out only while an agent is attached. The USB protocol adds `networkQuery`, `networkStatus`, `networkFill`, `teamLoad` and `networkErase`, and the portal's Radio page shows the network and can choose Open mode. Creating or joining a team in the portal is not built, so team keys can only be loaded with tools for now.
-
-The partition table changes for dual-slot updates: the application stays at `0x10000` as the first slot, and `reaper_keys`, OTA data and a second slot are added above the existing storage, which does not move. The bootloader source in the pinned ESP-IDF confirms blank OTA data with no factory partition boots the first slot. The updater writes four images and rejects OTA data that is not blank. Images must now fit the smaller 1,920 KiB second slot.
-
-Evidence: `npm run check` passes (348 tests) and the firmware CTest suite passes 112 tests. Both board targets build (Heltec 571,984 bytes, T-Beam 559,264 bytes). Host tests cover a power cut at every step of a key change leaving one whole network and no old key in flash, the team key never reaching flash, a paired phone being refused key changes, and a relay forwarding a frame unchanged but for its hop count while refusing to send or read until its team key is loaded. A new tool, `tools/hardware-team-smoke.ts`, is written for the two-board check.
-
-Install: both boards took `v0.8.0` with all four images verified by ROM (`--allow-dirty`, on top of `cce981e`) and booted the new layout from the first slot. Settings and revisions carried over, and each came up with radio reason `network-not-chosen` until Open mode was chosen with `tools/hardware-network.ts`. The Heltec's first install attempt stopped before writing anything, because the macOS CP2102 driver again refused to open its port with `EINVAL`, and reconnecting the cable cleared it. Both occurrences followed the port sitting unused, about 17 minutes and about two hours; the cause is not established.
-
-Two-board hardware evidence, Heltec V3 and T-Beam V1.2 over radio. `hardware-team-smoke`, using throwaway random keys: with no network chosen a send failed with `network-not-chosen`; with only the relay key it failed with `team-key-needed`; with the same team key, messages were acknowledged and reached the inbox in both directions; a radio holding the relay key with the wrong team key failed and was not heard; a radio from another network failed and was not heard; and after a restart the Heltec kept its relay key and generation and reported `team-key-needed`. In Open mode, `hardware-encryption-smoke`, `hardware-channel-smoke`, `hardware-discovery-smoke`, `hardware-position-smoke` and `hardware-power-smoke` all passed. Both boards were left in Open mode, and settings read the same before and after, apart from revisions. The channel and power tools' version checks now accept later `v0.x` firmware.
-
-Not tested: relay in this format, which needs a third board. "Not heard" means no acknowledgment and nothing in the other board's inbox; no independent receiver has confirmed what is on the air, so radio silence and the unreadability of frames are shown by host tests and these outcomes rather than measured. Also not tested: a power cut during a key change on hardware, key changes over Bluetooth or the button window, beacons stopping when an agent detaches on hardware, the portal's network control in a native browser, the mobile app, and airtime. No independent security review has been done.
-
-## November 4: mesh core moved to radio version 2 (`v0.7.0`)
-
-This replaces radio version 1 with version 2 (D50, breaking change approved under D42). Frames are sealed and opened by a new `FrameLink`, and relays forward a frame's bytes without decoding them. A persisted boot counter replaces the 16-byte boot nonce, and a board that cannot save it transmits nothing. A radio holding only the relay key forwards frames it cannot read and cannot originate, and a team radio relays channels it has not joined. Radio drivers now check frame layout only. Radios use Open mode, because team keys cannot be loaded yet, so this adds no protection on its own. The USB protocol keeps its shape: the boot value stays 32 hex digits, and only `radioVersion` changes to 2.
-
-Evidence: `npm run check` passes (336 tests), the firmware CTest suite passes 103 tests, and both board targets build, each image about 25 KB larger because mbedTLS AES-CCM is now linked. New host scenarios cover a relay-key-only radio carrying a message and its ACK between out-of-range team radios while storing nothing, an outsider that can neither read nor inject, a relay-key forgery that a relay forwards and a team radio rejects, and refusal to transmit without a saved boot counter.
-
-Install: both boards took `v0.7.0` with all three images verified by ROM and settings preserved (`--allow-dirty`, on top of `cce981e`). The Heltec install first stopped twice at the flash ID step, before writing anything, because the macOS CP2102 driver refused to open `/dev/cu.usbserial-0001` at any speed with `EINVAL`, with no other process holding it, while the USB device was still listed. Reconnecting the USB cable cleared it.
-
-Two-board hardware evidence, Heltec V3 and T-Beam V1.2 over radio, in Open mode: `hardware-encryption-smoke`, `hardware-channel-smoke`, `hardware-discovery-smoke`, `hardware-position-smoke` and `hardware-power-smoke` all passed. They cover encrypted and plaintext direct messages with a destination ACK in both directions, the matching key decrypting and an unrelated key refused, joining a channel by invite in different slots, a removed channel heard by nobody, discovery with opt-out silence, shared and withdrawn positions, and delivery both ways at every power level with and without T-Beam boost. Settings read the same before and after, apart from revisions. These are the first traffic in this format, and they exercise mbedTLS on both chips, since each chip had to authenticate and decrypt the other's frames.
-
-The first run of these checks found a regression that host tests had missed: the sender built a message ID from its USB session value and the receiver from the frame's boot counter, so `hardware-encryption-smoke` could not correlate an acknowledged message. Both now use the boot counter, and a new host scenario compares them. A board with no saved counter now starts from a random value, so erasing storage does not repeat old message IDs.
-
-Not tested: relay in this format, range, or airtime, which needs a third board and the field qualification plan. The portal and the mobile app have not been run against this firmware. Hardware checks show the format works in Open mode only; they say nothing about team key security.
-
-## November 4: trusted-device security approved, radio version 2 codec
-
-The owner approved the [security architecture](../contributing/security-architecture.md) (D50), accepting all six recommendations, and the affected decisions, specification, roadmap and guides now point to it. Existing behavior stands until each step ships.
-
-This adds the first part of step 1: the [radio version 2 contract](../reference/radio-protocol.md#frame), a `reaper_crypto` interface backed by mbedTLS on boards, and a portable frame codec with key derivation, the ratchet and Open mode. Nothing calls the codec yet, so radios still send version 1 frames and no firmware was installed.
-
-Evidence: `npm run check` passes (332 tests, 9 of them new), the firmware CTest suite passes 97 tests, and `npm run format:check` passes. A separate Node implementation of the contract, using Node's own crypto, produced the frames in the new fixture `packages/protocol/fixtures/frame-v2.json`, and the C++ codec reproduces them. Tests cover a relay forwarding without the team key, team members rejecting a relay-key forgery, every changed bit being rejected except current hops within the limit, all truncations, and invalid fields publishing nothing. A one-off local run of the same scenarios and vectors against the mbedTLS source in the pinned ESP-IDF, built for the host, also passed; CI does not repeat this because it uses test-only host crypto. Both board targets build with the pinned ESP-IDF, with images the same size as before (Heltec 543,488 bytes, T-Beam 519,984 bytes).
-
-Not tested: the codec on a real chip, including hardware AES and SHA and the time they take; any radio transmission; relay; or airtime. The design has had no independent security review.
-
-## November 4: web portal catches up with the mobile app's quality-of-life changes
-
-Keeping the portal in step with the mobile app (D49), this ports what the app gained after the portal's redesign, taken from its latest commit and its uncommitted working copy. A sent message, a direct conversation or a channel can now be deleted, Public excepted, and a heard node or a remembered device can be forgotten. A thread's menu links to channel settings and the map. Smaller changes: connection problems can be dismissed, the pairing steps show only when needed, the node count stops saying "of 32" once past it, the New channel field says when all slots are used, the message-gap notice moves from the thread to Diagnostics, and an old error clears on editing a setting or, for a failed send, on opening another conversation. There is no firmware, wire format or fixture change. New local storage is one key per device, `reaper-mesh.nodes-forgotten.v1.*`.
-
-This also fixes two bugs the app had already fixed. A channel change waited for a lost link to return, so it could appear stuck indefinitely. It also finished before the device's new settings arrived, so anything that ran next read the old channel table.
-
-It also fixes a portal bug from the redesign: a thread's three-dot menu closed on the same click that opened it, so it never appeared. The handler for clicks outside the menu still looked for the wrapper's old class name, `conversation-menu`.
-
-Evidence: `npm run check` passes (323 tests, 7 of them new), including a check that classes the portal looks for around a click exist in the page, and saves against the simulated device over the real codec with the link lost at each point. In the in-app browser, against the simulated device only, at 1280 × 800 and 375 × 812 with no console errors: deleting a sent message; deleting a direct conversation, which stayed gone across a reload and returned holding only a new message; deleting a channel with a broadcast and a direct message on it; the device rejecting that, with the sheet staying open, nothing deleted and a retry working; the link dropping during it; the blocked sheet with no link; a rejoined channel with no old history; forgetting a node, which stayed gone across device reports and a reload and returned on a newer report; the thread menu with real mouse and keyboard input (opening it at both sizes, closing it with Esc, an outside click or the dots, and each item); forgetting a device and dismissing a problem on the connect screen; the pairing steps appearing while a stubbed Bluetooth chooser was open and leaving on cancel; and returning to the list on a narrow screen. The pane was hidden during this, so its timing was not assessed.
-
-Not tested: any real board (USB, Bluetooth or radio), or the browser's real Bluetooth chooser. Nothing was compared side by side with a running copy of the app; the port follows its source code and tests.
-
-## November 4: BLE output recovery and Heltec storage reset (`v0.6.2`)
-
-At the owner's explicit request, addressed the remaining BLE findings and installed
-`heltec-reaper-mesh-v0.6.2`, then wiped all device data partitions. Output now reserves space
-for two maximum-sized replies before consuming each input byte, so queue congestion cannot
-process a request and then silently discard its reply/reset the session. Locally paused input
-does not trigger the partial-frame abandonment timer. Permanent notification errors close the
-broken transport explicitly; transient allocation/resource errors have a five-second retry
-limit. Disconnect, host-reset and notification reason codes are retained on Debug. The address
-initialization flag shared between application and Bluetooth tasks is atomic.
-
-Validation: `npm ci --ignore-scripts`, `npm run check` (316 passing tests), standalone CTest
-(91 passing tests), and both firmware target builds pass. A recovery regression checks a
-partially received frame surviving local output backpressure and completing afterward. Phone
-BLE operation and injected physical controller errors remain unqualified; this is not a claim
-that every possible disconnect or the earlier suspected reboot has been reproduced and solved.
-
-The manifest-validating updater verified all three firmware image hashes. The subsequent
-explicit data reset wrote and hash-verified erased bytes over `0x9000–0xffff` (configuration,
-reserved gap and runtime PHY data) and `0x210000–0x217fff` (Bluetooth NVS). No whole-chip erase,
-eFuse write or T-Beam install was performed. RAM messages cleared on reset. The firmware and
-partition table were preserved. This was a local development build on `983a961` with uncommitted
-changes; the manifest and `build/heltec-v3/flash-result.json` record provenance and image hashes.
-
-After reboot, USB inspection confirms firmware `v0.6.2`, configuration revision 0, empty label,
-region `UNSET`, radio off, only Public configured, discovery and message wake off, an empty inbox,
-and pairing closed with zero bonds. Evidence: ignored
-`build/heltec-v0.6.2-wipe-verification.json`. Device setup and BLE pairing must be done again.
-
-## November 4: Heltec battery and BLE congestion fix (`v0.6.1`)
-
-At the owner's direction, implemented and installed `heltec-reaper-mesh-v0.6.1`. The missing
-battery indicator now shows calibrated battery-rail voltage and an outline battery icon;
-the owner confirms both are visible. The ADC driver handles both V3 gate polarities, polls
-at most every two seconds, and shows `?` on failed or implausible readings. Unlike the
-T-Beam, Heltec hardware provides neither a fuel-gauge percentage nor a USB-present input.
-The display reference documents this hardware difference rather than inventing those states.
-Both board builds use the shared screen, settings, messaging, discovery and BLE implementations.
-The Debug page adds the processor's reset reason to help distinguish panic, watchdog and power resets.
-
-Fixed a concrete BLE disconnect path: a full input buffer previously set a flag that terminated
-the connection as an authentication failure on the next tick. A rejected ATT write now leaves
-the connection open and accepts no bytes from that write. Notifications drain between input
-batches, and per-tick input work is bounded so a continuously writing client cannot starve the
-radio or screen. Security requirements are unchanged. This fixes congestion handling; it does
-not establish the cause of the owner's startup-logo reboot report.
-
-Validation: `npm ci --ignore-scripts`, `npm run check` (316 tests), standalone CTest (91 tests),
-and both ESP-IDF board builds pass. New host tests cover atomic rejection/retry after buffer
-saturation, bounded work and reply draining under continuous input, both ADC polarities,
-polling and read failures, unavailable calibration, invalid voltages and voltage/unknown icon
-rendering. Host tests do not qualify the physical BLE controller or phone behavior.
-
-Installed the local development build on base commit `68cb40e` with uncommitted changes using
-the manifest-validating, NVS-preserving updater. ROM hashes verified all three images; application
-SHA-256 is `85f97b1620338e0fca7e1d90b8747efa6c0db289fe128bcc354229a792195828`.
-Receipt: ignored `build/heltec-v3/flash-result.json`. No settings, pairing records, partition
-boundaries or fixtures were erased or changed. The T-Beam remains on installed `v0.6.0`.
-
-After install, the Heltec reports `v0.6.1`, configuration revision 77, with its low-power mesh
-policy and channels intact. Four alternating direct RF deliveries pass: 40 and 1,024 bytes
-in each direction against the T-Beam, with destination ACK and exact inbox readback. Both boot
-identities remain unchanged during messaging; Heltec free heap stays at 133,968 bytes and its
-stack minimum is 15,540 unused bytes. Evidence: ignored
-`build/heltec-receive-diagnostic-v0.6.1.json`. Phone BLE after install, meter accuracy,
-battery-only power and extended soak remain unverified.
-
-## November 4: Heltec BLE disconnect investigation
-
-The owner reports BLE disconnecting on the Heltec after a send followed by a receive, with
-the screen waking and a suspected reboot. The owner subsequently clarified that the logo
-appeared on receipt. Code review confirms only screen initialization enters the startup logo
-stage; normal incoming-message wake opens the main page. This supports a reboot, but does not
-identify its cause. The T-Beam is reported unaffected. The connected
-Heltec (`34:b7:da:62:2d:34`, `/dev/cu.usbserial-0001`) passed the pinned esptool's
-`verify_flash` comparison of its application at `0x10000` against the recorded clean-commit
-`0268691` `heltec-reaper-mesh-v0.6.0` binary (SHA-256
-`824028d30ecdaff3669f549fb2265dd737ed489fad5511375b1ce8b3253ebdc7`). This verifies the actual
-application bytes, independently of its reported version. No flash write or storage erase was
-performed. The comparison resets the board.
-
-Review confirms the Heltec deliberately returns unknown battery state and therefore shows no
-battery indicator. Wake on incoming messages is implemented independently of reboot. Neither
-observation alone proves a crash. Passive UART capture was started for an owner reproduction;
-opening the port produced the expected ROM startup with `rst:0x1 (POWERON)`. That initial reset
-is not evidence of the reported messaging failure. No cause or fix is established yet, and
-phone BLE messaging remains unqualified. The T-Beam was not connected by USB for the initial
-check. A subsequent ten-minute passive capture was started after another reported failure;
-at inspection it contained only the reset caused by opening the port, not the reported event.
-
-Validation: `npm ci --ignore-scripts` and `npm run check` pass (309 tests, strict TypeScript,
-generated-schema/vendor checks, compiler-backed host tests and the web build). No firmware,
-protocol or fixture changes were made.
-
-USB inspection and a local-delivery stress check on the physical Heltec subsequently passed
-20 messages (ten 40-byte and ten 1,024-byte bodies), each uploaded, locally delivered and read
-back exactly. This replaces entries in the eight-message inbox more than twice and reuses
-outgoing message records. The boot identity remained unchanged, free heap stayed at 134,892
-bytes, and the task stack high-water mark ended at 15,276 unused bytes. Configuration revision
-77 and the existing low-power mesh policy were unchanged. Evidence is in the ignored
-`build/heltec-local-diagnostic.json`. This tests queue/inbox handling over USB, not BLE or radio
-delivery. All 16 targeted inbox, message-queue and mesh host tests also pass with UBSan. The
-two-board radio diagnostic initially could not start because Brave held the T-Beam serial
-port; after reconnection and disconnecting the portal, ten alternating radio messages passed.
-The eleventh, a Heltec-to-T-Beam 1,024-byte message, transmitted but expired without destination
-ACK or inbox publication. Both boards remained responsive with unchanged boot identities and
-free heap; no spontaneous reset or panic appeared in captured UART bytes. This is a separate
-unresolved RF delivery failure, not evidence of a reboot or a successful 20-message RF test.
-Evidence: ignored `build/heltec-receive-diagnostic.json` and `build/diagnostic-uart-*.bin`.
-
-## November 4: web portal follows the mobile app
-
-At the owner's request (D49), the portal now looks like the Reaper Mesh mobile app and supports what it does. It has the app's palette, rail navigation and Comms, Map, Nodes and Device tabs, a connect screen, rejoining on load and reconnecting after a lost link, and brevity phrases. Channels can be created encrypted, shared as a QR code, and joined by camera, image or pasted code. The map adds the crosshair, measuring, two-corner areas, MGRS readout, basemaps and browser location. A device's position can follow this browser. Heard nodes are kept across reconnects. There is no firmware, wire format or fixture change.
-
-This also fixes a bug: the map store rejected saved shared items whose channel number was above 7, which channel IDs (D45) made common, so accepting an item on such a channel would have broken map storage on the next load.
-
-Evidence: `npm run check` passes (309 tests, 13 of them new). Those include a channel code round-tripped through a QR image with the other side decrypting, and the new simulated device over the real codec. In the in-app browser, against that simulated device only, at 1280 × 800 and 375 × 812 with no console errors: connect, rejoin on reload, send and receive, delivery details, accept a shared map item, measure, draw and share an area, basemaps, discovery, settings saves, create a channel, show its QR code, remove the channel, rejoin it by reading that code from an image, rotate and remove keys, encrypted sending, sending blocked with no key, a dropped link reconnecting, PIN lock and unlock, Day theme, and disconnect.
-
-Not tested: any real board with this interface (USB, Bluetooth or radio), the camera scanner, browser location, and scanning codes between a phone and a browser. The app and portal share code formats, but no code has been scanned from one to the other. The local wipe was not run.
-
-## November 4: mobile app guide
-
-[Connect a mobile app](../guides/mobile-apps.md) documents how a mobile app pairs with and talks to a device (D48). Documentation only. Nothing has run on a phone.
-
-## November 4: Bluetooth in the web portal (`v0.6.0`, in development)
-
-At the owner's request (D47), the portal can connect over Web Bluetooth (Device, then USB or Bluetooth
-in the header) and Settings → Bluetooth can start pairing, show the passkey and pair this browser. USB
-adds `pairingRequest` and `pairingStatus` (feature bit 13), which the firmware accepts only on the USB
-link. Two message fixtures were appended deliberately; existing bytes did not change. The stack also
-now starts at boot only for an actual stored peer key, because a board with leftover stack records
-started it with nothing paired.
-
-Evidence: `npm run check` (296 tests) and the firmware CTest suite (84 tests) pass, including Bluetooth
-being refused pairing even as the session's owner, and the Web Bluetooth port against a fake device.
-Both boards now run `v0.6.0` from clean commit `0268691`. On an earlier uncommitted build, over USB with the real agent code, each board
-reported closed, then open with its name and 116 seconds left after the agent opened pairing, with
-no pairings stored. With the Bluetooth stack running, the Heltec had 135 KB of heap free and the
-T-Beam 73 KB. In the simulator, Settings → Bluetooth opened pairing, showed a passkey, kept it out of
-browser storage and cleared it when closed.
-
-The owner reported that pairing worked from the portal with Web Bluetooth turned on, after a first try
-stopped because the browser had Web Bluetooth switched off, and that the portal then connected over
-Bluetooth and exchanged messages. This is the owner's report; message size and delivery times were not
-recorded.
-
-Read over USB, the Heltec held one pairing before and after installing the clean build, with its
-settings kept. The owner then reported the browser reconnecting to it over Bluetooth without a passkey. The owner also reported the Heltec refusing an unpaired phone with the window closed. The T-Beam holds none, so these results are from one board.
-
-Not checked: a wrong passkey, and any effect on LoRa timing. The earlier failed run from
-Terminal.app is unexplained.
-
-## November 4: Bluetooth link (`v0.5.0`, in development)
-
-At the owner's request (D47), the firmware gains a [Bluetooth link](../reference/bluetooth.md) for a
-future mobile agent. A 5-second button hold opens pairing, a passkey shows on the device screen, and
-only bonded, authenticated phones can reach the protocol. The radio protocol, USB schema and stored
-settings are unchanged. Both partition tables add an `nvs` partition after the application for
-Bluetooth keys, and the updater now expects it. The first T-Beam build hung at startup: Bluetooth
-reserves about 56 KB of early memory, which left no block big enough for the 24 KB main stack. The
-firmware now runs in its own task. Images are about 530 KB of the 2 MB partition.
-
-During that diagnosis a temporary logging image was written with its bootloader at offset 0 instead
-of `0x1000` on the T-Beam, so it did not boot until rewritten at the correct offset. Settings at
-`0x9000` were not touched, and the board read back label `T-Beam` in mesh mode afterward.
-
-Evidence: `npm run check` (290 tests) and the firmware CTest suite (83 tests) pass, covering link
-routing, the pairing window, trust rules, passkey range, button holds and the pairing screen. The
-T-Beam and Heltec run `v0.5.0` from an uncommitted build with USB working and settings kept. With
-the Bluetooth stack not started, the T-Beam has 121 KB of heap free and the Heltec 213 KB, and each
-has used about 9 KB of its 24 KB stack.
-
-Not checked: Bluetooth has not worked end to end. One run of `tools/hardware-ble-smoke.ts` from
-Terminal.app ended without a results file, and the cause is not known yet. Both boards still answered
-over USB afterward. Host tests do not qualify pairing or radio coexistence.
-
-## November 4: transmit power levels (`v0.4.0`)
-
-At the owner's request (D46), transmit power is low, medium or high instead of a dBm number, with
-medium the default. The Heltec uses −9, +7 and +22 dBm. The T-Beam uses +2, +10 and +17 dBm, and an
-optional boost, off by default, raises those to +5, +13 and +20 dBm. Settings → Radio has the new
-control, and shows boost only on a board that has it. USB replaces `txPower` with `txLevel` and adds
-`txBoost` (feature bits 11 and 12), and storage adds record 7. Stored dBm values load as medium.
-Existing message fixtures keep their exact bytes with the field renamed; two fixtures were appended.
-
-Both boards run `v0.4.0` from clean commit `078f9fe`, installed with the ROM updater, and both moved
-from their stored dBm value to medium without boost. `tools/hardware-power-smoke.ts` passed on the
-bench: direct messages were acknowledged and read from the inbox in both directions at low, medium
-and high, then again at each level with boost on the T-Beam (the Heltec stayed at high). The agent
-refused boost for the Heltec; the device's own refusal is covered by host tests. Heltec low and T-Beam
-high with boost survived a reset, and both boards were restored to medium afterward. `npm run check`
-(289 tests) and the firmware CTest suite (78 tests) pass. In the simulator, the portal showed Low,
-Medium and High, saved High and hid boost.
-
-Not checked: output power was not measured, so these runs show the radios accept each setting and
-still deliver, not that they reach the stated dBm. No range test, and at bench distance a message
-getting through says little about the difference between levels. The boost checkbox has not been
-clicked in a browser, because the simulator has no boost.
-
-## November 4: map navigation and placement cleanup
-
-Ordinary map clicks now clear device selection without opening the location dialog.
-Add point and Draw area explicitly start placement; right-click retains the location
-menu. Placement uses a crosshair over Leaflet layers and markers. Fit includes only
-visible device and annotation layers. The web portal guide describes these interactions.
-
-Follow-up work implements rectangle drag drawing with a live preview, SVG map symbols,
-circular device badges and full-screen mode. Device refresh now preserves the saved-item
-map state instead of restoring the empty overlay.
-
-Review with real mouse input then found and fixed: placing a point or area on top of an
-existing item opened that item instead (a drag inside an area opened two dialogs); a drag
-released outside the map left its preview following the cursor; drawing selected nearby page
-text; Escape in a dialog also left
-full screen; and the full-screen pane kept its 20 px margin, which pushed the zoom control
-past the window edge.
-
-Verification: `npm run check` (289 host tests, none of which exercise map interactions) and
-`npm run format:check` pass. In-app browser checks with mouse input cover each fix above,
-drag and two-click drawing, and local save. Touch and physical-device workflows remain
-unqualified.
-
-## November 3: remove a channel and reset Public
-
-At the owner's request, Settings → Channels can remove a channel from the device. Public is
-permanent: it cannot be removed but can be reset, which deletes its chat, keys and encryption
-requirement from this browser. Direct messages stay. A removed channel leaves the list and unread counts, an open conversation moves to Public,
-and its history and key stay in the browser until it is rejoined by invite. The simulator now stores
-radio and channel settings so these controls can be exercised without a board. No firmware,
-protocol or storage changes.
-
-Verification: `npm run check` (284 tests) and `npm run format:check` pass. In the in-app browser
-against the simulator, clicking through created a channel, created an invite, removed the channel
-with its conversation open, rejoined with the same ID, and encrypted then reset Public. With
-synthetic messages on a separate empty origin (cleared afterwards), the reset emptied the Public
-chat and kept direct messages, and that held after a reload. Between the
-boards on `v0.3.0`, `tools/hardware-channel-smoke.ts` passed with a new removal step: after removal
-the T-Beam's send on that channel was rejected, a Heltec broadcast on it did not reach the T-Beam's
-inbox within 8 seconds, and a direct message on Public was acknowledged. Settings afterwards were
-identical to before the run; only revisions advanced (Heltec 52, T-Beam 46). Not checked: these
-buttons in a native browser over USB.
-
-## November 3: channel IDs and invites (firmware `v0.3.0`)
-
-At the owner's direction (D45, options 1 and 2, breaking change approved before core v1 under
-D42), channels are identified on air by a 32-bit channel ID instead of a slot number, and the
-portal shares them with invites.
-
-- **Radio:** the header's existing 4-byte channel field now carries the ID, so the packet layout
-  is unchanged. Public is 0; IDs 1–255 are reserved, with 1–7 used for channels converted from
-  slot numbers; new channels get random IDs of 256 or more. Devices admit, relay and receive only
-  channels in their table.
-- **USB:** `channelIdVersion` 1 with feature bit 10 and a `channelIds` field in the radio group.
-  The 31 earlier fixtures are unchanged; three are appended.
-- **Storage:** record 6 adds the slot IDs; records 1–5 load with slot *k* as ID *k*.
-- **Encryption:** the RME2 envelope carries the 4-byte channel ID; RME1 is no longer accepted, so
-  encrypted messages saved by earlier builds show as unsupported. Keys belong to a channel ID.
-- **Portal:** Settings → Channels has **Join channel** and **Create invite** (`RMCH1`, including
-  the key for an encrypted channel). Conversations, the composer and map sharing use channel IDs.
-  Radio saves keep the device's channel table; earlier firmware is readable but its channels and
-  radio settings are not changed.
-- The manifest now lists records 1–6, and the images are renamed `v0.3.0`.
-
-Verification: `npm run check` (282 tests) and `npm run format:check` pass, and CTest passes 76.
-New coverage: the channel table rules and record 6 round trip, conversion of earlier records,
-rejected tables without writes, the `channelIds` wire field, mesh admission by ID (a node outside
-the channel ignores it), RME2 framing on device and agent, invites with keys decrypting on another
-agent, and a TypeScript-to-native USB test that joins a random-ID channel in slot 3, reads it back
-and has the native session accept a message on that ID and refuse an unknown one.
-
-Hardware: `v0.3.0` was installed on both boards from clean commit `f1ad4ed` with ROM-verified
-hashes and NVS preserved (Heltec 287,296-byte app, T-Beam 258,000-byte app). Settings read back
-identical at the same revisions (Heltec 46, T-Beam 40), with Camp, Vehicles and Secure converted
-to IDs 1, 2 and 3. `tools/hardware-channel-smoke.ts` then passed all 14 checks between the boards
-at 2 dBm on a bench, on a random channel ID (`16d55505`) held in slot 4 on the Heltec and slot 7 on
-the T-Beam:
-
-- Direct messages on Public and Camp in both directions were acknowledged and read from the inbox.
-- A broadcast on a channel the T-Beam had not joined did not reach its inbox within 8 seconds, and
-  the T-Beam's own send on it was rejected (`invalid-message`).
-- After joining by parsed invite: plaintext direct messages both ways, a plaintext broadcast and
-  RME2 encrypted direct messages both ways were delivered, and the encrypted ones decrypted with
-  the invite's key. Stored inbox bytes did not contain the plaintext.
-- The channel table survived a reset with a new boot identity on both boards, and a direct message
-  was acknowledged afterwards.
-
-The first run stopped at its reset step because of a bug in the tool, not the firmware, and left its
-test channel on both boards. That also showed the channel persisting across resets on both. The
-tool was fixed, the channel removed and the full run repeated. Afterwards both boards' settings
-were identical to before the install; only the revisions advanced (Heltec 50, T-Beam 44). Not
-checked: the Join channel and Create invite buttons in a native browser, relay through a third
-board, range, and mixed firmware versions.
-
-## November 3: chat layout
-
-At the owner's request, the conversation view is more compact:
-
-- Messages are chat bubbles (received left, sent right in the accent color) instead of cards.
-- Each message shows the time this browser first saw it, or when it was sent. The device
-  has no clock, so inbox messages downloaded later show when they reached the browser.
-  Messages saved before this change show no time. Times are stored with the existing
-  message-UI records, which still read the earlier three-field rows.
-- Sent messages show delivery as circles: empty while sending, one checked circle when
-  transmitted, two when delivered, red ! when failed and ? when unknown. The full status is
-  in the icon's tooltip. "Received on this channel" and other routine status text are gone.
-- A lock marks channels that require encryption, in the list and the header.
-- The hints above and inside the message box show only something to act on or a problem
-  (connect, unlock, radio unavailable, uploading, errors, messages no longer retained on the
-  device). Explanations such as "Destination ACK confirms delivery, not reading" and "Device
-  history · received does not mean read" are gone. The header subtitle is gone for channels; a
-  direct message shows only the node ID, and only when its title is a name.
-- Removed: single-message delete, mark all read, and the message-privacy banner. The header,
-  thread padding and composer are smaller, so the thread gets more of a laptop screen.
-
-Verification: `npm run check` and `npm run format:check` passed, including a new message-time
-test. Browser QA used synthetic messages on a separate, empty origin (`localhost`, cleared
-afterwards): bubbles, sender names, times, all five delivery icons, the lock in the list and
-header with Public set to require encryption, and the phone layout with no horizontal scroll.
-At 800 × 600 the thread is 452 px tall and the composer 104 px. Real radio traffic was not
-used.
-
-## November 3: portal cleanup
-
-At the owner's request:
-
-- Connect and Disconnect are one header button. It reads **Cancel** while the port chooser is
-  open.
-- Dropdowns and disclosures use one themed chevron instead of the browser's own arrows.
-- The change-history page and the Advanced group are gone. Storage and Diagnostics are now
-  ordinary Settings tabs. Because the history page held the only Clear button, the portal now
-  releases settled settings changes by itself. It reports a rejection or conflict as a
-  message. It queries an unknown outcome once per connection and releases it when the device's
-  receipt is gone.
-- The New message button, its form and the inbox's + button are gone; channels and heard
-  devices open from the conversation list or the map. As a result, direct messages always use
-  channel 0 (Public) and its key, and an unheard node ID cannot be messaged.
-- The conversation header has a three-dot options menu in place of Locate device and Delete
-  chat. Its **Clear chat history** removes the chat's messages from this browser but keeps the
-  channel or direct message in the list, unlike Delete chat, which also hid it.
-- The message box keeps focus after Enter sends a message. It is read-only rather than disabled
-  while the device takes the message.
-- Removed taglines and filler text: the sidebar "Local by design" block, "Local mesh · no cloud
-  account", the overview subtitle and footnote, the page footer and the decorative section
-  labels. The page title is now just "Reaper Mesh".
-
-Verification: `npm run check` passed. Simulator QA covered the toggle, 35 consecutive label
-saves (past the old 32-entry limit) without blocking, an unknown outcome resolved on reconnect,
-an unknown outcome released after a simulated reboot, the settings tabs, both chevrons, the
-phone layout, opening a channel from the list without the New message form, and the options
-menu opening and closing on Escape or an outside click. Clearing a chat with messages was not
-exercised (the simulator has no messaging); it uses the same confirmed local removal as deleting
-a single message, without hiding the conversation. Message sending was not exercised (the simulator has no messaging); a browser
-check confirmed a read-only box keeps focus while a disabled one loses it. No firmware,
-protocol or storage changes.
-
-## November 3: portal workspace redesign
-
-At the owner's request, the portal now opens on a read-only network overview with connection,
-selected-device message counts, discovery observations and recent send outcomes. Persistent
-navigation separates the overview, conversations and map; settings uses a larger dialog with
-section navigation. Connecting preserves the selected workspace.
-
-The original portal stylesheet was replaced, and the interim override stylesheet was removed.
-A shared theme defines colors, typography, fields, buttons, focus states and recovery pages.
-The new component stylesheet covers message bubbles and delivery states, the composer,
-recipient controls, map tools and overlays, all settings sections, plugins and dialogs.
-Navigation and empty states use consistent SVG icons. Leaflet's vendor CSS loads before the
-application stylesheet so map controls use the application theme.
-
-Verification: `npm ci --ignore-scripts` and `npm run check` passed (276 tests, strict TypeScript,
-generated-schema and vendor checks, compiler-backed host tests and the web build). Browser QA
-at 1920 × 1080 covered the overview, messages, recipient controls, map, map-item editor,
-all primary and advanced settings sections, standalone recovery-page styling (without a wipe),
-and simulator connect/save/disconnect. A synthetic
-visual fixture checked incoming/outgoing bubbles, delivery labels, shared-item cards and long
-identifier wrapping without touching device history. Phone QA at 390 × 844 covered overview,
-conversation/back navigation and all primary settings sections without horizontal overflow.
-The web build retains its large-bundle warning. No firmware, protocol, storage or compatibility
-fixtures changed. No USB or radio hardware tests were performed; populated hardware discovery
-and delivery summaries still need device QA. Screenshots and the synthetic fixture are under
-ignored `build/web-redesign/`.
-
-## Installed firmware at a glance
-
-| Board | Latest image | Source commit | Notes |
-| --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 | `usb-prototype-8` | `4209679` | Fixed position; US/915 antenna confirmed |
-| LILYGO T-Beam V1.2 | `tbeam-reaper-mesh-v0.2.0` | `bafa382` | Screen settings, battery and plugged-in indicator |
-
-On November 2 both boards were reinstalled from an uncommitted development tree (updater
-`--allow-dirty`) for the encryption check, so the Heltec's installed bytes no longer correspond
-exactly to commit `4209679`. On November 3 the T-Beam was reinstalled from clean commit
-`074f299`, then from clean commits `adc8765` and `bafa382`.
-
-## Heltec V3 firmware progression
-
-| Build | Date | Headline change | Hardware evidence |
-| --- | --- | --- | --- |
-| `usb-prototype-0` | Nov 1 | First Reaper flash (commit `c41dc6e`) | USB handshake, NVS commit, reconnect, reset with fresh boot identity |
-| `usb-prototype-1` | Nov 1 | Best-effort OLED status (commit `5a72fe6`) | Owner confirmed visible OLED; serial opens reached ready ~650 ms |
-| `usb-prototype-2` | Nov 1 | Message acceptance (commit `443326d`) | Accepted a 1,024-byte message; expired with RF off; no transmission |
-| `usb-prototype-3` | Nov 1 | Radio/channel config | Named-channel queue acceptance and radio-policy quiesce |
-| `usb-prototype-4` | Nov 1 | Diagnostics + inbox (commit `6692d12`) | SX1262 probe, RX init, 1,024-byte local delivery/inbox |
-| `usb-prototype-5` | Nov 1 | US transmit build | First RF attempt failed closed on the non-DMA 64-byte SPI limit |
-| `usb-prototype-6` | Nov 1 | SPI DMA fix (commit `56c8cf0`) | Seven-fragment broadcast `TX_DONE`; unreachable unicast failed without false ACK |
-| `usb-prototype-7` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon received |
-| `usb-prototype-8` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
-
-## T-Beam V1.2 firmware progression
-
-| Build | Date | Headline change | Hardware evidence |
-| --- | --- | --- | --- |
-| `tbeam-usb-prototype-1` | Nov 1 | First T-Beam image (commit `594bb10`, 237,904-byte app) | AXP2101/SX1276 probe, local delivery, two-board direct RF with destination ACK |
-| `tbeam-usb-prototype-2` | Nov 1 | Discovery v1 (commit `a44319b`) | Two-board discovery; periodic beacon sent |
-| `tbeam-usb-prototype-3` | Nov 1 | Fixed position (commit `4209679`) | Synthetic coordinate exchange; reboot persistence |
-| `tbeam-reaper-mesh-v0.1.0` | Nov 3 | Device screen pages and buttons; new naming (commit `074f299`) | Owner confirmed screen and buttons; USB sync and settings preserved |
-| `tbeam-reaper-mesh-v0.2.0` | Nov 3 | Screen settings and battery indicator (commits `adc8765`, then `bafa382`) | Screen settings round trip and reboot persistence over USB; owner confirmed the battery percent and the plugged-in indicator; settings preserved |
-
-## First flash — November 1
-
-First flash used commit `c41dc6e`, USB app SHA-256
-`bf2be8a9514df3f463d7edcfe76752d791ec7b871284f7e099d42bbb81cff523`. Esptool verified all
-three written artifacts. Physical USB smoke checks passed: handshake/snapshot, NVS
-configuration commit, logical reconnect, retained receipt query, serial reopen, and reset
-with a fresh boot identity and persisted revision/settings. Opening the CP2102 port reset
-the board; immediate negotiation timed out while waiting two seconds succeeded. This led to
-the bounded startup-recovery behavior described in the [protocol](../reference/protocol.md).
-
-No display, RF, physical cable-removal, power-cut, or long-duration qualification was claimed.
-Full detail is in the [first-flash walkthrough](../guides/first-flash.md).
-
-## USB startup recovery
-
-The agent repeats the same `hello` at most once per 500 ms while negotiating, without
-extending the five-second deadline. Retries do not accumulate behind queued writes, and no
-configuration mutation is replayed. The TypeScript `Connection` reached ready on three
-consecutive physical serial opens in 647/646/650 ms over a Python byte bridge, with
-persisted revision 2 unchanged. Extended to the real `SerialAdapter` over Web Streams:
-three opens in 626/645/648 ms.
-
-## Browser hardware QA — November 1
-
-Native Brave Web Serial QA passed against `usb-prototype-0`. The chooser selected CP2102
-`cu.usbserial-0001`; the console reached *Connected · synchronized* at revision 2. Saving
-label *Reaper Mesh V3* returned *Committed on device* and revision 3. Explicit disconnect
-released the port and disabled editing; reconnect returned the same label/revision and
-preserved page-session command history. The radio stayed disabled. Physical cable removal,
-reload during an uncertain command, power loss, display, and RF remained unqualified.
-
-## OLED status — November 1
-
-OLED status is implemented for the Heltec V3 SSD1306 (SDA 17 / SCL 18, reset 21, active-low
-Vext 36, address `0x3c`). A first-party driver and font use a fixed 1,025-byte transfer
-buffer, 400 kHz I2C, a 40 ms per-transfer timeout, and redraw-on-change at most twice per
-second. An init/transfer failure disables further display updates without blocking USB.
-Rows show firmware ID, logical USB `READY`/`IDLE`, persisted revision or `UNKNOWN`,
-`STORE OK`/`FAULT`, and `RADIO OFF`. `READY` requires synchronized state and a reply within
-eight seconds; it is not physical cable detection. The owner confirmed OLED rendering works
-on the installed hardware.
-
-## Configuration recovery — November 1
-
-Physical fault-injection passed: a lost committed reply recovered by query; a duplicate
-replay did not produce a second revision; a reset preserved config with the previous boot's
-outcome left uncertain. Reproduced by `tools/hardware-recovery-smoke.ts`.
-
-## Message and mesh checkpoint — November 1
-
-`usb-prototype-2` accepted an exactly 1,024-byte message, then reported *failed/expired*
-after the RF-disabled queue lifetime. Native Brave queued a multiline message, queried it,
-and showed *unknown* on disconnect without resending. The C++ radio codec and mesh core pass
-host topology/fault tests. `usb-prototype-3` added named-channel acceptance and radio-policy
-quiesce; a power change caused `radio-config-changed`, and the agent preserved accepted
-messages during config resync. No RF transmission occurred in either.
-
-## Integrated board and browser recovery — November 1
-
-`usb-prototype-4` (commit `6692d12`, 267,632-byte app): three serial opens reached ready in
-665/662/668 ms; the SX1262 probe succeeded; receive-only initialized then restored off;
-three 1,024-byte local sends were acknowledged and retrieved from the inbox. TX stayed zero;
-revision 14 persisted; free heap 274,496 bytes, minimum free main stack 17,260 bytes.
-
-The browser now journals USB identity, counters, command outcomes, message bodies, and inbox
-to `localStorage` before mutation dispatch, behind a Web Lock (one writer per storage
-bucket). Reload converts unfinished work to *unknown* and never replays uploads. Native Brave
-delivered a multiline local message, reloaded, and retained both acknowledged outgoing and
-received entries.
-
-## Updater qualification — November 1
-
-The manifest-validating updater (`tools/update-firmware.py`) passed seven host test groups
-and physically reinstalled `usb-prototype-4` from its clean build; ROM verified three images
-and three reconnects reached ready in 649/648/643 ms with revision 14 preserved. The owner
-confirmed the US/915 MHz antenna is attached, clearing the board antenna gate.
-
-## First RF and the SPI correction — November 1
-
-`usb-prototype-5` installed with verified hashes, but the first maximum-message TX attempt
-failed closed with `radio-driver-fault`; off policy was restored. The pinned ESP-IDF source
-confirmed non-DMA SPI is limited to 64 bytes even when `max_transfer_sz` requests more.
-`usb-prototype-6` enables SPI DMA, aligns persistent transfer buffers, and checks the actual
-host maximum at startup before claiming a probe.
-
-## Single-board RF qualification — November 1
-
-`usb-prototype-6` (commit `56c8cf0`): a 1,024-byte broadcast completed seven fragment
-`TX_DONE` events; an unreachable unicast made three transmissions then failed, never claiming
-acknowledgment (TX counter reached 10). Off policy was restored and three opens reached ready
-in 648/644/647 ms at revision 20. The owner then selected mesh mode in the browser and sent
-tests; final observed state was revision 21, probe OK, ready, TX 1, local delivery. A review
-also fixed confirmed broadcasts degrading to *unknown* while waiting for a nonexistent ACK;
-confirmed broadcast transmission is now terminal. Package SHA-256
-`0a6dbc4121b3295f08d1f8ddfd8065feeb1f55f53091a9f0bed34a68c27327a6`.
-
-> [!WARNING]
-> `TX_DONE` and local inbox delivery do **not** prove a remote receiver or relay works.
-> That required a second board.
-
-## T-Beam V1.2 added — November 1
-
-The owner added a US/915 T-Beam V1.2 (ESP32-D0WDQ6-V3 rev 3.1, Winbond 4 MB, MAC
-`08:b6:1f:9f:e5:48`, port `/dev/cu.wchusbserial57700003341`). `tbeam-usb-prototype-1`
-(commit `594bb10`) validated AXP2101 identification and the SX1276 register configuration.
-Three local opens reached ready in 671/669/670 ms, each delivering/retrieving 1,024 bytes
-with TX zero; free heap 201,748 bytes, minimum free main stack 17,484 bytes. An initial
-first-write auxiliary-read interruption recovered on reconnect at committed revision 1 with
-no replay — retained as a soak/interruption observation.
-
-RF test: seven 1,024-byte broadcast fragments reached `TX_DONE`, then three unreachable
-unicast transmissions failed with no false ACK. Node ID `node-000008b61f9fe548` is already
-compatible with the installed Heltec protocol.
-
-## Two-board direct delivery — November 1
-
-`tools/hardware-pair-smoke.ts` operated both real adapters simultaneously: 1,024 bytes
-Heltec → T-Beam and T-Beam → Heltec each received a **destination ACK** and the exact inbox
-body, once per message identity. Original settings were restored afterward. Final read-only
-check: Heltec `usb-prototype-6`/revision 21 stayed mesh/2 dBm; T-Beam
-`tbeam-usb-prototype-1`/revision 7 restored off/2 dBm. T-Beam package SHA-256
-`3a79222f814d1aebf8c5b4551f5f45d116b844e20c15ab7b299aef5f3ea57242`.
-
-This is actual two-node RF evidence — not relay, range, or coexistence qualification.
-
-## Discovery v1 — November 1
-
-Both discovery builds from commit `a44319b` installed: Heltec `usb-prototype-7` (274,256-byte
-app) and T-Beam `tbeam-usb-prototype-2` (244,416). Manual discovery verified zero replies when
-disabled, one reply each direction when enabled, and matching configured node names. A
-60-second periodic beacon was received without a manual query or any response TX. Bidirectional
-1,024-byte text/ACK/inbox regression passed. No location was transmitted. Opt-in flags were
-restored false, interval 300; final Heltec revision 28 mesh, T-Beam revision 17 off. 210 host
-tests and 64 CTests pass. The T-Beam serial driver needed a USB reconnect before installation;
-failed preflight attempts wrote nothing.
-
-Resource headroom: Heltec free heap 260,592 / minimum free main stack 16,892 bytes; T-Beam
-187,924 / 17,116 bytes. The frozen node snapshot trades a bounded RAM increase for paging that
-cannot be starved by incoming reports. Reproduce with
-`tools/hardware-discovery-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT` (add `--beacon-only` for the
-timed beacon test); it restores original settings. Local reports:
-`build/tbeam-v12/discovery-smoke.json`, `beacon-smoke.json`, `discovery-final-state.json`. The
-new browser controls were not manually desktop-tested.
-
-## Fixed position — November 1
-
-Heltec `usb-prototype-8` and T-Beam `tbeam-usb-prototype-3` from clean source
-`420967909bb4693746620b76ca2d88ef7d0e4eb3` (app sizes 275,712 / 245,856 bytes). ROM verified
-all images; NVS preserved. Heltec's first application write stopped responding at 70%;
-re-running the exact validated updater completed successfully — one observed recovery, not
-power-cut qualification.
-
-Two-board tests received exact synthetic fixed coordinates in each direction (geographic 0,0
-and −90,180), one response per request. Disabling sharing produced identity-only responses and
-cleared the latest node position. `tools/hardware-position-persistence.ts` verified the saved
-`record4` position across a different boot with sharing false throughout. Mixed old/new and
-new/new firmware pairs retained 1,024-byte text/ACK/inbox behavior. Resource headroom: Heltec
-free heap 259,064 / min stack 16,692 bytes; T-Beam 186,396 / 16,916 bytes. Final revisions
-38/32. 220 host tests and 67 CTests pass. An extended run hit a T-Beam node-snapshot read
-timeout before its reboot step; fresh sessions recovered, and a deterministic
-reconnect-after-node-read-exhaustion regression was added.
-
-Before the T-Beam was upgraded, the new Heltec 8 and older T-Beam 2 exchanged exact 1,024-byte
-messages with destination ACKs in both directions; the regression passed again after both
-upgrades. The test harness previously aborted settings restoration on an unrelated node-read
-error; restoration now waits on configuration independently, and a repeated coordinate/privacy
-run passed. Final owner policies: both boards mesh/2 dBm; Heltec beacon/respond off; T-Beam
-beacon/respond on; interval 300 s; position source none and sharing off on both. Reproduce with
-`tools/hardware-position-smoke.ts PYTHON HELTEC_PORT TBEAM_PORT`. Local reports:
-`build/tbeam-v12/position-smoke.json`, `position-persistence.json`,
-`position-mixed-pair-smoke.json`, `pair-smoke.json`.
-
-## Field portal redesign — November 2
-
-The owner replaced the earlier light/map-first portal with a dark, Signal-style messaging
-workspace. GPS was explicitly deferred. The portal gained searchable channel/peer
-conversations, unified delivery-state bubbles, per-transport/device/conversation drafts,
-Enter/Shift+Enter composition, received-history filtering, and a separate asset workspace.
-223 host tests and the production build pass; the browser was checked at 390 px and 1440 px
-with no horizontal overflow or console errors. No USB/RF retest was part of this UI work.
-
-## Message management and unread UX — November 2
-
-Added local delete for sent/received messages, *Delete chat* with confirmation, persistent
-deletion tombstones, conversation hide/reopen on new traffic, per-thread and navigation
-unread counts, and a browser title `(N)`. Read state is local UX only; ACKs, firmware, and
-wire schemas are unchanged. Metadata lives in `reaper-mesh.message-ui.v1`
-(bounds 4,096 IDs / 1,024 conversations / 2 MiB). 232 host tests and the web build pass.
-
-Inbox protocol v2 then added the original RF destination so broadcasts stay in channel
-threads and addressed messages appear only in peer threads. Version-1 firmware remains
-readable but, lacking route metadata, shows incoming messages in the channel only. 234 host
-tests and the build pass; no hardware retest was part of this correction.
-
-## Phase 3 encryption — November 2
-
-Browser-side XChaCha20-Poly1305 channel envelopes, an Argon2id-wrapped local vault, `RMKEY1`
-manual key transfer, a local require-encryption policy, ciphertext-only firmware transport,
-and ciphertext RACE recovery are implemented. `npm run check` passes 240 tests and both
-target builds pass. Live Heltec V3 ↔ T-Beam V1.2 encrypted direct messages passed in both
-directions with ACK, exact ciphertext retention, matching-key decrypt, and unrelated-key
-rejection. Both boards were installed from a development tree via `--allow-dirty`; the smoke
-report is `build/tbeam-v12/encryption-smoke.json`.
-
-> [!WARNING]
-> Direct routes use the channel **group** key — this is not pairwise-private messaging. Any
-> group member can forge messages, and there is no forward secrecy. Reconnect/reboot during
-> an uncertain encrypted upload, key rotation over radio, and relay remain unqualified. See
-> [Channel encryption](../guides/encryption.md).
-
-## Browser PIN and local wipe — November 2
-
-The per-key vault screen was replaced by an optional, browser-only, app-wide PIN (4–6 digits,
-off by default). One unlock opens every channel key; *Lock app*, disconnect and reload clear
-key access. Keys stay Argon2id-wrapped with a persisted failed-attempt cooldown; existing key
-records migrate without losing key epochs or replay records. Settings → Privacy and the lock
-screen offer a typed-`WIPE` local reset that coordinates with other tabs and the writer lock.
-The PIN does not authenticate a device, and short PINs can be guessed offline. No firmware or
-wire schema changed. Checked with type checks, 166 non-compiler agent tests and the web build
-on a Windows host, where the full `npm run check` could not run (CRLF generated-file comparison,
-no C++ compiler). No hardware retest.
-
-## Agent terminology — November 2
-
-Software connected to a node is now called an **agent** everywhere: `agents/web/`,
-`packages/agent-core/`, `tools/hardware-agent-smoke.ts`. Wire fixtures, storage keys and
-persisted identities are unchanged. `npm ci --ignore-scripts` and `npm run check` pass on macOS.
-
-## Sent history separated from recovery admission — November 2
-
-Completed outgoing messages no longer use up the 32-entry recovery admission budget. The
-browser keeps a rolling 160-entry outgoing history and retires the oldest completed record when
-a new send needs space; unknown or unacknowledged unicast outcomes are never retired. The
-journal is bounded at 1 MiB of serialized characters, and older journals remain readable. A
-regression exercises 500 completed sends with reload and counter continuity. No firmware or
-wire change.
-
-## Task-first settings layout — November 2
-
-Settings were reordered for mixed technical experience: routine setup first, maintenance under
-*Advanced*, short contextual explanations and primary actions next to their sections. No
-protocol or hardware change.
-
-## Map workspace, shared map items and JSON plugins — November 2–3
-
-The Map workspace replaced Assets. Users can add, edit and delete local points and rectangles,
-and share them as validated `RMAP1` JSON inside ordinary text messages (1,024 bytes plaintext,
-950 bytes encrypted). Recipients review shared items on message cards (*Add/Update/Remove from
-map*); accepted items live in separate storage with revision barriers, so deleting message
-history does not remove them. Settings → Plugins installs declarative, browser-local JSON
-definitions that add map item types and settings; no plugin code runs. No firmware or transport
-change. Host, native-USB and isolated-browser checks only; no RF or remote-acceptance testing.
-See [Shared map items](../reference/map-sharing.md) and [Plugins](../guides/plugins.md).
-
-## Device screen and buttons — November 3
-
-`tbeam-reaper-mesh-v0.1.0` from clean commit `074f299` (255,408-byte app, SHA-256
-`20147f967851f2e488d75097a7b1e4fffa99d14d5f946245b27b491f59da1e04`). The updater validated
-and installed it with ROM-verified hashes and NVS preserved. Three USB opens reached ready in
-655/671/648 ms at configuration revision 35, unchanged from before the update, and the welcome
-message reported the new firmware name. The owner confirmed on the device: startup icon and
-title, main page (name, radio state, counts, version), nodes and debug pages, single, double and
-long presses on the middle button, the PWR page shortcut and the 30-second screen timeout.
-
-The screen code is shared, so `heltec-reaper-mesh-v0.1.0` also builds without warnings, but it
-has not been installed or checked on the Heltec. Host checks: 267 tests and 72 CTests pass,
-including new gesture, screen-state, unread-count and page-rendering tests. Firmware IDs now use
-a `version` field kind that allows `.`; wire bytes and frozen fixtures are unchanged. See
-[device screen and buttons](../reference/device-display.md).
-
-## Screen settings and battery indicator — November 3
-
-`tbeam-reaper-mesh-v0.2.0` from clean commit `adc8765` (256,640-byte app, SHA-256
-`dca4200abb8420f6dadfa62686849d58e1ae34815e6608edc57436c2feab462f`). The updater validated
-and installed it with ROM-verified hashes and NVS preserved. Three USB opens reached ready in
-655/645/647 ms at configuration revision 35, read from the existing record 4, and the welcome
-reported `screenVersion` 1. Over USB with the real TypeScript agent, screen settings were saved
-(revision 36, 5 minutes with wake on), read back on a new connection with label, radio, position
-and discovery settings unchanged, saved again (revision 38, 1 minute with wake on) and read back
-after a reset with a new boot identity. The defaults (30 s, wake off) were then restored at
-revision 39.
-
-The owner then confirmed the battery percent shows with a battery fitted, and reported that the
-corner was empty when plugged in with no battery. The plugged-in state must show even then, so
-the bolt was changed to mean "plugged in" (AXP2101 VBUS good, read only) and the no-battery
-state shows the bolt and `USB`. That image, still `tbeam-reaper-mesh-v0.2.0`, was installed
-from clean commit `bafa382` (256,640-byte app, SHA-256
-`1203aeecdac1baa9ebbd836f2469a3f980111f4fa9309653469c4347fa5b2f72`) with ROM-verified hashes
-and NVS preserved. Three USB opens reached ready in 649/648/672 ms at revision 39 with the
-screen settings unchanged. The owner confirmed the bolt and `USB` show when plugged in with no
-battery. Not yet checked: a changed timeout and wake-on-message on the physical screen, and the
-portal's Screen tab in a native browser.
-
-`heltec-reaper-mesh-v0.2.0` was installed on the Heltec from clean commit `cc28285` (285,968-byte
-app, SHA-256 `30ff5fd6c4c676e144670f9ae76d3a6f0f87c70add251f448b04dbfd1c330cee`) with
-ROM-verified hashes and NVS preserved; it reported `screenVersion` 1 at revision 44. Screen
-settings were saved (revision 45, 10 s with wake on) and read back after a reset with a new boot
-identity, with other settings unchanged. The owner confirmed the screen turned off after 10 s and
-woke on a message from the T-Beam. That commit also makes build manifests list config record 5,
-which v0.2.0 reads and writes. Still not checked: the portal's Screen tab in a native browser,
-and the Heltec's startup, pages and gestures. Host checks: 276
-tests and 75 CTests pass, including record 5, screen-setting, TS-to-native USB, wake and
-battery-drawing tests. The 28 earlier fixtures are unchanged; three are appended. See
-[device screen and buttons](../reference/device-display.md).
+- USB handshake, atomic settings storage and query-only recovery.
+- Message upload, the inbox, radio diagnostics and the first transmission (after an SPI DMA
+  fix).
+- **Direct delivery with acknowledgment between a Heltec V3 and a T-Beam V1.2.**
+- Discovery, fixed positions and the OLED status screen.
+- In the portal: the messaging and map workspace, message deletion and unread counts, shared
+  map items, JSON plugins, agent-side channel encryption, the optional PIN and local wipe.

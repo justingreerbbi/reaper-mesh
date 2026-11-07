@@ -2,8 +2,8 @@
 
 This plan supports parked question Q8 in [Decisions](decisions.md#parked-questions): how to verify
 three-node relay, range, power loss and long-running behavior on real hardware. Until these
-tests pass, new portal features are paused (decision D37). Results go in the
-[Changelog](../overview/changelog.md), and [Status](../overview/status.md) is updated in place.
+tests pass, new portal features are paused (decision D37). Detailed results go in the
+pull request, a summary in the [Changelog](../overview/changelog.md), and [Status](../overview/status.md) is updated in place.
 
 Every test here transmits. Use only the US/915 boards with their antennas attached, the
 configured `US915_LAB1` preset and the configured power. Never transmit with no antenna or
@@ -110,7 +110,7 @@ environment. A missing ACK is not proof that the message was lost; check the rec
 Run two or three boards for at least 24 hours with periodic beacons and a message every few
 minutes (within the airtime budget). Record heap and stack headroom at start and end, any
 reconnects, timeouts or driver errors, and the delivery rate. Watch for the transient
-observations already listed in [Status](../overview/status.md#hardware-observations-to-keep-in-mind).
+observations already listed in [Status](../overview/status.md#known-hardware-quirks).
 
 ## After qualification
 

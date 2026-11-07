@@ -1,7 +1,7 @@
 # Decisions and open questions
 
 One entry per decision: what was decided, why or with what consequence, and where the detail
-lives. Evidence belongs in the [Changelog](../overview/changelog.md). When a decision changes,
+lives. Release notes belong in the [Changelog](../overview/changelog.md) and test evidence in pull requests. When a decision changes,
 mark the old entry **Superseded** and link the new one; do not rewrite history.
 
 Status values: **Confirmed** (owner decision), **Adopted** (implemented engineering choice),
@@ -13,7 +13,7 @@ Questions that need a decision now:
 
 | # | Question | Needed before | State |
 | --- | --- | --- | --- |
-| Q1 | Approve, revise or reject the draft [project specification](../overview/project-specification.md) as the governing baseline | Treating it as authoritative over other docs | Draft 0.3 reviewed against current docs and code on November 7; awaiting owner approval |
+| Q1 | Approve, revise or reject the [product requirements](plan.md#product-requirements) as the governing baseline. They were merged from the draft project specification (version 0.3) on November 7, with its vision moved to [How Reaper Mesh works](../overview/how-it-works.md) | Treating them as authoritative over other docs | Awaiting owner approval |
 
 ## Parked questions
 
@@ -81,8 +81,8 @@ features go in agents and plugins, so boards rarely need firmware updates and ag
 working with installed firmware. This contrasts with mass-market mesh projects that keep adding
 requested features to the firmware core, forcing frequent firmware and app updates. A firmware
 or protocol change needs a stated reason why an agent or plugin cannot do it. Optional
-board-local features (screen, battery display) must not change the radio protocol. See the
-[specification](../overview/project-specification.md#13-stable-core-extensible-edges).
+board-local features (screen, battery display) must not change the radio protocol. See
+[design principles](../overview/how-it-works.md#design-principles).
 
 ### D42. No compatibility promise before core v1
 Nov 3 · **Confirmed**. The project is in active development, used only by its maintainer and not
@@ -90,15 +90,13 @@ deployed. Until core v1, the owner may approve breaking changes to the protocols
 formats when they simplify the core, instead of keeping compatibility layers for earlier
 prototype builds; boards are reflashed as needed. Fixtures still pin current behavior and are
 only changed deliberately, with owner approval. At core v1 the formats are frozen, fixtures are
-reset to that baseline, and full compatibility rules apply. See the
-[specification](../overview/project-specification.md#14-project-stage).
+reset to that baseline, and full compatibility rules apply.
 
 ## Hardware and firmware
 
 ### D9. Boards
 Nov 1 · **Confirmed**. US/915 MHz Heltec WiFi LoRa 32 V3 (first board), then a US/915 T-Beam
-V1.2. Antennas are owner-confirmed. See [hardware](../guides/hardware.md) and
-[T-Beam V1.2](../guides/t-beam-v12.md).
+V1.2. Antennas are owner-confirmed. See [hardware](../guides/hardware.md).
 
 ### D10. Firmware stack
 Nov 1 · **Adopted**. ESP-IDF v5.5.4 (pinned commit in `firmware/esp-idf.lock.json`) with C++17.
@@ -210,7 +208,7 @@ Nov 1 · **Adopted**. The inbox has its own sequence and cursors, separate from 
 counters, and reports retention gaps. Local delivery to the connected node is explicit and makes
 no RF claim. Inbox v2 (Nov 2) adds the original RF destination so broadcasts stay in channel
 threads and direct messages appear in peer threads; v1 remains readable. See
-[inbox](../reference/inbox.md).
+[messaging and inbox](../reference/messaging.md#reading-the-inbox).
 
 ### D24. Discovery v1
 Nov 1 · **Adopted**; [D50](#d50-trusted-device-security-model) will also require an attached agent
@@ -218,7 +216,7 @@ for beacons and replies, and move them under the team key. A separate control na
 discovery responses and location sharing are independent settings, all off by default. A
 presence reply acknowledges discovery only; replies never trigger replies. Manual requests are
 rate-limited with jitter and at most six replies per minute. See
-[Phase 2 contract](phase-2.md).
+[discovery and position](../reference/discovery.md).
 
 ### D25. Fixed position before GPS
 Nov 1 · **Adopted**. Saved coordinates as offset fixed-point integers shared by USB, storage and
@@ -292,7 +290,7 @@ Nov 2 · **Adopted**; **superseded in part by [D50](#d50-trusted-device-security
 radios will hold a relay key and, in memory, a team key, while channel and direct keys stay off radios. XChaCha20-Poly1305 envelopes created in the agent; devices carry
 ciphertext only and never see keys. Direct messages use the channel group key: not pairwise
 private, members can forge, no forward secrecy. Plaintext stays the default unless an agent
-requires encryption on a channel. See [channel encryption](../guides/encryption.md).
+requires encryption on a channel. See [security and privacy](../guides/security.md#channel-encryption).
 
 ### D34. Optional browser PIN and local wipe
 Nov 2 · **Confirmed**; [D50](#d50-trusted-device-security-model) will require the PIN in team mode
@@ -344,7 +342,7 @@ Rules:
 - Delivery is best effort, with no history synchronization between agents.
 
 Sharing also changes: the user must pick the channel explicitly, with no preselected channel.
-See the [specification, section 5.4.1](../overview/project-specification.md#541-shared-map-items-and-plugins).
+See the [product requirements](plan.md#shared-map-items-and-plugins).
 
 ### D45. Channel identity independent of slot numbers
 [D50](#d50-trusted-device-security-model) will encrypt channel IDs on air and relay all frames of a
@@ -371,7 +369,7 @@ using the same slot shared a channel.
 Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [protocol](../reference/protocol.md#channel-ids-v1-d45),
 [persistence](../reference/persistence.md#channel-ids-record-6),
-[Channel encryption](../guides/encryption.md#rme2-envelope).
+[RME2 envelope](../guides/security.md#rme2-message-envelope).
 
 ### D49. Web portal follows the mobile app
 Nov 4 · **Confirmed**. Owner direction: the portal should look like the Reaper Mesh mobile app and support everything it does, including channels and QR creation. This is an owner-directed exception to the pause on new portal features (D37). It adds no firmware, radio or USB change, and no storage or wire format change, so the field qualification plan is unaffected (D41).
