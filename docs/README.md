@@ -1,81 +1,79 @@
-# Reaper Mesh documentation
+<p align="center">
+  <img src="assets/brand/reaper-icon-rounded.svg" width="72" alt="Reaper Mesh logo">
+</p>
 
-Reaper Mesh is a small, dependable LoRa mesh messaging system: custom firmware for
-hobbyist LoRa boards plus a browser agent that talks to them over USB or Bluetooth.
+<h1 align="center">Reaper Mesh documentation</h1>
 
-This folder is the full documentation set. Start with the section that matches what
-you want to do.
+<p align="center">
+  Everything about using, understanding and building Reaper Mesh.<br>
+  New here? Start with <a href="overview/how-it-works.md"><strong>How Reaper Mesh works</strong></a>.
+</p>
 
-> [!IMPORTANT]
-> Reaper Mesh is a working development prototype, not a production release. It is honest
-> about what has and has not been verified on real hardware. See [current status](overview/status.md)
-> for exactly what works today and what is still unqualified.
+---
 
-## New here? Start with the overview
-
-| Document | What it covers |
-| --- | --- |
-| [Project specification and vision](overview/project-specification.md) | Draft project-wide standard: intent, use cases, phases, requirements and future direction |
-| [Introduction](overview/introduction.md) | What Reaper Mesh is, who it is for, and how the pieces fit together |
-| [Roadmap](overview/roadmap.md) | The four product phases, current focus and what comes next |
-| [Status](overview/status.md) | What is implemented and verified right now, and the installed firmware |
-| [Changelog](overview/changelog.md) | Dated record of firmware builds and hardware test evidence |
-
-## Guides — do something
+## Overview
 
 | Document | What it covers |
 | --- | --- |
-| [Getting started](guides/getting-started.md) | Run the host tests and the web console with no hardware |
-| [Hardware](guides/hardware.md) | Supported boards and the confirmed inventory |
-| [T-Beam V1.2](guides/t-beam-v12.md) | Board-specific notes for the LILYGO T-Beam |
-| [Flashing firmware](guides/flashing-firmware.md) | Build, validate, install, and recover firmware over USB |
-| [First flash walkthrough](guides/first-flash.md) | Detailed record of the original Heltec V3 bring-up |
-| [Web portal](guides/web-portal.md) | Using the field portal: messaging, map, settings, recovery |
-| [Channel encryption](guides/encryption.md) | Setting up agent-side encryption and its security limits |
-| [Web agent plugins](guides/plugins.md) | Installing and managing declarative JSON plugins |
-| [Connect a mobile app](guides/mobile-apps.md) | How a mobile app pairs with and talks to a device |
+| [How Reaper Mesh works](overview/how-it-works.md) | The system in plain language: the pieces, a message's journey, design principles and limits |
+| [Status](overview/status.md) | What works right now and how it was verified |
+| [Roadmap](overview/roadmap.md) | What comes next, in order |
+| [Changelog](overview/changelog.md) | What changed in each release |
 
-## Reference — how it works in detail
+## Guides: do something
 
 | Document | What it covers |
 | --- | --- |
-| [Protocol](reference/protocol.md) | USB framing, typed payloads, negotiation, and the synchronization contract |
-| [Bluetooth link](reference/bluetooth.md) | Pairing rules, GATT service, and the client sequence for mobile agents |
-| [Radio protocol](reference/radio-protocol.md) | The over-the-air datagram, routing, and resource bounds |
-| [Radio configuration](reference/radio-configuration.md) | Modes, channels, transmit power, and the regional profile |
-| [Messaging](reference/messaging.md) | Message acceptance, delivery states, and bounds |
-| [Inbox & diagnostics](reference/inbox.md) | Inbox retrieval, local delivery, and live radio diagnostics |
-| [Persistence](reference/persistence.md) | Device configuration authority and the storage contract |
-| [Serial adapter](reference/serial-adapter.md) | The Web Serial transport layer |
-| [Compatibility](reference/compatibility.md) | Version matrix and RACE recovery coverage |
-| [Device screen and buttons](reference/device-display.md) | On-device pages, button gestures, screen settings and battery |
-| [Shared map items](reference/map-sharing.md) | Map item payloads, revisions, approval and limits |
+| [Getting started](guides/getting-started.md) | Run the web portal with a simulated device, no hardware needed |
+| [Hardware](guides/hardware.md) | Which boards to buy, what else you need, and board details |
+| [Flashing firmware](guides/flashing-firmware.md) | Build, check and install firmware over USB, and recover if it fails |
+| [Web portal](guides/web-portal.md) | Messaging, channels, the map, nodes and every device setting |
+| [Security and privacy](guides/security.md) | Team networks, channel encryption, the app PIN, and their limits |
+| [Plugins](guides/plugins.md) | Install and write JSON plugins that add map item types |
+| [Build a mobile app](guides/mobile-apps.md) | How a phone app pairs with and talks to a board |
 
-## Contributing — change the project
+## Reference: exact contracts
 
 | Document | What it covers |
 | --- | --- |
-| [Development & CI](contributing/development.md) | Toolchain, host checks, and continuous integration |
-| [Commits and pull requests](contributing/commits-and-prs.md) | Conventional Commit format, scopes, branch names and pull request checklist |
-| [Development plan](contributing/plan.md) | Repository layout, architecture and engineering standards |
-| [Decisions](contributing/decisions.md) | One entry per decision, plus open questions |
-| [Field qualification plan](contributing/field-qualification.md) | Three-node relay, outdoor range, power-loss and soak tests |
-| [Security architecture](contributing/security-architecture.md) | Confirmed trusted-device direction (D50): relay, team, channel and direct-message keys, rotation, optional setup, background delivery and delivery order |
-| [Rotation and rekey design](contributing/rotation-design.md) | Confirmed design for D50 step 2 (D52): epoch proofs, network frames, rekeying and relay status |
-| [Phase 2 contract](contributing/phase-2.md) | Discovery, position, and field-portal acceptance criteria |
+| [Protocol](reference/protocol.md) | The app-to-board link: framing, typed payloads, negotiation and recovery |
+| [Radio protocol](reference/radio-protocol.md) | The over-the-air frame, keys, epochs, routing and bounds |
+| [Radio configuration](reference/radio-configuration.md) | Modes, channels, transmit power and the regional profile |
+| [Messaging and inbox](reference/messaging.md) | Message upload, delivery states, inbox reads and diagnostics |
+| [Discovery and position](reference/discovery.md) | Beacons, discovery replies, position rules and bounds |
+| [Bluetooth link](reference/bluetooth.md) | Pairing rules, the GATT service and flow control |
+| [Persistence](reference/persistence.md) | How the board stores settings and keys |
+| [Shared map items](reference/map-sharing.md) | Map item payloads, ownership, approval and limits |
+| [Device screen and buttons](reference/device-display.md) | Screen pages, button gestures, battery and the status LED |
+| [Serial adapter](reference/serial-adapter.md) | The Web Serial transport in the agent core |
+| [Compatibility](reference/compatibility.md) | How versions fit together, and recovery test coverage |
+
+## Contributing: change the project
+
+| Document | What it covers |
+| --- | --- |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute, start to finish |
+| [Development and CI](contributing/development.md) | Toolchain, checks, formatting and continuous integration |
+| [Commits and pull requests](contributing/commits-and-prs.md) | Commit format, signing, branch names and the pull request checklist |
+| [Architecture and standards](contributing/plan.md) | Repository layout, architecture, product requirements and test standards |
+| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D53`) and the open questions |
+| [Field qualification plan](contributing/field-qualification.md) | Relay, range, power-loss and soak test procedures |
+| [Security architecture](contributing/security-architecture.md) | The approved trusted-device design (D50) and its delivery order |
+| [Rotation and rekey design](contributing/rotation-design.md) | Epoch proofs, network frames, rekeying and relay status (D52) |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 
-See also [`AI.md`](../AI.md) (current focus, working rules, and where each kind of information belongs),
-[`AGENTS.md`](../AGENTS.md) (contributor rules),
-[`firmware/README.md`](../firmware/README.md) (the embedded C++ foundation), and
-[`examples/README.md`](../examples/README.md) (working examples, organized by the component they target).
+Also see [`firmware/README.md`](../firmware/README.md) for the embedded C++ components,
+[`examples/README.md`](../examples/README.md) for working examples, and [`AI.md`](../AI.md) for
+the working rules contributors and AI assistants follow.
 
-## Conventions used in these docs
+## Where information lives
 
-- **Node** — a radio device running Reaper Mesh firmware.
-- **Agent** — software (the browser portal) connected to a node.
-- **RACE** — designing and testing for **s**ynchronization and **r**ecovery across
-  interrupted connections and concurrent operations. It is a discipline, not a framework.
-- **Delivery states** are kept distinct on purpose: *queued*, *transmitted*,
-  *acknowledged*, *failed*, and *unknown* never mean the same thing. USB acceptance and
-  relay forwarding are not end-recipient delivery.
+Each fact has one home, and other pages link to it.
+
+| Question | Home |
+| --- | --- |
+| What works right now? | [Status](overview/status.md) |
+| What comes next? | [Roadmap](overview/roadmap.md) |
+| What changed, and when? | [Changelog](overview/changelog.md) (detailed test evidence goes in pull requests) |
+| Why is it built this way? | [Decisions](contributing/decisions.md) |
+| Exactly how does it behave? | The [reference](#reference-exact-contracts) pages |

@@ -1,8 +1,22 @@
-# Host development and CI
+# Development and CI
 
-Python 3.9+ (python3 on PATH, or PYTHON) and a C++17 compiler are required by the host suite (c++ on PATH or CXX). The codec compiles with strict warnings and UBSan locally; Linux also enables ASan. See firmware/README.md for the local ASan limitation and standalone CMake/CTest build.
+How to set up a development environment, run the checks, format code and understand CI. New
+here? Start with [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-Use Node 24 (the `.node-version` baseline) or Node 25. Local verification currently uses Node 25.9.0 on macOS arm64.
+## Requirements
+
+| Tool | Version | Used for |
+| --- | --- | --- |
+| Node.js | 24 (the `.node-version` baseline) or 25 | TypeScript checks, tests, the web build |
+| Python | 3.9+ (`python3` on `PATH`, or set `PYTHON`) | Cross-language and updater tests |
+| C++ compiler | C++17 (`c++` on `PATH`, or set `CXX`) | Compiling the real firmware code for host tests |
+
+The codec compiles with strict warnings and UBSan; Linux also enables ASan. See
+[firmware/README.md](../../firmware/README.md) for the macOS ASan limitation and the standalone
+CMake/CTest build. Firmware builds need ESP-IDF; see
+[Flashing firmware](../guides/flashing-firmware.md).
+
+## Run the checks
 
 ```sh
 npm ci --ignore-scripts
@@ -11,7 +25,7 @@ npm run check
 
 `check` runs strict TypeScript checks across packages, tools, and tests, verifies generated TS/C++ protocol descriptors, runs the host suite, and builds the web agent. `npm test` still runs generated checks and tests without static checking; `npm run typecheck` checks types alone. After editing the schema, use `npm run generate:protocol`, review the generated diff, then run the combined check.
 
-`package-lock.json` pins TypeScript 7.0.2 and Node 24 type definitions 24.19.2, including transitive integrity hashes and platform-specific compiler packages. Install scripts are not required. Vite 8.3.5 is also pinned for the local browser build/dev server (MIT; retained dependency license notices apply). The field portal runtime depends on Leaflet 1.9.4 (BSD-2-Clause); see third-party-notices.md. Development-only tools: TypeScript/compiler packages use Apache-2.0, and Node/Undici type definitions use MIT. These dependency licenses do not select a license for Reaper Mesh, which is licensed under Apache-2.0 (D6).
+`package-lock.json` pins TypeScript 7.0.2 and Node 24 type definitions 24.19.2, including transitive integrity hashes and platform-specific compiler packages. Install scripts are not required. Vite 8.3.5 is also pinned for the local browser build/dev server (MIT; retained dependency license notices apply). The portal's runtime dependencies and their licenses are listed in [Third-party notices](third-party-notices.md). Development-only tools: TypeScript/compiler packages use Apache-2.0, and Node/Undici type definitions use MIT. These dependency licenses do not select a license for Reaper Mesh, which is licensed under Apache-2.0 (D6).
 
 ## Formatting
 
@@ -50,4 +64,4 @@ Actions and the container image are pinned to verified digests. Permissions are 
 
 `tools/build-firmware.sh` uses the bootstrapped ESP-IDF under `.tools/` by default. Set `REAPER_IDF_FROM_ENV=1` to use a preinstalled ESP-IDF at `IDF_PATH` instead, as CI does.
 
-Passing host checks does not establish browser permission behavior, native serial-driver cleanup, firmware flash durability, or RF delivery. See `../reference/serial-adapter.md` and `../guides/hardware.md` for those boundaries.
+Passing host checks does not establish browser permission behavior, native serial-driver cleanup, firmware flash durability, or RF delivery. See [Serial adapter](../reference/serial-adapter.md) and [Hardware](../guides/hardware.md) for those boundaries.

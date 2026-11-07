@@ -34,7 +34,7 @@ Compiler-backed scenarios test commit ordering, lost-response duplicates, revisi
 
 ## ESP-IDF backend
 
-The device settings path initializes only reaper_nvs, opens namespace reaper, and commits a single configuration blob. Missing keys yield initial state; initialization, size, read, and record failures fail closed. Set/commit errors are indeterminate. There is no erase/reformat fallback. The separate `nvs` partition holds only [Bluetooth](bluetooth.md) keys, address and calibration, and may be reset. Fake NVS API tests cover missing, read, set, commit, and initialization failures; they do not qualify real flash crash safety. See ../guides/first-flash.md for the preserved NVS range and hardware gate.
+The device settings path initializes only reaper_nvs, opens namespace reaper, and commits a single configuration blob. Missing keys yield initial state; initialization, size, read, and record failures fail closed. Set/commit errors are indeterminate. There is no erase/reformat fallback. The separate `nvs` partition holds only [Bluetooth](bluetooth.md) keys, address and calibration, and may be reset. Fake NVS API tests cover missing, read, set, commit, and initialization failures; they do not qualify real flash crash safety.
 
 ## Radio settings record extension
 
@@ -42,7 +42,7 @@ Record 2 is now supported alongside record 1, with a maximum 151-byte blob. Exis
 
 ## Fixed-position record4
 
-Record4 keeps the complete record3 layout and inserts10 bytes immediately before CRC32: share0/1 byte, source0(none)/1(fixed) byte, latitudeLE32, longitudeLE32. Coordinates use degree*10^7 offsets+90/+180 (see protocol.md), including a valid geographic0,0. Maximum record166 bytes. Default position policy continues writing the applicable earlier format; nondefault saved coordinates/source/sharing require4. Unsupported older readers fail closed without erasing. All fields commit with label/region/radio/discovery under the existing CAS and durable-publication boundary. Legacy mutations omitting all position fields preserve them. Failed commits preserve prior policy; indeterminate commits block authority/snapshots and require reboot reconciliation. The actual Heltec8/T-Beam3 NVS record retained fixed coordinates across separately verified fresh boot identities with sharing disabled; see ../contributing/phase-2.md. This does not qualify power-cut atomicity at every commit phase.
+Record4 keeps the complete record3 layout and inserts10 bytes immediately before CRC32: share0/1 byte, source0(none)/1(fixed) byte, latitudeLE32, longitudeLE32. Coordinates use degree*10^7 offsets+90/+180 (see [Protocol](protocol.md#fixed-position-v1-phase-22a)), including a valid geographic0,0. Maximum record166 bytes. Default position policy continues writing the applicable earlier format; nondefault saved coordinates/source/sharing require4. Unsupported older readers fail closed without erasing. All fields commit with label/region/radio/discovery under the existing CAS and durable-publication boundary. Legacy mutations omitting all position fields preserve them. Failed commits preserve prior policy; indeterminate commits block authority/snapshots and require reboot reconciliation. Power-cut atomicity at every commit phase is not yet qualified.
 
 ## Screen settings record 5
 

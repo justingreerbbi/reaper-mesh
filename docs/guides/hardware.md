@@ -1,104 +1,109 @@
 # Hardware
 
-Reaper Mesh currently targets two boards. Both are owner-confirmed US/915 MHz units with
-their antennas attached. For the dated bring-up and test evidence, see the
-[changelog](../overview/changelog.md).
+Reaper Mesh runs on two inexpensive LoRa development boards. You need at least **two boards**
+to send messages between them, and **three** to test relaying.
+
+> [!WARNING]
+> Always attach the antenna before the radio transmits. Transmitting without an antenna can
+> damage the radio. Reaper Mesh only supports the **US 915 MHz** band today; buy the 915 MHz
+> version of each board.
 
 ## Supported boards
 
-| Board | SoC | Radio | Flash | USB bridge | Port (this setup) |
-| --- | --- | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 | ESP32-S3FN8 | SX1262 | 8 MB (GD) | CP2102 | `/dev/cu.usbserial-0001` |
-| LILYGO T-Beam V1.2 | ESP32-D0WDQ6-V3 | SX1276 | 4 MB (Winbond) | CH9102 | `/dev/cu.wchusbserial57700003341` |
+| | Heltec WiFi LoRa 32 V3 | LILYGO T-Beam V1.2 |
+| --- | --- | --- |
+| **Good for** | The simplest, cheapest starting point | Battery use: it has a battery holder and a fuel gauge |
+| Processor | ESP32-S3 | ESP32 |
+| Radio chip | Semtech SX1262 | Semtech SX1276 |
+| Flash | 8 MB | 4 MB |
+| Screen | 0.96″ 128×64 OLED | Optional 128×64 OLED |
+| USB chip | CP2102 | CH9102 |
+| Battery display | Voltage | Percent, plus a plugged-in indicator |
+| Firmware target | `heltec-v3` | `tbeam-v12` |
 
-Full board-specific wiring, power rails, and radio bring-up for the T-Beam are in
-[T-Beam V1.2](t-beam-v12.md).
+Other boards, and other bands such as EU 868 MHz, are not supported yet. Adding a board needs a
+validated hardware profile and physical testing; see the [roadmap](../overview/roadmap.md).
 
-### Manufacturer transmit power
+## What else you need
 
-Power is expressed in dBm at the radio output, before antenna gain. The radio-chip
-programming ranges and board output specifications have different scopes:
+- A **915 MHz antenna** for each board (usually included).
+- A **USB data cable** (not a charge-only cable).
+- A computer with **Chrome, Edge or Brave** for the web portal. USB uses Web Serial and
+  Bluetooth uses Web Bluetooth; Safari and Firefox support neither.
+- For the T-Beam, an optional **18650 battery**.
 
-| Board | Manufacturer radio minimum | Manufacturer radio maximum | Board specification | Reaper Mesh low / medium / high |
-| --- | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 (SX1262) | −9 dBm | +22 dBm | Heltec specifies maximum output as 21 ± 1 dBm; it does not specify a board-level minimum on its product page | −9 / +7 / +22 dBm (no boost) |
-| LILYGO T-Beam V1.2 (SX1276, PA_BOOST path) | +2 dBm | +20 dBm with high-power settings; normal PA_BOOST operation is +2 to +17 dBm | Values describe the SX1276 PA_BOOST path used by this board; they are not measurements of this unit | +2 / +10 / +17 dBm, or +5 / +13 / +20 dBm with boost |
+## Transmit power
 
-Manufacturer sources, checked November 4, 2026: [Heltec V3 product specifications](https://heltec.org/project/wifi-lora-32-v3/),
-[Semtech SX1261/SX1262 datasheet](https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/RQ000008nKCH/hp2iKwMDKWl34g1D3LBf_zC7TGBRIo2ff5LMnS8r19s)
-(SetTxParams), and [Semtech SX1276/77/78/79 datasheet](https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE)
-(RF power amplifiers and +20 dBm operation). The SX1276 +20 dBm mode has additional
-supply, duty-cycle and antenna-mismatch conditions in the datasheet.
+Power is set as low, medium or high, so the same setting works on both boards. Values are dBm at
+the radio chip, before antenna gain. The default is medium.
 
-The firmware's levels and boost are defined in
-[radio configuration](../reference/radio-configuration.md#transmit-power). The default is medium
-with boost off. Attach the antenna before transmitting at any level.
-Actual output power on these units has not been measured; see [Status](../overview/status.md).
+| Board | Low | Medium | High | With boost |
+| --- | ---: | ---: | ---: | --- |
+| Heltec V3 (SX1262) | −9 dBm | +7 dBm | +22 dBm | No boost |
+| T-Beam V1.2 (SX1276, PA_BOOST) | +2 dBm | +10 dBm | +17 dBm | +5 / +13 / +20 dBm |
 
-## Heltec WiFi LoRa 32 V3
+Boost uses the SX1276's high-power mode, which the datasheet limits to a 1% duty cycle and a
+well-matched antenna. Output power on real units has not been measured. Sources:
+[Heltec V3 specifications](https://heltec.org/project/wifi-lora-32-v3/),
+[SX1261/SX1262 datasheet](https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/RQ000008nKCH/hp2iKwMDKWl34g1D3LBf_zC7TGBRIo2ff5LMnS8r19s)
+and [SX1276 datasheet](https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE).
+Details: [Radio configuration](../reference/radio-configuration.md#transmit-power).
 
-### Confirmed inventory
+## When the radio is allowed to transmit
 
-Read-only USB inspection on November 1, 2026 found:
+A freshly flashed board is silent. It transmits only when all of these are true:
 
-| Property | Value |
-| --- | --- |
-| Serial port | `/dev/cu.usbserial-0001` |
-| USB product | CP2102 USB to UART Bridge Controller, Silicon Labs |
-| USB vendor / product ID | `0x10c4` / `0xea60` |
-| SoC | ESP32-S3, revision v0.2 |
-| Flash | 8 MB, 40 MHz crystal, quad (DIO) wiring |
-| Secure boot / flash encryption | Both disabled |
-| Display | 0.96″ 128×64 SSD1306 OLED |
-| Settings partition (`reaper_nvs`) | offset `0x9000`, size `0x5000` |
-| Bluetooth key partition (`nvs`) | offset `0x210000`, size `0x8000` |
-| Network key partition (`reaper_keys`) | offset `0x218000`, size `0x2000` |
-| RF band | **Owner-reported US/915 MHz**, not electronically verified |
+1. The radio mode is **Mesh** (Off and Listen never transmit).
+2. A **radio network** is chosen: Open mode or a team.
+3. The region is **US**, and the board profile confirms the band and antenna.
+4. The radio chip passed its startup probe.
 
-> [!IMPORTANT]
-> The USB bridge identifies a UART path — it does **not** prove the board model, PCB
-> revision, RF band, antenna, or flash size. Treat the US band as owner-reported. Check the
-> board label and order details before any radio firmware development or transmission.
-> ROM serial commands opened/reset the device and ran a read-only RAM stub; no flash, erase,
-> or eFuse writes occurred.
+The firmware never guesses the region from your computer's time zone.
 
-### Manufacturer baseline
+## Buttons and screen
 
-Heltec documents the WiFi LoRa 32 V3 with an ESP32-S3FN8, SX1262 transceiver, CP2102 USB
-UART, the 128×64 OLED, and a nominal 8 MB flash
-([product details](https://heltec.org/project/wifi-lora-32-v3/), checked November 1, 2026).
-These identify the expected board family, not an electronic verification of this specific unit.
+| Board | Main button | Other buttons |
+| --- | --- | --- |
+| Heltec V3 | **PRG** | RST resets the board |
+| T-Beam V1.2 | The **middle** button (GPIO38) | A short **PWR** press goes to the next page; holding PWR about 6 s powers off. RST resets |
 
-### Firmware posture
+On the main button: one press turns the screen on or off, two presses go to the next page, and
+a long press returns to the main page. Holding it for **5 seconds** opens Bluetooth pairing.
+See [Device screen and buttons](../reference/device-display.md).
 
-The ESP-IDF v5.5.4 application integrates the portable session engine, framed UART0 at 115200,
-a paired Bluetooth link, fresh boot IDs, and a fail-closed NVS backend. Firmware installs preserve
-the settings, Bluetooth and network key partitions, and there is no automatic erase fallback. The owner
-explicitly declined preserving the factory firmware/settings, so no backup gates the first
-flash; recovery means reinstalling a reviewed Reaper image through the ESP32-S3 ROM loader.
-See the [first-flash walkthrough](first-flash.md) and [Flashing firmware](flashing-firmware.md).
+## Board details for developers
 
-## LILYGO T-Beam V1.2
+### Heltec WiFi LoRa 32 V3
 
 | Property | Value |
 | --- | --- |
-| SoC | ESP32-D0WDQ6-V3, revision 3.1 |
-| Radio | SX1276 (register-version `0x12` gated) |
-| Power management | AXP2101 at I2C `0x34` (identifies as `0x4a`) |
-| Flash | 4 MB Winbond, 40 MHz crystal |
-| MAC | `08:b6:1f:9f:e5:48` |
-| Node ID | `node-000008b61f9fe548` |
-| Port | `/dev/cu.wchusbserial57700003341` (alias `/dev/cu.usbserial-57700003341`) |
-| RF band | Owner-confirmed US/915 MHz, antenna attached |
+| USB serial | UART0 on GPIO43 (TX) / GPIO44 (RX) at 115200 baud, through the CP2102 (`0x10c4:0xea60`) |
+| Radio | SX1262 over DMA-backed SPI, driven by Semtech's pinned driver |
+| Flash layout | Bootloader at `0x0`, partition table `0x8000`, settings `reaper_nvs` `0x9000` (`0x5000`), app slot 0 at `0x10000`, Bluetooth `nvs` `0x210000` (`0x8000`), keys `reaper_keys` `0x218000` (`0x2000`) |
+| Quirk | Opening the USB port resets the board, so the app waits for it to boot |
 
-Both boards can stay connected to one computer at the same time. The web console handles one
-device at a time; automated two-board tests use separate serial adapters. Recheck device/port
-identities after reconnects. Details are in [T-Beam V1.2](t-beam-v12.md).
+The USB chip identifies a serial bridge, not the board revision, band or antenna. Check the
+board label and order details before transmitting.
 
-## Antenna and transmission gate
+### LILYGO T-Beam V1.2
 
-RF transmission is disabled by default on both boards. The owner confirmed the US/915 MHz
-antennas are attached, which clears the board antenna gate recorded in each board profile.
-Transmission still requires explicit mesh mode, a chosen radio network (Open mode or a team),
-and confirmed region, board, antenna, and driver readiness — firmware never infers a regulatory
-region from the computer's timezone.
+| Property | Value |
+| --- | --- |
+| USB serial | UART0 TX1 / RX3 at 115200 baud, through the CH9102 |
+| SPI | SCK 5, MISO 19, MOSI 27, CS 18, reset 23 |
+| Radio | SX1276, first-party driver; IRQ polling on DIO0 (26) and DIO1 (33). The probe requires register version `0x12` |
+| Power | AXP2101 at I2C `0x34` (SDA 21, SCL 22). It must identify as `0x4a` before the firmware turns on the radio's ALDO2 rail at 3.3 V; no other power settings change |
+| Screen | Optional SSD1306 at `0x3c` on the same I2C bus |
+| Flash layout | ESP32 with 4 MB flash: bootloader at `0x1000`, partition table `0x8000`, app at `0x10000` |
+| Not used | GPS and Wi-Fi are not started |
+
+References (no code copied): [LILYGO T-Beam hardware](https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series/blob/1991b1ed70915d4f246b841f99f6027166ea7330/docs/en/t_beam/t_beam_hw.md),
+[AXP2101 registers](https://github.com/lewisxhe/XPowersLib/blob/master/src/REG/AXP2101Constants.h)
+and [SX1276 registers](https://github.com/Lora-net/LoRaMac-node/blob/master/src/radio/sx1276/sx1276Regs-LoRa.h).
+
+### Both boards
+
+Firmware uses ESP-IDF 5.5.4 and C++17. Secure boot and flash encryption must be off; the
+updater refuses a board that has them on and never changes eFuses. Both boards can be plugged
+into one computer at once. The web portal talks to one at a time, and the two-board test tools
+in `tools/` open each port separately.

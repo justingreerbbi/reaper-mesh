@@ -2,8 +2,7 @@
 
 Status: **Confirmed** by the owner on November 4, 2026 (D50). This is the agreed direction. What is
 built so far is in [Status](../overview/status.md), and until each step ships,
-[Channel encryption](../guides/encryption.md) and the
-[specification](../overview/project-specification.md#7-security-privacy-and-trust) describe how the
+[Security and privacy](../guides/security.md) describes how the
 system behaves. This design has not had an independent security review, and no release may claim it
 until it has. Byte counts are design estimates, and no timing or airtime has been measured. The
 relay-only design and background delivery are the newest parts and have had the least scrutiny.
@@ -35,7 +34,7 @@ These points come from the current code, not from a test against a live attacker
 | Node reports are accepted without authentication | [`discovery.cpp:168`](../../firmware/components/reaper_device/discovery.cpp) | An outsider can add false nodes and positions, and push real nodes out of the 32-entry table |
 | ACKs are accepted without authentication | [`mesh.cpp:134`](../../firmware/components/reaper_mesh/mesh.cpp) | An outsider can mark an undelivered message as delivered |
 | The channel ID is the only admission check | [`mesh.cpp:130`](../../firmware/components/reaper_mesh/mesh.cpp) | The ID is visible on air, so an outsider can inject on a channel and use its relays |
-| Direct messages use the channel key | [`encryption.md`](../guides/encryption.md#key-management-and-operation) | Every channel member can read and forge them |
+| Direct messages use the channel key | [`security.md`](../guides/security.md#limits-to-know) | Every channel member can read and forge them |
 | Rotation means a new random key, shared by hand | [`encryption.ts:305`](../../agents/web/encryption.ts) | Rotation is rare in practice, and old keys are kept forever, so there is no forward secrecy |
 | Keys and settings are unencrypted in flash, and a USB host has full access | D12, D47 | A stolen radio gives up everything it stores |
 

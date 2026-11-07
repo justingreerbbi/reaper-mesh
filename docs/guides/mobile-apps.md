@@ -1,8 +1,13 @@
-# Connect a mobile app
+# Build a mobile app
 
-A mobile app is an agent: an app that talks to a Reaper device. This guide explains how one connects and what it must do. This repository contains no mobile app. Exact contracts are in [Bluetooth link](../reference/bluetooth.md) and [Protocol](../reference/protocol.md).
+A mobile app is an *agent*: an app that talks to a Reaper Mesh board. The official Reaper Mesh
+mobile app (React Native, iOS and Android) is developed in its own repository (decision D48), so
+its test results are recorded there, not here. This guide is for anyone building or maintaining
+an app: how it connects to a board and the rules it must follow. Exact contracts are in
+[Bluetooth link](../reference/bluetooth.md) and [Protocol](../reference/protocol.md).
 
-The mobile app is built and tested outside this repository (D48), so results from it are not recorded here. The evidence kept here for pairing, connecting and messaging comes from a desktop browser. Phone simulators have no Bluetooth, so test on real devices. The protocol can still change before core v1 (D42).
+Phone simulators have no Bluetooth, so test on real devices. The protocol can still change
+before core v1 (D42).
 
 ## What a phone can do
 
@@ -36,7 +41,7 @@ The bytes are the same as USB: COBS frames separated by zero bytes, each with a 
 - **Save before you send.** Store each outgoing request durably before writing it, so a lost connection can be resolved afterward. That storage must be synchronous, which on React Native rules out AsyncStorage.
 - **Never resend after a lost connection.** The original may have gone out. Recover by query, and treat anything unresolved as unknown.
 - **Show the real outcome.** Message state is `receiving`, `queued`, `transmitted`, `acknowledged`, `failed`, `rejected` or `unknown`. `transmitted` is not delivery, and `acknowledged` means the destination node received it, not that anyone read it.
-- **Encryption stays in the app.** Devices carry ciphertext only and never see keys. See [Channel encryption](encryption.md).
+- **Encryption stays in the app.** Devices carry ciphertext only and never see keys. See [Security and privacy](security.md).
 
 `packages/agent-core` and `packages/protocol` are the TypeScript implementation the web portal uses, so read them for the exact behavior. `packages/protocol/fixtures/messages-v1.json` lists messages with their exact bytes, to check your own codec against.
 
@@ -49,7 +54,7 @@ The bytes are the same as USB: COBS frames separated by zero bytes, each with a 
 ## Behavior to design for
 
 - **Choosing a network.** Since firmware `v0.8.0` a radio sends nothing until a network is chosen, and radio status reports `network-not-chosen`. Check feature bit 14, read `networkStatus`, and send `networkFill` with Open mode or team keys, which needs USB or the window opened with the button. A team radio also needs `teamLoad` after each reboot, and reports `team-key-needed` until then. See [Radio network](../reference/protocol.md#radio-network-d50). Never store these keys in a journal or a log.
-- **Key rotation.** Since firmware `v0.10.0` a team's keys rotate (D52), and an app on a team has to keep up: `networkFill` needs the epoch proof, and teams are recognized by `proof` because fingerprints change every epoch. Team codes are now `RMTEAM2`. `packages/agent-core/rotation.ts` holds the logic, and the [web portal](web-portal.md#radio-network) shows it in use. See [Radio network](../reference/protocol.md#radio-network-d50).
+- **Key rotation.** Since firmware `v0.10.0` a team's keys rotate (D52), and an app on a team has to keep up: `networkFill` needs the epoch proof, and teams are recognized by `proof` because fingerprints change every epoch. Team codes are now `RMTEAM2`. `packages/agent-core/rotation.ts` holds the logic, and the [web portal](security.md#team-networks) shows it in use. See [Radio network](../reference/protocol.md#radio-network-d50).
 - **Status LED.** Since firmware `v0.11.0` a device with feature bit 17 has an on/off setting, `ledEnabled`, which is off by default since `v0.11.1`. An app can leave it out of a configure, which keeps the device's value. See [Status LED setting](../reference/protocol.md#status-led-setting-d53).
 - One host at a time. The newest `hello` takes over, and opening the USB port resets the board, which drops your link.
 - Expect lost connections. A connection that is not trusted within 5 seconds is dropped, or 60 seconds while pairing is open.

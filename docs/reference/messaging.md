@@ -1,19 +1,102 @@
-# Message acceptance and delivery v1
+# Messaging and inbox v1
 
-Independent message identities and radio packet definitions are separate from USB/config versions. Hard bounds: 1,024 UTF-8 bytes per nonempty text, eight device message records, eight non-evicting owner sequence marks per boot, 160 rolling agent history entries, 32 unresolved outcomes, one pending upload per agent. Config and message commands have separate ID namespaces. What protects a message is described in [Channel encryption](../guides/encryption.md) and [Radio protocol](radio-protocol.md).
+How a message is accepted over USB, what each delivery state means, and how an app reads the
+board's inbox. What protects a message is in [Security and privacy](../guides/security.md) and
+[Radio protocol](radio-protocol.md).
 
-USB submission uses 32-byte binary chunks encoded as at most 64 lowercase hex characters, avoiding large per-field embedded buffers and allowing UTF-8 code points to cross chunk boundaries. At most 32 chunks, indexed from zero; every nonfinal chunk contains exactly 32 bytes. Whole-text UTF-8/control validation occurs before queue acceptance. A message binds its request ID, origin boot, channel, destination, chunk count and immutable contents. Conflicting duplicates are rejected without changing the original message. Partial assembly expires after five seconds; queued/delivery work expires after sixty seconds. Expiry never reopens an ID for execution.
+## Limits
 
-Device states: receiving, queued, transmitted, acknowledged, failed, rejected, unknown. Queued acknowledges only volatile local queue acceptance. Transmitted means radio adapter accepted all fragments as sent, not delivery. Acknowledged means the addressed destination accepted the complete message; it is never human-read status. Broadcast destination `broadcast` never produces recipient acknowledgments. No agent or simulator may claim RF delivery from USB acceptance.
+| Bound | Value |
+| --- | --- |
+| Text per message | 1,024 UTF-8 bytes, nonempty |
+| Message records on the board | 8 |
+| Owner sequence marks per boot | 8, never evicted |
+| Pending uploads per app | 1 |
+| Board inbox | 8 complete messages in a ring |
+| App sent history | 160 rolling entries, of which up to 32 may be unresolved |
+| App received history | 32 entries |
 
-A status carries the request ID, current state, received-chunk bitmap, optional stable message ID, and reason. Recovery uses a distinct read-only query; it never replays upload chunks after a link change. Message records and owner high-water marks survive logical USB reconnect but not device reboot. Old-boot outcomes remain unknown even if matching text is observed. A new message ID combines the collision-resistant boot identity and monotonic device counter. Finite terminal records may be reclaimed, but non-evicting high-water marks prevent duplicate execution after receipt eviction.
+Configuration and message commands have separate request-ID namespaces.
 
-Mandatory checks: chunk reorder/duplication/conflict, invalid UTF-8, maximum size, assembly timeout and exact timeout boundary, queue/owner exhaustion, receipt eviction, lost acceptance and reconnect query, reboot ambiguity, ACK/timeout races, broadcast ACK refusal, no repeated state regression, and bounded agent retry budgets. Real mesh packets/forwarding and RF hardware qualification are separate gates.
+## Uploading a message
 
-## Hardware message acceptance evidence (historical)
+Text crosses USB in 32-byte binary chunks, each encoded as at most 64 lowercase hex characters,
+so UTF-8 characters may span chunks. A message has at most 32 chunks, indexed from zero, and
+every chunk but the last holds exactly 32 bytes. The whole text is validated (UTF-8, no
+disallowed control characters) before it is queued.
 
-This describes a build from before radio integration. usb-prototype-2 was installed from commit 443326d (230,960-byte application, SHA-256 5edcc60831f7ecdf2aa1873b3960001c72fe5a3050d8a10d97993a70323a5f87). Esptool verified all artifacts. Physical TS agent/adapter testing accepted an exactly 1024-byte message, then observed failed/expired after the RF-disabled queue lifetime. Subsequent opens synchronized at persisted configuration revision 5. Native Brave also queued a multiline message, queried its status, and showed unknown on disconnect without resending it. Local screenshot: build/heltec-v3/browser-message.png. No RF transmission occurred.
+A message binds its request ID, origin boot, channel, destination, chunk count and contents. A
+duplicate with different content is rejected and the original is unchanged. A partial upload
+expires after 5 seconds, and queued or in-flight work after 60 seconds. Expiry never reopens an
+ID for execution.
 
-## Confirmed broadcast completion
+## Delivery states
 
-A complete transmitted receipt for a broadcast is terminal for the sender: there is no destination ACK to wait for. The agent preserves that fact across the observation deadline, disconnect, receipt eviction and journal reload. It does not promote unknown or merely queued broadcasts to transmitted. Unicast transmitted remains unconfirmed until destination ACK/failure, and unfinished work still restores as unknown. A regression covers the broadcast distinction; the UI labels it Broadcast transmitted · no recipient acknowledgment.
+| State | Meaning |
+| --- | --- |
+| `receiving` | Chunks are arriving over USB |
+| `queued` | Accepted into the board's volatile queue |
+| `transmitted` | The radio sent every fragment. Not delivery |
+| `acknowledged` | The addressed destination accepted the complete message. Never a read receipt |
+| `failed` | Could not be sent, or no acknowledgment in time |
+| `rejected` | Refused by the board, with a reason |
+| `unknown` | The outcome could not be established, for example after a reboot |
+
+A status carries the request ID, state, a bitmap of received chunks, an optional stable message
+ID and a reason. Recovery uses a separate read-only query and never replays chunks after a link
+change. Message records and owner marks survive a USB reconnect but not a reboot, so an
+earlier boot's outcomes stay unknown even if matching text is seen later. A new message ID
+combines the boot identity and a device counter.
+
+**Broadcasts** (destination `broadcast`) never produce acknowledgments. A transmitted broadcast
+is complete for the sender, and the app keeps that fact across disconnects and reloads, shown as
+*Broadcast transmitted · no recipient acknowledgment*. A unicast stays unconfirmed at
+transmitted until it is acknowledged or fails.
+
+**Local delivery:** sending to the connected board's own node ID puts the message straight into
+its inbox and reports `acknowledged` with reason `local-delivery`, without claiming a radio
+transmission. This makes one-board testing meaningful. Remote sends need mesh mode, a working
+radio, a confirmed US board and antenna, and airtime; otherwise they fail rather than pretend.
+
+## Reading the inbox
+
+Welcome feature bit 6, with `inboxVersion` 1 and `inboxCapacity` 8, advertises inbox retrieval.
+The inbox has its own sequence space, separate from configuration revisions.
+
+- **Query/head** returns the oldest and latest sequence numbers.
+- **Read/item** returns one 32-byte chunk of one message, as lowercase hex. Each item repeats
+  the origin, stable message ID, channel ID and chunk metadata. A missing reply identifies an
+  evicted or invalid request.
+- The app validates every response, bounds every buffer and only shows complete, valid
+  messages. Read retries stop after three attempts. No inbox operation sends or changes
+  anything.
+- On reconnect to the same board and boot, a completed cursor is kept and a partial read
+  restarts from its first chunk. A new boot resets the cursor. Gaps from eviction are shown,
+  never hidden.
+
+**Inbox version 2** adds the original radio destination (`broadcast` or the addressed node),
+which lets apps keep channel broadcasts out of direct-message threads. Version-1 items have no
+destination, so apps show them only in their channel.
+
+An inbox item may hold bytes that are neither text nor a known envelope. See
+[Agent features, payloads and inbox alert](protocol.md#agent-features-payloads-and-inbox-alert-d50).
+
+## Live radio diagnostics
+
+Welcome feature bit 5 advertises diagnostics. A radio query returns the settings revision,
+probe result, effective state and reason, RX and TX counters, free heap and the minimum free
+main-task stack. It uses its own request counter, and only a matching outstanding request can
+update the app's view. Three unanswered probes stop polling. Counters do not prove delivery.
+
+The radio driver works behind bounded SPI operations and fails closed if a transfer times out.
+A probe at boot never transmits. Listen mode never transmits, including acknowledgments and
+relays. A settings change cancels pending radio work first (`radio-config-changed`); it cannot
+recall a signal already sent.
+
+## Required tests
+
+Chunk reordering, duplication and conflicts; invalid UTF-8; maximum size; assembly timeout and
+its exact boundary; queue and owner exhaustion; receipt eviction; lost acceptance and reconnect
+query; reboot ambiguity; acknowledgment and timeout races; refusing broadcast acknowledgments;
+no state regressions; and bounded retry budgets. Real radio delivery is a separate hardware
+gate.

@@ -1,7 +1,7 @@
 # Shared map items v1
 
 > [!NOTE]
-> **Planned change (D43, after field qualification):** a per-channel, off-by-default **Auto-add shared map items** setting, available only on encrypted channels, will let items, updates and removals from the original sender apply without a prompt. Sharing will also require an explicit channel choice, with no preselected channel. Until it is implemented, this page describes current behavior. See [decision D43](../contributing/decisions.md#d43-per-channel-auto-add-for-shared-map-items) and [specification section 5.4.1](../overview/project-specification.md#541-shared-map-items-and-plugins).
+> **Planned change (D43, after field qualification):** a per-channel, off-by-default **Auto-add shared map items** setting, available only on encrypted channels, will let items, updates and removals from the original sender apply without a prompt. Sharing will also require an explicit channel choice, with no preselected channel. Until it is implemented, this page describes current behavior. See [decision D43](../contributing/decisions.md#d43-per-channel-auto-add-for-shared-map-items) and the [product requirements](../contributing/plan.md#shared-map-items-and-plugins).
 
 The Map workspace supports local points and axis-aligned rectangles, optional JSON-defined types, and explicit channel/direct sharing. Sharing is an agent application protocol over existing UTF-8 messaging. No USB schema, radio packet, firmware source, generated descriptor or frozen fixture changes are required.
 
@@ -42,10 +42,11 @@ Local items (including explicit copies) are plaintext browser data. Shared encry
 
 The device retains eight inbox messages and the agent's received transport history retains 32. A busy/disconnected agent can miss shared items after device eviction. Retention gaps are not evidence that a map synchronized. Revision records are bounded, do not confer authentication and are not a distributed consensus system.
 
-## Evidence and remaining qualification
+## Testing
 
-Host regressions cover UTF-8/size/range validation, rectangles, native unchanged-firmware message admission, fragmented read-only inbox retrieval, pending approval, duplicate/stale/conflicting revisions, stale approval, dismissal, withdrawal/reload suppression, source separation, storage failure/lock gating, plugin install/update/disable/uninstall and ciphertext-only encrypted map storage. Existing frozen wire fixtures remain unchanged.
-
-An isolated browser origin was used for local point creation/reload and plugin file import/review/install/settings QA. This is not RF qualification. No firmware update, flash, device setting change or map RF transmission is part of this work. Two-agent/both-board direct/broadcast, encrypted RF, power-loss, field/relay and long-duration qualification remain required. A single attached device cannot qualify remote-agent acceptance.
-
-Message-card UI follow-up verification: all 262 host tests and the production build pass. A temporary memory-only browser fixture verified an incoming shared-point card, no pre-approval marker, Add to map → disabled Added to map, and marker creation. The fixture was removed; no RF/firmware test is implied. Accepted cards offer View on map; map approval never changes device delivery/ACK state.
+Host tests cover UTF-8, size and range validation, rectangles, admission on unchanged firmware,
+fragmented inbox reads, pending approval, duplicate, stale and conflicting revisions, dismissal,
+withdrawal, reload, storage failures, plugin lifecycle and ciphertext-only storage of encrypted
+items. Sharing between two apps over real radios, encrypted sharing over the air, relay and
+long-duration use are not yet qualified. Accepting an item never changes a message's delivery
+state.

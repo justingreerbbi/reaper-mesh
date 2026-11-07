@@ -1,7 +1,7 @@
 # Reaper Mesh: contributor handoff
 
 Reaper Mesh is custom LoRa firmware for the Heltec WiFi LoRa 32 V3 and LILYGO T-Beam V1.2, plus
-a browser agent that talks to a node over USB. It uses its own documented protocol; Meshtastic is
+a browser agent that talks to a node over USB or Bluetooth. It uses its own documented protocol; Meshtastic is
 a functional reference only.
 
 ## Project principles
@@ -18,7 +18,8 @@ a functional reference only.
   layer for an earlier prototype build. Fixtures are still changed only deliberately, never
   silently. Full compatibility rules start at core v1.
 
-See [project specification](docs/overview/project-specification.md) sections 1.3 and 1.4.
+See [design principles](docs/overview/how-it-works.md#design-principles) and the
+[product requirements](docs/contributing/plan.md#product-requirements).
 
 This file holds current direction and working rules. It is not a log. Do not append test
 evidence or history here.
@@ -29,15 +30,22 @@ evidence or history here.
 | --- | --- |
 | What should be built next? | [Roadmap](docs/overview/roadmap.md) |
 | What works and is verified right now? What firmware is installed? | [Status](docs/overview/status.md) |
-| What happened, when, and what evidence was recorded? | [Changelog](docs/overview/changelog.md) |
+| What changed in each release? | [Changelog](docs/overview/changelog.md) (a short summary per release) |
+| What exactly was tested on hardware? | The pull request that made the change |
 | Why is it built this way? What is still undecided? | [Decisions](docs/contributing/decisions.md) |
-| How is the system put together? | [Development plan](docs/contributing/plan.md) |
+| How is the system put together, and what must it do? | [Architecture and standards](docs/contributing/plan.md) |
 | Exact wire, storage and recovery contracts | `docs/reference/` (start with [protocol](docs/reference/protocol.md)) |
-| Vision and cross-system requirements (draft) | [Project specification](docs/overview/project-specification.md) |
+| How does it work, in plain language? | [How Reaper Mesh works](docs/overview/how-it-works.md) |
+| How do I use it? | `docs/guides/` |
 
-When work finishes: update Status in place, add a dated Changelog entry with evidence, add a
-Decisions entry if scope or architecture changed, and update the affected reference contract.
-Say each fact in one place and link to it elsewhere.
+When work finishes: update Status in place, add a short Changelog entry (what changed, what was
+verified on hardware, what was not), put detailed evidence in the pull request, add a Decisions
+entry if scope or architecture changed, and update the affected guide and reference contract.
+Remove finished items from the Roadmap. Say each fact in one place and link to it elsewhere.
+
+Write docs to be understood by a newcomer first and a developer second: plain language and the
+"what and why" up front, exact technical detail after it. Keep them simple and short; delete
+history rather than letting it pile up, because Git keeps it.
 
 Put examples under `examples/` at the path of the component they target (for example
 `examples/agents/web/plugins/<name>/`), one folder per example with a README. See
@@ -56,8 +64,8 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
   for key rotation and rekeying (D52). The third board is expected on November 7.
 - Phase 4 device firmware work continues until the third board is ready: the status LED is built as
   `v0.11.1` (D53, off by default, with an owner-approved portal toggle) and works on both boards. The
-  device has no settings page; device settings are changed in the portal. See the roadmap's
-  Phase 4 delivery order and [device screen and buttons](docs/reference/device-display.md).
+  device has no settings page; device settings are changed in the portal. See the
+  [roadmap](docs/overview/roadmap.md#device-phase-4) and [device screen and buttons](docs/reference/device-display.md).
 - The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).
   Step 1 and step 2a (automatic key rotation, D52) are built and pass on two boards, so field
   qualification runs on the frames that ship. Rekey and relay status (2b) follow qualification. See
@@ -66,7 +74,7 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.
-- Phase 3 encryption has a first implementation; see [Channel encryption](docs/guides/encryption.md).
+- Phase 3 encryption has a first implementation; see [Security and privacy](docs/guides/security.md).
 - Open release gates stay visible: three-node relay, range, power cut, interrupted flash, soak,
   and native desktop QA of recent portal features. Do not reopen Phase 1 over them, and do not
   claim them.
