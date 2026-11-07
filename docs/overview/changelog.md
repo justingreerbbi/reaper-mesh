@@ -26,6 +26,8 @@ The owner then saw the same red light flash when the T-Beam received a message a
 
 The owner reported that the first button press also stopped the T-Beam's GPS light, and later that this light flashes at random. The schematic shows it on the GPS module's time pulse, with GPIO37 as an input on the same line, and firmware drives neither. So it does not follow the status LED, and its stopping on that press was most likely a coincidence.
 
+The owner then reported seeing no white flash on the Heltec, only the light on while it is plugged in. Its setting read on, and nothing else in the firmware uses GPIO35. To settle whether the light responds at all, the LED now stays lit for one second at startup, unless the setting is off. Both boards took this build under the same version, `v0.11.0`, with all four images verified by ROM, and host checks pass as above.
+
 Not confirmed: the white light on the Heltec, and the toggle in a native browser.
 
 ## November 7: Bluetooth cause and documentation review

@@ -430,6 +430,7 @@ bool Indicator::update(const Input& input, std::uint64_t now) {
   if (!started_) {
     started_ = true;
     activity_ = input.activity;
+    startup_end_ = now + kStartupMs;
   }
   if (input.activity != activity_) {
     activity_ = input.activity;
@@ -440,8 +441,11 @@ bool Indicator::update(const Input& input, std::uint64_t now) {
   if (!input.enabled) {
     pending_ = false;
     pulse_end_ = 0;
+    startup_end_ = 0;
     return false;
   }
+  if (now < startup_end_)
+    return true;
   // Activity arriving during a pulse or its gap gives one more pulse, so the LED stays readable
   // as blinks under constant traffic.
   if (pending_ && now >= pulse_end_ + kGapMs) {

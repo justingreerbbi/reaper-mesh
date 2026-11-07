@@ -164,17 +164,26 @@ int main(int argc, char** argv) {
   } else if (scenario == "led") {
     Indicator led;
     Indicator::Input in;
-    // Counters that are already nonzero at the first update are not activity.
+    // It stays lit for a second from the first update, unless the setting is off.
     in.activity = 40;
-    CHECK(!led.update(in, 1000));
+    CHECK(led.update(in, 1000));
+    CHECK(led.update(in, 1000 + Indicator::kStartupMs - 1));
+    CHECK(!led.update(in, 1000 + Indicator::kStartupMs));
+    Indicator quiet;
+    Indicator::Input disabled;
+    disabled.enabled = false;
+    CHECK(!quiet.update(disabled, 1000));
+    disabled.enabled = true;
+    CHECK(!quiet.update(disabled, 1001));
+    // Counters that were already nonzero at the first update are not activity, so no pulse above.
     // Activity gives one bounded pulse.
     in.activity = 41;
-    CHECK(led.update(in, 1010));
-    CHECK(led.update(in, 1010 + Indicator::kPulseMs - 1));
-    CHECK(!led.update(in, 1010 + Indicator::kPulseMs));
-    CHECK(!led.update(in, 1010 + Indicator::kPulseMs + 500));
+    CHECK(led.update(in, 2010));
+    CHECK(led.update(in, 2010 + Indicator::kPulseMs - 1));
+    CHECK(!led.update(in, 2010 + Indicator::kPulseMs));
+    CHECK(!led.update(in, 2010 + Indicator::kPulseMs + 500));
     // Constant traffic stays readable as blinks: each pulse is followed by a dark gap.
-    std::uint64_t now = 2000;
+    std::uint64_t now = 3000;
     bool last = false;
     unsigned rises = 0, longest_on = 0, on_for = 0, longest_off = 0, off_for = 0;
     for (std::uint32_t tick = 0; tick < 200; ++tick, now += 10) {
@@ -192,7 +201,8 @@ int main(int argc, char** argv) {
     // A waiting message blinks slowly until a button is pressed or an agent attaches.
     Indicator waiting;
     Indicator::Input message;
-    CHECK(!waiting.update(message, 0));
+    CHECK(waiting.update(message, 0));
+    CHECK(!waiting.update(message, Indicator::kStartupMs));
     message.latest = 3;
     CHECK(waiting.update(message, 4000));
     CHECK(!waiting.update(message, 4000 + Indicator::kSlowOnMs));
@@ -214,11 +224,11 @@ int main(int argc, char** argv) {
     // on turning back on. Messages that are still waiting blink again.
     Indicator dark;
     Indicator::Input off;
-    CHECK(!dark.update(off, 0));
+    CHECK(dark.update(off, 0));
     off.activity = 1;
-    CHECK(dark.update(off, 100));
+    CHECK(dark.update(off, 1100));
     off.enabled = false;
-    CHECK(!dark.update(off, 110));
+    CHECK(!dark.update(off, 1110));
     off.activity = 2;
     off.latest = 5;
     CHECK(!dark.update(off, 4000));

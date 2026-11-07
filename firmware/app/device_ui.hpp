@@ -66,11 +66,13 @@ class Screen {
   std::uint32_t latest_ = 0, seen_ = 0;
 };
 
-// Status LED policy (D53): a short pulse on radio activity and a slow blink while messages are
-// waiting. No hardware access: the board drives its pin with the result of update().
+// Status LED policy (D53): lit for a second at startup so the LED can be identified, then a short
+// pulse on radio activity and a slow blink while messages are waiting. No hardware access: the
+// board drives its pin with the result of update().
 class Indicator {
  public:
-  static constexpr std::uint64_t kPulseMs = 60, kGapMs = 60, kSlowOnMs = 200, kSlowPeriodMs = 2000;
+  static constexpr std::uint64_t kStartupMs = 1000, kPulseMs = 60, kGapMs = 60, kSlowOnMs = 200,
+                                 kSlowPeriodMs = 2000;
   struct Input {
     bool enabled = true;
     std::uint32_t activity = 0;  // Radio frames sent and received; any change pulses the LED.
@@ -82,7 +84,7 @@ class Indicator {
  private:
   bool started_ = false, pending_ = false;
   std::uint32_t activity_ = 0, acknowledged_ = 0;
-  std::uint64_t pulse_end_ = 0;
+  std::uint64_t pulse_end_ = 0, startup_end_ = 0;
 };
 
 struct NodeRow {

@@ -113,6 +113,7 @@ boards and tested on the host. A board only provides the pin.
 
 | Signal | Pattern |
 | --- | --- |
+| Startup | Lit for 1 s, so you can tell which light is the status LED |
 | Radio frame sent or received | A 60 ms pulse. Under constant traffic the pulses are at least 60 ms apart, so it stays readable as blinks |
 | Messages waiting | A 200 ms flash every 2 s, until a main or extra button is pressed or an agent attaches. A restart clears it, because the inbox is held in memory |
 | Nothing to show, or the setting is off | Dark |
