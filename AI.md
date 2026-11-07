@@ -55,7 +55,7 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
   keeping the portal in step with the mobile app (D49), team setup (D51), and the portal controls
   for key rotation and rekeying (D52). The third board is expected on November 7.
 - Phase 4 device firmware work continues until the third board is ready: the status LED is built as
-  `v0.11.0` (D53, with an owner-approved portal toggle) and needs checking on the boards. The
+  `v0.11.0` (D53, with an owner-approved portal toggle) and works on both boards. The
   device has no settings page; device settings are changed in the portal. See the roadmap's
   Phase 4 delivery order and [device screen and buttons](docs/reference/device-display.md).
 - The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).

@@ -28,7 +28,9 @@ The owner reported that the first button press also stopped the T-Beam's GPS lig
 
 The owner then reported seeing no white flash on the Heltec, only the light on while it is plugged in. Its setting read on, and nothing else in the firmware uses GPIO35. To settle whether the light responds at all, the LED now stays lit for one second at startup, unless the setting is off. Both boards took this build under the same version, `v0.11.0`, with all four images verified by ROM, and host checks pass as above.
 
-Not confirmed: the white light on the Heltec, and the toggle in a native browser.
+The owner saw the white light come on at startup, which shows the LED and pin work. In a test of 12 direct messages from the T-Beam to the unconnected Heltec, about 12 seconds apart, the owner then saw the white light flashing. Eleven were acknowledged within the 9 seconds the test waited, and message 9 was still `transmitted` when it moved on, so its outcome was not recorded. The T-Beam's transmit count shows retries from message 9 on, and the cause was not looked into. Why the earlier look showed no flash is not established. A board connected to an agent shows only the brief pulses, which may be the reason.
+
+Not confirmed: the toggle in a native browser.
 
 ## November 7: Bluetooth cause and documentation review
 
