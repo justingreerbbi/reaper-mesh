@@ -10,11 +10,11 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
-## November 5: interrupted encrypted uploads on the T-Beam
+## November 5: interrupted encrypted uploads
 
-First hardware run of roadmap Phase 3, step 3, with the new `tools/hardware-upload-recovery.ts`, which stands between the agent and the board to drop chosen frames and to cut the link, restart the board or reload the agent at chosen moments. This run used the T-Beam alone on `v0.10.0` in Open mode, sending encrypted messages to its own node, because the Heltec was not visible on USB. So it exercises the upload, its recovery and the inbox over USB, and nothing went over the air. No code in the firmware or portal changed, and no faults were found.
+First hardware run of roadmap Phase 3, step 3, with the new `tools/hardware-upload-recovery.ts`, which stands between the agent and the board to drop chosen frames, and cuts the link, restarts the board or reloads the agent at chosen moments. The other radio shows what really arrived. Both boards on `v0.10.0`, delivering encrypted direct messages over the radio. No firmware or portal code changed, and no faults were found.
 
-All 11 scenarios passed:
+All 33 scenarios passed: the 11 below from the Heltec and from the T-Beam in Open mode, and from the Heltec on a team. An earlier run of the same 11 on the T-Beam alone, messaging itself over USB, also passed.
 
 | Fault | Result |
 | --- | --- |
@@ -23,16 +23,18 @@ All 11 scenarios passed:
 | Link cut mid-upload | Nothing resent, no copy, and the board later reported `failed: expired` |
 | Agent reloaded mid-upload | Nothing resent, no copy, ciphertext kept in the journal, and plaintext not saved |
 | Board restarted mid-upload | Nothing resent, no copy, and the outcome stayed `unknown` |
-| Serial port closed and reopened mid-upload | This restarted the board. Nothing resent, no copy |
+| Serial port closed and reopened mid-upload | This restarted the board on both types. Nothing resent, no copy |
 | Final acceptance lost | Asking settled it as `acknowledged`, with nothing resent and one copy |
 | Board restarted just after accepting | Nothing resent, no copy, and the outcome stayed `unknown` |
-| Inbox read interrupted, then reconnected and reloaded | Exactly one exact copy, which decrypted |
-| Board restarted before the inbox was read | No copy, and none invented. The sender still saw `acknowledged`, which means the radio accepted it and not that anyone read it |
+| Receiver's inbox read interrupted, then reconnected and reloaded | Exactly one exact copy, which decrypted |
+| Receiver restarted before its inbox was read | No copy, and none invented. The sender still saw `acknowledged`, which means the radio accepted it and not that anyone read it |
 | Largest message afterward (1,024 bytes) | One copy, which decrypted |
 
-A scan of all 1,690 decoded frames and the journal found none of the 11 plaintexts, as text or hex.
+Also on a team: a restarted radio that had lost its team key failed a send with `team-key-needed`, and nothing arrived. A scan of all 3,883 decoded USB frames and both journals found none of the 34 plaintexts, as text or hex.
 
-Not tested: any of this with delivery over the radio, on the Heltec, or in team mode (the tool covers all three and needs both boards); a cable physically pulled mid-upload; a real browser reload. The tool has not yet run in two-board mode.
+The second run of the day. The first stopped at its first connection, because the Heltec had dropped off USB and the T-Beam's port was stuck with `termios.error 22`. Neither was caused by the test, and both cleared when their cables were properly reconnected.
+
+Not tested: a restart while a message is partway through going over the air, because in all of these runs the restart came before the first transmission; the team-mode faults from the T-Beam; a cable physically pulled mid-upload; a real browser reload, as opposed to rebuilding the agent from its journal; Bluetooth; relay. The plaintext scan covers USB and the journal, and nothing listened to the air. The tool has not been checked by breaking the code on purpose to confirm it fails.
 
 ## November 5: automatic key rotation (`v0.10.0`), D50 step 2a
 
