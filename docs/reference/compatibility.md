@@ -18,6 +18,7 @@ There is no stable/public release yet. Firmware identifiers describe development
 | v0.8.0 | Adds `networkQuery`, `networkStatus`, `networkFill`, `teamLoad`, `networkErase` | 1 | 1–7 | Team keys and Open mode; a new partition table with four images; silent until a network is chosen |
 | v0.9.0 | Adds `agentFeatures` in `hello` and `inboxChanged` | 1 | 1–7 | Opaque payloads and the inbox alert |
 | v0.10.0 | `networkFill` needs the epoch proof, `networkStatus` adds rotation fields | 1 | 1–7 | Epoch proofs and rotation (D52). The key record changes format, so a board reads as no network after this install. Team codes become `RMTEAM2` |
+| v0.11.0 | Adds `ledEnabled` with feature bit 17 | 1 | 1–8 | Status LED (D53). Board-local, so the radio format is unchanged and it shares traffic with `v0.10.0`. A record 8 fails closed after a downgrade |
 
 Current agent to older firmware: missing message/radio/inbox capabilities disable those functions. Unknown optional fields are skipped by length; unsupported required behavior fails closed. Base agents editing label/region on newer firmware omit the five radio fields, preserving device-authoritative radio policy. A radio policy update is all-or-none, shares the revision CAS, and cancels stale queued work. Storage schema 1 remains readable; schema 2 is written only for nondefault radio policy. Downgrading to schema-1-only firmware with schema 2 on disk is unsupported: storage must fail closed, never erase itself.
 

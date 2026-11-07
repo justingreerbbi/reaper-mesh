@@ -279,8 +279,10 @@ export function renderScreen() {
   if (!screenDirty && screen) {
     keepCustomOption(select, String(screen.timeout), `${screen.timeout} s`);
     element<HTMLInputElement>('screen-wake').checked = screen.wake;
+    element<HTMLInputElement>('screen-led').checked = sync.config?.led ?? true;
     screenBase = context;
   }
+  element('screen-led-row').hidden = !connection.supportsLed;
   const stale = screenDirty && screenBase !== context;
   setNotice(
     'screen-support',
@@ -291,7 +293,7 @@ export function renderScreen() {
         : (connection.writeBlockReason ?? undefined),
     'warn',
   );
-  for (const id of ['screen-timeout', 'screen-wake'])
+  for (const id of ['screen-timeout', 'screen-wake', 'screen-led'])
     element<HTMLInputElement>(id).disabled = !writable || model.pending;
   element<HTMLButtonElement>('screen-save').disabled =
     !writable || !screenDirty || stale || model.pending;
@@ -585,6 +587,7 @@ export function initSettings() {
           timeout: Number(element<HTMLSelectElement>('screen-timeout').value),
           wake: element<HTMLInputElement>('screen-wake').checked,
         },
+        ...(connection.supportsLed ? { led: element<HTMLInputElement>('screen-led').checked } : {}),
       });
       screenDirty = false;
       clearError();

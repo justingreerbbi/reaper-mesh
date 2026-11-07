@@ -426,6 +426,33 @@ void Screen::tick(std::uint64_t now) {
   if (stage_ == Stage::Running && on_ && timeout_ && now - active_ >= timeout_)
     sleep();
 }
+bool Indicator::update(const Input& input, std::uint64_t now) {
+  if (!started_) {
+    started_ = true;
+    activity_ = input.activity;
+  }
+  if (input.activity != activity_) {
+    activity_ = input.activity;
+    pending_ = true;
+  }
+  if (input.seen || input.latest < acknowledged_)
+    acknowledged_ = input.latest;
+  if (!input.enabled) {
+    pending_ = false;
+    pulse_end_ = 0;
+    return false;
+  }
+  // Activity arriving during a pulse or its gap gives one more pulse, so the LED stays readable
+  // as blinks under constant traffic.
+  if (pending_ && now >= pulse_end_ + kGapMs) {
+    pulse_end_ = now + kPulseMs;
+    pending_ = false;
+  }
+  if (now < pulse_end_)
+    return true;
+  return input.latest > acknowledged_ && now % kSlowPeriodMs < kSlowOnMs;
+}
+
 void Screen::inbox(std::uint32_t latest, std::uint64_t now) {
   if (latest < seen_)
     seen_ = latest;

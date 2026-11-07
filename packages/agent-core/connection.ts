@@ -1,5 +1,11 @@
 import { positionFields, readPosition, validPosition } from '../protocol/position-config.ts';
-import { readScreen, screenFields, validScreen } from '../protocol/screen-config.ts';
+import {
+  ledFields,
+  readLed,
+  readScreen,
+  screenFields,
+  validScreen,
+} from '../protocol/screen-config.ts';
 import { Discovery } from './discovery.ts';
 import { discoveryFields, validDiscovery } from '../protocol/discovery-config.ts';
 import * as recovery from './recovery-data.ts';
@@ -254,6 +260,9 @@ export class Connection {
   get supportsScreen() {
     return this.capabilities?.screenVersion === 1 && !!(this.capabilities.features & 512);
   }
+  get supportsLed() {
+    return !!((this.capabilities?.features ?? 0) & 131072);
+  }
   get supportsDiscovery() {
     return (
       this.capabilities?.discoveryVersion === 1 &&
@@ -350,6 +359,8 @@ export class Connection {
       throw new Error('unsupported or invalid position settings');
     if (config.screen && (!this.supportsScreen || !validScreen(config.screen)))
       throw new Error('unsupported or invalid screen settings');
+    if (config.led !== undefined && (!this.supportsLed || typeof config.led !== 'boolean'))
+      throw new Error('unsupported or invalid LED setting');
     if (config.discovery && (!this.supportsDiscovery || !validDiscovery(config.discovery)))
       throw new Error('unsupported or invalid discovery settings');
     if (config.radio && (this.radioBlockReason || !validRadio(config.radio, config.region)))
@@ -375,6 +386,7 @@ export class Connection {
       ...discoveryFields(config.discovery),
       ...radioFields(config.radio),
       ...screenFields(config.screen),
+      ...ledFields(config.led),
     } as Message);
     const command = this.commands.submit(config, now);
     this.#commandDevices.set(command.id, this.device!);
@@ -663,7 +675,7 @@ export class Connection {
       this.#deadline = this.#now + 5000;
     } else if (message.type === 'snapshot' || message.type === 'event') {
       if (message.boot !== this.sync.boot) return;
-      let position, screen;
+      let position, screen, led;
       try {
         if (this.supportsPosition) position = readPosition(message);
       } catch {
@@ -676,6 +688,12 @@ export class Connection {
         this.close('invalid-screen-settings');
         return;
       }
+      try {
+        if (this.supportsLed) led = readLed(message);
+      } catch {
+        this.close('invalid-led-setting');
+        return;
+      }
       const value = {
         ...message,
         session: this.sync.session,
@@ -684,6 +702,7 @@ export class Connection {
           label: message.label,
           ...(position ? { position } : {}),
           ...(screen ? { screen } : {}),
+          ...(led !== undefined ? { led } : {}),
           ...(message.beacon !== undefined &&
           message.respond !== undefined &&
           message.beaconInterval !== undefined &&
@@ -786,6 +805,7 @@ export class Connection {
       ...discoveryFields(command.config.discovery),
       ...radioFields(command.config.radio),
       ...screenFields(command.config.screen),
+      ...ledFields(command.config.led),
     } as Message);
   }
 

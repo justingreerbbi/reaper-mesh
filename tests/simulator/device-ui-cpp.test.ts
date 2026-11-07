@@ -36,6 +36,7 @@ for (const [scenario, description] of Object.entries({
   gestures: 'decodes debounced single, double and long presses',
   screen: 'runs the startup sequence, page cycling, wake and timeout',
   unread: 'counts messages that arrived since the screen last turned off',
+  led: 'pulses the LED on activity, blinks for waiting messages and stays dark when off',
   settings: 'applies the stored timeout and wakes on a new message when enabled',
   render: 'draws every page within the frame, deterministically, for odd input',
   ble: 'draws the pairing page over any page and wakes the screen for it',

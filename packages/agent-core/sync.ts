@@ -10,6 +10,7 @@ export type Config = Readonly<{
   radio?: RadioConfig;
   discovery?: DiscoveryConfig;
   screen?: ScreenConfig;
+  led?: boolean;
 }>;
 export type Event = Readonly<{
   session: number;

@@ -59,18 +59,21 @@ most of it, so larger savings need the sleep modes planned later in Phase 4.
 
 ## Screen settings
 
-The portal's **Device → Screen** page sets two values, which are stored in the device
+The portal's **Device → Screen** page sets these values, which are stored in the device
 configuration and work with no agent connected. There is no settings page on the device itself.
 
 | Setting | Values | Default |
 | --- | --- | --- |
 | Turn the screen off after | 10 s, 30 s, 1 min, 5 min or never (the device accepts 0 for never, or 10–3600 s) | 30 s |
 | Wake the screen when a message arrives | On or off. When on, a new inbox message turns the screen on at the main page, or restarts the timeout if it is already on | Off |
+| Status light | On or off. See [Status LED](#status-led) | On |
 
 They use the same revision-checked, atomic configuration writes as other settings, and a write
 that omits them keeps the stored values. Wire fields and storage are in the
 [protocol](protocol.md#screen-settings-v1-phase-4) and
-[persistence](persistence.md#screen-settings-record-5) references.
+[persistence](persistence.md#screen-settings-record-5) references, with the LED under
+[its own protocol section](protocol.md#status-led-setting-d53) and
+[record 8](persistence.md#status-led-record-8).
 
 On November 3 the owner confirmed both settings on the Heltec V3 (`v0.2.0`): with a 10 s timeout
 and wake on, the screen turned off after 10 s, and a message from the T-Beam turned it back on.
@@ -103,16 +106,39 @@ ADC setup, calibration or read failures show `?` rather than a stale or invented
 Both boards otherwise use the same screen, settings, message, discovery and BLE code. The
 T-Beam's PMU fuel gauge, USB sensing, extra PWR button and radio boost are hardware-specific.
 
-## Planned
+## Status LED
 
-- LED indication: a short blink on TX/RX and a slow blink while there are new messages
-  (T-Beam GPIO4; Heltec LED to be verified).
+Since `v0.11.0` (D53), one LED shows activity with nothing else attached. Its policy is shared by all
+boards and tested on the host. A board only provides the pin.
+
+| Signal | Pattern |
+| --- | --- |
+| Radio frame sent or received | A 60 ms pulse. Under constant traffic the pulses are at least 60 ms apart, so it stays readable as blinks |
+| Messages waiting | A 200 ms flash every 2 s, until a main or extra button is pressed or an agent attaches. A restart clears it, because the inbox is held in memory |
+| Nothing to show, or the setting is off | Dark |
+
+A pulse follows the radio's counters, which include frames the device then discards. So it shows that
+something was heard, not that a message arrived. Turning the setting off takes effect at once. It
+controls only the status LED. An attached agent clears the slow blink, so a board connected to a portal
+shows pulses only. A board with relay on also pulses when it forwards what it heard, so one message can
+give two pulses.
+
+Each board has other lights that firmware does not control. From the manufacturers' schematics:
+
+| Board | Status LED | Lit by | Other lights |
+| --- | --- | --- | --- |
+| Heltec WiFi LoRa 32 V3 | White, LED2, on GPIO35 through 330 Ω | High | Orange, LED1, driven by the charger (`CHRG`) |
+| LILYGO T-Beam V1.2 | Red, LED_G5, on GPIO4 through 1 kΩ to 3.3 V | Low | Red, LED_G2, driven by the GPS module's time pulse; blue, LED_G4, on the AXP2101's `CHGLED` output |
+
+Sources: the [Heltec V3.2 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/WiFi_LoRa_32_V3.2_Schematic_Diagram.pdf)
+and the [T-Beam V1.2 schematic](https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series/blob/1991b1ed70915d4f246b841f99f6027166ea7330/schematic/LilyGo_TBeam_V1.2.pdf).
 
 ## Code map
 
 | File | Role |
 | --- | --- |
-| `firmware/app/device_ui.hpp/.cpp` | Button gestures, screen state, font, icon and page drawing |
+| `firmware/app/device_ui.hpp/.cpp` | Button gestures, screen state, font, icon, page drawing and the LED policy |
+| `firmware/app/board_led.hpp`, `firmware/<board>/main/board_led.cpp` | Board LED pin and polarity |
 | `firmware/app/status_display.hpp/.cpp` | Shared SSD1306 driver: power and frame writes |
 | `firmware/app/board_input.hpp` | Board button interface |
 | `firmware/<board>/main/status_display.cpp` | Board panel power, reset and I2C setup |

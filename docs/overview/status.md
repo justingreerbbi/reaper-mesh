@@ -16,16 +16,16 @@ in the [changelog](changelog.md); priorities belong in the [roadmap](roadmap.md)
 | 1 — Working communications | Complete by owner decision. Three-node relay, range and power-cut testing are still open release gates. |
 | 2 — Discovery and field portal | Active. Discovery (2.1) and fixed position (2.2a) are verified on two boards. GPS (2.2b) is deferred by the owner. New portal features (2.3) are paused until relay and range testing pass. |
 | 3 — Encrypted channels | First implementation done and verified for direct messages between two boards, including recovery from interrupted uploads. Channel key rotation and a security review are still open. |
-| 4 — Device presentation and power | In progress: screen pages, buttons, screen settings and battery display are built. LED indication and sleep modes are not. |
+| 4 — Device presentation and power | In progress: screen pages, buttons, screen settings, battery display and a status LED are built. Sleep modes are not. |
 
 ## Installed firmware
 
 | Board | Reported version | Built from | Port |
 | --- | --- | --- | --- |
-| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.10.0` | Local development build on `6ac1d1f` with uncommitted changes, November 5; hashes in the install receipt | `/dev/cu.usbserial-0001` |
-| LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.10.0` | Local development build on `6ac1d1f` with uncommitted changes, November 5; hashes in the install receipt | `/dev/cu.wchusbserial57700003341` |
+| Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.11.0` | Local development build on `6e6d723` with uncommitted changes, November 7; hashes in the install receipt | `/dev/cu.usbserial-0001` |
+| LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.11.0` | Local development build on `6e6d723` with uncommitted changes, November 7; hashes in the install receipt | `/dev/cu.wchusbserial57700003341` |
 
-Both antennas are owner-confirmed, and on November 5 both boards read region US in mesh mode. On November 7 the Heltec read `v0.10.0` and Open mode, which protects nothing. The T-Beam's port was held by another program, so it was not read that day; it was last left in Open mode. Settings change often during testing, so always read the current settings from the device rather than relying on this page.
+Both antennas are owner-confirmed, and on November 5 both boards read region US in mesh mode. On November 7 both boards read Open mode, which protects nothing. Settings change often during testing, so always read the current settings from the device rather than relying on this page.
 
 ## What works, and how it was verified
 
@@ -34,7 +34,8 @@ Both antennas are owner-confirmed, and on November 5 both boards read region US 
 | Area | Implemented | Verified on hardware | Not yet verified |
 | --- | --- | --- | --- |
 | USB and configuration | Versioned handshake, capability gates, compare-and-set revisions, atomic NVS storage, startup retries, query-only recovery | Native browser saves and reconnects; lost reply, duplicate and reset recovery | Power cut, arbitrary cable removal, long soak |
-| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut; screen timeout and wake-on-message set from the portal; T-Beam battery percent and plugged-in indicator; Heltec calibrated battery-rail voltage and icon; reset reason on Debug in `v0.6.1`; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and 30 s timeout; battery percent with a battery fitted; bolt and `USB` when plugged in with no battery. Screen settings saved, read back and kept across a reboot over USB on both boards. Owner confirmed on the Heltec: a 10 s timeout and wake on a message from the T-Beam; battery icon and voltage visible after the `v0.6.1` install | Heltec voltage accuracy against a meter and battery-only behavior; the portal's Screen page in a native browser; Heltec page gestures; induced I2C faults; LED not built yet |
+| Device screen and buttons | Startup icon and title, main/nodes/debug pages, button gestures, T-Beam PWR shortcut; screen timeout and wake-on-message set from the portal; T-Beam battery percent and plugged-in indicator; Heltec calibrated battery-rail voltage and icon; reset reason on Debug in `v0.6.1`; bounded, fail-closed driver | Owner confirmed on the T-Beam: startup, pages, all gestures, PWR and 30 s timeout; battery percent with a battery fitted; bolt and `USB` when plugged in with no battery. Screen settings saved, read back and kept across a reboot over USB on both boards. Owner confirmed on the Heltec: a 10 s timeout and wake on a message from the T-Beam; battery icon and voltage visible after the `v0.6.1` install | Heltec voltage accuracy against a meter and battery-only behavior; the portal's Screen page in a native browser; Heltec page gestures; induced I2C faults |
+| Status LED | Pulse on radio activity, slow blink for waiting messages, and an on/off setting in the portal, stored in record 8 (D53), in `v0.11.0` | On both boards over USB: the setting saved off and on, each kept across a restart, with other settings unchanged. 1,024-byte messages cross in both directions with a destination ACK on this build. On the T-Beam, the owner saw the red light flash on sending and on receiving, blink for a waiting message, and stop on a button press | **The light on the Heltec**, though the schematic confirms its pin and level; the toggle in a native browser (clicked against the simulated device) |
 | Messages | 1,024-byte UTF-8 messages, bounded queue, explicit outcomes, inbox, browser journal | Bidirectional direct delivery with destination ACK between the two boards | Extended loss and latency; field use |
 | Mesh relay | Bounded managed-flooding core with hop limits and duplicate suppression | Host topology and fault tests only | **Any real relay**: needs a third board |
 | Radio | Radio version 2 frames (D50, Open mode). Pinned Semtech SX1262 driver, first-party SX1276 driver, shared airtime budget, DMA SPI; low, medium and high power with T-Beam boost in `v0.4.0` | Probe, receive, 7-fragment transmit, direct two-board delivery at every power level and with T-Beam boost; setting kept across a reset | Range, coexistence, measured spectrum and output power; the portal's power control in a native browser (clicked against the simulator) |
@@ -67,10 +68,9 @@ New portal features are paused (November 3) until these pass; see the
 
 ## Automated checks
 
-`npm run check` passes all 377 tests on macOS as of November 7 (strict TypeScript,
-generated-schema and vendor checks, compiler-backed host tests and the web build). On November 5,
-the last firmware change, the standalone firmware CTest suite passed 125 tests and both board target
-builds passed. CI runs the host checks, the CTest
+`npm run check` passes all 382 tests on macOS as of November 7 (strict TypeScript,
+generated-schema and vendor checks, compiler-backed host tests and the web build). The
+standalone firmware CTest suite passes 127 tests. Both board target builds pass. CI runs the host checks, the CTest
 suite, both firmware target builds and shell script lint; see
 [Development and CI](../contributing/development.md).
 
@@ -80,7 +80,7 @@ suite, both firmware target builds and shell script lint; see
 - More than one device at a time in the browser (needs per-device journaling).
 - Executable portal plugins and integrations such as Weather Radar, ADS-B and APRS (needs a
   plugin isolation decision first).
-- LED indication and processor sleep modes (Phase 4).
+- Processor sleep modes (Phase 4).
 - EU transmission, other boards. The mobile app is built and tested outside this repository, so no iOS or Android results are recorded here (D48).
 - Signed releases, automatic rollback and a published support policy.
 - The rest of the trusted-device security model (D50, approved November 4). Steps 1 and 2a are built and pass on two boards; see [Security architecture](../contributing/security-architecture.md). Not built: rekeying and relay status (step 2b), background delivery in the mobile app (step 3), identity and private direct messages (step 4), channel rotation (step 5), the full team flows in the portal (step 6; a first version is built, D51, and passes on two boards over USB), and the host key and release hardening (step 7). An independent security review has not started.

@@ -75,6 +75,14 @@ the earlier applicable format; any other choice writes record 7. Readers accept 
 level above 2 fails closed without erasing. Firmware that reads only records 1–6 fails closed on a
 record 7 after a downgrade.
 
+## Status LED record 8
+
+Record 8 (`v0.11.0`, D53) keeps the complete record 7 layout and adds one byte before the CRC: 1 for
+LED on, 0 for off. The maximum record is 204 bytes. Readers accept records 1–8, and any other value
+fails closed without erasing. An LED left on keeps writing the earlier applicable format, so a board
+that never turns it off keeps its current record. Firmware that reads only records 1–7 fails closed
+on a record 8 after a downgrade, so turn the LED back on before installing earlier firmware.
+
 ## Boot counter
 
 The application keeps a 4-byte boot counter in `reaper_nvs` under the key `boot`, separate from the configuration record, and raises it once per boot before the radio can transmit (D50). A read, write or commit failure, or a counter at its maximum, returns zero, and the radio then transmits nothing. The counter is not part of configuration revisions or snapshots. A board with no saved counter starts from a random value, so erasing the partition does not repeat old message IDs. See [radio protocol](radio-protocol.md#identity-and-boot-counter).

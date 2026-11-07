@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readScreen, screenFields, validScreen } from '../../packages/protocol/screen-config.ts';
+import {
+  ledFields,
+  readLed,
+  readScreen,
+  screenFields,
+  validScreen,
+} from '../../packages/protocol/screen-config.ts';
 import { Connection } from '../../packages/agent-core/connection.ts';
 import { deviceCapabilities } from './capabilities.ts';
 import { decodeMessage, encodeMessage, type Message } from '../../packages/protocol/messages.ts';
@@ -108,6 +114,47 @@ test('invalid screen settings from a supporting device close the connection', ()
   const agent = ready({ screenVersion: 1, features: 7 | 512 }, { screenTimeout: 5, screenWake: 0 });
   assert.notEqual(agent.sync.state, 'ready');
   assert.equal(agent.sync.config, undefined);
+});
+
+test('the LED setting needs feature bit 17, and base edits leave it alone', () => {
+  const unsupported = ready({ features: 7 }, { ledEnabled: 0 });
+  assert.equal(unsupported.supportsLed, false);
+  assert.equal(unsupported.sync.config?.led, undefined);
+  assert.throws(() => unsupported.configure({ region: 'US', label: '', led: false }, 0), /LED/);
+
+  const agent = ready({ features: 7 | 131072 }, { ledEnabled: 1 });
+  assert.equal(agent.supportsLed, true);
+  assert.equal(agent.sync.config?.led, true);
+  agent.configure({ region: 'US', label: 'base edit' }, 0);
+  const [base] = sent(agent);
+  assert.equal(base.type === 'configure' && base.ledEnabled, undefined);
+});
+
+test('an LED setting is sent as asked, and an invalid one closes the connection', () => {
+  const agent = ready({ features: 7 | 131072 }, { ledEnabled: 1 });
+  agent.configure({ ...agent.sync.config!, led: false }, 0);
+  const [configure] = sent(agent);
+  assert.equal(configure.type === 'configure' && configure.ledEnabled, 0);
+  const bad = ready({ features: 7 | 131072 }, { ledEnabled: 2 });
+  assert.notEqual(bad.sync.state, 'ready');
+  assert.equal(bad.sync.config, undefined);
+  assert.deepEqual(ledFields(), {});
+  assert.deepEqual(ledFields(true), { ledEnabled: 1 });
+  assert.equal(readLed({}), undefined);
+  assert.equal(readLed({ ledEnabled: 0 }), false);
+});
+
+test('a journaled LED setting restores exactly and corrupt recovery data fails closed', () => {
+  const agent = ready({ features: 7 | 131072 }, { ledEnabled: 1 });
+  const id = agent.configure({ ...agent.sync.config!, led: false }, 0);
+  const journal = agent.exportJournal();
+  const entry = Connection.fromJournal(journal).commands.history.find(
+    item => item.command.id === id,
+  );
+  assert.equal(entry?.command.config.led, false);
+  const corrupt = JSON.parse(JSON.stringify(journal));
+  corrupt.commands.entries[0].command.config.led = 'off';
+  assert.throws(() => Connection.fromJournal(corrupt), /LED/);
 });
 
 test('journaled screen commands restore exactly and corrupt screen recovery data fails closed', () => {

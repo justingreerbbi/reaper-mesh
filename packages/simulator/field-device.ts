@@ -67,6 +67,7 @@ export class FieldDevice {
     longitude: fixed(-104.9903, 180),
     screenTimeout: 60,
     screenWake: 1,
+    ledEnabled: 1,
   };
   nodes: Node[] = [
     {
@@ -255,7 +256,7 @@ export class FieldDevice {
           maxVersion: 1,
           configSchema: 1,
           // Every feature through Bluetooth pairing, or only the read-only minimum.
-          features: this.readOnly ? 2 : 32767 | 65536,
+          features: this.readOnly ? 2 : 32767 | 65536 | 131072,
           maxPayload: 2048,
           receiptCapacity: 32,
           ownerCapacity: 8,

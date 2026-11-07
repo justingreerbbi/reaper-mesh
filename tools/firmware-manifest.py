@@ -45,10 +45,10 @@ manifest = {
         (root / "firmware/components/reaper_device/include/reaper/version.hpp").read_text(),
     )[0 if tbeam else -1],
     "radio_config_schema": 1,
-    "read_record_schemas": [1, 2, 3, 4, 5, 6],
+    "read_record_schemas": [1, 2, 3, 4, 5, 6, 7, 8],
     "usb_protocol": 1,
     "config_schema": 1,
-    "record_schema": 6,
+    "record_schema": 8,
     "radio_protocol": 2,
     "uart": {"baud": 115200, "tx_gpio": 1 if tbeam else 43, "rx_gpio": 3 if tbeam else 44},
     "radio": {

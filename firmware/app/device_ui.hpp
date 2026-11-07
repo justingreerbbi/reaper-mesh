@@ -66,6 +66,25 @@ class Screen {
   std::uint32_t latest_ = 0, seen_ = 0;
 };
 
+// Status LED policy (D53): a short pulse on radio activity and a slow blink while messages are
+// waiting. No hardware access: the board drives its pin with the result of update().
+class Indicator {
+ public:
+  static constexpr std::uint64_t kPulseMs = 60, kGapMs = 60, kSlowOnMs = 200, kSlowPeriodMs = 2000;
+  struct Input {
+    bool enabled = true;
+    std::uint32_t activity = 0;  // Radio frames sent and received; any change pulses the LED.
+    std::uint32_t latest = 0;    // Latest inbox sequence.
+    bool seen = false;           // A button was pressed or an agent is attached.
+  };
+  bool update(const Input& input, std::uint64_t now);
+
+ private:
+  bool started_ = false, pending_ = false;
+  std::uint32_t activity_ = 0, acknowledged_ = 0;
+  std::uint64_t pulse_end_ = 0;
+};
+
 struct NodeRow {
   const char* name = "";
   std::uint32_t age_s = 0;

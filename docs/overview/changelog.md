@@ -10,6 +10,24 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 7: status LED (`v0.11.0`), D53
+
+A status LED now pulses on radio activity and blinks slowly while messages wait, until a button is pressed or an agent attaches. The owner chose an on/off setting, on by default, which the portal shows as **Status light** on the Device screen page. The wire adds `ledEnabled` with feature bit 17, and storage adds record 8, written only while the LED is off. The radio format is unchanged. The firmware manifest's record schema also moves from 6 to 8, because it had not been updated for record 7.
+
+Evidence: `npm run check` passes 382 tests, the firmware CTest suite passes 127, formatting passes, and both boards build (application images of 577,248 bytes on the Heltec and 564,768 bytes on the T-Beam). New host tests cover the LED's timing, the setting's storage and recovery, and an agent refusing to write it without the feature bit. Three fixtures are appended and existing fixture bytes are unchanged. In the in-app browser against the simulated device, the toggle turned off, saved and stayed off with no console errors.
+
+Install: both boards took `v0.11.0` with all four images verified by ROM (`--allow-dirty`, on top of `6e6d723`). Over USB with a throwaway script, on each board, the setting saved off and read back off after the port reopened with a new boot, then saved on and read back on, with the other settings the same as at the start. Revisions moved from 60 to 62 on the Heltec and from 128 to 130 on the T-Beam. Both boards then read Open mode, and `hardware-pair-smoke` delivered 1,024-byte messages in both directions, each with a destination ACK and an exact inbox body. It does not qualify relay.
+
+The manufacturers' schematics confirm both pins and levels: on the Heltec, a white LED on GPIO35 lit by a high level, and on the T-Beam, a red LED on GPIO4 lit by a low level. The T-Beam also has a red GPS time-pulse light and a blue charge-output light, and the Heltec an orange charger light, none of which firmware controls.
+
+In the owner's first look nothing appeared to change, and the instructions had not said which light to watch. The screen stayed dark on a message because wake on message is off on both boards, which is correct. After a broadcast from the Heltec, the owner saw a red light behind the T-Beam's screen blinking, and a press of the middle button stopped it, which is the waiting-message behavior.
+
+The owner then saw the same red light flash when the T-Beam received a message and when it sent one. With both boards connected over USB, three broadcasts from the Heltec all reached the T-Beam's inbox.
+
+The owner reported that the first button press also stopped the T-Beam's GPS light, and later that this light flashes at random. The schematic shows it on the GPS module's time pulse, with GPIO37 as an input on the same line, and firmware drives neither. So it does not follow the status LED, and its stopping on that press was most likely a coincidence.
+
+Not confirmed: the white light on the Heltec, and the toggle in a native browser.
+
 ## November 7: Bluetooth cause and documentation review
 
 The owner reported the cause of the Heltec Bluetooth disconnects from November 4: a misaligned Bluetooth buffer in the mobile app that could break the connection. It was fixed in the app, in a session outside this repository. This is the owner's report. Nothing here reproduced the fault or tested the fix, and no firmware changed. The firmware's flow control from `v0.6.1` and `v0.6.2` stays in place.

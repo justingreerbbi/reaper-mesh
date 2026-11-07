@@ -207,9 +207,9 @@ int main(int argc, char** argv) {
     snapshot.settings.radio.channel_ids = {0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0xfffffffe};
     std::array<std::uint8_t, d::kMaxRecord> encoded{};
     std::size_t size = 0;
-    // Random-style IDs force record 6 and every earlier section: the largest possible record.
+    // Random-style IDs force record 6 and every earlier section. Only the LED byte is larger.
     CHECK(d::encode_record(snapshot, encoded.data(), encoded.size(), size) &&
-          size == d::kMaxRecord && encoded[2] == 6);
+          size == d::kMaxRecord - 1 && encoded[2] == 6);
     for (std::size_t n = 0; n < size; ++n) {
       d::Snapshot out{};
       CHECK(!d::decode_record(encoded.data(), n, out));
@@ -255,13 +255,20 @@ int main(int argc, char** argv) {
     CHECK(!d::decode_record(encoded.data(), size, loaded));
     reseal(0x83);
     CHECK(!d::decode_record(encoded.data(), size, loaded));
-    // The largest record is no larger than before.
+    // Record 7 is no larger than record 6, and record 8 adds only the LED byte.
     sample.settings.label = text<64>(std::string(64, 'x'));
     sample.settings.radio.channels =
         text<71>("Public|Channel1|Channel2|Channel3|Channel4|Channel5|Channel6|Channel7");
     sample.settings.radio.channel_ids = {0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0xfffffffe};
+    CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) &&
+          size == d::kMaxRecord - 1 && encoded[2] == 7);
+    sample.settings.led = false;
     CHECK(d::encode_record(sample, encoded.data(), encoded.size(), size) && size == d::kMaxRecord &&
-          encoded[2] == 7);
+          encoded[2] == 8);
+    d::Snapshot largest{};
+    CHECK(d::decode_record(encoded.data(), size, largest) && !largest.settings.led &&
+          largest.settings.radio.channel_ids[7] == 0xfffffffe);
+    sample.settings.led = true;
     // A level or boost value outside the range fails the configure message.
     auto invalid = command();
     invalid.has_radio = true;
@@ -508,6 +515,73 @@ int main(int argc, char** argv) {
     message.fields[p::kConfigureScreenWake] = {true, 1};
     CHECK(d::decode_command(message, parsed) && parsed.has_screen &&
           parsed.settings.screen.timeout == 10 && parsed.settings.screen.wake);
+    CHECK(authority.apply(parsed).outcome == d::Outcome::Committed);
+  } else if (scenario == "led") {
+    // The LED defaults on, and on keeps the earlier record format.
+    CHECK(authority.snapshot(snapshot) && snapshot.settings.led);
+    CHECK(authority.apply(command()).outcome == d::Outcome::Committed && store.data[2] == 1);
+    auto off = command(2, 1);
+    off.has_led = true;
+    off.settings.led = false;
+    CHECK(authority.apply(off).outcome == d::Outcome::Committed && store.data[2] == 8);
+    d::Configuration rebooted(store, text<64>("boot-B"));
+    CHECK(rebooted.snapshot(snapshot) && !snapshot.settings.led &&
+          snapshot.settings.screen.timeout == 30 &&
+          snapshot.settings.radio.level == reaper::mesh::TxLevel::Medium);
+    for (std::size_t n = 0; n < store.size; ++n)
+      CHECK(!d::decode_record(store.data.data(), n, snapshot));
+    // A write without the LED field preserves it, and every other section survives beside it.
+    auto other = command(3, 2, "other");
+    other.has_screen = other.has_position = other.has_discovery = other.has_radio = true;
+    other.settings.screen = {60, true};
+    other.settings.position = {true, 1, 900000000, 1800000000};
+    other.settings.discovery = {true, false, 120};
+    other.settings.radio.level = reaper::mesh::TxLevel::High;
+    other.settings.radio.channels = text<71>("Public|Camp||||||");
+    other.settings.radio.channel_ids = {0, 0x9c41e2a7, 0, 0, 0, 0, 0, 0};
+    CHECK(authority.apply(other).outcome == d::Outcome::Committed && store.data[2] == 8);
+    d::Configuration reloaded(store, text<64>("boot-C"));
+    CHECK(reloaded.snapshot(snapshot) && !snapshot.settings.led &&
+          snapshot.settings.screen.timeout == 60 && snapshot.settings.screen.wake &&
+          snapshot.settings.position.share && snapshot.settings.discovery.interval == 120 &&
+          snapshot.settings.radio.level == reaper::mesh::TxLevel::High &&
+          snapshot.settings.radio.channel_ids[1] == 0x9c41e2a7);
+    // An invalid stored flag fails closed.
+    auto corrupt = store;
+    corrupt.data[corrupt.size - 5] = 2;
+    const auto crc = p::crc32(corrupt.data.data(), corrupt.size - 4);
+    for (unsigned i = 0; i < 4; ++i)
+      corrupt.data[corrupt.size - 4 + i] = static_cast<std::uint8_t>(crc >> (8 * i));
+    CHECK(!d::decode_record(corrupt.data.data(), corrupt.size, snapshot));
+    // Turning it back on, with the other settings back at their defaults, leaves record 8.
+    auto on = command(4, 3, "on");
+    on.has_led = on.has_screen = on.has_position = on.has_discovery = on.has_radio = true;
+    CHECK(authority.apply(on).outcome == d::Outcome::Committed && store.data[2] == 1);
+    d::Configuration restored(store, text<64>("boot-D"));
+    CHECK(restored.snapshot(snapshot) && snapshot.settings.led);
+    // A framed command accepts only 0 or 1, and a repeat must match the original request.
+    p::Message message{};
+    message.type = p::MessageType::Configure;
+    const auto set = [](p::FieldValue& field, const std::string& value) {
+      field.present = true;
+      field.length = value.size();
+      std::memcpy(field.text.data(), value.data(), value.size());
+    };
+    set(message.fields[p::kConfigureLink], "link-A");
+    set(message.fields[p::kConfigureBoot], "boot-A");
+    set(message.fields[p::kConfigureId], "agent-A:5");
+    set(message.fields[p::kConfigureRegion], "US");
+    set(message.fields[p::kConfigureLabel], "led");
+    message.fields[p::kConfigureExpectedRevision] = {true, 4};
+    message.fields[p::kConfigureLedEnabled] = {true, 2};
+    d::Command parsed{};
+    CHECK(!d::decode_command(message, parsed));
+    message.fields[p::kConfigureLedEnabled] = {true, 0};
+    CHECK(d::decode_command(message, parsed) && parsed.has_led && !parsed.settings.led);
+    CHECK(authority.apply(parsed).outcome == d::Outcome::Committed);
+    auto repeat = parsed;
+    repeat.has_led = false;
+    CHECK(authority.apply(repeat).outcome == d::Outcome::Rejected);
     CHECK(authority.apply(parsed).outcome == d::Outcome::Committed);
   } else
     return 3;

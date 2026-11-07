@@ -134,6 +134,7 @@ def validate(path, allow_dirty=False):
             (4, [1, 2, 3, 4]),
             (5, [1, 2, 3, 4, 5]),
             (6, [1, 2, 3, 4, 5, 6]),
+            (8, [1, 2, 3, 4, 5, 6, 7, 8]),
         ],
         "unsupported configuration compatibility",
     )
