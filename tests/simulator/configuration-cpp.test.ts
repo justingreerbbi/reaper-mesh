@@ -54,6 +54,7 @@ const scenarios = {
   position: 'preserves opt-in position across legacy writes, reboot, failed and uncertain commits',
   discovery: 'persists discovery atomically and preserves it for legacy writes',
   screen: 'persists screen settings in record 5, preserves them for other writes and fails closed',
+  led: 'keeps the LED off in earlier records, stores on in record 8 and preserves it for other writes',
   radio: 'migrates radio settings, preserves them for legacy writes and enforces regional disable',
   levels:
     'keeps Medium in earlier records, loads their dBm as Medium and stores other levels in record 7',

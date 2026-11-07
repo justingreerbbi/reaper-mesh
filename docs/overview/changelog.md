@@ -10,6 +10,44 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 7: GCC build error in the firmware unit tests
+
+`network.cpp` compared a signed value with an unsigned one in `hear_proof`, from the `v0.10.0` rotation work. Apple clang accepts this, and GCC with `-Werror` does not, so the CI job that builds the firmware unit tests with GCC cannot pass with it. The comparison now uses an unsigned gap, and behavior is unchanged. No firmware was installed for this.
+
+Evidence: with Homebrew GCC 14 on macOS, using a shim for the system headers, the CMake build has no errors or warnings and passes all 127 tests, and the host suite passes all 382 with its sanitizer flags removed. The normal `npm run check` passes all 382 with Apple clang, and both boards build.
+
+Not tested: the CI run itself, because this session could not read the pull request's logs or push; Ubuntu's own GCC; AddressSanitizer, which stalls on this Mac; and Node 24.
+
+## November 7: status LED off by default (`v0.11.1`)
+
+At the owner's direction the LED is now off by default, which also turns off its startup flash, and **Status light** in the portal turns it on. Record 8 is now written only while the LED is on, and earlier records load as off, so a board that never turned it on needs no migration.
+
+Evidence: `npm run check` passes 382 tests, the firmware CTest suite passes 127, and both boards build. Both boards took `v0.11.1` with all four images verified by ROM (`--allow-dirty`, on top of `9e17ca9`). On each board over USB, the setting read off after the install, then saved on and off, each kept across a restart, with other settings the same. `hardware-pair-smoke` then delivered 1,024-byte messages in both directions, with a destination ACK and an exact inbox body.
+
+Not tested: the owner has not looked at the boards on this build, so seeing no light by default and the light returning once turned on are not confirmed. The toggle has still not been used in a native browser.
+
+## November 7: status LED (`v0.11.0`), D53
+
+A status LED now pulses on radio activity and blinks slowly while messages wait, until a button is pressed or an agent attaches. The owner chose an on/off setting, on by default, which the portal shows as **Status light** on the Device screen page. The wire adds `ledEnabled` with feature bit 17, and storage adds record 8, written only while the LED is off. The radio format is unchanged. The firmware manifest's record schema also moves from 6 to 8, because it had not been updated for record 7.
+
+Evidence: `npm run check` passes 382 tests, the firmware CTest suite passes 127, formatting passes, and both boards build (application images of 577,248 bytes on the Heltec and 564,768 bytes on the T-Beam). New host tests cover the LED's timing, the setting's storage and recovery, and an agent refusing to write it without the feature bit. Three fixtures are appended and existing fixture bytes are unchanged. In the in-app browser against the simulated device, the toggle turned off, saved and stayed off with no console errors.
+
+Install: both boards took `v0.11.0` with all four images verified by ROM (`--allow-dirty`, on top of `6e6d723`). Over USB with a throwaway script, on each board, the setting saved off and read back off after the port reopened with a new boot, then saved on and read back on, with the other settings the same as at the start. Revisions moved from 60 to 62 on the Heltec and from 128 to 130 on the T-Beam. Both boards then read Open mode, and `hardware-pair-smoke` delivered 1,024-byte messages in both directions, each with a destination ACK and an exact inbox body. It does not qualify relay.
+
+The manufacturers' schematics confirm both pins and levels: on the Heltec, a white LED on GPIO35 lit by a high level, and on the T-Beam, a red LED on GPIO4 lit by a low level. The T-Beam also has a red GPS time-pulse light and a blue charge-output light, and the Heltec an orange charger light, none of which firmware controls.
+
+In the owner's first look nothing appeared to change, and the instructions had not said which light to watch. The screen stayed dark on a message because wake on message is off on both boards, which is correct. After a broadcast from the Heltec, the owner saw a red light behind the T-Beam's screen blinking, and a press of the middle button stopped it, which is the waiting-message behavior.
+
+The owner then saw the same red light flash when the T-Beam received a message and when it sent one. With both boards connected over USB, three broadcasts from the Heltec all reached the T-Beam's inbox.
+
+The owner reported that the first button press also stopped the T-Beam's GPS light, and later that this light flashes at random. The schematic shows it on the GPS module's time pulse, with GPIO37 as an input on the same line, and firmware drives neither. So it does not follow the status LED, and its stopping on that press was most likely a coincidence.
+
+The owner then reported seeing no white flash on the Heltec, only the light on while it is plugged in. Its setting read on, and nothing else in the firmware uses GPIO35. To settle whether the light responds at all, the LED now stays lit for one second at startup, unless the setting is off. Both boards took this build under the same version, `v0.11.0`, with all four images verified by ROM, and host checks pass as above.
+
+The owner saw the white light come on at startup, which shows the LED and pin work. In a test of 12 direct messages from the T-Beam to the unconnected Heltec, about 12 seconds apart, the owner then saw the white light flashing. Eleven were acknowledged within the 9 seconds the test waited, and message 9 was still `transmitted` when it moved on, so its outcome was not recorded. The T-Beam's transmit count shows retries from message 9 on, and the cause was not looked into. Why the earlier look showed no flash is not established. A board connected to an agent shows only the brief pulses, which may be the reason.
+
+Not confirmed: the toggle in a native browser.
+
 ## November 7: Bluetooth cause and documentation review
 
 The owner reported the cause of the Heltec Bluetooth disconnects from November 4: a misaligned Bluetooth buffer in the mobile app that could break the connection. It was fixed in the app, in a session outside this repository. This is the owner's report. Nothing here reproduced the fault or tested the fix, and no firmware changed. The firmware's flow control from `v0.6.1` and `v0.6.2` stays in place.

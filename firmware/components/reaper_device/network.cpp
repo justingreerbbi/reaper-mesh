@@ -271,8 +271,10 @@ const char* Network::advance(std::uint32_t epoch, const crypto::Key& proof) {
 }
 bool Network::hear_proof(std::uint16_t epoch, const crypto::Key& proof, mesh::FrameLink& link,
                          std::uint64_t now) {
-  return epoch > record_.proven && epoch - record_.proven <= mesh::kEpochLookAhead &&
-         link.spend(epoch - record_.proven, now) && accept_proof(epoch, proof);
+  if (epoch <= record_.proven)
+    return false;
+  const std::uint32_t gap = epoch - record_.proven;
+  return gap <= mesh::kEpochLookAhead && link.spend(gap, now) && accept_proof(epoch, proof);
 }
 void Network::sync(mesh::FrameLink& link) {
   if (record_.mode != NetworkMode::Team)

@@ -13,7 +13,12 @@ import {
   type RadioConfig,
   type TxLevel,
 } from '../protocol/radio-config.ts';
-import { screenFields, validScreen, type ScreenConfig } from '../protocol/screen-config.ts';
+import {
+  ledFields,
+  screenFields,
+  validScreen,
+  type ScreenConfig,
+} from '../protocol/screen-config.ts';
 import * as recovery from './recovery-data.ts';
 import { Synchronizer, copyConfig, type Config } from './sync.ts';
 
@@ -140,6 +145,9 @@ export class Commands {
         screen = { timeout: recovery.u32(s.timeout), wake: s.wake as boolean };
         if (!validScreen(screen)) throw new Error('invalid screen recovery settings');
       }
+      const led = config.led;
+      if (led !== undefined && typeof led !== 'boolean')
+        throw new Error('invalid LED recovery setting');
       const command: ConfigCommand = Object.freeze({
         id: identity.id,
         boot,
@@ -151,6 +159,7 @@ export class Commands {
           ...(discovery ? { discovery } : {}),
           ...(radio ? { radio } : {}),
           ...(screen ? { screen } : {}),
+          ...(led !== undefined ? { led } : {}),
         }),
       });
       encodeMessage({
@@ -165,6 +174,7 @@ export class Commands {
         ...discoveryFields(discovery),
         ...radioFields(radio),
         ...screenFields(screen),
+        ...ledFields(led),
       } as import('../protocol/messages.ts').Message);
       const outcome = recovery.string(item.outcome);
       if (!['pending', 'unknown', 'committed', 'conflict', 'rejected'].includes(outcome))

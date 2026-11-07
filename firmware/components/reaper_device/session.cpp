@@ -149,7 +149,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
            23 | (messages_ ? 8 : 0) | (radio_ ? 32 : 0) | (inbox_ ? 64 : 0) |
                (discovery_ ? 384 : 0) | 512 | 1024 | 2048 |
                (radio_ && radio_->tx_boost ? 4096 : 0) | (pairing_ ? 8192 : 0) |
-               (network_ ? 16384 + 65536 : 0) | (inbox_ ? 32768 : 0));
+               (network_ ? 16384 + 65536 : 0) | (inbox_ ? 32768 : 0) | 131072);
     number(reply.fields[p::kWelcomeMaxPayload], p::kMaxPayload);
     number(reply.fields[p::kWelcomeReceiptCapacity], Configuration::kReceiptCapacity);
     number(reply.fields[p::kWelcomeOwnerCapacity], Configuration::kOwnerCapacity);
@@ -527,6 +527,7 @@ bool Session::handle(const p::Message& request, p::Message& reply) {
     }
     number(reply.fields[p::kSnapshotScreenTimeout], snapshot.settings.screen.timeout);
     number(reply.fields[p::kSnapshotScreenWake], snapshot.settings.screen.wake);
+    number(reply.fields[p::kSnapshotLedEnabled], snapshot.settings.led);
     synchronized_ = true;
     return true;
   }

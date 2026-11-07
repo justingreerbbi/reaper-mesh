@@ -218,6 +218,14 @@ changes. The 28 earlier fixtures are unchanged; three fixtures (welcome, configu
 are appended. Storage is record 5 ([persistence](persistence.md#screen-settings-record-5)). Screen
 behavior is in [device screen and buttons](device-display.md#screen-settings).
 
+## Status LED setting (D53)
+
+Welcome feature bit 17 (131072) means the device has a [status LED](device-display.md#status-led)
+setting. Configure, snapshot and event append `ledEnabled`: 1 on, 0 off, and a device starts with it off since `v0.11.1`. Omitting it from a configure
+preserves the device's value, so older agents keep working, and any other value is rejected. Agents
+write it only when bit 17 is set. It is board-local, so no radio packet changes. Storage is
+[record 8](persistence.md#status-led-record-8).
+
 ## Channel IDs v1 (D45)
 
 Welcome appends `channelIdVersion` 1 (tag 27) with feature bit 10 (1024). Configure, snapshot and

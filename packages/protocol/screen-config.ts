@@ -11,6 +11,15 @@ export function validScreen(value: ScreenConfig) {
 export function screenFields(value?: ScreenConfig) {
   return value ? { screenTimeout: value.timeout, screenWake: Number(value.wake) } : {};
 }
+/** Board-local status LED (D53). Omitting the field keeps the device's value. */
+export function ledFields(value?: boolean) {
+  return value === undefined ? {} : { ledEnabled: Number(value) };
+}
+export function readLed(value: { ledEnabled?: number }): boolean | undefined {
+  if (value.ledEnabled === undefined) return;
+  if (value.ledEnabled !== 0 && value.ledEnabled !== 1) throw new Error('invalid LED setting');
+  return value.ledEnabled === 1;
+}
 export function readScreen(value: {
   screenTimeout?: number;
   screenWake?: number;

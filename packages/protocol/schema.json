@@ -74,7 +74,8 @@
       "screenTimeout": "u32?",
       "screenWake": "u32?",
       "channelIds": "channelIds?",
-      "txBoost": "u32?"
+      "txBoost": "u32?",
+      "ledEnabled": "u32?"
     }
   },
   "event": {
@@ -101,7 +102,8 @@
       "screenTimeout": "u32?",
       "screenWake": "u32?",
       "channelIds": "channelIds?",
-      "txBoost": "u32?"
+      "txBoost": "u32?",
+      "ledEnabled": "u32?"
     }
   },
   "ping": {
@@ -143,7 +145,8 @@
       "screenTimeout": "u32?",
       "screenWake": "u32?",
       "channelIds": "channelIds?",
-      "txBoost": "u32?"
+      "txBoost": "u32?",
+      "ledEnabled": "u32?"
     }
   },
   "result": {

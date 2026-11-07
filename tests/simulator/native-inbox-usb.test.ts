@@ -379,6 +379,8 @@ test('screen settings cross TS/native USB, persist with the revision and reject 
   assert.ok(welcome.type === 'welcome' && (welcome.features ?? 0) & 512);
   const first = responses[1];
   assert.ok(first.type === 'snapshot' && first.screenTimeout === 30 && first.screenWake === 0);
+  assert.ok(welcome.type === 'welcome' && (welcome.features ?? 0) & 131072);
+  assert.ok(first.type === 'snapshot' && first.ledEnabled === 0);
   assert.equal(responses[2].type === 'result' && responses[2].outcome, 'committed');
   const saved = responses[3];
   assert.ok(saved.type === 'snapshot' && saved.screenTimeout === 60 && saved.screenWake === 1);

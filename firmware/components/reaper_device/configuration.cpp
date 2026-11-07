@@ -54,10 +54,10 @@ bool parse_ids(const protocol::FieldValue& field, std::array<std::uint32_t, 8>& 
   return true;
 }
 bool equal(const Settings& a, const Settings& b) {
-  return same_screen(a.screen, b.screen) && same_position(a.position, b.position) &&
-         a.region == b.region && equal(a.label, b.label) && equal(a.radio, b.radio) &&
-         a.discovery.beacon == b.discovery.beacon && a.discovery.respond == b.discovery.respond &&
-         a.discovery.interval == b.discovery.interval;
+  return same_screen(a.screen, b.screen) && a.led == b.led &&
+         same_position(a.position, b.position) && a.region == b.region && equal(a.label, b.label) &&
+         equal(a.radio, b.radio) && a.discovery.beacon == b.discovery.beacon &&
+         a.discovery.respond == b.discovery.respond && a.discovery.interval == b.discovery.interval;
 }
 bool identity(const Text<64>& value) {
   if (!value.length || value.length > 64)
@@ -204,7 +204,9 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   // Record 7 changes the meaning of the power byte (level and boost instead of dBm), so any
   // setting other than Medium without boost needs it. Earlier records load as Medium.
   const auto& tx = snapshot.settings.radio;
-  const bool levels = tx.level != mesh::TxLevel::Medium || tx.boost;
+  // Record 8 appends the LED flag; only an LED turned on needs it. Earlier records load as off.
+  const bool led = snapshot.settings.led;
+  const bool levels = led || tx.level != mesh::TxLevel::Medium || tx.boost;
   // Record 6 appends the slot channel IDs; IDs that match the slot numbers need no record 6.
   const bool ids = levels || snapshot.settings.radio.channel_ids !=
                                  legacy_channel_ids(snapshot.settings.radio.channels);
@@ -215,13 +217,22 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
   const bool extended = presence || !equal(snapshot.settings.radio, RadioSettings{});
   const auto length = 13 + snapshot.settings.label.length +
                       (extended ? 5 + snapshot.settings.radio.channels.length : 0) +
-                      (presence ? 5 : 0) + (position ? 10 : 0) + (screen ? 5 : 0) + (ids ? 32 : 0);
-  const std::size_t id_bytes = ids ? 32 : 0, tail = (screen ? 5 : 0) + id_bytes;
+                      (presence ? 5 : 0) + (position ? 10 : 0) + (screen ? 5 : 0) + (ids ? 32 : 0) +
+                      (led ? 1 : 0);
+  const std::size_t led_bytes = led ? 1 : 0, id_bytes = ids ? 32 : 0,
+                    tail = (screen ? 5 : 0) + id_bytes + led_bytes;
   if (capacity < length)
     return false;
   output[0] = 'R';
   output[1] = 'C';
-  output[2] = levels ? 7 : ids ? 6 : screen ? 5 : position ? 4 : presence ? 3 : extended ? 2 : 1;
+  output[2] = led        ? 8
+              : levels   ? 7
+              : ids      ? 6
+              : screen   ? 5
+              : position ? 4
+              : presence ? 3
+              : extended ? 2
+                         : 1;
   write32(output + 3, snapshot.revision);
   output[7] = static_cast<std::uint8_t>(snapshot.settings.region);
   output[8] = static_cast<std::uint8_t>(snapshot.settings.label.length);
@@ -250,13 +261,16 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
     write32(extra + 6, p.longitude);
   }
   if (screen) {
-    auto* extra = output + length - 9 - id_bytes;
+    auto* extra = output + length - 9 - id_bytes - led_bytes;
     write32(extra, snapshot.settings.screen.timeout);
     extra[4] = snapshot.settings.screen.wake;
   }
   if (ids)
     for (std::size_t slot = 0; slot < 8; ++slot)
-      write32(output + length - 36 + 4 * slot, snapshot.settings.radio.channel_ids[slot]);
+      write32(output + length - 36 - led_bytes + 4 * slot,
+              snapshot.settings.radio.channel_ids[slot]);
+  if (led)
+    output[length - 5] = snapshot.settings.led ? 1 : 0;
   write32(output + length - 4, protocol::crc32(output, length - 4));
   size = length;
   return true;
@@ -264,12 +278,13 @@ bool encode_record(const Snapshot& snapshot, std::uint8_t* output, std::size_t c
 
 bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output) {
   if (!data || size < 13 || size > kMaxRecord || data[0] != 'R' || data[1] != 'C' ||
-      (data[2] < 1 || data[2] > 7) || data[7] > 2 || data[8] > 64 ||
+      (data[2] < 1 || data[2] > 8) || data[7] > 2 || data[8] > 64 ||
       (data[2] == 1 && size != std::size_t(data[8]) + 13) ||
       read32(data + size - 4) != protocol::crc32(data, size - 4))
     return false;
   Snapshot next{};
-  const std::size_t id_bytes = data[2] >= 6 ? 32 : 0, tail = (data[2] >= 5 ? 5 : 0) + id_bytes;
+  const std::size_t led_bytes = data[2] >= 8 ? 1 : 0, id_bytes = data[2] >= 6 ? 32 : 0,
+                    tail = (data[2] >= 5 ? 5 : 0) + id_bytes + led_bytes;
   next.revision = read32(data + 3);
   next.settings.region = static_cast<Region>(data[7]);
   next.settings.label.assign(data + 9, data[8]);
@@ -304,16 +319,21 @@ bool decode_record(const std::uint8_t* data, std::size_t size, Snapshot& output)
     next.settings.position = {bool(extra[0]), extra[1], read32(extra + 2), read32(extra + 6)};
   }
   if (data[2] >= 5) {
-    const auto* extra = data + size - 9 - id_bytes;
+    const auto* extra = data + size - 9 - id_bytes - led_bytes;
     if (extra[4] > 1)
       return false;
     next.settings.screen = {read32(extra), extra[4] != 0};
   }
   if (id_bytes)
     for (std::size_t slot = 0; slot < 8; ++slot)
-      next.settings.radio.channel_ids[slot] = read32(data + size - 36 + 4 * slot);
+      next.settings.radio.channel_ids[slot] = read32(data + size - 36 - led_bytes + 4 * slot);
   else
     next.settings.radio.channel_ids = legacy_channel_ids(next.settings.radio.channels);
+  if (led_bytes) {
+    if (data[size - 5] > 1)
+      return false;
+    next.settings.led = data[size - 5] != 0;
+  }
   if (!settings_valid(next.settings))
     return false;
   output = next;
@@ -408,6 +428,13 @@ bool decode_command(const protocol::Message& message, Command& output) {
     next.has_screen = true;
     next.settings.screen = {timeout.number, wake.number != 0};
   }
+  const auto& led = message.fields[protocol::kConfigureLedEnabled];
+  if (led.present) {
+    if (led.number > 1)
+      return false;
+    next.has_led = true;
+    next.settings.led = led.number != 0;
+  }
   if (!valid(next))
     return false;
   output = next;
@@ -466,7 +493,7 @@ Result Configuration::apply(const Command& command) {
           previous.has_position != command.has_position ||
           previous.has_radio != command.has_radio ||
           previous.has_discovery != command.has_discovery ||
-          previous.has_screen != command.has_screen ||
+          previous.has_screen != command.has_screen || previous.has_led != command.has_led ||
           !equal(previous.settings, command.settings)) {
         return {Outcome::Rejected, snapshot_.revision};
       }
@@ -501,6 +528,8 @@ Result Configuration::apply(const Command& command) {
         next.settings.discovery = snapshot_.settings.discovery;
       if (!command.has_screen)
         next.settings.screen = snapshot_.settings.screen;
+      if (!command.has_led)
+        next.settings.led = snapshot_.settings.led;
       if (next.settings.region != Region::Us)
         next.settings.radio.mode = RadioMode::Off;
       std::array<std::uint8_t, kMaxRecord> record{};

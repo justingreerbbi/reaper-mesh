@@ -160,6 +160,18 @@ verified. Since `v0.6.1` the Heltec shows a measured battery-rail voltage and ic
 These features never change the radio protocol (D41). See
 [device screen and buttons](../reference/device-display.md).
 
+### D53. Status LED with an on/off setting
+Nov 7 · **Confirmed**. Owner direction, Phase 4. One LED gives a short pulse on radio activity and a
+slow blink while messages wait, cleared by a button press or an attached agent. The owner chose an
+on/off setting in the portal, on by default, because a lit LED can give away a radio's position and
+uses battery. It is a device setting because the LED must follow it with no agent connected, which an
+agent or plugin cannot do (D41). This is an owner-approved exception to the pause on portal features
+(D37), and it changes no radio frame. `ledEnabled` is additive and storage adds record 8. See
+[device screen and buttons](../reference/device-display.md#status-led).
+
+Nov 7 update (`v0.11.1`): at the owner's direction the LED is off by default, including its startup
+flash, and is turned on from the portal.
+
 ## Protocol and synchronization
 
 ### D17. Device is authoritative for configuration

@@ -161,6 +161,80 @@ int main(int argc, char** argv) {
     CHECK(s.unread() == 3 && !s.on());  // wake on message is off by default
     s.inbox(1, 6000);                   // inbox restarted
     CHECK(s.unread() == 0);
+  } else if (scenario == "led") {
+    Indicator led;
+    Indicator::Input in;
+    // It stays lit for a second from the first update, unless the setting is off.
+    in.activity = 40;
+    CHECK(led.update(in, 1000));
+    CHECK(led.update(in, 1000 + Indicator::kStartupMs - 1));
+    CHECK(!led.update(in, 1000 + Indicator::kStartupMs));
+    Indicator quiet;
+    Indicator::Input disabled;
+    disabled.enabled = false;
+    CHECK(!quiet.update(disabled, 1000));
+    disabled.enabled = true;
+    CHECK(!quiet.update(disabled, 1001));
+    // Counters that were already nonzero at the first update are not activity, so no pulse above.
+    // Activity gives one bounded pulse.
+    in.activity = 41;
+    CHECK(led.update(in, 2010));
+    CHECK(led.update(in, 2010 + Indicator::kPulseMs - 1));
+    CHECK(!led.update(in, 2010 + Indicator::kPulseMs));
+    CHECK(!led.update(in, 2010 + Indicator::kPulseMs + 500));
+    // Constant traffic stays readable as blinks: each pulse is followed by a dark gap.
+    std::uint64_t now = 3000;
+    bool last = false;
+    unsigned rises = 0, longest_on = 0, on_for = 0, longest_off = 0, off_for = 0;
+    for (std::uint32_t tick = 0; tick < 200; ++tick, now += 10) {
+      ++in.activity;
+      const bool lit = led.update(in, now);
+      if (lit && !last)
+        ++rises;
+      on_for = lit ? on_for + 10 : 0;
+      off_for = lit ? 0 : off_for + 10;
+      longest_on = on_for > longest_on ? on_for : longest_on;
+      longest_off = off_for > longest_off ? off_for : longest_off;
+      last = lit;
+    }
+    CHECK(rises >= 15 && longest_on <= Indicator::kPulseMs && longest_off >= Indicator::kGapMs);
+    // A waiting message blinks slowly until a button is pressed or an agent attaches.
+    Indicator waiting;
+    Indicator::Input message;
+    CHECK(waiting.update(message, 0));
+    CHECK(!waiting.update(message, Indicator::kStartupMs));
+    message.latest = 3;
+    CHECK(waiting.update(message, 4000));
+    CHECK(!waiting.update(message, 4000 + Indicator::kSlowOnMs));
+    CHECK(waiting.update(message, 4000 + Indicator::kSlowPeriodMs));
+    message.seen = true;
+    CHECK(!waiting.update(message, 8000));
+    message.seen = false;
+    CHECK(!waiting.update(message, 10000));
+    message.latest = 4;
+    CHECK(waiting.update(message, 12000));
+    // An inbox that restarted lower does not leave a false waiting message.
+    message.latest = 3;
+    message.seen = true;
+    CHECK(!waiting.update(message, 14000));
+    message.seen = false;
+    message.latest = 1;
+    CHECK(!waiting.update(message, 16000));
+    // Turning the LED off keeps it dark at once and drops pending activity, without a pulse
+    // on turning back on. Messages that are still waiting blink again.
+    Indicator dark;
+    Indicator::Input off;
+    CHECK(dark.update(off, 0));
+    off.activity = 1;
+    CHECK(dark.update(off, 1100));
+    off.enabled = false;
+    CHECK(!dark.update(off, 1110));
+    off.activity = 2;
+    off.latest = 5;
+    CHECK(!dark.update(off, 4000));
+    off.enabled = true;
+    CHECK(!dark.update(off, 4300));
+    CHECK(dark.update(off, 6000));
   } else if (scenario == "settings") {
     Screen s;
     s.start(0);

@@ -3,6 +3,7 @@
 #include "key_partition.hpp"
 #include "status_display.hpp"
 #include "board_input.hpp"
+#include "board_led.hpp"
 #include "board_power.hpp"
 #include "device_ui.hpp"
 #include "ble_link.hpp"
@@ -130,6 +131,10 @@ static void run(void*) {
   display.begin();
   static BoardInput buttons;
   buttons.begin();
+  static BoardLed status_led;
+  status_led.begin();
+  static reaper::ui::Indicator indicator;
+  bool led_enabled = false;
   static BoardPower power;
   const auto reset_reason = static_cast<unsigned>(esp_reset_reason());
   static reaper::ui::ButtonGestures gestures;
@@ -183,7 +188,8 @@ static void run(void*) {
     radio_info.stack_free = uxTaskGetStackHighWaterMark(nullptr);  // ESP-IDF reports bytes.
     const auto now = esp_timer_get_time();
     const auto now_ms = static_cast<std::uint64_t>(now / 1000);
-    switch (gestures.sample(buttons.main_pressed(), now_ms)) {
+    const auto press = gestures.sample(buttons.main_pressed(), now_ms);
+    switch (press) {
       case reaper::ui::Press::Single:
         screen.input(reaper::ui::Input::Toggle, now_ms);
         break;
@@ -202,11 +208,20 @@ static void run(void*) {
       case reaper::ui::Press::None:
         break;
     }
-    if (buttons.take_next_page(now_ms))
+    const bool next_page = buttons.take_next_page(now_ms);
+    if (next_page)
       screen.input(reaper::ui::Input::NextPage, now_ms);
-    if (storage_ok)
+    if (storage_ok) {
       screen.settings(current.settings.screen.timeout * 1000ull, current.settings.screen.wake);
+      led_enabled = current.settings.led;
+    }
     screen.inbox(inbox.latest(), now_ms);
+    reaper::ui::Indicator::Input led_input;
+    led_input.enabled = led_enabled;
+    led_input.activity = static_cast<std::uint32_t>(radio_info.transmitted + radio_info.received);
+    led_input.latest = inbox.latest();
+    led_input.seen = press != reaper::ui::Press::None || next_page || links.attached(now_ms);
+    status_led.set(indicator.update(led_input, now_ms));
     const auto ble_status = ble.status(now_ms);
     if (ble_status.notice != reaper::ui::BleNotice::None)
       screen.attention(now_ms);

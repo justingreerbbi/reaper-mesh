@@ -77,6 +77,8 @@ inline bool same_screen(const ScreenSettings& a, const ScreenSettings& b) {
 }
 struct Settings {
   ScreenSettings screen{};
+  // Board-local status LED (D53), off by default. It never changes what the radio sends.
+  bool led = false;
   PositionSettings position{};
   DiscoverySettings discovery{};
   RadioSettings radio{};
@@ -92,7 +94,8 @@ struct Command {
   Text<64> boot{};
   std::uint32_t expected_revision = 0;
   Settings settings{};
-  bool has_radio = false, has_discovery = false, has_position = false, has_screen = false;
+  bool has_radio = false, has_discovery = false, has_position = false, has_screen = false,
+       has_led = false;
 };
 enum class Outcome { Committed, Conflict, Rejected, Unknown };
 struct Result {
@@ -101,7 +104,7 @@ struct Result {
 };
 enum class ReadStatus { Missing, Loaded, Failed };
 enum class CommitStatus { Committed, NotCommitted, Indeterminate };
-inline constexpr std::size_t kMaxRecord = 203;
+inline constexpr std::size_t kMaxRecord = 204;
 
 // Implementations must retain the prior complete record or the next complete record.
 // Committed means durably accepted; NotCommitted guarantees no change. Any ambiguous
