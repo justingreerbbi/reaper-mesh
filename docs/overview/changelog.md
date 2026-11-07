@@ -10,6 +10,16 @@ rather than repeating it.
 > entry says so. Local screenshots and reports referenced below live under ignored `build/`
 > paths and are not committed.
 
+## November 7: scanning a later code for the same team
+
+The portal decided whether a scanned code was the team a browser already had by comparing chains, and since key rotation (D52) those change every epoch. A teammate's code from a later epoch therefore looked like a different team: the portal offered to replace the team, and accepting erased the role and device key of every radio that browser had set up. The bug was found by reading the code while porting rotation to the mobile app, and was not reproduced in a browser.
+
+A team is now recognized by its proof seed and generation at any epoch. A code for the team a browser already has doesn't ask anything, keeps its radios and rotation interval, and takes the newer keys when its epoch is later. An older code changes nothing. A different team, including a different generation, still asks first.
+
+Evidence: two new host tests in `tests/simulator/team.test.ts` cover these cases through the vault. With the old comparison put back, both fail, and the later-epoch code comes back as a new team. `npm run check` passes all 384 tests and the web build.
+
+Not tested: a real browser, the camera scanner or any radio. The radio then catching up to the newer keys uses the existing rotation path and was not run here.
+
 ## November 7: GCC build error in the firmware unit tests
 
 `network.cpp` compared a signed value with an unsigned one in `hear_proof`, from the `v0.10.0` rotation work. Apple clang accepts this, and GCC with `-Werror` does not, so the CI job that builds the firmware unit tests with GCC cannot pass with it. The comparison now uses an unsigned gap, and behavior is unchanged. No firmware was installed for this.

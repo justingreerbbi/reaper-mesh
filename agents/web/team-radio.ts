@@ -1,5 +1,28 @@
-// Moving a radio onto this browser's team, apart from the page that drives it (D50, D51).
+// Joining a team and moving a radio onto it, apart from the pages that drive them (D50, D51, D52).
 import type { EncryptionVault, TeamRole } from './encryption.ts';
+import type { TeamKeys } from './team.ts';
+
+/**
+ * Saves a scanned team. A team's chains change every epoch and its proof seed doesn't, so a code for
+ * the team this browser already has can only move it forward: it keeps its radios and its interval,
+ * and only a different team needs the operator's approval, because saving one forgets those radios.
+ */
+export async function joinTeam(
+  vault: Pick<EncryptionVault, 'team' | 'setTeam' | 'advanceTeam'>,
+  keys: TeamKeys,
+  approve: (existing: TeamKeys | undefined) => Promise<boolean>,
+  now = Date.now(),
+) {
+  const existing = vault.team;
+  if (existing?.proofSeed === keys.proofSeed && existing.generation === keys.generation) {
+    if (keys.epoch > existing.epoch)
+      vault.advanceTeam({ ...keys, rotationHours: existing.rotationHours }, now);
+    return 'same-team';
+  }
+  if (!(await approve(existing))) return 'declined';
+  vault.setTeam(keys, now);
+  return 'joined';
+}
 
 export type TeamRadioLink = Readonly<{
   /** Whether the radio now shows this browser's team. */

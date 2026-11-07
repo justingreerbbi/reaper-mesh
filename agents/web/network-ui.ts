@@ -7,7 +7,7 @@ import { element, text } from './dom.ts';
 import { backPage, currentPage, isShowing, onPageChange, openPage } from './nav.ts';
 import { qrSvg } from './qr.ts';
 import { setTeamCodeHandler } from './channels-ui.ts';
-import { addRadioToTeam } from './team-radio.ts';
+import { addRadioToTeam, joinTeam } from './team-radio.ts';
 import {
   chainFingerprint,
   formatTeamInvite,
@@ -213,21 +213,17 @@ function leaveTeam() {
 
 async function joinFromCode(value: string) {
   const keys = parseTeamInvite(value);
-  const existing = team();
-  if (existing?.relayChain === keys.relayChain && existing.teamChain === keys.teamChain) {
-    openPage('network');
-    return;
-  }
-  const yes = await confirmSheet({
-    title: `Join ${keys.name}?`,
-    body: existing
-      ? `This replaces ${existing.name} in this browser. The keys are saved here, and your radio changes only when you add it.`
-      : 'The team keys are saved in this browser. Your radio changes only when you add it on the next page.',
-    confirm: 'Join team',
-  });
-  if (!yes) return;
-  vault().setTeam(keys);
-  aheadBy = advanceTries = 0;
+  const result = await joinTeam(vault(), keys, existing =>
+    confirmSheet({
+      title: `Join ${keys.name}?`,
+      body: existing
+        ? `This replaces ${existing.name} in this browser. The keys are saved here, and your radio changes only when you add it.`
+        : 'The team keys are saved in this browser. Your radio changes only when you add it on the next page.',
+      confirm: 'Join team',
+    }),
+  );
+  if (result === 'declined') return;
+  if (result === 'joined') aheadBy = advanceTries = 0;
   openPage('network');
 }
 

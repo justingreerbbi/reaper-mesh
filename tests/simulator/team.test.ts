@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { EncryptionVault } from '../../agents/web/encryption.ts';
 import { qrPixels, readQr } from '../../agents/web/qr.ts';
-import { addRadioToTeam } from '../../agents/web/team-radio.ts';
+import { addRadioToTeam, joinTeam } from '../../agents/web/team-radio.ts';
 import {
   EPOCH_LOOK_AHEAD,
   epochsAheadOfSchedule,
@@ -311,6 +311,86 @@ test('a team from before rotation is dropped, and the rest of the vault is kept'
   saved.record.team.proofSeed = 'nope';
   storage.setItem('reaper-mesh.crypto-vault.v1', JSON.stringify(saved));
   assert.throws(() => new EncryptionVault(storage), /damaged/);
+});
+
+test('a code for the team this browser has never asks, keeps its radios and only moves forward', async () => {
+  const storage = new MemoryStorage();
+  const vault = new EncryptionVault(storage);
+  const team = { ...newTeam('Alpha'), rotationHours: 6 };
+  vault.setTeam(team, 1000);
+  const { deviceKey } = vault.enrollTeamRadio('node-a', 'relay');
+  const asked: unknown[] = [];
+  const scan = (keys: typeof team, now: number) =>
+    joinTeam(
+      vault,
+      parseTeamInvite(formatTeamInvite(keys)),
+      async existing => {
+        asked.push(existing);
+        return true;
+      },
+      now,
+    );
+  const unchanged = async (keys: typeof team, expected: typeof team, advancedAt: number) => {
+    assert.equal(await scan(keys, 9000), 'same-team');
+    assert.deepEqual(vault.team, expected);
+    assert.equal(vault.teamAdvancedAt, advancedAt);
+  };
+
+  // The teammate's own interval travels in the code, and doesn't replace this browser's.
+  const theirs = { ...team, rotationHours: 48 };
+  await unchanged(theirs, team, 1000);
+
+  // A teammate's code from a later epoch has different chains, and is still this team.
+  const later = teamAtEpoch(theirs, 5);
+  assert.notEqual(later.relayChain, team.relayChain);
+  assert.equal(await scan(later, 2000), 'same-team');
+  const moved = { ...later, rotationHours: 6 };
+  assert.deepEqual(vault.team, moved);
+  assert.equal(vault.teamAdvancedAt, 2000);
+  assert.equal(vault.teamRadioRole('node-a'), 'relay');
+  assert.equal(vault.enrollTeamRadio('node-a', 'relay').deviceKey, deviceKey);
+
+  // A code from before then changes nothing, so a stale QR code can't undo a rotation.
+  await unchanged(teamAtEpoch(theirs, 2), moved, 2000);
+  await unchanged(theirs, moved, 2000);
+  await unchanged(later, moved, 2000);
+  assert.deepEqual(asked, []);
+
+  const reloaded = new EncryptionVault(storage);
+  assert.deepEqual(reloaded.team, moved);
+  assert.equal(reloaded.teamRadioRole('node-a'), 'relay');
+});
+
+test("a code for a different team asks first, and only then forgets this browser's radios", async () => {
+  const vault = new EncryptionVault(new MemoryStorage());
+  const answer = (yes: boolean, asked: unknown[]) => async (existing: unknown) => {
+    asked.push(existing);
+    return yes;
+  };
+  const none: unknown[] = [];
+  const team = newTeam('Alpha');
+  assert.equal(await joinTeam(vault, team, answer(true, none), 1000), 'joined');
+  assert.deepEqual(none, [undefined]);
+  assert.deepEqual(vault.team, team);
+  vault.enrollTeamRadio('node-a', 'member');
+
+  // A different generation is a different team, even with the same proof seed.
+  const others = [newTeam('Bravo'), { ...team, generation: 2 }];
+  for (const other of others) {
+    const asked: unknown[] = [];
+    assert.equal(await joinTeam(vault, other, answer(false, asked), 2000), 'declined');
+    assert.deepEqual(asked, [team]);
+    assert.deepEqual(vault.team, team);
+    assert.equal(vault.teamAdvancedAt, 1000);
+    assert.equal(vault.teamRadioRole('node-a'), 'member');
+  }
+
+  const asked: unknown[] = [];
+  assert.equal(await joinTeam(vault, others[0], answer(true, asked), 3000), 'joined');
+  assert.deepEqual(asked, [team]);
+  assert.deepEqual(vault.team, others[0]);
+  assert.equal(vault.teamAdvancedAt, 3000);
+  assert.equal(vault.teamRadioRole('node-a'), undefined);
 });
 
 test('a radio that refuses to become a relay keeps the role it really has', async () => {
