@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SDK = "735507283d5b2f9fb363a1901172dbd9e847945d"
+ESP32S3_BOARDS = ["Heltec WiFi LoRa 32 V3", "Heltec Wireless Stick V3"]
 OTADATA = 0x21A000
 FILES = {
     0: ("bootloader/bootloader.bin", 0x8000),
@@ -96,8 +97,9 @@ def validate(path, allow_dirty=False):
     manifest = json.loads(path.read_text())
     tbeam = manifest.get("board") == "LILYGO T-Beam V1.2"
     target = "esp32" if tbeam else "esp32s3"
+    # Both Heltec boards are an ESP32-S3FN8 with the same flash, layout and image format.
     require(
-        manifest.get("board") == ("LILYGO T-Beam V1.2" if tbeam else "Heltec WiFi LoRa 32 V3")
+        manifest.get("board") in (["LILYGO T-Beam V1.2"] if tbeam else ESP32S3_BOARDS)
         and manifest.get("target") == target,
         "wrong board/target",
     )

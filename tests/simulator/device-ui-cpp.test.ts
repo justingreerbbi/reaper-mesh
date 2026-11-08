@@ -39,6 +39,7 @@ for (const [scenario, description] of Object.entries({
   led: 'lights the LED at startup, pulses on activity, blinks for waiting messages and stays dark when off',
   settings: 'applies the stored timeout and wakes on a new message when enabled',
   render: 'draws every page within the frame, deterministically, for odd input',
+  compact: 'draws every 64 x 32 page and pairing state inside its corner, for odd input',
   ble: 'draws the pairing page over any page and wakes the screen for it',
   battery: 'draws the battery and plugged-in indicator top right and keeps the name clear',
 })) {

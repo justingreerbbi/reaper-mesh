@@ -67,7 +67,7 @@ Then run `npm run format` to rewrite files, or `npm run format:check` to check t
 | Host checks (Node 24, 25) | `npm ci --ignore-scripts` then `npm run check`: strict TypeScript, generated schema and vendor checks, compiler-backed host tests with sanitizers, Python updater tests and the web build |
 | Formatting | `npm run format:check` with the pinned Prettier, clang-format and ruff |
 | Firmware unit tests | Standalone CMake build of the portable firmware components with `-Werror`, the CTest suite and `codec_bridge selftest` |
-| Firmware build (heltec-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
+| Firmware build (heltec-v3, heltec-stick-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
 | Shell script lint | `shellcheck --severity=warning tools/*.sh` |
 | Pages site | After every job above passes: builds the portal and installer, validates both firmware builds with `tools/update-firmware.py`, and assembles the site. On `main` it uploads the site |
 | Deploy to GitHub Pages | On `main` only: publishes the site |
@@ -91,7 +91,7 @@ Every push to `main` that passes CI publishes two pages:
 
 How it works:
 
-1. The **Firmware build** jobs build both boards and keep the images as artifacts.
+1. The **Firmware build** jobs build every board and keep the images as artifacts.
 2. The **Pages site** job builds both apps with a relative base path (`--base ./`), so they work
    under `/reaper-mesh/` or any custom domain, then runs `node tools/build-site.ts
    --require-firmware`. That script validates each firmware build with

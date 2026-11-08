@@ -20,7 +20,7 @@ Bluetooth pairings and network keys.
 
 1. Open the installer: **<https://justingreerbbi.github.io/reaper-mesh/flash/>**, or
    **Device → Install or update firmware** in the web portal.
-2. **Choose your board** (Heltec V3 or T-Beam V1.2). Each shows the firmware version it will
+2. **Choose your board** (Heltec V3, Wireless Stick V3 or T-Beam V1.2). Each shows the firmware version it will
    install.
 3. Plug the board in with a USB **data** cable and close the web portal or anything else using
    it.
@@ -65,6 +65,7 @@ the ignored `.tools/` folder. It does not touch anything outside the repository.
 | Board | Build command | Manifest |
 | --- | --- | --- |
 | Heltec V3 | `bash tools/build-firmware.sh` | `build/heltec-v3/reaper-manifest.json` |
+| Wireless Stick V3 | `bash tools/build-firmware.sh heltec-stick-v3` | `build/heltec-stick-v3/reaper-manifest.json` |
 | T-Beam V1.2 | `bash tools/build-firmware.sh tbeam-v12` | `build/tbeam-v12/reaper-manifest.json` |
 
 The build writes a manifest that records each image's size, hash and flash address, the source

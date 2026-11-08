@@ -75,4 +75,4 @@ Keys are stored in a separate `nvs` partition at `0x210000` (32 KiB), added afte
 
 ## Boards without a screen
 
-Both supported boards have screens, so nothing else is built yet. The rules do not depend on the screen: pairing needs some physical action and some private way to show the passkey. [Pairing over USB](#pairing-over-usb) already provides both, so a board without a screen can use it. A board with no way to show a passkey must refuse to pair, not fall back to Just Works.
+Every supported board has a screen. The rules do not depend on it: pairing needs some physical action and some private way to show the passkey. [Pairing over USB](#pairing-over-usb) already provides both, so a board without a screen can use it. A board with no way to show a passkey must refuse to pair, not fall back to Just Works.

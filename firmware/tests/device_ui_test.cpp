@@ -306,6 +306,77 @@ int main(int argc, char** argv) {
     odd.name = "";
     render(s, odd, a);
     CHECK(count(a) > 300);  // falls back to the node ID
+  } else if (scenario == "compact") {
+    // The 64 x 32 layout (Wireless Stick V3) draws every page inside its corner of the frame.
+    const auto inside = [](const Frame& f) {
+      for (unsigned y = 0; y < kHeight; ++y)
+        for (unsigned x = 0; x < kWidth; ++x)
+          if (lit(f, x, y) && (x >= kCompactWidth || y >= kCompactHeight))
+            return false;
+      return true;
+    };
+    Screen s;
+    Frame f{};
+    auto status = sample();
+    s.start(0);
+    render_compact(s, status, f);
+    CHECK(inside(f) && count(f) > 150);  // startup icon
+    s.tick(2000);
+    render_compact(s, status, f);
+    CHECK(inside(f) && count(f) > 50);  // title
+    s.tick(3000);
+    Frame main{}, nodes{}, debug{};
+    render_compact(s, status, main);
+    s.input(Input::NextPage, 3100);
+    render_compact(s, status, nodes);
+    s.input(Input::NextPage, 3200);
+    render_compact(s, status, debug);
+    CHECK(inside(main) && inside(nodes) && inside(debug));
+    CHECK(count(main) > 80 && count(nodes) > 50 && count(debug) > 80);
+    CHECK(main != nodes && nodes != debug && main != debug);
+    // Extreme counters, long or empty names and every battery form stay inside and are stable.
+    Status odd = status;
+    odd.name = "a-very-long-device-name-that-will-not-fit";
+    odd.nodes = odd.rx = odd.tx = odd.revision = 4294967295u;
+    odd.rows[0].name = "";
+    odd.row_count = 5;
+    s.input(Input::Home, 3300);
+    for (const int battery : {-1, 0, 100})
+      for (const int millivolts : {0, -1, 3712, 4500}) {
+        odd.battery = battery;
+        odd.battery_mv = millivolts;
+        Frame a{}, b{};
+        render_compact(s, odd, a);
+        render_compact(s, odd, b);
+        CHECK(a == b && inside(a) && count(a) > 50);
+      }
+    odd.name = "";
+    render_compact(s, odd, f);
+    CHECK(inside(f) && count(f) > 50);  // falls back to the node ID
+    for (const auto page : {Input::NextPage, Input::NextPage}) {
+      s.input(page, 3400);
+      render_compact(s, odd, f);
+      CHECK(inside(f) && count(f) > 30);
+    }
+    // Every pairing state draws inside, differently, and the passkey shows its digits.
+    status.ble.name = "Reaper-1A2B";
+    status.ble.seconds = 4294967295u;
+    Frame previous{};
+    for (const auto notice :
+         {BleNotice::Open, BleNotice::Passkey, BleNotice::Full, BleNotice::Paired,
+          BleNotice::Failed, BleNotice::Forgotten, BleNotice::Unavailable}) {
+      status.ble.notice = notice;
+      render_compact(s, status, f);
+      CHECK(inside(f) && f != previous && count(f) > 20);
+      previous = f;
+    }
+    status.ble.notice = BleNotice::Passkey;
+    status.ble.passkey = 42;
+    render_compact(s, status, f);
+    const Frame low = f;
+    status.ble.passkey = 999999;
+    render_compact(s, status, f);
+    CHECK(f != low);
   } else if (scenario == "ble") {
     Screen s;
     Frame f{};

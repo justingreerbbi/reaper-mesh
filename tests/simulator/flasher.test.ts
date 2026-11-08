@@ -49,6 +49,15 @@ test('the firmware index accepts a published build', () => {
   assert.equal(versionOf(parsed.boards[0].firmware), 'v0.11.1');
 });
 
+test('the Wireless Stick V3 uses the Heltec ESP32-S3 layout', () => {
+  const stick = { ...heltec(), id: 'heltec-stick-v3', name: 'Heltec Wireless Stick V3' };
+  stick.firmware = 'heltec-stick-reaper-mesh-v0.11.1';
+  const parsed = parseIndex(index([heltec(), stick]));
+  assert.equal(parsed.boards[1].id, 'heltec-stick-v3');
+  assert.equal(versionOf(parsed.boards[1].firmware), 'v0.11.1');
+  assert.throws(() => parseIndex(index([{ ...stick, chip: 'ESP32' }])), /wrong chip/);
+});
+
 test('the firmware index refuses anything unexpected', () => {
   const cases: [string, (b: BoardBuild) => unknown][] = [
     ['unknown board', b => ({ ...b, id: 'other-board' })],

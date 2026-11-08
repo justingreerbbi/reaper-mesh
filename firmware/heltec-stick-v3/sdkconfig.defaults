@@ -1,0 +1,3 @@
+# Applied after ../heltec-v3/sdkconfig.defaults (see tools/build-firmware.sh): the Wireless Stick
+# V3 has the same ESP32-S3FN8, flash and partition layout as the WiFi LoRa 32 V3.
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../heltec-v3/partitions.csv"

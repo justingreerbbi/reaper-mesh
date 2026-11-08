@@ -50,6 +50,7 @@ spans the whole project.
 | `flasher` | `agents/flasher/` (the browser firmware installer) |
 | `firmware` | `firmware/components/` and changes shared by both boards |
 | `heltec` | `firmware/heltec-v3/` only |
+| `stick` | `firmware/heltec-stick-v3/` only |
 | `tbeam` | `firmware/tbeam-v12/` only |
 | `radio` | Radio drivers and the radio/mesh protocol |
 | `tools` | `tools/` (build, update, package, hardware smoke tests) |

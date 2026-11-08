@@ -1,6 +1,6 @@
 # Hardware
 
-Reaper Mesh runs on two inexpensive LoRa development boards. You need at least **two boards**
+Reaper Mesh runs on three inexpensive LoRa development boards. You need at least **two boards**
 to send messages between them, and **three** to test relaying.
 
 > [!WARNING]
@@ -10,16 +10,16 @@ to send messages between them, and **three** to test relaying.
 
 ## Supported boards
 
-| | Heltec WiFi LoRa 32 V3 | LILYGO T-Beam V1.2 |
-| --- | --- | --- |
-| **Good for** | The simplest, cheapest starting point | Battery use: it has a battery holder and a fuel gauge |
-| Processor | ESP32-S3 | ESP32 |
-| Radio chip | Semtech SX1262 | Semtech SX1276 |
-| Flash | 8 MB | 4 MB |
-| Screen | 0.96″ 128×64 OLED | Optional 128×64 OLED |
-| USB chip | CP2102 | CH9102 |
-| Battery display | Voltage | Percent, plus a plugged-in indicator |
-| Firmware target | `heltec-v3` | `tbeam-v12` |
+| | Heltec WiFi LoRa 32 V3 | Heltec Wireless Stick V3 | LILYGO T-Beam V1.2 |
+| --- | --- | --- | --- |
+| **Good for** | The simplest, cheapest starting point | Compact kits and cases: the smallest board, with a glanceable status screen | Battery use: it has a battery holder and a fuel gauge |
+| Processor | ESP32-S3 | ESP32-S3 | ESP32 |
+| Radio chip | Semtech SX1262 | Semtech SX1262 | Semtech SX1276 |
+| Flash | 8 MB | 8 MB | 4 MB |
+| Screen | 0.96″ 128×64 OLED | 0.49″ 64×32 OLED | Optional 128×64 OLED |
+| USB chip | CP2102 | CP2102 | CH9102 |
+| Battery display | Voltage | Voltage, read in the portal | Percent, plus a plugged-in indicator |
+| Firmware target | `heltec-v3` | `heltec-stick-v3` | `tbeam-v12` |
 
 Other boards, and other bands such as EU 868 MHz, are not supported yet. Adding a board needs a
 validated hardware profile and physical testing; see the [roadmap](../overview/roadmap.md).
@@ -34,12 +34,12 @@ validated hardware profile and physical testing; see the [roadmap](../overview/r
 
 ## Transmit power
 
-Power is set as low, medium or high, so the same setting works on both boards. Values are dBm at
+Power is set as low, medium or high, so the same setting works on every board. Values are dBm at
 the radio chip, before antenna gain. The default is medium.
 
 | Board | Low | Medium | High | With boost |
 | --- | ---: | ---: | ---: | --- |
-| Heltec V3 (SX1262) | −9 dBm | +7 dBm | +22 dBm | No boost |
+| Heltec V3 and Wireless Stick V3 (SX1262) | −9 dBm | +7 dBm | +22 dBm | No boost |
 | T-Beam V1.2 (SX1276, PA_BOOST) | +2 dBm | +10 dBm | +17 dBm | +5 / +13 / +20 dBm |
 
 Boost uses the SX1276's high-power mode, which the datasheet limits to a 1% duty cycle and a
@@ -64,7 +64,7 @@ The firmware never guesses the region from your computer's time zone.
 
 | Board | Main button | Other buttons |
 | --- | --- | --- |
-| Heltec V3 | **PRG** | RST resets the board |
+| Heltec V3 and Wireless Stick V3 | **PRG** | RST resets the board |
 | T-Beam V1.2 | The **middle** button (GPIO38) | A short **PWR** press goes to the next page; holding PWR about 6 s powers off. RST resets |
 
 On the main button: one press turns the screen on or off, two presses go to the next page, and
@@ -84,6 +84,24 @@ See [Device screen and buttons](../reference/device-display.md).
 
 The USB chip identifies a serial bridge, not the board revision, band or antenna. Check the
 board label and order details before transmitting.
+
+### Heltec Wireless Stick V3
+
+Wired like the WiFi LoRa 32 V3 for everything Reaper uses, so its build reuses the V3's board code:
+the same SX1262 pins (CS 8, SCK 9, MOSI 10, MISO 11, reset 12, busy 13, DIO1 14, 1.8 V TCXO,
+DIO2 as RF switch), PRG on GPIO0, battery sense on GPIO1 gated by GPIO37, the white LED on GPIO35
+and Vext on GPIO36. The differences:
+
+| Property | Value |
+| --- | --- |
+| Screen | 0.49″ 64×32 SSD1306 OLED on the V3's I2C pins (SDA 17, SCL 18, reset 21, Vext 36), confirmed on hardware. It shows a compact version of each page: name, radio state, battery, new messages, nodes, and the pairing passkey |
+| 32 kHz crystal | None; Reaper uses the internal clock on both Heltec boards |
+| Firmware name | `heltec-stick-reaper-mesh-v…` |
+| Radio gate | Set per unit in `board_profile.hpp`. Open on the development unit: the owner confirmed its US/915 MHz model and antenna on November 8, 2026 |
+
+Its chip and USB bridge are identical to the V3's, so neither the updater nor the browser installer
+can tell the two apart: choose the board you actually have. Installing the V3's image on it would
+work, but it would report itself as a WiFi LoRa 32 V3.
 
 ### LILYGO T-Beam V1.2
 
