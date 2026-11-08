@@ -10,12 +10,6 @@
 </p>
 
 <p align="center">
-  <a href="https://justingreerbbi.github.io/reaper-mesh/"><img src="https://img.shields.io/badge/Open_the_web_app-B2DDA3?style=for-the-badge&labelColor=0c0e0b" alt="Open the web app" height="34"></a>
-  &nbsp;
-  <a href="https://justingreerbbi.github.io/reaper-mesh/flash/"><img src="https://img.shields.io/badge/Install_firmware-27591A?style=for-the-badge&labelColor=0c0e0b" alt="Install firmware" height="34"></a>
-</p>
-
-<p align="center">
   <a href="#quick-start"><strong>Quick start</strong></a> ·
   <a href="docs/overview/how-it-works.md"><strong>How it works</strong></a> ·
   <a href="docs/guides/hardware.md"><strong>Hardware</strong></a> ·
@@ -33,6 +27,21 @@ accounts and no cloud.
 It is built for teams that need communication they can **depend on**: a deliberately small,
 stable firmware core, messages that tell you exactly how far they got, and new features added in
 the apps instead of the firmware, so your radios rarely need updating.
+
+<br>
+
+<h3 align="center">Get started in under a minute</h3>
+
+<p align="center">
+  <a href="https://justingreerbbi.github.io/reaper-mesh/"><img src="docs/assets/buttons/try-web-app.png" alt="Try the web app: runs in your browser, no radio needed" width="400"></a>
+  &nbsp;
+  <a href="https://justingreerbbi.github.io/reaper-mesh/flash/"><img src="docs/assets/buttons/install-firmware.png" alt="Install firmware: flash a Heltec V3 or T-Beam over USB" width="400"></a>
+</p>
+
+<p align="center">
+  <sub><strong>No hardware yet?</strong> Open the web app and choose <strong>Use simulated device</strong> to explore everything.<br>
+  <strong>Have a board?</strong> The installer flashes it in about a minute from Chrome, Edge or Brave. Nothing to download.</sub>
+</p>
 
 <br>
 
