@@ -351,7 +351,7 @@ void row_centered(Frame& f, unsigned r, const char* s) {
   text(f, width > kCompactWidth ? 0 : (kCompactWidth - width + 1) / 2, r * 8, s, 1, 10);
 }
 void compact_ble(Frame& f, const BleStatus& s) {
-  char buffer[16];
+  char buffer[32];
   switch (s.notice) {
     case BleNotice::Open:
       row_centered(f, 0, "PAIRING");
@@ -387,7 +387,7 @@ void compact_ble(Frame& f, const BleStatus& s) {
 }
 void compact_main(Frame& f, const Status& s) {
   row(f, 0, *s.name ? s.name : s.node);
-  char buffer[16];
+  char buffer[32];
   row(f, 1, s.radio);
   if (s.battery >= 0)
     std::snprintf(buffer, sizeof(buffer), "%d%%", s.battery);
@@ -403,7 +403,7 @@ void compact_main(Frame& f, const Status& s) {
   row(f, 3, buffer);
 }
 void compact_nodes(Frame& f, const Status& s) {
-  char buffer[16];
+  char buffer[32];
   std::snprintf(buffer, sizeof(buffer), "NODES %lu", static_cast<unsigned long>(s.nodes));
   row(f, 0, buffer);
   if (!s.row_count)
@@ -412,7 +412,7 @@ void compact_nodes(Frame& f, const Status& s) {
     row(f, 1 + static_cast<unsigned>(i), s.rows[i].name);
 }
 void compact_debug(Frame& f, const Status& s) {
-  char buffer[16];
+  char buffer[32];
   std::snprintf(buffer, sizeof(buffer), "REV %lu", static_cast<unsigned long>(s.revision));
   row(f, 0, buffer);
   std::snprintf(buffer, sizeof(buffer), "RX %lu", static_cast<unsigned long>(s.rx));
