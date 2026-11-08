@@ -27,7 +27,14 @@ export interface BoardBuild {
 export interface FirmwareIndex {
   built: string;
   boards: BoardBuild[];
+  /** License files that travel with the images, relative to the firmware folder. */
+  notices: string[];
 }
+
+/** Older indexes listed no notices; these always exist next to the images. */
+const BASE_NOTICES = ['notices/LICENSE', 'notices/NOTICE', 'notices/Semtech-Clear-BSD.txt'];
+/** Plain relative paths under notices/. No segment may start with a dot, so `..` can't escape. */
+const NOTICE_PATH = /^notices(?:\/[A-Za-z0-9_+-][A-Za-z0-9_.+-]*)+$/;
 
 /** What each supported board must look like. Anything else is refused before writing. */
 export const SUPPORTED: Record<string, { chip: string; flashSize: string; offsets: number[] }> = {
@@ -46,7 +53,12 @@ function fail(message: string): never {
 
 /** Validates the published index, so a damaged or unexpected file is refused, not used. */
 export function parseIndex(value: unknown): FirmwareIndex {
-  const index = value as { format?: unknown; built?: unknown; boards?: unknown };
+  const index = value as {
+    format?: unknown;
+    built?: unknown;
+    boards?: unknown;
+    notices?: unknown;
+  };
   if (!index || index.format !== 1 || typeof index.built !== 'string') fail('unsupported format');
   if (!Array.isArray(index.boards)) fail('missing boards');
   const boards = index.boards.map((raw: unknown): BoardBuild => {
@@ -79,7 +91,16 @@ export function parseIndex(value: unknown): FirmwareIndex {
     }
     return board;
   });
-  return { built: index.built, boards };
+  const notices = index.notices ?? BASE_NOTICES;
+  if (
+    !Array.isArray(notices) ||
+    notices.length > 500 ||
+    !notices.every(path => typeof path === 'string' && NOTICE_PATH.test(path)) ||
+    !BASE_NOTICES.every(path => notices.includes(path))
+  ) {
+    fail('invalid notices');
+  }
+  return { built: index.built, boards, notices: [...new Set(notices as string[])] };
 }
 
 /** `heltec-reaper-mesh-v0.11.1` → `v0.11.1`. */
@@ -203,4 +224,147 @@ export function md5Hex(data: Uint8Array): string {
   const out = new DataView(new ArrayBuffer(16));
   [a0, b0, c0, d0].forEach((word, i) => out.setUint32(i * 4, word, true));
   return [...new Uint8Array(out.buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** esptool's `--chip` value for an index chip name. */
+function esptoolChip(chip: string): string {
+  return chip.toLowerCase().replace('-', '');
+}
+
+/** The file name an image is saved as: the last part of its published path. */
+export function imageName(image: FirmwareImage): string {
+  return image.path.slice(image.path.lastIndexOf('/') + 1);
+}
+
+/** The README in a firmware download: what it is and how to write it without erasing settings. */
+export function downloadReadme(board: BoardBuild, installerUrl: string, repo: string): string {
+  const offsets = board.images
+    .map(image => `0x${image.offset.toString(16)} ${imageName(image)}`)
+    .join(' ');
+  return [
+    `Reaper Mesh firmware ${board.firmware}`,
+    `Board: ${board.name} (${board.chip}, ${board.flashSize} flash)`,
+    `Source: ${repo}/commit/${board.sourceCommit}${board.sourceDirty ? ' (with uncommitted changes)' : ''}`,
+    '',
+    'The easiest way to install it is the browser installer:',
+    installerUrl,
+    '',
+    'To write these files yourself, put the board in its bootloader (hold BOOT/PRG, tap RESET,',
+    'release BOOT) and run esptool 4.x from this folder:',
+    '',
+    `esptool.py --chip ${esptoolChip(board.chip)} --baud 460800 write_flash --flash_mode keep --flash_freq keep --flash_size keep ${offsets}`,
+    '',
+    'Write only these four images, at these offsets. Never erase the whole chip: the space between',
+    "them holds the board's settings, Bluetooth pairings and team keys.",
+    '',
+    "SHA256SUMS lists every file's SHA-256 hash. It detects corruption, not a malicious publisher:",
+    'releases are not signed yet. This is prototype firmware, not an RF certification.',
+    '',
+    'Reaper Mesh is licensed under Apache-2.0 (LICENSE, NOTICE). Third-party notices are in notices/.',
+    '',
+  ].join('\n');
+}
+
+/** A download's files: the four verified images, a README, the notices and SHA256SUMS. */
+export async function downloadFiles(
+  board: BoardBuild,
+  images: Uint8Array[],
+  notices: { path: string; data: Uint8Array }[],
+  installerUrl: string,
+  repo: string,
+): Promise<ZipEntry[]> {
+  const encoder = new TextEncoder();
+  const files: ZipEntry[] = board.images.map((image, i) => ({
+    name: imageName(image),
+    data: images[i],
+  }));
+  files.push({
+    name: 'README.txt',
+    data: encoder.encode(downloadReadme(board, installerUrl, repo)),
+  });
+  for (const notice of notices) {
+    // LICENSE and NOTICE sit at the top, as in tools/package-firmware.py; the rest stay in notices/.
+    const top = notice.path === 'notices/LICENSE' || notice.path === 'notices/NOTICE';
+    files.push({
+      name: top ? notice.path.slice('notices/'.length) : notice.path,
+      data: notice.data,
+    });
+  }
+  files.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const sums = [];
+  for (const file of files) sums.push(`${await sha256Hex(file.data)}  ${file.name}\n`);
+  files.push({ name: 'SHA256SUMS', data: encoder.encode(sums.join('')) });
+  return files.map(file => ({ name: `${board.firmware}/${file.name}`, data: file.data }));
+}
+
+export interface ZipEntry {
+  name: string;
+  data: Uint8Array;
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+export function crc32(data: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of data) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * A stored (uncompressed) zip archive. Every entry gets the same fixed date, so the same files
+ * always give the same bytes. Firmware images barely compress, so storing keeps this small.
+ */
+export function zip(entries: ZipEntry[]): Uint8Array {
+  const encoder = new TextEncoder();
+  const date = ((2026 - 1980) << 9) | (1 << 5) | 1; // 2026-01-01, 00:00
+  const parts: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = encoder.encode(entry.name);
+    const crc = crc32(entry.data);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(4, 20, true); // version needed
+    local.setUint16(6, 0x0800, true); // UTF-8 names
+    local.setUint16(12, date, true);
+    local.setUint32(14, crc, true);
+    local.setUint32(18, entry.data.length, true);
+    local.setUint32(22, entry.data.length, true);
+    local.setUint16(26, name.length, true);
+    const record = new DataView(new ArrayBuffer(46));
+    record.setUint32(0, 0x02014b50, true);
+    record.setUint16(4, (3 << 8) | 20, true); // made by Unix, so the mode below applies
+    record.setUint16(6, 20, true);
+    record.setUint16(8, 0x0800, true);
+    record.setUint16(14, date, true);
+    record.setUint32(16, crc, true);
+    record.setUint32(20, entry.data.length, true);
+    record.setUint32(24, entry.data.length, true);
+    record.setUint16(28, name.length, true);
+    record.setUint32(38, (0o100644 << 16) >>> 0, true);
+    record.setUint32(42, offset, true);
+    parts.push(new Uint8Array(local.buffer), name, entry.data);
+    central.push(new Uint8Array(record.buffer), name);
+    offset += 30 + name.length + entry.data.length;
+  }
+  const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, entries.length, true);
+  end.setUint16(10, entries.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+  const all = [...parts, ...central, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(all.reduce((sum, part) => sum + part.length, 0));
+  let at = 0;
+  for (const part of all) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
 }

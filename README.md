@@ -35,7 +35,7 @@ the apps instead of the firmware, so your radios rarely need updating.
 <p align="center">
   <a href="https://justingreerbbi.github.io/reaper-mesh/"><img src="docs/assets/buttons/try-web-app.png" alt="Try the web app: runs in your browser, no radio needed" width="400"></a>
   &nbsp;
-  <a href="https://justingreerbbi.github.io/reaper-mesh/flash/"><img src="docs/assets/buttons/install-firmware.png" alt="Install firmware: flash a Heltec V3 or T-Beam over USB" width="400"></a>
+  <a href="https://justingreerbbi.github.io/reaper-mesh/flash/"><img src="docs/assets/buttons/install-firmware.png" alt="Install firmware: flash your board over USB" width="400"></a>
 </p>
 
 <p align="center">

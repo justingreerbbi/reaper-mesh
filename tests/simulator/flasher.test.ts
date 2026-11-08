@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import {
@@ -6,10 +7,14 @@ import {
   checkChip,
   checkEsp32Efuses,
   checkSecurityInfo,
+  crc32,
+  downloadFiles,
+  downloadReadme,
   md5Hex,
   parseIndex,
   verifyImage,
   versionOf,
+  zip,
 } from '../../agents/flasher/firmware.ts';
 
 const hash = (n: number) => n.toString(16).padStart(64, '0');
@@ -139,5 +144,123 @@ test('secured ESP32 boards are refused', () => {
     [0, 0, 1], // SECURE_VERSION set
   ]) {
     assert.ok(checkEsp32Efuses(word0, word6, secureVersion), `${word0} ${word6} ${secureVersion}`);
+  }
+});
+
+test('the firmware index lists the notices a download carries', () => {
+  // Older indexes had no list; the three top-level notices are always published.
+  assert.deepEqual(parseIndex(index([heltec()])).notices, [
+    'notices/LICENSE',
+    'notices/NOTICE',
+    'notices/Semtech-Clear-BSD.txt',
+  ]);
+  const listed = [
+    'notices/LICENSE',
+    'notices/NOTICE',
+    'notices/Semtech-Clear-BSD.txt',
+    'notices/esp-idf/components/newlib/COPYING.NEWLIB',
+  ];
+  assert.deepEqual(parseIndex({ ...index([heltec()]), notices: listed }).notices, listed);
+  for (const notices of [
+    'notices/LICENSE',
+    [...listed, 'notices/../index.json'],
+    [...listed, 'notices/esp-idf/.hidden'],
+    [...listed, '/etc/passwd'],
+    [...listed, 'heltec-v3/app.bin'],
+    [...listed, 7],
+    ['notices/LICENSE', 'notices/NOTICE'],
+  ]) {
+    assert.throws(
+      () => parseIndex({ ...index([heltec()]), notices }),
+      /invalid notices/,
+      String(notices),
+    );
+  }
+});
+
+test('the download README gives the esptool command without a chip erase', () => {
+  const heltecReadme = downloadReadme(heltec(), 'https://example.test/flash/', 'https://repo.test');
+  assert.match(
+    heltecReadme,
+    /esptool\.py --chip esp32s3 --baud 460800 write_flash --flash_mode keep --flash_freq keep --flash_size keep 0x0 bootloader\.bin 0x8000 partition-table\.bin 0x10000 reaper_mesh_usb\.bin 0x21a000 ota_data_initial\.bin\n/,
+  );
+  assert.doesNotMatch(heltecReadme, /erase_flash|--erase-all/);
+  assert.match(heltecReadme, /https:\/\/repo\.test\/commit\/0123456789abcdef/);
+  assert.doesNotMatch(heltecReadme, /uncommitted/);
+  const tbeam = {
+    ...heltec(),
+    id: 'tbeam-v12',
+    chip: 'ESP32',
+    sourceDirty: true,
+    images: heltec().images.map((image, i) => (i ? image : { ...image, offset: 0x1000 })),
+  };
+  const tbeamReadme = downloadReadme(tbeam, 'https://example.test/flash/', 'https://repo.test');
+  assert.match(tbeamReadme, /--chip esp32 .* 0x1000 bootloader\.bin /);
+  assert.match(tbeamReadme, /with uncommitted changes/);
+});
+
+test('crc32 matches the zip standard check value', () => {
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+  assert.equal(crc32(new Uint8Array()), 0);
+});
+
+test('a firmware download is a valid zip of the images, README, notices and hashes', async () => {
+  const board = heltec();
+  const images = board.images.map((_, i) => new Uint8Array(1000 + i * 37).fill(i + 1));
+  const encoder = new TextEncoder();
+  const notices = [
+    { path: 'notices/LICENSE', data: encoder.encode('Apache') },
+    { path: 'notices/NOTICE', data: encoder.encode('Reaper Mesh') },
+    { path: 'notices/esp-idf/LICENSE', data: encoder.encode('IDF') },
+  ];
+  const files = await downloadFiles(board, images, notices, 'https://x.test/', 'https://r.test');
+  const archive = zip(files);
+  assert.deepEqual(zip(files), archive, 'the same files give the same bytes');
+  // Python's zipfile checks the structure and every CRC, independently of this code.
+  const listing = execFileSync(
+    'python3',
+    [
+      '-I',
+      '-c',
+      [
+        'import hashlib, io, json, sys, zipfile',
+        'z = zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()))',
+        'assert z.testzip() is None',
+        'print(json.dumps({i.filename: [hashlib.sha256(z.read(i)).hexdigest(), i.external_attr >> 16, i.compress_type] for i in z.infolist()}))',
+      ].join('\n'),
+    ],
+    { input: archive, encoding: 'utf8' },
+  );
+  const entries = JSON.parse(listing) as Record<string, [string, number, number]>;
+  const folder = 'heltec-reaper-mesh-v0.11.1/';
+  assert.deepEqual(
+    Object.keys(entries).sort(),
+    [
+      'LICENSE',
+      'NOTICE',
+      'README.txt',
+      'SHA256SUMS',
+      'bootloader.bin',
+      'notices/esp-idf/LICENSE',
+      'ota_data_initial.bin',
+      'partition-table.bin',
+      'reaper_mesh_usb.bin',
+    ].map(name => folder + name),
+  );
+  const sha = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
+  assert.equal(entries[`${folder}reaper_mesh_usb.bin`][0], sha(images[2]));
+  assert.equal(entries[`${folder}ota_data_initial.bin`][0], sha(images[3]));
+  assert.equal(entries[`${folder}NOTICE`][0], sha(encoder.encode('Reaper Mesh')));
+  for (const [mode, method] of Object.values(entries).map(([, m, c]) => [m, c])) {
+    assert.equal(mode, 0o100644);
+    assert.equal(method, 0, 'stored');
+  }
+  // SHA256SUMS covers every other file.
+  const sums = files.find(file => file.name.endsWith('SHA256SUMS'));
+  assert.ok(sums);
+  const lines = new TextDecoder().decode(sums.data).trim().split('\n');
+  assert.equal(lines.length, files.length - 1);
+  for (const file of files.filter(f => f !== sums)) {
+    assert.ok(lines.includes(`${sha(file.data)}  ${file.name.slice(folder.length)}`), file.name);
   }
 });

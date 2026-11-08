@@ -30,13 +30,20 @@
 
       <p id="unsupported" class="notice" data-tone="bad" hidden>
         This browser can't talk to USB devices. Open this page in <strong>Chrome</strong>,
-        <strong>Edge</strong> or <strong>Brave</strong> on a computer.
+        <strong>Edge</strong> or <strong>Brave</strong> on a computer, or choose your board and
+        download the firmware to install it yourself.
       </p>
 
       <section class="card" aria-labelledby="board-title">
         <h2 id="board-title"><span class="step">1</span>Choose your board</h2>
         <p id="index-status" class="muted small">Loading available firmware…</p>
-        <div id="boards" class="boards" role="radiogroup" aria-labelledby="board-title"></div>
+        <select id="board" class="board-select" aria-labelledby="board-title" disabled>
+          <option value="">Loading boards…</option>
+        </select>
+        <p id="board-detail" class="board-detail small" hidden>
+          <span id="board-hint" class="muted"></span>
+          <span id="board-version" class="version"></span>
+        </p>
       </section>
 
       <section class="card" aria-labelledby="ready-title">
@@ -56,6 +63,9 @@
         <h2 id="install-title"><span class="step">3</span>Install</h2>
         <button id="install" class="primary wide" type="button" disabled>
           Choose a board first
+        </button>
+        <button id="download" class="text-link small" type="button" disabled>
+          Download firmware instead
         </button>
 
         <div id="progress" class="progress" hidden>

@@ -13,10 +13,12 @@ import {
   checkChip,
   checkEsp32Efuses,
   checkSecurityInfo,
+  downloadFiles,
   md5Hex,
   parseIndex,
   verifyImage,
   versionOf,
+  zip,
 } from './firmware.ts';
 
 const ROM_BAUD = 115200;
@@ -24,9 +26,11 @@ const FLASH_BAUD = 460800;
 const REPO = 'https://github.com/justingreerbbi/reaper-mesh';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const boardsEl = $('boards');
+const boardSelect = $<HTMLSelectElement>('board');
+const boardDetail = $('board-detail');
 const indexStatus = $('index-status');
 const installButton = $<HTMLButtonElement>('install');
+const downloadButton = $<HTMLButtonElement>('download');
 const progress = $('progress');
 const progressLabel = $('progress-label');
 const progressBar = $('progress-bar');
@@ -74,6 +78,8 @@ function showResult(tone: 'good' | 'bad', title: string, detail: string, portalL
 
 function refreshButton() {
   installButton.disabled = busy || !chosen || !serial;
+  // Downloading needs no USB access, so it works in any browser.
+  downloadButton.disabled = busy || !chosen;
   installButton.textContent = busy
     ? 'Installing…'
     : chosen
@@ -89,32 +95,32 @@ const BOARD_CHOICES = [
 ];
 
 function renderBoards() {
-  boardsEl.replaceChildren();
-  for (const { id, name: fallbackName, hint } of BOARD_CHOICES) {
+  const placeholder = new Option(index ? 'Select your board…' : 'Loading boards…', '');
+  placeholder.disabled = true;
+  const options = [placeholder];
+  for (const { id, name } of BOARD_CHOICES) {
     const build = index?.boards.find(board => board.id === id);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'board';
-    button.setAttribute('role', 'radio');
-    button.setAttribute('aria-checked', String(chosen?.id === id));
-    const name = document.createElement('strong');
-    name.textContent = build?.name ?? fallbackName;
-    const version = document.createElement('span');
-    version.className = 'version';
-    version.textContent = build ? versionOf(build.firmware) : 'Unavailable';
-    const detail = document.createElement('small');
-    detail.textContent = build ? hint : 'No firmware published for this board';
-    button.append(name, version, detail);
-    button.disabled = !build || busy;
-    button.addEventListener('click', () => {
-      chosen = build;
-      result.hidden = true;
-      renderBoards();
-      refreshButton();
-    });
-    boardsEl.append(button);
+    // The version shows under the list, so a long board name still fits on a phone.
+    const label = build ? build.name : `${name} (unavailable)`;
+    const option = new Option(label, id);
+    option.disabled = !build;
+    options.push(option);
   }
+  boardSelect.replaceChildren(...options);
+  boardSelect.value = chosen?.id ?? '';
+  boardSelect.disabled = !index || busy;
+  const choice = BOARD_CHOICES.find(board => board.id === chosen?.id);
+  boardDetail.hidden = !chosen;
+  $('board-hint').textContent = choice?.hint ?? '';
+  $('board-version').textContent = chosen ? chosen.firmware : '';
 }
+
+boardSelect.addEventListener('change', () => {
+  chosen = index?.boards.find(board => board.id === boardSelect.value);
+  result.hidden = true;
+  renderBoards();
+  refreshButton();
+});
 
 async function loadIndex() {
   try {
@@ -122,7 +128,7 @@ async function loadIndex() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     index = parseIndex(await response.json());
     indexStatus.textContent = index.boards.length
-      ? 'Pick the board you have. The installer checks it before writing anything.'
+      ? 'Select the board you have. The installer checks it before writing anything.'
       : 'No firmware has been published yet.';
     const first = index.boards[0];
     if (first) {
@@ -137,6 +143,7 @@ async function loadIndex() {
       );
     }
   } catch (error) {
+    index = undefined;
     indexStatus.textContent = `Couldn't load the firmware list (${(error as Error).message}). Reload to try again.`;
   }
   renderBoards();
@@ -266,7 +273,56 @@ async function install() {
   }
 }
 
+/** Saves the chosen build as a zip: the verified images, a README with the esptool command, notices. */
+async function downloadFirmware() {
+  const board = chosen;
+  if (!board || !index || busy) return;
+  busy = true;
+  result.hidden = true;
+  logEl.textContent = '';
+  renderBoards();
+  refreshButton();
+  try {
+    const images = (await download(board)).map(file => file.data);
+    setProgress('Adding licenses…', 0);
+    const notices = [];
+    for (const [i, path] of index.notices.entries()) {
+      const response = await fetch(`firmware/${path}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Couldn't download ${path} (HTTP ${response.status}).`);
+      notices.push({ path, data: new Uint8Array(await response.arrayBuffer()) });
+      setProgress('Adding licenses…', (i + 1) / index.notices.length);
+    }
+    const installerUrl = new URL('./', location.href).href;
+    const files = await downloadFiles(board, images, notices, installerUrl, REPO);
+    const name = `${board.firmware}.zip`;
+    const url = URL.createObjectURL(
+      new Blob([zip(files) as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    log(`Saved ${name} (${files.length} files)`);
+    progress.hidden = true;
+    showResult(
+      'good',
+      `Downloaded ${name}`,
+      "It holds the four images, checked against their published hashes, and a README with the esptool command to write them. Don't erase the whole chip: that deletes your settings and keys.",
+    );
+  } catch (error) {
+    log(`Stopped: ${error instanceof Error ? error.message : String(error)}`);
+    progress.hidden = true;
+    showResult('bad', 'Download stopped', error instanceof Error ? error.message : String(error));
+  } finally {
+    busy = false;
+    renderBoards();
+    refreshButton();
+  }
+}
+
 if (!serial) $('unsupported').hidden = false;
 installButton.addEventListener('click', () => void install());
+downloadButton.addEventListener('click', () => void downloadFirmware());
 refreshButton();
 void loadIndex();

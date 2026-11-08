@@ -22,6 +22,9 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Changed:** the firmware installer picks the board from a dropdown, and **Download firmware
+  instead** saves the chosen build as a zip with the images, an esptool command, hashes and
+  license notices. The README's install button no longer names specific boards.
 - **Added:** the Heltec Wireless Stick V3 as a supported board (D55), with its own
   `heltec-stick-v3` build, updater support, a CI build, and a choice in the browser installer. It
   reuses the WiFi LoRa 32 V3's board code, and its 0.49-inch 64 × 32 screen gets a compact version

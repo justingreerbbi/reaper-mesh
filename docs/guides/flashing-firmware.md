@@ -20,8 +20,8 @@ Bluetooth pairings and network keys.
 
 1. Open the installer: **<https://justingreerbbi.github.io/reaper-mesh/flash/>**, or
    **Device → Install or update firmware** in the web portal.
-2. **Choose your board** (Heltec V3, Wireless Stick V3 or T-Beam V1.2). Each shows the firmware version it will
-   install.
+2. **Choose your board** from the list (Heltec WiFi LoRa 32 V3, Wireless Stick V3 or T-Beam
+   V1.2). Each shows the firmware version it will install.
 3. Plug the board in with a USB **data** cable and close the web portal or anything else using
    it.
 4. Select **Connect and install**, pick the board's port in the browser's list, and keep it
@@ -33,6 +33,12 @@ flash encryption are off, the same checks as the command-line updater below. Aft
 board's bootloader confirms every image with an MD5 check, and the board restarts. Open the
 portal and connect to confirm the new version. The **Technical log** on the page shows every
 step.
+
+**Download firmware instead**, under the Install button, saves the chosen board's firmware as a
+zip, in any browser. It holds the same four images, checked against their published hashes, a
+`README.txt` with the `esptool.py write_flash` command and offsets, `SHA256SUMS`, and the license
+notices. Write only those four images: never erase the whole chip, which deletes the settings,
+pairings and keys.
 
 The installer's code is in `agents/flasher/`. To try a local copy with firmware you built, run
 `npm run build:site` and then `npm run preview:site`, and open

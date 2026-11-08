@@ -50,37 +50,26 @@
 .card p {
   margin: 12px 0 0;
 }
-.boards {
-  display: grid;
-  gap: 10px;
-}
-.board {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 4px 12px;
+.board-select {
   width: 100%;
-  min-height: 72px;
-  padding: 14px 18px;
-  border: 2px solid transparent;
-  border-radius: var(--radius-control);
-  background: var(--surface-raised);
-  text-align: left;
-}
-.board[aria-checked='true'] {
-  border-color: var(--accent);
-}
-.board strong {
+  min-height: 56px;
   font-size: 16px;
+  font-weight: 600;
 }
-.board .version {
-  grid-row: span 2;
+.board-detail {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 10px 4px 0;
+}
+.board-detail span {
+  white-space: nowrap;
+}
+.board-detail .version {
   font-family: var(--mono);
-  font-size: 13px;
   color: var(--accent);
-}
-.board small {
-  color: var(--text-muted);
+  white-space: nowrap;
 }
 .checklist {
   margin: 0;
@@ -90,6 +79,27 @@
 }
 button.wide {
   width: 100%;
+}
+/* "Download firmware instead": a quiet link under the install button, not a second button. */
+button.text-link {
+  display: block;
+  min-height: 0;
+  margin: 14px auto 0;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+button.text-link:hover:enabled {
+  background: none;
+  color: var(--accent);
+}
+button.text-link:disabled {
+  color: var(--text-faint);
+  text-decoration: none;
 }
 .progress {
   margin-top: 16px;

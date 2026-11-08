@@ -141,7 +141,11 @@ if (existsSync('build/notices/esp-idf/LICENSE')) {
   throw new Error('ESP-IDF license notices are missing (build/notices/esp-idf or .tools/esp-idf)');
 }
 
-const index = { format: 1, built: new Date().toISOString(), boards };
+// The installer's "Download firmware instead" bundles these with the images.
+const noticeFiles = listFiles(notices)
+  .map(file => relative(firmwareDir, file).split('\\').join('/'))
+  .sort();
+const index = { format: 1, built: new Date().toISOString(), boards, notices: noticeFiles };
 writeFileSync(join(firmwareDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
 console.log(`Site ready in ${site} with ${boards.length} firmware build(s).`);
 
@@ -155,4 +159,11 @@ function sdkNotices(dir: string): string[] {
     else if (/^(LICENSE|COPYING|NOTICE|COPYRIGHT)/.test(entry.name.toUpperCase())) found.push(path);
   }
   return found;
+}
+
+function listFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const path = join(dir, entry.name);
+    return entry.isDirectory() ? listFiles(path) : [path];
+  });
 }
