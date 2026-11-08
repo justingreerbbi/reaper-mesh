@@ -24,16 +24,18 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 - **Added:** the Heltec Wireless Stick Lite V3 as a supported board (D55), with its own
   `heltec-wsl-v3` build, updater support, a CI build, and a choice in the browser installer. It
-  reuses the WiFi LoRa 32 V3's board code and has no screen. Its radio stays off until the owner
-  confirms the unit's band and antenna.
+  reuses the WiFi LoRa 32 V3's board code and has no screen. Each unit's radio gate opens only once
+  the owner confirms its band and antenna.
 - **Verified:** installed on a Wireless Stick Lite V3 with the updater, with all four images
   verified by the ROM. Over USB the board reports `heltec-wsl-reaper-mesh-v0.11.1`, its SX1262
   probe passes (the factory demo's "Starting LoRa failed" was the demo, not the radio), a
   1,024-byte message is delivered locally to its inbox, and a setting saves, reads back on a new
   session and restores. Its partition table matches the V3's byte for byte.
-- **Not verified:** anything over the air, because the region is unset and the radio gate stays
-  closed until the board's band and antenna are confirmed; Bluetooth pairing; the LED, battery
-  voltage and buttons.
+- **Changed:** the owner confirmed the development unit is the US/915 MHz model with an antenna
+  attached, so its radio gate is open. With it open, the radio starts in listen-only mode and
+  returns to its mode with nothing transmitted.
+- **Not verified:** delivery over the air to or from another board; Bluetooth pairing; the LED,
+  battery voltage and buttons.
 - **Added:** the web portal and a browser firmware installer are published on GitHub Pages from
   every push to `main` (D54): <https://justingreerbbi.github.io/reaper-mesh/> and
   <https://justingreerbbi.github.io/reaper-mesh/flash/>. The installer serves the firmware CI

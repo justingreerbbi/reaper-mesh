@@ -97,7 +97,7 @@ and Vext on GPIO36. The differences:
 | Screen | None. Pair Bluetooth over USB in the portal, which shows the passkey |
 | 32 kHz crystal | None; Reaper uses the internal clock on both Heltec boards |
 | Firmware name | `heltec-wsl-reaper-mesh-v…` |
-| Radio gate | Closed until the owner confirms the unit's band and antenna in `board_profile.hpp` |
+| Radio gate | Set per unit in `board_profile.hpp`. Open on the development unit: the owner confirmed its US/915 MHz model and antenna on November 8, 2026 |
 
 Its chip and USB bridge are identical to the V3's, so neither the updater nor the browser installer
 can tell the two apart: choose the board you actually have. Installing the V3's image on it would

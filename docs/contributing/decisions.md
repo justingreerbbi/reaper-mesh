@@ -176,8 +176,8 @@ Nov 8 · **Confirmed**. Owner direction. The Wireless Stick Lite V3 is a support
 target, `heltec-wsl-v3`, and firmware name `heltec-wsl-reaper-mesh-v{semver}` (D8). It has the
 WiFi LoRa 32 V3's ESP32-S3FN8, flash, partition layout and SX1262 wiring, so the build reuses the
 V3's board files and SDK defaults; only the board profile and a screenless display differ. No
-protocol, storage or radio change (D41). Its radio gate stays closed until the owner confirms the
-unit's band and antenna. A board must not be installed as another board's image for real use: it
+protocol, storage or radio change (D41). The owner confirmed the development unit's US/915 MHz
+model and antenna on Nov 8, which opens its radio gate. A board must not be installed as another board's image for real use: it
 would report the wrong identity. A Heltec CubeCell HTCC-AB01 (ASR6501, 16 KB RAM) was checked the
 same day and cannot run Reaper: the firmware needs about 109 KB of RAM. See
 [Hardware](../guides/hardware.md#heltec-wireless-stick-lite-v3).
