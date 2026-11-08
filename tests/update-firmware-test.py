@@ -120,6 +120,14 @@ class UpdateTests(unittest.TestCase):
                     self.validate()
                 self.manifest[key] = old
 
+    def test_wireless_stick_lite_shares_the_heltec_esp32s3_layout(self):
+        self.manifest["board"] = "Heltec Wireless Stick Lite V3"
+        _, images = self.validate()
+        self.assertEqual(images[0x10000], esp_image())
+        self.manifest["target"] = "esp32"
+        with self.assertRaisesRegex(ValueError, "wrong board/target"):
+            self.validate()
+
     def test_paths_offsets_and_hashes(self):
         for key, value in [
             ("file", "../image.bin"),

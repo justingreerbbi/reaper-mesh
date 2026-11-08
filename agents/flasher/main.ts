@@ -81,9 +81,16 @@ function refreshButton() {
       : 'Choose a board first';
 }
 
+// Both Heltec boards have the same chip, so the installer can't tell them apart; the hint does.
+const BOARD_CHOICES = [
+  { id: 'heltec-v3', name: 'Heltec WiFi LoRa 32 V3', hint: 'ESP32-S3 · with a screen' },
+  { id: 'heltec-wsl-v3', name: 'Heltec Wireless Stick Lite V3', hint: 'ESP32-S3 · no screen' },
+  { id: 'tbeam-v12', name: 'LILYGO T-Beam V1.2', hint: 'ESP32 · battery holder' },
+];
+
 function renderBoards() {
   boardsEl.replaceChildren();
-  for (const id of ['heltec-v3', 'tbeam-v12']) {
+  for (const { id, name: fallbackName, hint } of BOARD_CHOICES) {
     const build = index?.boards.find(board => board.id === id);
     const button = document.createElement('button');
     button.type = 'button';
@@ -91,15 +98,12 @@ function renderBoards() {
     button.setAttribute('role', 'radio');
     button.setAttribute('aria-checked', String(chosen?.id === id));
     const name = document.createElement('strong');
-    name.textContent =
-      build?.name ?? (id === 'heltec-v3' ? 'Heltec WiFi LoRa 32 V3' : 'LILYGO T-Beam V1.2');
+    name.textContent = build?.name ?? fallbackName;
     const version = document.createElement('span');
     version.className = 'version';
     version.textContent = build ? versionOf(build.firmware) : 'Unavailable';
     const detail = document.createElement('small');
-    detail.textContent = build
-      ? `${build.chip} · ${build.flashSize} flash`
-      : 'No firmware published for this board';
+    detail.textContent = build ? hint : 'No firmware published for this board';
     button.append(name, version, detail);
     button.disabled = !build || busy;
     button.addEventListener('click', () => {

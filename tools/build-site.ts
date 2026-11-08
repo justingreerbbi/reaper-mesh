@@ -48,6 +48,7 @@ interface Manifest {
 
 const BOARDS = [
   { id: 'heltec-v3', chip: 'ESP32-S3' },
+  { id: 'heltec-wsl-v3', chip: 'ESP32-S3' },
   { id: 'tbeam-v12', chip: 'ESP32' },
 ];
 

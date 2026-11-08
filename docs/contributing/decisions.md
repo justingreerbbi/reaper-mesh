@@ -171,6 +171,17 @@ agent or plugin cannot do (D41). This is an owner-approved exception to the paus
 Nov 7 update (`v0.11.1`): at the owner's direction the LED is off by default, including its startup
 flash, and is turned on from the portal.
 
+### D55. Heltec Wireless Stick Lite V3 target
+Nov 8 · **Confirmed**. Owner direction. The Wireless Stick Lite V3 is a supported board with its own
+target, `heltec-wsl-v3`, and firmware name `heltec-wsl-reaper-mesh-v{semver}` (D8). It has the
+WiFi LoRa 32 V3's ESP32-S3FN8, flash, partition layout and SX1262 wiring, so the build reuses the
+V3's board files and SDK defaults; only the board profile and a screenless display differ. No
+protocol, storage or radio change (D41). Its radio gate stays closed until the owner confirms the
+unit's band and antenna. A board must not be installed as another board's image for real use: it
+would report the wrong identity. A Heltec CubeCell HTCC-AB01 (ASR6501, 16 KB RAM) was checked the
+same day and cannot run Reaper: the firmware needs about 109 KB of RAM. See
+[Hardware](../guides/hardware.md#heltec-wireless-stick-lite-v3).
+
 ## Protocol and synchronization
 
 ### D17. Device is authoritative for configuration

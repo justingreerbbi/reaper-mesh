@@ -32,6 +32,11 @@ export interface FirmwareIndex {
 /** What each supported board must look like. Anything else is refused before writing. */
 export const SUPPORTED: Record<string, { chip: string; flashSize: string; offsets: number[] }> = {
   'heltec-v3': { chip: 'ESP32-S3', flashSize: '8MB', offsets: [0x0, 0x8000, 0x10000, 0x21a000] },
+  'heltec-wsl-v3': {
+    chip: 'ESP32-S3',
+    flashSize: '8MB',
+    offsets: [0x0, 0x8000, 0x10000, 0x21a000],
+  },
   'tbeam-v12': { chip: 'ESP32', flashSize: '4MB', offsets: [0x1000, 0x8000, 0x10000, 0x21a000] },
 };
 

@@ -23,3 +23,6 @@ __pycache__/
 firmware/tbeam-v12/sdkconfig
 firmware/tbeam-v12/sdkconfig.old
 .claude/launch.json
+
+firmware/heltec-wsl-v3/sdkconfig
+firmware/heltec-wsl-v3/sdkconfig.old

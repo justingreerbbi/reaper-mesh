@@ -31,8 +31,11 @@ Presses are debounced for 30 ms. During the startup sequence, any button skips t
 | --- | --- | --- |
 | LILYGO T-Beam V1.2 | Middle button, GPIO38 (active low, board pull-up) | PWR short press: next page. Read from the AXP2101 power-key interrupt: enable INTEN2 `0x41` bit 3, poll INTSTS2 `0x49` bit 3 every 50 ms and clear it by writing 1. Holding PWR about 6 s still powers the board off in hardware. |
 | Heltec WiFi LoRa 32 V3 | PRG button, GPIO0 (active low, internal pull-up) | None |
+| Heltec Wireless Stick Lite V3 | PRG button, GPIO0, as on the WiFi LoRa 32 V3 | None |
 
-The RST button on both boards resets the processor.
+The RST button on every board resets the processor. The Wireless Stick Lite V3 has no screen: its
+display driver reports not ready and every draw does nothing, while the buttons, gestures and LED
+work as on the other boards.
 
 ## Screen
 
@@ -129,6 +132,7 @@ Each board has other lights that firmware does not control. From the manufacture
 | Board | Status LED | Lit by | Other lights |
 | --- | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 | White, LED2, on GPIO35 through 330 Ω | High | Orange, LED1, driven by the charger (`CHRG`) |
+| Heltec Wireless Stick Lite V3 | GPIO35, driven as on the WiFi LoRa 32 V3 | High | Check the board's schematic; not yet observed on hardware |
 | LILYGO T-Beam V1.2 | Red, LED_G5, on GPIO4 through 1 kΩ to 3.3 V | Low | Red, LED_G2, driven by the GPS module's time pulse; blue, LED_G4, on the AXP2101's `CHGLED` output |
 
 Sources: the [Heltec V3.2 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/WiFi_LoRa_32_V3.2_Schematic_Diagram.pdf)

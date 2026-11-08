@@ -54,7 +54,7 @@ the apps instead of the firmware, so your radios rarely need updating.
   of guessing or resending.
 - **Private when you need it.** Encrypted channels keep message text between key holders, and
   team networks keep outsiders from reading, sending or relaying on your network.
-- **Cheap, open hardware.** Runs on the Heltec WiFi LoRa 32 V3 and LILYGO T-Beam V1.2.
+- **Cheap, open hardware.** Runs on the Heltec WiFi LoRa 32 V3, Heltec Wireless Stick Lite V3 and LILYGO T-Beam V1.2.
 - **Open source.** Firmware, apps, protocol and docs, under the Apache 2.0 license.
 
 <br>
@@ -143,8 +143,8 @@ recover. The [Getting started guide](docs/guides/getting-started.md) walks you t
 
 ## Use real radios
 
-1. **Get two boards** (three to test relaying): a [Heltec WiFi LoRa 32 V3 or LILYGO T-Beam
-   V1.2](docs/guides/hardware.md), 915 MHz version, with antennas.
+1. **Get two boards** (three to test relaying): a [Heltec WiFi LoRa 32 V3, Wireless Stick Lite V3
+   or LILYGO T-Beam V1.2](docs/guides/hardware.md), 915 MHz version, with antennas.
 2. **Install the firmware** from your browser with the
    **[firmware installer](https://justingreerbbi.github.io/reaper-mesh/flash/)**: pick your board, plug it in, click Install.
    Prefer to build it yourself? See [Flashing firmware](docs/guides/flashing-firmware.md).
@@ -201,7 +201,7 @@ the firmware small, build features in the apps), commit format and the pull requ
 
 | Path | What's inside |
 | --- | --- |
-| [`firmware/`](firmware/) | Embedded C++17 components and the board applications (`heltec-v3`, `tbeam-v12`) |
+| [`firmware/`](firmware/) | Embedded C++17 components and the board applications (`heltec-v3`, `heltec-wsl-v3`, `tbeam-v12`) |
 | [`agents/web/`](agents/web/) | The web portal (TypeScript, Vite, Leaflet) |
 | [`agents/flasher/`](agents/flasher/) | The browser firmware installer (TypeScript, Vite, esptool-js) |
 | [`packages/protocol/`](packages/protocol/) | The protocol schema, generated bindings and frozen compatibility fixtures |
