@@ -32,7 +32,7 @@ ranges and security advisories, without forcing routine upgrades just to keep co
 | `firmware/components/` | Portable C++17 firmware components: `reaper_protocol` (codec, generated descriptors), `reaper_device` (session, configuration, messages, inbox, discovery), `reaper_mesh` (radio packets, mesh core, regional profiles, airtime budget), `reaper_radio` (vendored Semtech SX126x driver and first-party SX1276 driver) |
 | `firmware/app/` | Shared board application: entry point (`main.cpp`), NVS storage, mesh service, and the `radio_bus.hpp`/`status_display.hpp` interfaces each board implements |
 | `firmware/heltec-v3/` | ESP-IDF project for the Heltec V3 (ESP32-S3, SX1262): board profile, radio bus and display implementations, partitions and SDK defaults |
-| `firmware/heltec-wsl-v3/` | ESP-IDF project for the Heltec Wireless Stick Lite V3: reuses the V3's board files, with its own profile and no display (D55) |
+| `firmware/heltec-stick-v3/` | ESP-IDF project for the Heltec Wireless Stick V3: reuses the V3's board files, with its own profile and a compact layout for its 64 × 32 screen (D55) |
 | `firmware/tbeam-v12/` | ESP-IDF project for the T-Beam V1.2 (ESP32, SX1276, AXP2101): the same pieces for that board |
 | `examples/` | Working examples, organized by the path of the component they target (for example `examples/agents/web/plugins/field-survey/`). See [examples/README.md](../../examples/README.md) |
 | `tools/` | Protocol generator, vendor checks, firmware build/package/update tools and hardware smoke tests |

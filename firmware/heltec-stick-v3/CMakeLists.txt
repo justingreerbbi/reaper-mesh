@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 set(IDF_TARGET esp32s3)
-add_compile_definitions(REAPER_HELTEC_WSL_V3=1)
+add_compile_definitions(REAPER_HELTEC_STICK_V3=1 REAPER_DISPLAY_64X32=1)
 set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_protocol" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_device" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_crypto" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_mesh" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_radio")
 set(COMPONENTS main)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

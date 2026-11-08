@@ -36,7 +36,7 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 | Bluetooth | Physical-access pairing, LE Secure Connections only, four paired devices, Web Bluetooth in the portal | Pairing, connecting, messaging and reconnecting after a firmware install, from the portal (owner-reported) | A wrong passkey; effect on LoRa timing. Phone results belong to the mobile app's repository |
 | Device screen, buttons and LED | Startup screen, pages, button gestures, screen timeout, wake on message, battery display, status LED (off by default) | Confirmed by the owner on both boards; settings round trip and persist over USB | Heltec battery voltage against a meter; the LED toggle in a native browser |
 | Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins. Published on GitHub Pages from `main` (D54) | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location |
-| Wireless Stick Lite V3 target | `heltec-wsl-v3` build, updater, CI and browser installer support (D55) | Installed with the updater (all four images verified by the ROM). Five USB sessions; the board reports its own firmware name; SX1262 probe passes; 1,024-byte local delivery and inbox read; settings saved, read back on a new session and restored; the radio starts in listen-only mode and returns to its mode with nothing transmitted | Delivery to and from another board over the air; Bluetooth pairing over USB; the LED, battery voltage and button gestures; installing from the browser installer |
+| Wireless Stick V3 target | `heltec-stick-v3` build, updater, CI and browser installer support; compact 64 × 32 screen layout (D55) | Over the air with the T-Beam: direct both ways with acknowledgment, Public and channel broadcasts, invites, encryption, discovery both ways. Over USB: identity, SX1262 probe, local delivery, settings storage. The owner confirmed the compact screen shows content | Every compact page and the pairing passkey on screen; Bluetooth pairing; the LED, battery voltage and button gestures; installing from the browser installer |
 | Firmware updates | Manifest-checking USB updater that keeps settings and keys; a browser installer on GitHub Pages with the same checks (D54) | Many installs on both boards with the USB updater | **The browser installer on a real board**; interrupted flash, rollback, signed releases |
 
 ## Development boards
@@ -48,10 +48,10 @@ the current settings from the board rather than this table.
 | --- | --- | --- |
 | Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.11.1` | `/dev/cu.usbserial-0001` |
 | LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.11.1` | `/dev/cu.wchusbserial57700003341` |
-| Heltec Wireless Stick Lite V3 (ESP32-S3, SX1262, US/915) | `heltec-wsl-reaper-mesh-v0.11.1` | `/dev/cu.usbserial-0001` (the same name the Heltec V3 gets) |
+| Heltec Wireless Stick V3 (ESP32-S3, SX1262, US/915) | `heltec-stick-reaper-mesh-v0.11.1` | `/dev/cu.usbserial-0001` (the same name the Heltec V3 gets) |
 
 The Heltec V3 and T-Beam run local development builds on `9e17ca9` with uncommitted changes
-(November 7), and both antennas are owner-confirmed. The Wireless Stick Lite V3 runs a local
+(November 7), and both antennas are owner-confirmed. The Wireless Stick V3 runs a local
 development build of `02db7a5` with its radio gate opened (November 8); its US/915 model and
 antenna are owner-confirmed.
 

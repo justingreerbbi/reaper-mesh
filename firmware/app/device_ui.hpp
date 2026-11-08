@@ -125,4 +125,8 @@ struct Status {
   std::uint64_t uptime_s = 0;
 };
 void render(const Screen&, const Status&, Frame&);
+// The same pages for a 64 x 32 panel (Heltec Wireless Stick V3), drawn in the frame's top-left
+// corner: four rows of up to ten characters.
+inline constexpr unsigned kCompactWidth = 64, kCompactHeight = 32;
+void render_compact(const Screen&, const Status&, Frame&);
 }  // namespace reaper::ui

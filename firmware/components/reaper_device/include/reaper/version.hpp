@@ -3,8 +3,8 @@ namespace reaper::device {
 // Firmware images are named {device}-reaper-mesh-v{semver} (decision D8). 0.x is pre-release.
 #if defined(REAPER_TBEAM_V12)
 inline constexpr char kFirmwareVersion[] = "tbeam-reaper-mesh-v0.11.1";
-#elif defined(REAPER_HELTEC_WSL_V3)
-inline constexpr char kFirmwareVersion[] = "heltec-wsl-reaper-mesh-v0.11.1";
+#elif defined(REAPER_HELTEC_STICK_V3)
+inline constexpr char kFirmwareVersion[] = "heltec-stick-reaper-mesh-v0.11.1";
 #else
 inline constexpr char kFirmwareVersion[] = "heltec-reaper-mesh-v0.11.1";
 #endif

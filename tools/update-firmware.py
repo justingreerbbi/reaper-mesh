@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SDK = "735507283d5b2f9fb363a1901172dbd9e847945d"
-ESP32S3_BOARDS = ["Heltec WiFi LoRa 32 V3", "Heltec Wireless Stick Lite V3"]
+ESP32S3_BOARDS = ["Heltec WiFi LoRa 32 V3", "Heltec Wireless Stick V3"]
 OTADATA = 0x21A000
 FILES = {
     0: ("bootloader/bootloader.bin", 0x8000),

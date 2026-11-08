@@ -29,11 +29,11 @@ BOARDS = {
         "reset_gpio": 12,
         "display": HELTEC_DISPLAY,
     },
-    "heltec-wsl-v3": {
-        "name": "Heltec Wireless Stick Lite V3",
+    "heltec-stick-v3": {
+        "name": "Heltec Wireless Stick V3",
         "target": "esp32s3",
-        "prefix": "heltec-wsl-reaper-mesh-",
-        "profile": "firmware/heltec-wsl-v3/main/board_profile.hpp",
+        "prefix": "heltec-stick-reaper-mesh-",
+        "profile": "firmware/heltec-stick-v3/main/board_profile.hpp",
         "uart": (43, 44),
         "reset_gpio": 12,
         "display": None,

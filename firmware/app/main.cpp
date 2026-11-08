@@ -278,7 +278,11 @@ static void run(void*) {
         status.heap = radio_info.heap_free;
         status.stack = radio_info.stack_free;
         status.uptime_s = now_ms / 1000;
+#ifdef REAPER_DISPLAY_64X32
+        reaper::ui::render_compact(screen, status, frame);
+#else
         reaper::ui::render(screen, status, frame);
+#endif
         display.show(frame);
       }
     }

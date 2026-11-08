@@ -83,8 +83,8 @@ function refreshButton() {
 
 // Both Heltec boards have the same chip, so the installer can't tell them apart; the hint does.
 const BOARD_CHOICES = [
-  { id: 'heltec-v3', name: 'Heltec WiFi LoRa 32 V3', hint: 'ESP32-S3 · with a screen' },
-  { id: 'heltec-wsl-v3', name: 'Heltec Wireless Stick Lite V3', hint: 'ESP32-S3 · no screen' },
+  { id: 'heltec-v3', name: 'Heltec WiFi LoRa 32 V3', hint: 'ESP32-S3 · 0.96″ screen' },
+  { id: 'heltec-stick-v3', name: 'Heltec Wireless Stick V3', hint: 'ESP32-S3 · tiny 0.49″ screen' },
   { id: 'tbeam-v12', name: 'LILYGO T-Beam V1.2', hint: 'ESP32 · battery holder' },
 ];
 

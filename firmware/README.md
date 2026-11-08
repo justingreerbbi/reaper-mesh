@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF board applications (Heltec WiFi LoRa 32 V3, Heltec Wireless Stick Lite V3 and T-Beam V1.2). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); installing is covered in [Flashing firmware](../docs/guides/flashing-firmware.md).
+This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF board applications (Heltec WiFi LoRa 32 V3, Heltec Wireless Stick V3 and T-Beam V1.2). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); installing is covered in [Flashing firmware](../docs/guides/flashing-firmware.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Layout
@@ -9,7 +9,7 @@ This directory contains the portable C++17 protocol/configuration/session compon
 | --- | --- |
 | `components/` | Portable components shared by every board and by host tests |
 | `app/` | Shared board application: `main.cpp`, NVS storage, mesh service, Bluetooth link, device UI, and the `radio_bus.hpp`, `status_display.hpp`, `board_input.hpp` and `board_power.hpp` interfaces |
-| `heltec-v3/`, `heltec-wsl-v3/`, `tbeam-v12/` | One ESP-IDF project per board. `heltec-wsl-v3/` reuses `heltec-v3/main/`'s board files and adds its own profile and a screenless display, and its SDK defaults layer on the V3's: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's implementations of those interfaces; its `CMakeLists.txt` compiles them together with `app/` |
+| `heltec-v3/`, `heltec-stick-v3/`, `tbeam-v12/` | One ESP-IDF project per board. `heltec-stick-v3/` reuses `heltec-v3/main/`'s board files, adds its own profile, and builds the compact 64 × 32 display layout (`REAPER_DISPLAY_64X32`), and its SDK defaults layer on the V3's: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's implementations of those interfaces; its `CMakeLists.txt` compiles them together with `app/` |
 | `tests/` | Host tests and stubs for the standalone CMake/CTest build |
 
 Board differences that remain inside `app/` are selected with `REAPER_TBEAM_V12`. A new board gets its own project folder with a profile and the board implementations; it should not need to copy `app/`.

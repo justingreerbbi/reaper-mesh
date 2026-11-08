@@ -338,6 +338,91 @@ void ble_page(Frame& f, const BleStatus& s) {
       break;
   }
 }
+// 64 x 32 helpers: rows at y 0, 8, 16 and 24, ten characters each.
+void row(Frame& f, unsigned r, const char* s) {
+  text(f, 0, r * 8, s, 1, 10);
+}
+void row_right(Frame& f, unsigned r, const char* s) {
+  const unsigned width = glyphs(s) * kCell;
+  text(f, width > kCompactWidth ? 0 : kCompactWidth - width + 1, r * 8, s, 1, 10);
+}
+void row_centered(Frame& f, unsigned r, const char* s) {
+  const unsigned width = glyphs(s) * kCell;
+  text(f, width > kCompactWidth ? 0 : (kCompactWidth - width + 1) / 2, r * 8, s, 1, 10);
+}
+void compact_ble(Frame& f, const BleStatus& s) {
+  char buffer[16];
+  switch (s.notice) {
+    case BleNotice::Open:
+      row_centered(f, 0, "PAIRING");
+      row_centered(f, 1, s.name);
+      std::snprintf(buffer, sizeof(buffer), "%lus", static_cast<unsigned long>(s.seconds));
+      row_centered(f, 3, buffer);
+      break;
+    case BleNotice::Passkey:
+      row_centered(f, 0, "PASSKEY");
+      std::snprintf(buffer, sizeof(buffer), "%03lu %03lu",
+                    static_cast<unsigned long>(s.passkey / 1000 % 1000),
+                    static_cast<unsigned long>(s.passkey % 1000));
+      row_centered(f, 2, buffer);
+      break;
+    case BleNotice::Full:
+      row_centered(f, 1, "LIST FULL");
+      row_centered(f, 2, "HOLD 15S");
+      break;
+    case BleNotice::Paired:
+      row_centered(f, 1, "PAIRED");
+      break;
+    case BleNotice::Failed:
+      row_centered(f, 1, "FAILED");
+      row_centered(f, 2, "HOLD 5S");
+      break;
+    case BleNotice::Forgotten:
+      row_centered(f, 1, "FORGOTTEN");
+      break;
+    default:
+      row_centered(f, 1, "NO BT");
+      break;
+  }
+}
+void compact_main(Frame& f, const Status& s) {
+  row(f, 0, *s.name ? s.name : s.node);
+  char buffer[16];
+  row(f, 1, s.radio);
+  if (s.battery >= 0)
+    std::snprintf(buffer, sizeof(buffer), "%d%%", s.battery);
+  else if (s.battery_mv > 0)
+    std::snprintf(buffer, sizeof(buffer), "%d.%02dV", s.battery_mv / 1000,
+                  s.battery_mv % 1000 / 10);
+  else
+    buffer[0] = 0;
+  row_right(f, 1, buffer);
+  std::snprintf(buffer, sizeof(buffer), "NEW %lu", static_cast<unsigned long>(s.unread));
+  row(f, 2, buffer);
+  std::snprintf(buffer, sizeof(buffer), "NODES %lu", static_cast<unsigned long>(s.nodes));
+  row(f, 3, buffer);
+}
+void compact_nodes(Frame& f, const Status& s) {
+  char buffer[16];
+  std::snprintf(buffer, sizeof(buffer), "NODES %lu", static_cast<unsigned long>(s.nodes));
+  row(f, 0, buffer);
+  if (!s.row_count)
+    row(f, 1, "NONE YET");
+  for (std::size_t i = 0; i < s.row_count && i < 3; ++i)
+    row(f, 1 + static_cast<unsigned>(i), s.rows[i].name);
+}
+void compact_debug(Frame& f, const Status& s) {
+  char buffer[16];
+  std::snprintf(buffer, sizeof(buffer), "REV %lu", static_cast<unsigned long>(s.revision));
+  row(f, 0, buffer);
+  std::snprintf(buffer, sizeof(buffer), "RX %lu", static_cast<unsigned long>(s.rx));
+  row(f, 1, buffer);
+  std::snprintf(buffer, sizeof(buffer), "TX %lu", static_cast<unsigned long>(s.tx));
+  row(f, 2, buffer);
+  std::snprintf(buffer, sizeof(buffer), "%s R%u", s.storage_ok ? "NVS OK" : "NVS BAD",
+                s.reset_reason);
+  row(f, 3, buffer);
+}
 }  // namespace
 
 Press ButtonGestures::sample(bool pressed, std::uint64_t now) {
@@ -470,6 +555,34 @@ void Screen::inbox(std::uint32_t latest, std::uint64_t now) {
   }
 }
 
+void render_compact(const Screen& screen, const Status& status, Frame& frame) {
+  frame.fill(0);
+  if (screen.stage() == Stage::Icon) {
+    for (unsigned y = 0; y < 32; ++y)
+      for (unsigned x = 0; x < 32; ++x)
+        if (kIcon[y][x] == '#')
+          pixel(frame, 16 + x, y);
+    return;
+  }
+  if (screen.stage() == Stage::Title) {
+    row_centered(frame, 0, "REAPER");
+    row_centered(frame, 1, "MESH");
+    row_centered(frame, 3, status.version);
+    return;
+  }
+  if (status.ble.notice != BleNotice::None) {
+    compact_ble(frame, status.ble);
+    return;
+  }
+  Status shown = status;
+  shown.unread = screen.unread();
+  if (screen.page() == Page::Nodes)
+    compact_nodes(frame, shown);
+  else if (screen.page() == Page::Debug)
+    compact_debug(frame, shown);
+  else
+    compact_main(frame, shown);
+}
 void render(const Screen& screen, const Status& status, Frame& frame) {
   frame.fill(0);
   if (screen.stage() == Stage::Icon) {

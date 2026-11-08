@@ -121,7 +121,7 @@ class UpdateTests(unittest.TestCase):
                 self.manifest[key] = old
 
     def test_wireless_stick_lite_shares_the_heltec_esp32s3_layout(self):
-        self.manifest["board"] = "Heltec Wireless Stick Lite V3"
+        self.manifest["board"] = "Heltec Wireless Stick V3"
         _, images = self.validate()
         self.assertEqual(images[0x10000], esp_image())
         self.manifest["target"] = "esp32"
