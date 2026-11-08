@@ -1192,6 +1192,12 @@ button.filled {
   font-weight: 400;
   text-align: left;
 }
+a.setting-row {
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  text-decoration: none;
+}
 .setting-icon {
   display: grid;
   place-items: center;

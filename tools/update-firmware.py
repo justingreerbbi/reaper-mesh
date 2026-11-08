@@ -298,7 +298,7 @@ def main():
     options = parser.parse_args()
     manifest, artifacts = validate(options.manifest, allow_dirty=options.allow_dirty)
     print(
-        f"Validated {manifest['firmware']} / source {manifest['source_commit']}: three images, fixed storage-preserving layout."
+        f"Validated {manifest['firmware']} / source {manifest['source_commit']}: four images, fixed storage-preserving layout."
     )
     if manifest["source_dirty"]:
         print(

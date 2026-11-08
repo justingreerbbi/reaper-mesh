@@ -20,6 +20,18 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ---
 
+## Unreleased
+
+- **Added:** the web portal and a browser firmware installer are published on GitHub Pages from
+  every push to `main` (D54): <https://justingreerbbi.github.io/reaper-mesh/> and
+  <https://justingreerbbi.github.io/reaper-mesh/flash/>. The installer serves the firmware CI
+  built from that commit, checks it the same way as the USB updater, and keeps settings,
+  pairings and keys. The portal links to it from **Device → Install or update firmware**.
+- **Verified:** host tests for the installer's checks; both pages built and served under
+  `/reaper-mesh/` locally, with every published image matching its hash.
+- **Not verified:** installing through the browser on a real board, and the first deploy to
+  GitHub Pages.
+
 ## v0.11.1 — November 7, 2026
 
 - **Changed:** the status LED is now off by default, including its startup flash. Turn it on

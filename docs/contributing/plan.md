@@ -27,6 +27,7 @@ ranges and security advisories, without forcing routine upgrades just to keep co
 | `packages/protocol/` | `schema.json` (the single source for USB message types), generated TypeScript bindings, framing, typed config/position/discovery/map/encryption payloads, and frozen fixtures |
 | `packages/agent-core/` | Transport-independent agent logic: serial adapter, connection state machine, commands, sync, messaging, inbox and discovery |
 | `packages/simulator/` | Simulated devices used by host tests and the portal's Simulator mode |
+| `agents/flasher/` | Browser firmware installer (TypeScript, Vite, `esptool-js`). `firmware.ts` holds the checks host tests cover; `main.ts` drives the page. Published at `flash/` on GitHub Pages (D54) |
 | `agents/web/` | Browser portal (TypeScript, Vite, native DOM, Leaflet). `main.ts` wires the UI modules and runs the render loop; `app-state.ts` holds shared state and the render hook; one `*-ui.ts` module per area, such as `connection`, `messages`, `map`, `nodes`, `device`, `settings`, `channels`, `network` and `access`. Static markup lives in `index.html`, including `<template>` elements that `map-workspace.ts` clones |
 | `firmware/components/` | Portable C++17 firmware components: `reaper_protocol` (codec, generated descriptors), `reaper_device` (session, configuration, messages, inbox, discovery), `reaper_mesh` (radio packets, mesh core, regional profiles, airtime budget), `reaper_radio` (vendored Semtech SX126x driver and first-party SX1276 driver) |
 | `firmware/app/` | Shared board application: entry point (`main.cpp`), NVS storage, mesh service, and the `radio_bus.hpp`/`status_display.hpp` interfaces each board implements |
@@ -221,15 +222,17 @@ flashing hardware checks explicitly invoked.
 
 ## Firmware updates
 
-The current installer is a manifest-validating ROM serial updater (`tools/update-firmware.py`):
-it checks build provenance, board target, partition layout, image hashes and ROM security state,
-preserves NVS and verifies every write. See [Flashing firmware](../guides/flashing-firmware.md).
+Two installers write the same four images with the same checks (D16, D54): the manifest-validating
+ROM serial updater (`tools/update-firmware.py`), which checks build provenance, board target,
+partition layout, image hashes and ROM security state, preserves NVS and verifies every write; and
+the browser installer on GitHub Pages (`agents/flasher/`), which serves firmware CI built and
+validated with that updater. See [Flashing firmware](../guides/flashing-firmware.md).
 
-Still to design and qualify before a public updater:
+Still to design and qualify before a public release:
 
-- A guided browser installer that shows installed and target versions, offers configuration
-  export, and verifies boot identity, version and configuration migration afterward. Keep a
-  documented CLI recovery route.
+- A browser installer that also reads the installed version first, offers configuration export,
+  and verifies boot identity, version and configuration migration afterward. Keep the documented
+  CLI recovery route.
 - The dual-slot application update path, with self-test and automatic rollback. The partition
   table already has both slots (`v0.8.0`, D50), and nothing writes the second one yet. Test it against
   interrupted transfers, power loss, wrong-board or corrupt images, full storage, failed

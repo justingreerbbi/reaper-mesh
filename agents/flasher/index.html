@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
+    <meta
+      name="description"
+      content="Install Reaper Mesh firmware on a Heltec V3 or LILYGO T-Beam from your browser."
+    />
+    <title>Install firmware · Reaper Mesh</title>
+    <link rel="icon" type="image/svg+xml" href="../web/public/favicon.svg" />
+    <script>
+      // The portal's theme choice, read before the first paint.
+      try {
+        const saved = JSON.parse(localStorage.getItem('reaper-mesh.preferences.v1') || '{}');
+        if (saved.theme === 'day') document.documentElement.dataset.theme = 'day';
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <main class="installer">
+      <header class="brand">
+        <img src="../web/public/favicon.svg" width="44" height="44" alt="" />
+        <div>
+          <h1>Install Reaper Mesh firmware</h1>
+          <p class="muted">Flash a board from your browser over USB. No software to install.</p>
+        </div>
+      </header>
+
+      <p id="unsupported" class="notice" data-tone="bad" hidden>
+        This browser can't talk to USB devices. Open this page in <strong>Chrome</strong>,
+        <strong>Edge</strong> or <strong>Brave</strong> on a computer.
+      </p>
+
+      <section class="card" aria-labelledby="board-title">
+        <h2 id="board-title"><span class="step">1</span>Choose your board</h2>
+        <p id="index-status" class="muted small">Loading available firmware…</p>
+        <div id="boards" class="boards" role="radiogroup" aria-labelledby="board-title"></div>
+      </section>
+
+      <section class="card" aria-labelledby="ready-title">
+        <h2 id="ready-title"><span class="step">2</span>Get ready</h2>
+        <ul class="checklist">
+          <li>Plug the board into this computer with a USB <strong>data</strong> cable.</li>
+          <li>Close the web portal and any other app using the board.</li>
+          <li>Keep it plugged in until the install finishes, about a minute.</li>
+        </ul>
+        <p class="muted small">
+          Your board's settings, Bluetooth pairings and team keys are kept. Only the firmware is
+          replaced.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="install-title">
+        <h2 id="install-title"><span class="step">3</span>Install</h2>
+        <button id="install" class="primary wide" type="button" disabled>
+          Choose a board first
+        </button>
+
+        <div id="progress" class="progress" hidden>
+          <p id="progress-label" class="small" aria-live="polite"></p>
+          <div class="bar"><span id="progress-bar"></span></div>
+        </div>
+
+        <div id="result" class="notice" hidden></div>
+
+        <details id="log-details" hidden>
+          <summary class="small">Technical log</summary>
+          <pre id="log" class="log"></pre>
+        </details>
+      </section>
+
+      <footer class="footer small faint">
+        <p id="build-info"></p>
+        <p>
+          Prototype firmware. Releases are not signed yet; every image is checked against its
+          published SHA-256 hash before writing.
+          <a href="https://github.com/justingreerbbi/reaper-mesh">Source on GitHub</a> ·
+          <a href="firmware/notices/NOTICE">Licenses</a> ·
+          <a href="../">Open the web portal</a>
+        </p>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -47,6 +47,7 @@ spans the whole project.
 | `agent-core` | `packages/agent-core/` |
 | `simulator` | `packages/simulator/` |
 | `web` | `agents/web/` |
+| `flasher` | `agents/flasher/` (the browser firmware installer) |
 | `firmware` | `firmware/components/` and changes shared by both boards |
 | `heltec` | `firmware/heltec-v3/` only |
 | `tbeam` | `firmware/tbeam-v12/` only |
