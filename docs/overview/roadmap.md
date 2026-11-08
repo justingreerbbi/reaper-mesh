@@ -16,8 +16,8 @@ to bug fixes, testing on real devices, and keeping the portal in step with the m
 
 ## Next, in order
 
-1. **Finish the three-node relay test:** Team mode, a relay-key-only relay and key rotation
-   through a relay on the desk, then separated boards. The Open-mode desk run passes.
+1. **Finish the three-node relay test with separated boards.** The desk runs pass in Open mode,
+   in Team mode, with a relay-key-only relay and for key rotation through a relay.
 2. **Outdoor range test.**
 3. **Power-loss, interrupted-flash and 24-hour soak tests.**
 4. **Rekey and relay status** (security step 2b), with portal controls. The protocol freeze

@@ -49,7 +49,7 @@ other but both are in range of B. Ways to get there, simplest first:
 
 **On a desk:** the relay test build (D56) makes A and C ignore every frame heard straight from its
 sender, so they can only hear each other through B. Build it for A and C, install it, leave B on
-normal firmware, put all three in the same Open network, and run:
+normal firmware, put all three in Open mode, and run:
 
 ```sh
 REAPER_RELAY_TEST=1 bash tools/build-firmware.sh tbeam-v12
@@ -61,7 +61,12 @@ node tools/hardware-relay-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env
 
 The tool runs the control run, short and 1,024-byte direct messages both ways, and a broadcast
 each way, records every result and the relay's transmit count in `build/relay-smoke.json`, and
-restores each board's radio settings. Reinstall normal firmware on A and C afterwards. This tests
+restores each board's radio settings. With the same arguments,
+`tools/hardware-relay-team-smoke.ts` puts the three boards in a throwaway team and runs the
+direct and broadcast checks with B as a full member, then with B holding only the relay key, then
+rotates A through epochs 1 to 4 with B's radio off for 2 and 3; it writes
+`build/relay-team-smoke.json` and puts each board back in Open mode. It refuses boards already in
+a team. Reinstall normal firmware on A and C afterwards. This tests
 the relay logic over real radios; the separated-boards test below is still needed for range.
 
 **Procedure**
@@ -88,18 +93,25 @@ the relay logic over real radios; the separated-boards test below is still neede
 - Record the delivery rate, ACK latency and any retries for each run.
 - Rotate keys during a relay run (D52). Messages keep arriving through B, B forwards the epoch proof, and A and C both reach the new epoch. Leave B unpowered across a rotation, then confirm it catches up and forwards again.
 
-**Results so far (Nov 8, desk, Open mode):** T-Beam V1.2 and Wireless Stick V3 as ends, WiFi LoRa
+**Results so far (Nov 8, desk):** T-Beam V1.2 and Wireless Stick V3 as ends, WiFi LoRa
 32 V3 as relay. The first run found that 1,024-byte messages never crossed the relay: the origin
 sent each fragment as soon as the last finished, so the relay was still forwarding one when the
 next arrived, and missed it the same way every round. Origins now wait after each fragment for
-relays to forward it ([radio protocol](../reference/radio-protocol.md)). After the fix, two runs
+relays to forward it ([radio protocol](../reference/radio-protocol.md)). After the fix, three runs
 passed every check: nothing passes with relaying off; one-frame and 1,024-byte direct messages are
 acknowledged both ways through the relay, each delivered exactly once with the exact body, with
 the relay sending exactly 8 frames per full message (7 fragments and the ACK) on the first round;
 broadcasts arrive once both ways. Full-size messages are spaced 70 s apart for the airtime budget;
-back to back, the relay's budget runs out partway through the second. Team mode, a
-relay-key-only relay, key rotation through a relay, more than one relay, and the
-separated-boards run are not done.
+back to back, the relay's budget runs out partway through the second.
+
+The Team mode run passed all 21 checks. With the relay as a full member and again with it holding
+only the relay key, one-frame and 1,024-byte direct messages were acknowledged both ways and
+delivered once with the exact body (2 and 8 relay frames), and broadcasts arrived once both ways;
+the relay-key-only relay forwarded broadcasts it could not read. For rotation, A advanced to
+epoch 1 and C, which hears A only through the relay, reached it in about 9 s. With the relay's
+radio off, A advanced to 3 and C stayed at 1. With the relay back, A's proof for epoch 4 brought
+the relay and C to 4 in about 10 s. Short messages crossed both ways after each step. More than
+one relay and the separated-boards run are not done.
 
 ## 2. Outdoor range
 
