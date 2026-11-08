@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 set(IDF_TARGET esp32)
 add_compile_definitions(REAPER_TBEAM_V12=1)
+# tools/build-firmware.sh sets this for the desk relay test build only.
+if(REAPER_TEST_RELAYED_ONLY)
+  add_compile_definitions(REAPER_TEST_RELAYED_ONLY=1)
+endif()
 set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_protocol" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_device" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_crypto" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_mesh" "${CMAKE_CURRENT_LIST_DIR}/../components/reaper_radio")
 set(COMPONENTS main)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

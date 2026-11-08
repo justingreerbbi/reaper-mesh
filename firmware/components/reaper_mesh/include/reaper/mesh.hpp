@@ -1,5 +1,6 @@
 #pragma once
 #include "reaper/frame.hpp"
+#include "reaper/regional.hpp"
 namespace reaper::mesh {
 enum class SendState { Queued, Transmitted, Acknowledged, Failed };
 // Handled includes frames relayed without being read. Control hands discovery traffic back. Proof
@@ -17,6 +18,17 @@ struct Outbound {
   bool early_ack = false;
   SendState state = SendState::Queued;
 };
+// How long an origin waits after sending one fragment before the next, so relays can forward it.
+// A relay waits 10-100 ms, then sends the fragment for one airtime T, and can't listen meanwhile.
+// With one relay, the next fragment must start after that: 2T + 100 ms. With two or more in a
+// line, the second relay's copy must also be off the air around the first: 3T + 200 ms. Nodes
+// three hops apart can't hear each other, so longer lines need no more. Plus 50 ms for polling.
+// Hop limit 0 means nothing relays, so there is no wait.
+constexpr std::uint64_t fragment_gap_ms(std::uint32_t airtime_us, std::uint8_t hops) {
+  const std::uint64_t relays = hops < 2 ? hops : 2;
+  const std::uint64_t t = (airtime_us + 999) / 1000;
+  return relays ? (relays + 1) * t + relays * 100 + 50 : 0;
+}
 struct Inbound {
   bool used = false, complete = false, poisoned = false;
   MessageKey key{};
@@ -85,6 +97,7 @@ class Mesh {
   std::uint64_t submitted_ = 0;
   bool in_flight_ = false;
   int flight_index_ = -1;
+  std::size_t flight_size_ = 0;
   std::size_t next_out_ = 0;
   bool queue_frame(const Frame&, std::uint64_t now);
   bool relay_frame(const std::uint8_t*, std::size_t, std::uint64_t now);

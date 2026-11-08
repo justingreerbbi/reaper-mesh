@@ -27,7 +27,7 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 | --- | --- | --- | --- |
 | USB link and settings | Versioned handshake, capability checks, revision-checked atomic saves, query-only recovery | Saves and reconnects from a real browser; recovery from a lost reply, a duplicate and a reset | Power cut, pulling the cable at random, long soak |
 | Messages | 1,024-byte text, bounded queue, five distinct outcomes, inbox, browser journal | Direct delivery with acknowledgment in both directions between two boards | Long-term loss and latency; field use |
-| Mesh relay | Bounded managed flooding with hop limits and duplicate suppression | Host tests only | **Any real relay**: needs a third board |
+| Mesh relay | Bounded managed flooding with hop limits and duplicate suppression; origins space fragments so relays can forward them; a desk relay test build (D56) | Three boards on a desk, Open mode, two runs: nothing passes with relaying off; one-frame and 1,024-byte direct messages acknowledged both ways and broadcasts delivered once both ways through the relay | Team mode; relay-key-only relay; more than one relay; separated boards and range |
 | Radio | Radio format version 2, SX1262 and SX1276 drivers, shared airtime budget, low/medium/high power, T-Beam boost | Direct delivery at every power level, with and without boost; settings kept across a reset | Range, coexistence, measured output power |
 | Channels | 8 slots with 32-bit on-air IDs, QR invites, remove and reset | Joining by invite into different slots; a non-member cannot see or send; channels survive a reset | Relay on a channel; the channel screens in a native browser over USB |
 | Discovery and position | Beacons, manual discovery, rate-limited replies, saved fixed position, opt-in sharing | Two-board discovery, silence when opted out, periodic beacons, position exchange and persistence | Native browser QA of these controls |
@@ -62,7 +62,7 @@ New portal features are paused until these pass. Procedures are in the
 
 | Test | State |
 | --- | --- |
-| Three-node relay | Not started. Waiting for a third board and `tools/hardware-relay-smoke.ts` |
+| Three-node relay | **Desk run passes** in Open mode after a fragment-spacing fix. Team mode, a relay-key-only relay and separated boards are next ([details](../contributing/field-qualification.md#1-three-node-relay)) |
 | Outdoor range (`US915_LAB1`) | Not started |
 | Power loss and interrupted flash | Not started |
 | 24-hour soak | Not started |

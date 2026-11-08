@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include <memory>
 namespace m = reaper::mesh;
 #define CHECK(v)                                              \
   do {                                                        \
@@ -413,6 +414,73 @@ int main(int argc, char** argv) {
               << "/120 clean=" << clean_acknowledged << "/12 tx=" << total_tx << "\n";
     CHECK(clean_acknowledged == 12);
     CHECK(total_tx < 120 * 250);
+  } else if (scenario == "halfduplex") {
+    // Radios as they really are: a frame takes its airtime, a radio can't listen while it sends,
+    // and a frame is lost where it overlaps another frame the receiver can hear. Nodes in a line
+    // hear only their neighbors. A full-size message must cross one relay and two relays, both
+    // ways, and be acknowledged. Before the fragment gap, the relay missed every other fragment.
+    CHECK(m::fragment_gap_ms(m::airtime_us(218), 0) == 0);
+    CHECK(m::fragment_gap_ms(m::airtime_us(218), 1) < m::fragment_gap_ms(m::airtime_us(218), 2));
+    CHECK(m::fragment_gap_ms(m::airtime_us(218), 2) == m::fragment_gap_ms(m::airtime_us(218), 7));
+    CHECK(m::fragment_gap_ms(m::airtime_us(218), 3) >= 3 * m::airtime_us(218) / 1000 + 200);
+    struct Air {
+      int from;
+      std::uint64_t start, end;
+      std::vector<std::uint8_t> bytes;
+    };
+    for (const int length : {3, 4})
+      for (const bool forward : {true, false}) {
+        std::vector<std::unique_ptr<Node>> nodes;
+        for (int i = 0; i < length; ++i)
+          nodes.push_back(std::make_unique<Node>(std::uint64_t(i + 1), i > 0 && i < length - 1));
+        const int origin = forward ? 0 : length - 1, target = forward ? length - 1 : 0;
+        auto& sender = *nodes[origin];
+        CHECK(sender.enqueue(key(1, origin + 1), std::uint64_t(target + 1), 0, body.data(),
+                             body.size(), 0));
+        std::vector<Air> air_log;
+        std::vector<int> sending(length, -1);  // Index into air_log while a node transmits.
+        unsigned lost = 0;
+        std::uint64_t now = 0;
+        for (; now <= 30000 && sender.outgoing()[0].state != m::SendState::Acknowledged; ++now) {
+          for (int n = 0; n < length; ++n) {
+            nodes[n]->tick(now);
+            if (sending[n] >= 0 && air_log[sending[n]].end == now) {
+              const auto& done = air_log[sending[n]];
+              sending[n] = -1;
+              nodes[n]->complete_tx(true, now);
+              for (const int to : {n - 1, n + 1}) {
+                if (to < 0 || to >= length)
+                  continue;
+                // Lost if the receiver sent, or heard anyone else, while this frame was on air.
+                bool clear = true;
+                for (const auto& other : air_log)
+                  if (&other != &done && other.start < done.end && done.start < other.end &&
+                      (other.from == to || std::abs(other.from - to) == 1))
+                    clear = false;
+                if (clear)
+                  nodes[to]->receive(done.bytes.data(), done.bytes.size(), now);
+                else
+                  lost++;
+              }
+            }
+          }
+          for (int n = 0; n < length; ++n) {
+            m::Frame frame{};
+            if (sending[n] >= 0 || !nodes[n]->next_tx(now, frame))
+              continue;
+            const std::uint64_t airtime = (m::airtime_us(frame.size) + 999) / 1000;
+            air_log.push_back(
+                {n, now, now + airtime, {frame.bytes.begin(), frame.bytes.begin() + frame.size}});
+            sending[n] = static_cast<int>(air_log.size() - 1);
+          }
+        }
+        std::cerr << length << " nodes, " << (forward ? "forward" : "back") << ": acknowledged at "
+                  << now << " ms, " << air_log.size() << " frames, " << lost << " lost\n";
+        CHECK(sender.outgoing()[0].state == m::SendState::Acknowledged);
+        CHECK(completed(*nodes[target]) == 1);
+        // The first round must get through on its own: nothing lost by design.
+        CHECK(now < 8000);
+      }
   } else
     return 3;
   std::cout << "ok " << scenario << '\n';

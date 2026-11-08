@@ -22,6 +22,18 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** a desk relay test build (D56) and `tools/hardware-relay-smoke.ts`, which tests three
+  boards on one desk by making the two ends ignore frames heard straight from their sender.
+- **Fixed:** 1,024-byte messages never crossed a relay. The origin sent each fragment as soon as
+  the last finished, so a relay, which can't listen while it forwards, missed every other
+  fragment, the same way every round. Origins now wait after each fragment (about 0.5 s for a full
+  one) so relays can forward it. A new host test models real airtime, half-duplex radios and
+  collisions; it fails without the fix.
+- **Verified:** on a desk in Open mode, with the WiFi LoRa 32 V3 relaying between a T-Beam V1.2
+  and a Wireless Stick V3, two runs: nothing passes with relaying off; one-frame and 1,024-byte
+  direct messages are acknowledged both ways and broadcasts arrive once both ways through the
+  relay. Two-board 1,024-byte delivery (V3 and Stick each with the T-Beam) and the channel test
+  still pass. Team mode, more than one relay and separated boards are not tested.
 - **Changed:** the firmware installer picks the board from a dropdown, and **Download firmware
   instead** saves the chosen build as a zip with the images, an esptool command, hashes and
   license notices. The README's install button no longer names specific boards.

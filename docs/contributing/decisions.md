@@ -182,6 +182,18 @@ would report the wrong identity. A Heltec CubeCell HTCC-AB01 (ASR6501, 16 KB RAM
 same day and cannot run Reaper: the firmware needs about 109 KB of RAM. See
 [Hardware](../guides/hardware.md#heltec-wireless-stick-v3).
 
+### D56. Desk relay test build
+Nov 8 · **Confirmed**. Owner direction. Three boards on one desk all hear each other, so a relay is
+never needed. `REAPER_RELAY_TEST=1 bash tools/build-firmware.sh BOARD` builds a test-only image into
+`build/BOARD-relay-test/`, named `{device}-reaper-mesh-v{semver}-relay-test`. Before the mesh sees
+a frame, that image drops any frame whose remaining hops still equal its hop limit, that is, any
+frame heard straight from its sender. Two end boards running it can then only hear each other
+through a relay running normal firmware. Normal builds compile none of this; it changes no wire
+format, storage or protocol (D41). Pages and the installer never publish it, and the name makes
+it obvious on a board. `tools/hardware-relay-smoke.ts` refuses to run unless the ends run it and the
+relay does not. It tests the relay logic over real radios, not range. See
+[Field qualification](field-qualification.md#1-three-node-relay).
+
 ## Protocol and synchronization
 
 ### D17. Device is authoritative for configuration

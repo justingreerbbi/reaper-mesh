@@ -22,15 +22,23 @@ if [ "$(git -C "$sdk_root" rev-parse HEAD)" != "$expected_commit" ]; then
 fi
 # shellcheck source=/dev/null
 source "$sdk_root/export.sh"
-mkdir -p "$repo_root/build/$board"
+# REAPER_RELAY_TEST=1 builds the desk relay test firmware (tools/hardware-relay-smoke.ts) into its
+# own folder, so it is never published or mistaken for the normal build.
+build_dir="$repo_root/build/$board"
+extra=()
+if [ "${REAPER_RELAY_TEST:-}" = 1 ]; then
+  build_dir="$repo_root/build/$board-relay-test"
+  extra=(-D REAPER_TEST_RELAYED_ONLY=1)
+fi
+mkdir -p "$build_dir"
 # This prototype's config is generated from the tracked defaults, not menuconfig. The Wireless
 # Stick V3 shares the WiFi LoRa 32 V3's defaults and adds its own small overrides.
 defaults="$repo_root/firmware/$board/sdkconfig.defaults"
 if [ "$board" = heltec-stick-v3 ]; then
   defaults="$repo_root/firmware/heltec-v3/sdkconfig.defaults;$defaults"
 fi
-rm -f "$repo_root/build/$board/sdkconfig"
-idf.py -C "$repo_root/firmware/$board" -B "$repo_root/build/$board" \
-  -D "SDKCONFIG=$repo_root/build/$board/sdkconfig" \
-  -D "SDKCONFIG_DEFAULTS=$defaults" build
+rm -f "$build_dir/sdkconfig"
+idf.py -C "$repo_root/firmware/$board" -B "$build_dir" \
+  -D "SDKCONFIG=$build_dir/sdkconfig" \
+  -D "SDKCONFIG_DEFAULTS=$defaults" ${extra[@]+"${extra[@]}"} build
 python "$repo_root/tools/firmware-manifest.py" "$board"

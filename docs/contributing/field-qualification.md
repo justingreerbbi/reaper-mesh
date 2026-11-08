@@ -47,8 +47,22 @@ other but both are in range of B. Ways to get there, simplest first:
 2. Attenuators on A and C, or A and C in shielded enclosures.
 3. Outdoors, with A and C far enough apart (see the range test).
 
-A test-only firmware filter that ignores a chosen node would make bench relay tests easy, but
-it does not exist. Adding it is a firmware and protocol-scope decision.
+**On a desk:** the relay test build (D56) makes A and C ignore every frame heard straight from its
+sender, so they can only hear each other through B. Build it for A and C, install it, leave B on
+normal firmware, put all three in the same Open network, and run:
+
+```sh
+REAPER_RELAY_TEST=1 bash tools/build-firmware.sh tbeam-v12
+.tools/espressif/python_env/idf5.5_py3.12_env/bin/python tools/update-firmware.py \
+  --manifest build/tbeam-v12-relay-test/reaper-manifest.json --flash --port PORT_A
+node tools/hardware-relay-smoke.ts .tools/espressif/python_env/idf5.5_py3.12_env/bin/python \
+  PORT_A PORT_B PORT_C
+```
+
+The tool runs the control run, short and 1,024-byte direct messages both ways, and a broadcast
+each way, records every result and the relay's transmit count in `build/relay-smoke.json`, and
+restores each board's radio settings. Reinstall normal firmware on A and C afterwards. This tests
+the relay logic over real radios; the separated-boards test below is still needed for range.
 
 **Procedure**
 
@@ -74,10 +88,18 @@ it does not exist. Adding it is a firmware and protocol-scope decision.
 - Record the delivery rate, ACK latency and any retries for each run.
 - Rotate keys during a relay run (D52). Messages keep arriving through B, B forwards the epoch proof, and A and C both reach the new epoch. Leave B unpowered across a rotation, then confirm it catches up and forwards again.
 
-**Tooling to build when the board arrives:** `tools/hardware-relay-smoke.ts`, extending the
-pair test to three ports. It records each board's original settings, runs the control and
-relay runs, checks inbox bodies and ACK states, captures each board's RX/TX counters, writes a
-JSON report under `build/`, and restores the original settings.
+**Results so far (Nov 8, desk, Open mode):** T-Beam V1.2 and Wireless Stick V3 as ends, WiFi LoRa
+32 V3 as relay. The first run found that 1,024-byte messages never crossed the relay: the origin
+sent each fragment as soon as the last finished, so the relay was still forwarding one when the
+next arrived, and missed it the same way every round. Origins now wait after each fragment for
+relays to forward it ([radio protocol](../reference/radio-protocol.md)). After the fix, two runs
+passed every check: nothing passes with relaying off; one-frame and 1,024-byte direct messages are
+acknowledged both ways through the relay, each delivered exactly once with the exact body, with
+the relay sending exactly 8 frames per full message (7 fragments and the ACK) on the first round;
+broadcasts arrive once both ways. Full-size messages are spaced 70 s apart for the airtime budget;
+back to back, the relay's budget runs out partway through the second. Team mode, a
+relay-key-only relay, key rotation through a relay, more than one relay, and the
+separated-boards run are not done.
 
 ## 2. Outdoor range
 

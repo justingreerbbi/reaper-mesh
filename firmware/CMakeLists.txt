@@ -98,7 +98,7 @@ foreach(scenario hmac roundtrip relay keys tamper malformed link proofchain wind
 endforeach()
 add_executable(mesh_test tests/mesh_test.cpp)
 target_link_libraries(mesh_test PRIVATE reaper_mesh)
-foreach(scenario relayonly unjoined opaque line loss asymmetric broadcast hops races bounds soak)
+foreach(scenario relayonly unjoined opaque line loss asymmetric broadcast hops races bounds soak halfduplex)
   add_test(NAME mesh_${scenario} COMMAND mesh_test ${scenario})
 endforeach()
 

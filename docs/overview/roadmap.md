@@ -16,18 +16,17 @@ to bug fixes, testing on real devices, and keeping the portal in step with the m
 
 ## Next, in order
 
-1. **Get a third board** (a second US/915 Heltec V3 is simplest) and build the three-board
-   relay test tool. Phase 4 device work continues while waiting.
-2. **Three-node relay test.**
-3. **Outdoor range test.**
-4. **Power-loss, interrupted-flash and 24-hour soak tests.**
-5. **Rekey and relay status** (security step 2b), with portal controls. The protocol freeze
+1. **Finish the three-node relay test:** Team mode, a relay-key-only relay and key rotation
+   through a relay on the desk, then separated boards. The Open-mode desk run passes.
+2. **Outdoor range test.**
+3. **Power-loss, interrupted-flash and 24-hour soak tests.**
+4. **Rekey and relay status** (security step 2b), with portal controls. The protocol freeze
    depends on it. See the [rotation and rekey design](../contributing/rotation-design.md).
-6. **Core v1 protocol review.** Use the test results to decide what to freeze: the content
+5. **Core v1 protocol review.** Use the test results to decide what to freeze: the content
    types carried in opaque payloads (Q5), fragment and message size (Q3), and which prototype
    compatibility layers to remove. With owner approval, reflash the boards, reset the fixtures
    to the new baseline and declare core v1 (D41, D42).
-7. **Resume feature work** on top of core v1, in agents and plugins (below).
+6. **Resume feature work** on top of core v1, in agents and plugins (below).
 
 ## Planned after core v1
 

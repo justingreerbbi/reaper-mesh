@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -63,7 +64,10 @@ if board not in BOARDS:
     raise ValueError("unsupported board")
 spec = BOARDS[board]
 tbeam = board == "tbeam-v12"
-build = root / "build" / board
+# The desk relay test build (REAPER_RELAY_TEST=1) lives in its own folder and says so in its name.
+relay_test = os.environ.get("REAPER_RELAY_TEST") == "1"
+folder = board + ("-relay-test" if relay_test else "")
+build = root / "build" / folder
 sdk = json.loads((root / "firmware/esp-idf.lock.json").read_text())
 sdk["target"] = spec["target"]
 flash = json.loads((build / "flasher_args.json").read_text())
@@ -92,11 +96,12 @@ manifest = {
     "firmware": next(
         name
         for name in re.findall(
-            r'kFirmwareVersion\[\] = "([^"]+)"',
+            r'kFirmwareVersion\[\] =\s*"([^"]+)"',
             (root / "firmware/components/reaper_device/include/reaper/version.hpp").read_text(),
         )
         if name.startswith(spec["prefix"])
-    ),
+    )
+    + ("-relay-test" if relay_test else ""),
     "radio_config_schema": 1,
     "read_record_schemas": [1, 2, 3, 4, 5, 6, 7, 8],
     "usb_protocol": 1,
@@ -135,4 +140,4 @@ manifest = {
     "flashed": False,
 }
 (build / "reaper-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-print(f"Wrote build/{board}/reaper-manifest.json")
+print(f"Wrote build/{folder}/reaper-manifest.json")

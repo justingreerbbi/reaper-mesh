@@ -32,6 +32,7 @@ execFileSync(
     'firmware/components/reaper_mesh/frame.cpp',
     'firmware/tests/crypto_host/crypto_host.cpp',
     'firmware/components/reaper_mesh/mesh.cpp',
+    'firmware/components/reaper_mesh/regional.cpp',
     'firmware/tests/mesh_test.cpp',
     '-o',
     binary,
@@ -51,6 +52,8 @@ for (const [scenario, description] of Object.entries({
   races: 'retains early ACKs and gives exact expiry precedence',
   encrypted: 'relays encrypted binary payloads unchanged and acknowledges device delivery',
   soak: 'survives 120 seeded long-lived loss/corruption/retry cycles with bounded traffic and no false ACKs',
+  halfduplex:
+    'delivers 1,024-byte messages across one and two relays with real airtime and half-duplex radios',
   bounds: 'bounds queues, suppresses retired IDs and rejects conflicting reassembly',
 })) {
   test(`C++ mesh ${description}`, () => {

@@ -219,6 +219,16 @@ void MeshService::tick(const d::Snapshot* snapshot, std::uint64_t now, bool atta
     if (event.tx_success)
       increment(info_.transmitted);
   }
+#ifdef REAPER_TEST_RELAYED_ONLY
+  // Desk relay test build only (tools/hardware-relay-smoke.ts). A frame that still has all its
+  // hops came straight from its sender, so ignoring it leaves only copies a relay forwarded.
+  // Boards on one desk all hear each other; this makes the relay the only path.
+  if (event.received) {
+    m::FrameRoute route{};
+    if (m::parse_route(event.bytes.data(), event.size, route) && route.hops == route.limit)
+      event.received = false;
+  }
+#endif
   if (event.received) {
     increment(info_.received);
     m::Packet control{};

@@ -273,6 +273,7 @@ bool Mesh::next_tx(std::uint64_t now, Frame& frame) {
     }
     in_flight_ = true;
     flight_index_ = static_cast<int>(index);
+    flight_size_ = frame.size;
     next_out_ = (index + 1) % out_.size();
     return true;
   }
@@ -306,6 +307,10 @@ void Mesh::complete_tx(bool success, std::uint64_t now) {
     ++r.rounds;
     r.state = r.early_ack ? SendState::Acknowledged : SendState::Transmitted;
     r.due = now + 4000;
+  } else {
+    // Leave the air to relays forwarding this fragment; otherwise a relay is still sending it
+    // when the next one arrives, and misses it the same way every round.
+    r.due = now + fragment_gap_ms(airtime_us(flight_size_), hops_);
   }
 }
 }  // namespace reaper::mesh
