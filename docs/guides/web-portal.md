@@ -5,14 +5,20 @@ USB or Bluetooth and gives you messaging, a map, the list of nodes heard and eve
 setting. It looks and works like the Reaper Mesh mobile app, and either can read the other's
 QR codes.
 
+Open it at **<https://justingreerbbi.github.io/reaper-mesh/>**, published from the latest `main` (D54). Use
+Chrome, Edge or Brave: USB needs Web Serial and Bluetooth needs Web Bluetooth, which Safari and
+Firefox do not have. Your messages, keys and settings stay in your browser; the site only serves
+the app.
+
+To run it from source:
+
 ```sh
 npm ci --ignore-scripts
 npm run dev:web
 ```
 
-Open the address it prints (normally <http://127.0.0.1:5173/>). Use Chrome, Edge or Brave:
-USB needs Web Serial and Bluetooth needs Web Bluetooth, which Safari and Firefox do not have.
-`npm run build:web` builds a static copy into `dist/web/`.
+Open the address it prints (normally <http://127.0.0.1:5173/>). `npm run build:web` builds a
+static copy into `dist/web/`.
 
 ## The four tabs
 
@@ -127,6 +133,7 @@ memory, then its settings:
 | **Bluetooth** | Start pairing over USB, see the passkey, pair this browser |
 | **Diagnostics, Plugins, Storage** | Technical status, JSON plugins, history export and recovery tools |
 | **This app** | Theme, units, coordinate format, Rejoin on load, your devices, PIN lock and erasing local data |
+| **Install or update firmware** | Opens the [firmware installer](flashing-firmware.md#install-from-your-browser) in this tab. Flashing needs the USB port, so the portal disconnects |
 
 **Position → This browser** saves your browser's location to the board as its fixed position.
 To spare the board's flash, it updates only after you move 25 m, no more often than once per

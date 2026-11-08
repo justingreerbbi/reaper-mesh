@@ -35,8 +35,8 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 | Team networks | Open mode or a team; relay key stored, team key in memory; automatic key rotation with epoch proofs | Team membership, wrong-key and other-network rejection, restart behavior, and rotation on two boards; set up and rotated through the portal by the owner | Rotation after the interval actually elapses, relay in this format, power cut during a key change, key changes over Bluetooth, security review |
 | Bluetooth | Physical-access pairing, LE Secure Connections only, four paired devices, Web Bluetooth in the portal | Pairing, connecting, messaging and reconnecting after a firmware install, from the portal (owner-reported) | A wrong passkey; effect on LoRa timing. Phone results belong to the mobile app's repository |
 | Device screen, buttons and LED | Startup screen, pages, button gestures, screen timeout, wake on message, battery display, status LED (off by default) | Confirmed by the owner on both boards; settings round trip and persist over USB | Heltec battery voltage against a meter; the LED toggle in a native browser |
-| Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location |
-| Firmware updates | Manifest-checking USB updater that keeps settings and keys | Many installs on both boards | Interrupted flash, rollback, signed releases |
+| Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins. Published on GitHub Pages from `main` (D54) | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location |
+| Firmware updates | Manifest-checking USB updater that keeps settings and keys; a browser installer on GitHub Pages with the same checks (D54) | Many installs on both boards with the USB updater | **The browser installer on a real board**; interrupted flash, rollback, signed releases |
 
 ## Development boards
 
@@ -65,7 +65,7 @@ New portal features are paused until these pass. Procedures are in the
 
 ## Automated checks
 
-`npm run check` passes all 382 tests on macOS (November 7): strict TypeScript, generated-schema
+`npm run check` passes all 391 tests on macOS (November 7): strict TypeScript, generated-schema
 and vendor checks, compiler-backed host tests and the web build. The standalone firmware CTest
 suite passes 127 tests, and both board builds pass. CI runs all of these plus formatting and
 shell lint; see [Development and CI](../contributing/development.md).

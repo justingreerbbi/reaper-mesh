@@ -26,7 +26,7 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 | Q7 | GPS scope: acquisition requirements, fix freshness threshold and T-Beam wiring verification | When the owner resumes GPS work (D26) |
 | Q8 | Formal performance targets (range, throughput, battery), set from the [field qualification plan](field-qualification.md) results | After field qualification, before publishing any range, throughput or battery figures |
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
-| Q10 | Signed releases, rollback and stable-release support policy. D50 sets the direction: signed dual-slot updates, flash encryption and Secure Boot V2 on release builds | Before the first public release or public updater |
+| Q10 | Signed releases, rollback and stable-release support policy. D50 sets the direction: signed dual-slot updates, flash encryption and Secure Boot V2 on release builds. The browser installer (D54) publishes unsigned prototype firmware meanwhile | Before the first public release |
 
 Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs), Q12 → D50 (security architecture), Q13 → D52 (rotation and rekey design).
 
@@ -134,7 +134,8 @@ layout, hashes and ROM security state, stages immutable images and preserves NVS
 factory app with no rollback is the prototype recovery route. Signed releases and rollback are
 open (Q10). See [flashing firmware](../guides/flashing-firmware.md). Since `v0.8.0` the partition
 table has two application slots and the application runs from the first; nothing writes the second
-slot yet, so there is still no rollback.
+slot yet, so there is still no rollback. The browser installer (D54) writes the same four images
+with the same checks.
 
 ### D44. Device screen and buttons
 Nov 3 · **Confirmed**. Phase 4 step 1, owner-directed while waiting for a third board. Every
@@ -370,6 +371,18 @@ Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 [protocol](../reference/protocol.md#channel-ids-v1-d45),
 [persistence](../reference/persistence.md#channel-ids-record-6),
 [RME2 envelope](../guides/security.md#rme2-message-envelope).
+
+### D54. Portal and firmware installer on GitHub Pages
+Nov 7 · **Confirmed**. Owner direction. Every push to `main` that passes CI publishes the web portal
+at the site root and a browser firmware installer at `flash/`, on GitHub Pages, at no cost. The
+installer is its own page (`agents/flasher/`), not part of the portal, because flashing takes over
+the USB port and restarts the board. It uses Espressif's `esptool-js` and repeats the updater's
+checks (D16): published SHA-256 hashes, chip, flash size and security state, four images only,
+settings, pairings and keys kept, no erase or eFuse change. CI validates each firmware build with
+`tools/update-firmware.py` before publishing it, so the site only serves what CI built from that
+commit. The firmware is unsigned prototype firmware; signing stays open (Q10). Deploying from
+`main` rather than from release tags was the owner's choice, so the installer always offers the
+latest `main`. See [Development and CI](development.md#github-pages).
 
 ### D49. Web portal follows the mobile app
 Nov 4 · **Confirmed**. Owner direction: the portal should look like the Reaper Mesh mobile app and support everything it does, including channels and QR creation. This is an owner-directed exception to the pause on new portal features (D37). It adds no firmware, radio or USB change, and no storage or wire format change, so the field qualification plan is unaffected (D41).

@@ -27,6 +27,10 @@ The web agent bundles four small libraries, each pinned in package-lock.json. Pr
 - `lucide` 1.68.0 (ISC License) provides the icons, the same set as the mobile app.
 - `mgrs` 2.2.0 (MIT License) converts coordinates to MGRS.
 
+## Firmware installer libraries
+
+The firmware installer (`agents/flasher/`) bundles `esptool-js` 0.7.0 (Apache License 2.0), Espressif's browser port of esptool, which includes Espressif's flasher stub binaries. It also bundles its dependencies `pako` 2.2.0 (MIT and Zlib licenses) for compression and `atob-lite` 2.0.0 (MIT License). Preserve their copyright and license notices when redistributing the installer build.
+
 ## Web tooling
 
-Development tooling is pinned in package-lock.json; preserve applicable notices for any tooling/runtime code actually redistributed.
+Development tooling is pinned in package-lock.json, including the MIT-licensed Web Serial and Web USB type definitions (`@types/w3c-web-serial`, `@types/w3c-web-usb`), which are used only for type checking; preserve applicable notices for any tooling/runtime code actually redistributed.

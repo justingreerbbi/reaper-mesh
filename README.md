@@ -10,6 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://justingreerbbi.github.io/reaper-mesh/"><img src="https://img.shields.io/badge/Open_the_web_app-B2DDA3?style=for-the-badge&labelColor=0c0e0b" alt="Open the web app" height="34"></a>
+  &nbsp;
+  <a href="https://justingreerbbi.github.io/reaper-mesh/flash/"><img src="https://img.shields.io/badge/Install_firmware-27591A?style=for-the-badge&labelColor=0c0e0b" alt="Install firmware" height="34"></a>
+</p>
+
+<p align="center">
   <a href="#quick-start"><strong>Quick start</strong></a> ·
   <a href="docs/overview/how-it-works.md"><strong>How it works</strong></a> ·
   <a href="docs/guides/hardware.md"><strong>Hardware</strong></a> ·
@@ -106,10 +112,12 @@ Exact evidence for every line is in [Status](docs/overview/status.md).
 
 ## Quick start
 
-Try the full web app in about five minutes. **No radio needed**: a built-in simulated device
-speaks the real protocol.
+**Try it right now, no radio and no install:** open the **[web app](https://justingreerbbi.github.io/reaper-mesh/)** in
+Chrome, Edge or Brave and choose **Use simulated device**. The simulated device speaks the real
+protocol, so you can send messages, explore the map and change settings exactly as you would with
+a board.
 
-You need [Node.js](https://nodejs.org/) 24 or 25 and Git.
+**Or run it from source** with [Node.js](https://nodejs.org/) 24 or 25 and Git:
 
 ```sh
 git clone https://github.com/justingreerbbi/reaper-mesh.git
@@ -128,10 +136,11 @@ recover. The [Getting started guide](docs/guides/getting-started.md) walks you t
 
 1. **Get two boards** (three to test relaying): a [Heltec WiFi LoRa 32 V3 or LILYGO T-Beam
    V1.2](docs/guides/hardware.md), 915 MHz version, with antennas.
-2. **Flash the firmware** over USB with the checked installer:
-   [Flashing firmware](docs/guides/flashing-firmware.md).
-3. **Connect** each board in the web portal over USB, and choose a radio network in
-   **Device → Radio network**.
+2. **Install the firmware** from your browser with the
+   **[firmware installer](https://justingreerbbi.github.io/reaper-mesh/flash/)**: pick your board, plug it in, click Install.
+   Prefer to build it yourself? See [Flashing firmware](docs/guides/flashing-firmware.md).
+3. **Connect** each board in the **[web app](https://justingreerbbi.github.io/reaper-mesh/)** over USB, and choose a
+   radio network in **Device → Radio network**.
 4. **Say hello.** Messages show as delivered when the other radio confirms them.
 
 > [!WARNING]
@@ -160,7 +169,7 @@ next is in the [Roadmap](docs/overview/roadmap.md).
 | --- | --- |
 | Understand what Reaper Mesh is | [How Reaper Mesh works](docs/overview/how-it-works.md) |
 | Try it without hardware | [Getting started](docs/guides/getting-started.md) |
-| Choose and flash a board | [Hardware](docs/guides/hardware.md) · [Flashing firmware](docs/guides/flashing-firmware.md) |
+| Choose and flash a board | [Hardware](docs/guides/hardware.md) · [Firmware installer](https://justingreerbbi.github.io/reaper-mesh/flash/) · [Flashing firmware](docs/guides/flashing-firmware.md) |
 | Use the app day to day | [Web portal](docs/guides/web-portal.md) · [Security and privacy](docs/guides/security.md) |
 | Extend the map | [Plugins](docs/guides/plugins.md) |
 | Build my own app | [Build a mobile app](docs/guides/mobile-apps.md) · [Protocol](docs/reference/protocol.md) |
@@ -185,6 +194,7 @@ the firmware small, build features in the apps), commit format and the pull requ
 | --- | --- |
 | [`firmware/`](firmware/) | Embedded C++17 components and the board applications (`heltec-v3`, `tbeam-v12`) |
 | [`agents/web/`](agents/web/) | The web portal (TypeScript, Vite, Leaflet) |
+| [`agents/flasher/`](agents/flasher/) | The browser firmware installer (TypeScript, Vite, esptool-js) |
 | [`packages/protocol/`](packages/protocol/) | The protocol schema, generated bindings and frozen compatibility fixtures |
 | [`packages/agent-core/`](packages/agent-core/) | Transport-independent connection, sync, messaging and recovery logic |
 | [`packages/simulator/`](packages/simulator/) | Simulated devices for tests and the portal |

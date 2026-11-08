@@ -41,7 +41,8 @@ type SerialApi = EventTarget & {
   getPorts?(): Promise<UsbPort[]>;
 };
 type BluetoothDevices = { getDevices?(): Promise<(BleDevice & { id?: string })[]> };
-const serial = (navigator as Navigator & { serial?: SerialApi }).serial;
+// Its own narrow type, independent of the global Web Serial typings that esptool-js pulls in.
+const serial = (navigator as unknown as { serial?: SerialApi }).serial;
 
 /** A device the user wants to stay connected to, and how to reach it again. */
 type Target =

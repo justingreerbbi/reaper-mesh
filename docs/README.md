@@ -26,7 +26,7 @@
 | --- | --- |
 | [Getting started](guides/getting-started.md) | Run the web portal with a simulated device, no hardware needed |
 | [Hardware](guides/hardware.md) | Which boards to buy, what else you need, and board details |
-| [Flashing firmware](guides/flashing-firmware.md) | Build, check and install firmware over USB, and recover if it fails |
+| [Flashing firmware](guides/flashing-firmware.md) | Install firmware from your browser or build it from source, and recover if it fails |
 | [Web portal](guides/web-portal.md) | Messaging, channels, the map, nodes and every device setting |
 | [Security and privacy](guides/security.md) | Team networks, channel encryption, the app PIN, and their limits |
 | [Plugins](guides/plugins.md) | Install and write JSON plugins that add map item types |

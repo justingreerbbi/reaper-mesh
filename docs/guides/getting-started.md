@@ -1,8 +1,15 @@
 # Getting started
 
-You can try Reaper Mesh in about five minutes with **no radio hardware at all**. The repository
-includes a simulated device that speaks the real protocol, so the web portal behaves just as it
-would with a board plugged in.
+You can try Reaper Mesh with **no radio hardware at all**. The web portal includes a simulated
+device that speaks the real protocol, so it behaves just as it would with a board plugged in.
+
+## Fastest: try it online
+
+Open **<https://justingreerbbi.github.io/reaper-mesh/>** in Chrome, Edge or Brave and choose
+**Use simulated device**, then skip to [step 3](#3-connect-the-simulated-device). Nothing is
+installed, and your messages and settings stay in your browser.
+
+The rest of this page runs the portal from source, which you need to change the code.
 
 ## What you need
 
@@ -77,8 +84,9 @@ It is the one command to run before any change. See [Development and CI](../cont
 
 ## Next steps
 
-- **Use real radios:** pick a board in [Hardware](hardware.md), then follow
-  [Flashing firmware](flashing-firmware.md).
+- **Use real radios:** pick a board in [Hardware](hardware.md), then install the firmware with
+  the [browser installer](https://justingreerbbi.github.io/reaper-mesh/flash/) ([Flashing firmware](flashing-firmware.md) has
+  both ways).
 - **Learn the portal:** [Web portal guide](web-portal.md).
 - **Understand the system:** [How Reaper Mesh works](../overview/how-it-works.md).
 - **Contribute:** [CONTRIBUTING.md](../../CONTRIBUTING.md).

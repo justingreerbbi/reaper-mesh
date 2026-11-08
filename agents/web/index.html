@@ -12,6 +12,7 @@
         if (saved.theme === 'day') document.documentElement.dataset.theme = 'day';
       } catch {}
     </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/theme.css" />
   </head>
   <body>
@@ -619,6 +620,15 @@
                 <span class="setting-text"><span>This app</span></span>
                 <i data-icon="chevron-right" class="faint"></i>
               </button>
+              <!-- The installer is its own page: flashing takes over the USB port. -->
+              <a class="setting-row" href="flash/">
+                <span class="setting-icon"><i data-icon="hard-drive-download"></i></span>
+                <span class="setting-text"
+                  ><span>Install or update firmware</span
+                  ><small class="muted">Opens the firmware installer</small></span
+                >
+                <i data-icon="external-link" class="faint"></i>
+              </a>
             </nav>
           </section>
 

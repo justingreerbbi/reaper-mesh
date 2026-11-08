@@ -59,8 +59,8 @@ to bug fixes, testing on real devices, and keeping the portal in step with the m
   ADS-B and APRS. These wait for an approved design of the plugin message API and permissions
   (D40).
 - **GPS** on the T-Beam, when the owner reopens it. Fixed positions cover location until then.
-- **Releases:** signed firmware, automatic rollback, a guided browser installer and a published
-  support policy.
+- **Releases:** signed firmware, automatic rollback, a browser installer that also checks the
+  installed version and exports settings first, and a published support policy.
 - **More regions and boards:** EU support needs verified hardware, countries and settings
   before any transmission.
 
