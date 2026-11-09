@@ -23,8 +23,8 @@ test durations around this limit, or use short messages for delivery-rate runs.
 
 ## Hardware needed
 
-- **A third board.** A second US/915 Heltec V3 is the simplest choice, because it runs the same
-  image as a board that already passes the two-board tests. Any third supported board works. A new
+- **A third board.** The bench now has three: a WiFi LoRa 32 V3, a Wireless Stick V3 and a
+  T-Beam V1.2. Any supported board works as a third. A new
   board needs a first install (see [Flashing firmware](../guides/flashing-firmware.md)), its region
   set and its antenna confirmed, and a network chosen, because a radio sends nothing until one is.
 - An antenna for every board.

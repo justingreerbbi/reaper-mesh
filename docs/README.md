@@ -56,7 +56,7 @@
 | [Development and CI](contributing/development.md) | Toolchain, checks, formatting and continuous integration |
 | [Commits and pull requests](contributing/commits-and-prs.md) | Commit format, signing, branch names and the pull request checklist |
 | [Architecture and standards](contributing/plan.md) | Repository layout, architecture, product requirements and test standards |
-| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D53`) and the open questions |
+| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D56`) and the open questions |
 | [Field qualification plan](contributing/field-qualification.md) | Relay, range, power-loss and soak test procedures |
 | [Security architecture](contributing/security-architecture.md) | The approved trusted-device design (D50) and its delivery order |
 | [Rotation and rekey design](contributing/rotation-design.md) | Epoch proofs, network frames, rekeying and relay status (D52) |

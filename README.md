@@ -65,7 +65,7 @@ the apps instead of the firmware, so your radios rarely need updating.
   <img src="docs/assets/screenshots/mobile-app.png" alt="The Reaper Mesh mobile app: the Comms tab with channels and direct messages, the Map tab with nodes, the Nodes tab listing who has been heard and how far away, the Device tab with live radio status, and the Radio settings page." width="100%">
 </p>
 
-<p align="center"><sub>The Reaper Mesh mobile app, developed in its own repository. It is coming to the App Store and Google Play; see <a href="https://reapermesh.com/app/">reapermesh.com/app</a>.</sub></p>
+<p align="center"><sub>The Reaper Mesh mobile app, developed in its own repository. The iOS app is in App Store review and Android follows; see <a href="https://reapermesh.com/app/">reapermesh.com/app</a>.</sub></p>
 
 <br>
 
@@ -110,7 +110,7 @@ picture, in plain language, is in **[How Reaper Mesh works](docs/overview/how-it
 | ✅ | **Map** | Points, areas, measuring and shared map items, with MGRS |
 | ✅ | **Bluetooth and USB** | Pair a phone or browser with a passkey shown on the radio |
 | ✅ | **On-device screen** | Status pages, button controls, battery and a status light |
-| 🧪 | **Relaying through a third radio** | Built and tested in simulation; hardware test next |
+| 🧪 | **Relaying through a third radio** | Passes with three radios on a desk; separated radios next |
 | 🧪 | **Range and long-run testing** | Planned field tests; see the [roadmap](docs/overview/roadmap.md) |
 | 🔜 | **GPS, sleep modes, code plugins, EU band** | On the [roadmap](docs/overview/roadmap.md) |
 
@@ -162,9 +162,9 @@ recover. The [Getting started guide](docs/guides/getting-started.md) walks you t
 
 > [!IMPORTANT]
 > Reaper Mesh is a **working prototype** in active development. Two radios exchange messages
-> reliably on the bench, and encryption and team networks work, but relaying through a third
-> radio, outdoor range and long-running durability have not been field-tested, and the security
-> design has not been independently audited. Do not rely on it for emergencies. Until core v1,
+> reliably on the bench, three relay through each other on a desk, and encryption and team
+> networks work, but relaying, outdoor range and long-running durability have not been
+> field-tested, and the security design has not been independently audited. Do not rely on it for emergencies. Until core v1,
 > updates may require reflashing all your radios.
 
 What is verified, and how, is tracked honestly in [Status](docs/overview/status.md). What comes

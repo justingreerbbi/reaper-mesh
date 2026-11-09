@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: November 7, 2026. This is the list of what comes next, in order. Finished work
+Last updated: November 8, 2026. This is the list of what comes next, in order. Finished work
 is removed from this page; see [Status](status.md) for what works today and the
 [changelog](changelog.md) for when it shipped.
 
@@ -27,6 +27,12 @@ to bug fixes, testing on real devices, and keeping the portal in step with the m
    compatibility layers to remove. With owner approval, reflash the boards, reset the fixtures
    to the new baseline and declare core v1 (D41, D42).
 6. **Resume feature work** on top of core v1, in agents and plugins (below).
+
+## When the mobile app is approved
+
+The iOS app is in App Store review, and the Android app follows. When a store approves it,
+replace that store's "Coming soon" button on the website (`agents/site/index.html` and
+`agents/site/app/index.html`) with the store's official badge and listing link.
 
 ## Planned after core v1
 

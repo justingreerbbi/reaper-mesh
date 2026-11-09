@@ -54,25 +54,30 @@ Put examples under `examples/` at the path of the component they target (for exa
 Write documentation in plain, complete sentences. Do not drop spaces or articles to save tokens
 ("Heltec usb-prototype-8, revision 38", not "Heltec8 revision38").
 
-## Current focus (November 7, 2026)
+## Current focus (November 8, 2026)
 
 - Field qualification comes first: new portal features are paused until three-node relay and
   an outdoor range test pass on hardware (owner direction, November 3). Portal work is limited
   to bug fixes and native QA. See the
   [field qualification plan](docs/contributing/field-qualification.md). The exceptions are
   keeping the portal in step with the mobile app (D49), team setup (D51), and the portal controls
-  for key rotation and rekeying (D52). The third board is expected on November 7.
-- Phase 4 device firmware work continues until the third board is ready: the status LED is built as
-  `v0.11.1` (D53, off by default, with an owner-approved portal toggle) and works on both boards. The
+  for key rotation and rekeying (D52). The third board, a Wireless Stick V3 (D55), is on the bench,
+  and the desk relay runs (D56) pass in Open and Team mode; the separated-boards run is next.
+- Phase 4 device firmware: the status LED is built as `v0.11.1` (D53, off by default, with an
+  owner-approved portal toggle) and works on the boards. The
   device has no settings page; device settings are changed in the portal. See the
   [roadmap](docs/overview/roadmap.md#device-phase-4) and [device screen and buttons](docs/reference/device-display.md).
 - The owner approved the [security architecture](docs/contributing/security-architecture.md) (D50).
-  Step 1 and step 2a (automatic key rotation, D52) are built and pass on two boards, so field
+  Step 1 and step 2a (automatic key rotation, D52) are built and pass on two boards and through a
+  relay on a desk, so field
   qualification runs on the frames that ship. Rekey and relay status (2b) follow qualification. See
   the [rotation and rekey design](docs/contributing/rotation-design.md). Existing behavior stands
   until each later step ships, and an independent security review is still open.
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.
+- The website is live at reapermesh.com and the iOS app is in App Store review. The store
+  listings link to the support and privacy pages in `agents/site/`, so keep them true to the app
+  (see [Development and CI](docs/contributing/development.md#github-pages)).
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.
 - Phase 3 encryption has a first implementation; see [Security and privacy](docs/guides/security.md).
 - Open release gates stay visible: three-node relay, range, power cut, interrupted flash, soak,
@@ -109,7 +114,7 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 
 ## Hardware and owner authorizations
 
-- Both boards are US/915 MHz with owner-confirmed antennas. Ports and installed builds are in
+- All three bench boards are US/915 MHz with owner-confirmed antennas. Ports and installed builds are in
   [Status](docs/overview/status.md).
 - The owner authorized ongoing reversible USB development, testing and firmware installs without
   routine prompts, and waived preserving the factory firmware. Ask before any firmware change in

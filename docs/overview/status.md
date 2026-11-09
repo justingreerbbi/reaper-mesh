@@ -1,6 +1,6 @@
 # Current status
 
-Last updated: November 7, 2026.
+Last updated: November 8, 2026.
 
 This page answers one question: **what works right now, and how do we know?** Edit it in place
 when that changes. Plans belong in the [roadmap](roadmap.md) and release notes in the
@@ -14,7 +14,7 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 
 | Phase | State |
 | --- | --- |
-| 1 — Working communications | **Complete.** Two boards exchange messages with acknowledgments. Three-node relay, range and power-cut tests are still open release gates |
+| 1 — Working communications | **Complete.** Two boards exchange messages with acknowledgments, and three boards relay on a desk. Relay with separated boards, range and power-cut tests are still open release gates |
 | 2 — Discovery and field portal | **Active.** Discovery and fixed positions work on two boards. GPS is deferred. New portal features wait for field testing |
 | 3 — Encrypted channels | **First version works** on two boards, including recovery from interrupted uploads. Channel key rotation and a security review are open |
 | 4 — Device screen and power | **In progress.** Screen pages, buttons, screen settings, battery display and a status LED are built. Sleep modes are not |
@@ -35,9 +35,22 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 | Team networks | Open mode or a team; relay key stored, team key in memory; automatic key rotation with epoch proofs | Team membership, wrong-key and other-network rejection, restart behavior, and rotation on two boards and through a relay on a desk; set up and rotated through the portal by the owner | Rotation after the interval actually elapses, power cut during a key change, key changes over Bluetooth, security review |
 | Bluetooth | Physical-access pairing, LE Secure Connections only, four paired devices, Web Bluetooth in the portal | Pairing, connecting, messaging and reconnecting after a firmware install, from the portal (owner-reported) | A wrong passkey; effect on LoRa timing. Phone results belong to the mobile app's repository |
 | Device screen, buttons and LED | Startup screen, pages, button gestures, screen timeout, wake on message, battery display, status LED (off by default) | Confirmed by the owner on both boards; settings round trip and persist over USB | Heltec battery voltage against a meter; the LED toggle in a native browser |
-| Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins. Published on GitHub Pages from `main` (D54) | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location |
+| Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins. Published at <https://reapermesh.com/web/> from `main` (D54) | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location |
 | Wireless Stick V3 target | `heltec-stick-v3` build, updater, CI and browser installer support; compact 64 × 32 screen layout (D55) | Over the air with the T-Beam: direct both ways with acknowledgment, Public and channel broadcasts, invites, encryption, discovery both ways. Over USB: identity, SX1262 probe, local delivery, settings storage. The owner confirmed the compact screen shows content | Every compact page and the pairing passkey on screen; Bluetooth pairing; the LED, battery voltage and button gestures; installing from the browser installer |
-| Firmware updates | Manifest-checking USB updater that keeps settings and keys; a browser installer on GitHub Pages with the same checks (D54) | Many installs on both boards with the USB updater | **The browser installer on a real board**; interrupted flash, rollback, signed releases |
+| Firmware updates | Manifest-checking USB updater that keeps settings and keys; a browser installer at <https://reapermesh.com/flash/> with the same checks, serving the CI builds of `main` for all three boards (D54) | Many installs on both boards with the USB updater | **The browser installer on a real board**; interrupted flash, rollback, signed releases |
+
+## Website and mobile app
+
+The website is live at <https://reapermesh.com/> (checked November 8): a landing page at the root,
+the web portal at `/web/`, the firmware installer at `/flash/`, and the mobile app, support and
+privacy pages the store listings link to. HTTPS works, and `www`, plain `http` and the old
+`justingreerbbi.github.io/reaper-mesh/` address redirect to it. The installer serves
+`v0.11.1` for all three boards, built by CI from a clean `31abc1b`. Installing from the live
+installer onto a board has not been reported yet.
+
+The iOS app is submitted to the App Store and waiting for review (owner-reported, November 8).
+Until it is approved, the site's store buttons say "Coming soon". The app is developed in its own
+repository (D48), which holds its test results.
 
 ## Development boards
 
@@ -69,10 +82,11 @@ New portal features are paused until these pass. Procedures are in the
 
 ## Automated checks
 
-`npm run check` passes all 391 tests on macOS (November 7): strict TypeScript, generated-schema
-and vendor checks, compiler-backed host tests and the web build. The standalone firmware CTest
-suite passes 127 tests, and both board builds pass. CI runs all of these plus formatting and
-shell lint; see [Development and CI](../contributing/development.md).
+`npm run check` passes all 402 tests on macOS (November 8): strict TypeScript, generated-schema
+and vendor checks, compiler-backed host tests and the web and installer builds. The standalone
+firmware CTest suite passes 133 tests. CI runs all of these plus formatting, shell lint and all
+three board builds, and passed on `main` at `31abc1b`, which the site deploys only after; see
+[Development and CI](../contributing/development.md).
 
 ## Not started or deferred
 

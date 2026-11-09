@@ -119,9 +119,9 @@ References (no code copied): [LILYGO T-Beam hardware](https://github.com/Xinyuan
 [AXP2101 registers](https://github.com/lewisxhe/XPowersLib/blob/master/src/REG/AXP2101Constants.h)
 and [SX1276 registers](https://github.com/Lora-net/LoRaMac-node/blob/master/src/radio/sx1276/sx1276Regs-LoRa.h).
 
-### Both boards
+### All boards
 
 Firmware uses ESP-IDF 5.5.4 and C++17. Secure boot and flash encryption must be off; the
-updater refuses a board that has them on and never changes eFuses. Both boards can be plugged
-into one computer at once. The web portal talks to one at a time, and the two-board test tools
-in `tools/` open each port separately.
+updater refuses a board that has them on and never changes eFuses. Several boards can be plugged
+into one computer at once. The web portal talks to one at a time, and the two- and three-board
+test tools in `tools/` open each port separately.

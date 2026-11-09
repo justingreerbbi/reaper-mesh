@@ -22,26 +22,18 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
-- **Changed:** <https://reapermesh.com/> now opens a landing page for the project, with the
-  features, screenshots, supported boards and where the mobile app will be available (App Store
-  and Google Play, coming soon). The web portal moves to `/web/`, on the same origin, so its saved
-  keys and messages carry over. The landing, mobile app, support and privacy pages share one
-  header and footer linking the web app, installer, support, privacy policy and docs, and the
-  privacy policy now also covers the website itself.
-- **Verified:** the site built locally and served from `/`: every internal link resolves, the
-  portal loads at `/web/`, the installer lists all three boards, and the pages fit a 375-pixel
-  phone screen without sideways scrolling.
-- **Not verified:** the live deploy on reapermesh.com.
-- **Added:** the Pages site moves to its own domain, <https://reapermesh.com/>, and gains the
-  pages the App Store and Google Play listings need: a privacy policy (`/privacy/`), support
-  (`/support/`) and a mobile app page (`/app/`), from `agents/site/`. The portal and installer
-  already used relative paths, so they work from the root unchanged; `npm run preview:site` now
-  serves at `/`. Old `justingreerbbi.github.io/reaper-mesh/` links redirect, but browser
-  storage stays with the old origin.
-- **Verified:** the site built locally and served from `/`: every page and link loads, the
-  installer lists all three boards' firmware, and the new pages fit a 375-pixel phone screen.
-- **Not verified:** DNS, HTTPS and the redirect on the live domain, which need the owner's
-  registrar and GitHub settings.
+- **Added:** the website at <https://reapermesh.com/>, published from `main` (D54). The root is
+  a landing page for the project: features, screenshots, how it works, supported boards and
+  where the mobile app will be available. The web portal moves to `/web/` and the installer stays
+  at `/flash/`, and the site gains the pages the App Store and Google Play listings need: the
+  mobile app (`/app/`), support (`/support/`) and a privacy policy (`/privacy/`) that also covers
+  the website. These pages come from `agents/site/` and share one header and footer. Old
+  `justingreerbbi.github.io/reaper-mesh/` links redirect, but browser storage stays with that old
+  origin; moving the portal from the root to `/web/` kept it on the same origin.
+- **Verified:** live on November 8: HTTPS, redirects from `www`, plain `http` and the old address,
+  every page, and the installer listing `v0.11.1` for all three boards from a clean CI build.
+  Locally, every internal link resolves and the pages fit a 375-pixel phone screen.
+- **Not verified:** installing from the live installer onto a board.
 - **Added:** a desk relay test build (D56), `tools/hardware-relay-smoke.ts` (Open mode) and
   `tools/hardware-relay-team-smoke.ts` (Team mode, a relay-key-only relay, key rotation), which
   test three boards on one desk by making the two ends ignore frames heard straight from their
