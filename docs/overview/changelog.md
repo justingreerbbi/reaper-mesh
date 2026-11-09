@@ -22,6 +22,16 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Changed:** <https://reapermesh.com/> now opens a landing page for the project, with the
+  features, screenshots, supported boards and where the mobile app will be available (App Store
+  and Google Play, coming soon). The web portal moves to `/web/`, on the same origin, so its saved
+  keys and messages carry over. The landing, mobile app, support and privacy pages share one
+  header and footer linking the web app, installer, support, privacy policy and docs, and the
+  privacy policy now also covers the website itself.
+- **Verified:** the site built locally and served from `/`: every internal link resolves, the
+  portal loads at `/web/`, the installer lists all three boards, and the pages fit a 375-pixel
+  phone screen without sideways scrolling.
+- **Not verified:** the live deploy on reapermesh.com.
 - **Added:** the Pages site moves to its own domain, <https://reapermesh.com/>, and gains the
   pages the App Store and Google Play listings need: a privacy policy (`/privacy/`), support
   (`/support/`) and a mobile app page (`/app/`), from `agents/site/`. The portal and installer

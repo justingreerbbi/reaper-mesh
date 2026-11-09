@@ -5,7 +5,7 @@ device that speaks the real protocol, so it behaves just as it would with a boar
 
 ## Fastest: try it online
 
-Open **<https://reapermesh.com/>** in Chrome, Edge or Brave and choose
+Open **<https://reapermesh.com/web/>** in Chrome, Edge or Brave and choose
 **Use simulated device**, then skip to [step 3](#3-connect-the-simulated-device). Nothing is
 installed, and your messages and settings stay in your browser.
 

@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050505" />
+    <title>Reaper Mesh · Off-grid text messaging over LoRa radio</title>
+    <meta
+      name="description"
+      content="Reaper Mesh lets a team text each other over LoRa radio with no internet and no cell service. Open-source firmware for low-cost boards, a web app, and a mobile app coming soon."
+    />
+    <link rel="canonical" href="https://reapermesh.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Reaper Mesh" />
+    <meta property="og:title" content="Reaper Mesh · Off-grid text messaging over LoRa radio" />
+    <meta
+      property="og:description"
+      content="Text your team when there's no signal. Open-source firmware for low-cost LoRa boards, with a web app and a mobile app."
+    />
+    <meta property="og:url" content="https://reapermesh.com/" />
+    <meta property="og:image" content="https://reapermesh.com/assets/social.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="%ROOT%favicon.svg" />
+    <link rel="stylesheet" href="%ROOT%theme.css" />
+    <link rel="stylesheet" href="%ROOT%site.css" />
+  </head>
+  <body>
+    <!-- site:header -->
+    <main id="main">
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <a class="status-chip" href="%ROOT%app/">
+              <span class="tag">New</span>
+              Mobile app coming to iOS and Android
+              <svg class="icon" aria-hidden="true">
+                <use href="%ROOT%assets/icons.svg#arrow-right" />
+              </svg>
+            </a>
+            <h1 class="display">Text your team when there's <em>no signal.</em></h1>
+            <p class="lead">
+              Reaper Mesh turns small, inexpensive LoRa radios into an off-grid messaging network.
+              Send messages, share positions and see your team on a map, with no internet, no cell
+              service and no accounts.
+            </p>
+            <div class="actions">
+              <a class="button-link" href="%ROOT%web/">
+                Open the web app
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#arrow-right" />
+                </svg>
+              </a>
+              <a class="button-link secondary" href="#download">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#smartphone" />
+                </svg>
+                Get the mobile app
+              </a>
+            </div>
+            <p class="hero-note">
+              <strong>No radio yet?</strong> The web app includes a simulated device, so you can try
+              everything in Chrome, Edge or Brave right now.
+            </p>
+            <ul class="pills" aria-label="Highlights">
+              <li>No internet</li>
+              <li>No cell service</li>
+              <li>No accounts</li>
+              <li>Open source</li>
+            </ul>
+          </div>
+          <figure class="hero-art">
+            <img
+              src="%ROOT%assets/hero-phones.webp"
+              width="1320"
+              height="1120"
+              alt="The Reaper Mesh app on three phones: conversations, live radio status and a map with team positions."
+              fetchpriority="high"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" id="features" aria-labelledby="features-title">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="eyebrow">Why Reaper Mesh</span>
+            <h2 class="section-title" id="features-title">
+              Communication you can <em>depend on</em> when the network can't.
+            </h2>
+            <p class="lead">
+              A deliberately small, stable radio core, messages that tell you exactly how far they
+              got, and new features built into the apps, so your radios rarely need updating.
+            </p>
+          </div>
+          <div class="feature-grid">
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#radio" />
+                </svg>
+              </div>
+              <h3>Works off the grid</h3>
+              <p>
+                Radio to radio, with no towers, Wi-Fi or servers in between. Every radio can relay,
+                so adding radios extends the reach.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#check-check" />
+                </svg>
+              </div>
+              <h3>Honest delivery</h3>
+              <p>
+                Every message shows queued, transmitted, delivered, failed or unknown. Nothing is
+                marked delivered unless the other radio confirmed it.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#rotate" />
+                </svg>
+              </div>
+              <h3>Never sends twice</h3>
+              <p>
+                If a link drops mid-send, the app asks the radio what happened instead of guessing
+                or resending.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#lock" />
+                </svg>
+              </div>
+              <h3>Private when you need it</h3>
+              <p>
+                Encrypted channels keep message text between key holders, and team networks rotate
+                their keys to keep outsiders off your network.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#map-pin" />
+                </svg>
+              </div>
+              <h3>Your team on the map</h3>
+              <p>
+                Positions, shared points and areas, distance measuring and MGRS, with map areas you
+                have viewed kept for offline use.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#code" />
+                </svg>
+              </div>
+              <h3>Cheap, open hardware</h3>
+              <p>
+                Runs on Heltec and LILYGO boards that cost a few tens of dollars. Firmware, apps,
+                protocol and docs are open source.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="tour-title">
+        <div class="wrap">
+          <div class="section-head center">
+            <span class="eyebrow">See it in action</span>
+            <h2 class="section-title" id="tour-title">
+              Everything your team needs, on one screen.
+            </h2>
+            <p class="lead">
+              Built for gloves and mounted phones: large touch targets, a night palette that keeps
+              your eyes adjusted, and a layout that works on a vest, dash or handlebar mount.
+            </p>
+          </div>
+          <ul class="phones">
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-comms.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Comms tab with channels and direct messages."
+                />
+                <figcaption>
+                  <b>Comms</b><span>Channels and direct messages with real delivery states</span>
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-map.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Map tab showing team members and an MGRS readout."
+                />
+                <figcaption>
+                  <b>Map</b><span>Nodes, positions and shared points and areas</span>
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-nodes.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Nodes tab listing who has been heard, when and how far away."
+                />
+                <figcaption>
+                  <b>Nodes</b><span>Who has been heard, when and how far away</span>
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-device.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Device tab with live radio status."
+                />
+                <figcaption><b>Device</b><span>Live radio status at a glance</span></figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-settings.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="Radio settings: mode, transmit power, boost and relay."
+                />
+                <figcaption>
+                  <b>Settings</b><span>Every setting, saved safely on the device</span>
+                </figcaption>
+              </figure>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="how-it-works" aria-labelledby="how-title">
+        <div class="wrap">
+          <div class="section-head center">
+            <span class="eyebrow">How it works</span>
+            <h2 class="section-title" id="how-title">
+              Your phone talks to your radio. Radios talk to each other.
+            </h2>
+          </div>
+          <ol class="flow" aria-label="A message's path">
+            <li>
+              <div class="flow-node">
+                <span class="card-icon"
+                  ><svg class="icon" aria-hidden="true">
+                    <use href="%ROOT%assets/icons.svg#smartphone" /></svg
+                ></span>
+                <b>Your app</b><small>Phone or browser</small>
+              </div>
+            </li>
+            <li><span class="flow-link">USB or Bluetooth</span></li>
+            <li>
+              <div class="flow-node">
+                <span class="card-icon"
+                  ><svg class="icon" aria-hidden="true">
+                    <use href="%ROOT%assets/icons.svg#radio" /></svg
+                ></span>
+                <b>Your radio</b><small>LoRa board</small>
+              </div>
+            </li>
+            <li><span class="flow-link radio">LoRa</span></li>
+            <li>
+              <div class="flow-node">
+                <span class="card-icon"
+                  ><svg class="icon" aria-hidden="true">
+                    <use href="%ROOT%assets/icons.svg#radio" /></svg
+                ></span>
+                <b>Relay</b><small>Any radio in between</small>
+              </div>
+            </li>
+            <li><span class="flow-link radio">LoRa</span></li>
+            <li>
+              <div class="flow-node">
+                <span class="card-icon"
+                  ><svg class="icon" aria-hidden="true">
+                    <use href="%ROOT%assets/icons.svg#users" /></svg
+                ></span>
+                <b>Your team</b><small>Their radio and app</small>
+              </div>
+            </li>
+          </ol>
+          <ol class="steps">
+            <li>
+              <div class="card">
+                <h3>You write a message</h3>
+                <p>
+                  On an encrypted channel the app encrypts it first, so the radio only ever sees
+                  scrambled bytes.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Your radio sends it</h3>
+                <p>Over LoRa, within an airtime budget so no one floods the channel.</p>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Other radios relay it</h3>
+                <p>A limited number of hops, to reach people beyond direct range.</p>
+              </div>
+            </li>
+            <li>
+              <div class="card">
+                <h3>Their radio confirms</h3>
+                <p>The receiving radio acknowledges it, and your app shows it as delivered.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="download" aria-labelledby="download-title">
+        <div class="wrap split">
+          <div>
+            <span class="eyebrow">Mobile app</span>
+            <h2 class="section-title" id="download-title">
+              Reaper Mesh for <em>iPhone and Android.</em>
+            </h2>
+            <p class="lead">
+              Pair your phone with your radio over Bluetooth and keep messages arriving in the
+              background. No accounts, no tracking: your messages and keys stay on your phone in an
+              encrypted store.
+            </p>
+            <!-- At launch, replace each button with the store's official badge and listing link. -->
+            <div class="stores">
+              <span class="store is-soon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Coming soon</small><b>App Store</b></span>
+              </span>
+              <span class="store is-soon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Coming soon</small><b>Google Play</b></span>
+              </span>
+            </div>
+            <p class="spaced-top">
+              <a class="text-link" href="%ROOT%app/">
+                More about the mobile app
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#arrow-right" />
+                </svg>
+              </a>
+            </p>
+          </div>
+          <div class="app-stack">
+            <img
+              src="%ROOT%assets/app-comms.webp"
+              width="452"
+              height="941"
+              loading="lazy"
+              alt="The mobile app's Comms tab."
+            />
+            <img
+              src="%ROOT%assets/app-map.webp"
+              width="452"
+              height="941"
+              loading="lazy"
+              alt="The mobile app's Map tab."
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="web" aria-labelledby="web-title">
+        <div class="wrap split media-first">
+          <div class="browser-shot">
+            <img
+              src="%ROOT%assets/web-portal.webp"
+              width="1600"
+              height="1059"
+              loading="lazy"
+              alt="The Reaper Mesh web app in a desktop browser, showing live device status and settings."
+            />
+          </div>
+          <div>
+            <span class="eyebrow">Web app</span>
+            <h2 class="section-title" id="web-title">Use it today, right in your browser.</h2>
+            <p class="lead">
+              The web app does everything the mobile app does, from messaging and maps to team keys
+              and every radio setting. Nothing to install.
+            </p>
+            <ul class="checks">
+              <li>
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#bluetooth" />
+                </svg>
+                <span
+                  ><strong>USB or Bluetooth.</strong> Connect in Chrome, Edge or Brave on a
+                  computer.</span
+                >
+              </li>
+              <li>
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#monitor" />
+                </svg>
+                <span
+                  ><strong>Try it with no hardware.</strong> Choose <em>Use simulated device</em> to
+                  explore with a virtual radio.</span
+                >
+              </li>
+              <li>
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#lock" />
+                </svg>
+                <span
+                  ><strong>Your data stays in your browser.</strong> Lock it with a PIN; the site
+                  only delivers the app.</span
+                >
+              </li>
+            </ul>
+            <div class="actions">
+              <a class="button-link" href="%ROOT%web/">
+                Open the web app
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#arrow-right" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="hardware" aria-labelledby="hardware-title">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="eyebrow">Hardware</span>
+            <h2 class="section-title" id="hardware-title">Runs on boards you can buy today.</h2>
+            <p class="lead">
+              Get two boards to send messages, three to relay. Install the firmware from your
+              browser in about a minute, with nothing to download.
+            </p>
+          </div>
+          <div class="grid-3">
+            <article class="card board-card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true"><use href="%ROOT%assets/icons.svg#cpu" /></svg>
+              </div>
+              <h3>Heltec WiFi LoRa 32 V3</h3>
+              <p>The simplest, cheapest place to start, with a built-in screen.</p>
+              <ul class="meta">
+                <li>ESP32-S3</li>
+                <li>SX1262</li>
+                <li>0.96″ OLED</li>
+              </ul>
+            </article>
+            <article class="card board-card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true"><use href="%ROOT%assets/icons.svg#cpu" /></svg>
+              </div>
+              <h3>Heltec Wireless Stick V3</h3>
+              <p>
+                The smallest board, for compact kits and cases, with a glanceable status screen.
+              </p>
+              <ul class="meta">
+                <li>ESP32-S3</li>
+                <li>SX1262</li>
+                <li>0.49″ OLED</li>
+              </ul>
+            </article>
+            <article class="card board-card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true"><use href="%ROOT%assets/icons.svg#cpu" /></svg>
+              </div>
+              <h3>LILYGO T-Beam V1.2</h3>
+              <p>Built for battery use, with an 18650 holder and a fuel gauge.</p>
+              <ul class="meta">
+                <li>ESP32</li>
+                <li>SX1276</li>
+                <li>18650</li>
+              </ul>
+            </article>
+          </div>
+          <div class="actions spaced">
+            <a class="button-link accent" href="%ROOT%flash/">
+              <svg class="icon" aria-hidden="true">
+                <use href="%ROOT%assets/icons.svg#download" />
+              </svg>
+              Install firmware
+            </a>
+            <a
+              class="text-link"
+              href="https://github.com/justingreerbbi/reaper-mesh/blob/main/docs/guides/hardware.md"
+            >
+              Hardware guide
+              <svg class="icon" aria-hidden="true">
+                <use href="%ROOT%assets/icons.svg#arrow-right" />
+              </svg>
+            </a>
+          </div>
+          <div class="callout">
+            <svg class="icon" aria-hidden="true"><use href="%ROOT%assets/icons.svg#alert" /></svg>
+            <div>
+              <h3>A working prototype</h3>
+              <p>
+                Two radios exchange messages reliably, and encryption and team networks work.
+                Relaying through a third radio, outdoor range and long-running durability are still
+                being field-tested, and the security design has not been independently audited.
+                Don't rely on it for emergencies yet. Supports the US 915 MHz band only; always
+                attach the antenna before transmitting.
+              </p>
+              <p>
+                <a
+                  href="https://github.com/justingreerbbi/reaper-mesh/blob/main/docs/overview/status.md"
+                  >What's verified</a
+                >
+                ·
+                <a
+                  href="https://github.com/justingreerbbi/reaper-mesh/blob/main/docs/overview/roadmap.md"
+                  >What's next</a
+                >
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="open-title">
+        <div class="wrap">
+          <div class="cta-band">
+            <img src="%ROOT%favicon.svg" width="56" height="56" alt="" />
+            <h2 class="section-title" id="open-title">Open source, top to bottom.</h2>
+            <p class="lead">
+              Firmware, apps, the radio protocol and the docs are all public under the Apache 2.0
+              license. Read the code, file an issue, or add a board.
+            </p>
+            <div class="actions">
+              <a class="button-link" href="https://github.com/justingreerbbi/reaper-mesh">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#github" />
+                </svg>
+                View on GitHub
+              </a>
+              <a
+                class="button-link secondary"
+                href="https://github.com/justingreerbbi/reaper-mesh/blob/main/docs/README.md"
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#book" />
+                </svg>
+                Read the docs
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <!-- site:footer -->
+  </body>
+</html>

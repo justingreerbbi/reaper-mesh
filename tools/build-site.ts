@@ -1,14 +1,19 @@
 // Assembles the GitHub Pages site in dist/site:
 //
-//   dist/site/                  the web portal (from dist/web)
+//   dist/site/                  the project's landing page (from agents/site)
+//   dist/site/web/              the web portal (from dist/web)
 //   dist/site/flash/            the firmware installer (from dist/flasher)
 //   dist/site/flash/firmware/   firmware images and index.json, from build/<board>/
 //   dist/site/flash/firmware/notices/   the licenses that must travel with the images
-//   dist/site/privacy/, support/, app/  the site's own pages (from agents/site), linked from the
+//   dist/site/app/, support/, privacy/  the site's own pages (from agents/site), linked from the
 //                               App Store and Google Play listings
 //
 // The site is served from the root of https://reapermesh.com/. Every page uses relative paths, so
 // it also works under a subpath such as a github.io project site.
+//
+// In agents/site, each page's <!-- site:header --> and <!-- site:footer --> markers are replaced by
+// partials/header.html and partials/footer.html, %ROOT% by the relative path to the site root, and
+// %SUPPORT_EMAIL% by the contact address. Links to the page itself are marked aria-current.
 //
 // Run `npm run build:web` and `npm run build:flasher` first, and build the firmware with
 // tools/build-firmware.sh. Each board's build is validated with tools/update-firmware.py (the same
@@ -75,17 +80,24 @@ for (const part of ['dist/web/index.html', 'dist/flasher/index.html']) {
 }
 
 rmSync(site, { recursive: true, force: true });
-cpSync('dist/web', site, { recursive: true });
+cpSync('dist/web', join(site, 'web'), { recursive: true });
 cpSync('dist/flasher', installer, { recursive: true });
+// The site's pages share the apps' design tokens and icon.
+for (const shared of ['theme.css', 'favicon.svg']) {
+  cpSync(join('agents/web/public', shared), join(site, shared));
+}
+const partials = {
+  header: readFileSync('agents/site/partials/header.html', 'utf8'),
+  footer: readFileSync('agents/site/partials/footer.html', 'utf8'),
+};
 for (const file of listFiles('agents/site')) {
-  const target = join(site, relative('agents/site', file));
+  const path = relative('agents/site', file).split('\\').join('/');
+  if (path.startsWith('partials/')) continue;
+  const target = join(site, path);
   if (existsSync(target)) throw new Error(`${target} from agents/site would replace a built file`);
   mkdirSync(dirname(target), { recursive: true });
-  if (file.endsWith('.html')) {
-    writeFileSync(target, readFileSync(file, 'utf8').replaceAll('%SUPPORT_EMAIL%', SUPPORT_EMAIL));
-  } else {
-    cpSync(file, target);
-  }
+  if (file.endsWith('.html')) writeFileSync(target, renderPage(path, readFileSync(file, 'utf8')));
+  else cpSync(file, target);
 }
 mkdirSync(firmwareDir, { recursive: true });
 
@@ -166,6 +178,21 @@ const noticeFiles = listFiles(notices)
 const index = { format: 1, built: new Date().toISOString(), boards, notices: noticeFiles };
 writeFileSync(join(firmwareDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
 console.log(`Site ready in ${site} with ${boards.length} firmware build(s).`);
+
+/** Fills in a page from agents/site: shared header and footer, root path and contact address. */
+function renderPage(path: string, html: string): string {
+  const dir = path.slice(0, path.lastIndexOf('/') + 1);
+  const root = '../'.repeat(dir.split('/').length - 1) || './';
+  const page = html
+    .replace('<!-- site:header -->', partials.header.trim())
+    .replace('<!-- site:footer -->', partials.footer.trim())
+    .replaceAll(`href="%ROOT%${dir}"`, `href="%ROOT%${dir}" aria-current="page"`)
+    .replaceAll('%ROOT%', root)
+    .replaceAll('%SUPPORT_EMAIL%', SUPPORT_EMAIL);
+  const left = /<!-- site:\w+ -->|%[A-Z_]+%/.exec(page);
+  if (left) throw new Error(`agents/site/${path}: ${left[0]} was not filled in`);
+  return page;
+}
 
 /** License, copying, notice and copyright files anywhere in the SDK, outside .git. */
 function sdkNotices(dir: string): string[] {

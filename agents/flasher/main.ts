@@ -70,7 +70,7 @@ function showResult(tone: 'good' | 'bad', title: string, detail: string, portalL
   if (portalLink) {
     const link = document.createElement('a');
     link.className = 'button-link';
-    link.href = '../';
+    link.href = '../web/';
     link.textContent = 'Open the web portal';
     result.append(link);
   }

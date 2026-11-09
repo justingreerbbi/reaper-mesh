@@ -5,7 +5,7 @@ USB or Bluetooth and gives you messaging, a map, the list of nodes heard and eve
 setting. It looks and works like the Reaper Mesh mobile app, and either can read the other's
 QR codes.
 
-Open it at **<https://reapermesh.com/>**, published from the latest `main` (D54). Use
+Open it at **<https://reapermesh.com/web/>**, published from the latest `main` (D54). Use
 Chrome, Edge or Brave: USB needs Web Serial and Bluetooth needs Web Bluetooth, which Safari and
 Firefox do not have. Your messages, keys and settings stay in your browser; the site only serves
 the app.

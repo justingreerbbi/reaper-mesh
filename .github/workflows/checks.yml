@@ -1,5 +1,6 @@
-# Checks every change. On main, also builds and deploys the GitHub Pages site: the web portal at
-# the root and the firmware installer at flash/, with the firmware images built here.
+# Checks every change. On main, also builds and deploys the GitHub Pages site: the landing page at
+# the root, the web portal at web/ and the firmware installer at flash/, with the firmware images
+# built here.
 name: Checks
 on:
   push:
