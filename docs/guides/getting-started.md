@@ -5,7 +5,7 @@ device that speaks the real protocol, so it behaves just as it would with a boar
 
 ## Fastest: try it online
 
-Open **<https://justingreerbbi.github.io/reaper-mesh/>** in Chrome, Edge or Brave and choose
+Open **<https://reapermesh.com/>** in Chrome, Edge or Brave and choose
 **Use simulated device**, then skip to [step 3](#3-connect-the-simulated-device). Nothing is
 installed, and your messages and settings stay in your browser.
 
@@ -85,7 +85,7 @@ It is the one command to run before any change. See [Development and CI](../cont
 ## Next steps
 
 - **Use real radios:** pick a board in [Hardware](hardware.md), then install the firmware with
-  the [browser installer](https://justingreerbbi.github.io/reaper-mesh/flash/) ([Flashing firmware](flashing-firmware.md) has
+  the [browser installer](https://reapermesh.com/flash/) ([Flashing firmware](flashing-firmware.md) has
   both ways).
 - **Learn the portal:** [Web portal guide](web-portal.md).
 - **Understand the system:** [How Reaper Mesh works](../overview/how-it-works.md).

@@ -18,7 +18,7 @@ Bluetooth pairings and network keys.
 
 ## Install from your browser
 
-1. Open the installer: **<https://justingreerbbi.github.io/reaper-mesh/flash/>**, or
+1. Open the installer: **<https://reapermesh.com/flash/>**, or
    **Device → Install or update firmware** in the web portal.
 2. **Choose your board** from the list (Heltec WiFi LoRa 32 V3, Wireless Stick V3 or T-Beam
    V1.2). Each shows the firmware version it will install.
@@ -42,7 +42,7 @@ pairings and keys.
 
 The installer's code is in `agents/flasher/`. To try a local copy with firmware you built, run
 `npm run build:site` and then `npm run preview:site`, and open
-<http://127.0.0.1:4173/reaper-mesh/flash/>. How the hosted copy is built and published is in
+<http://127.0.0.1:4173/flash/>. How the hosted copy is built and published is in
 [Development and CI](../contributing/development.md#github-pages).
 
 ## Build and install from source

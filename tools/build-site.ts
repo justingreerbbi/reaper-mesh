@@ -4,6 +4,11 @@
 //   dist/site/flash/            the firmware installer (from dist/flasher)
 //   dist/site/flash/firmware/   firmware images and index.json, from build/<board>/
 //   dist/site/flash/firmware/notices/   the licenses that must travel with the images
+//   dist/site/privacy/, support/, app/  the site's own pages (from agents/site), linked from the
+//                               App Store and Google Play listings
+//
+// The site is served from the root of https://reapermesh.com/. Every page uses relative paths, so
+// it also works under a subpath such as a github.io project site.
 //
 // Run `npm run build:web` and `npm run build:flasher` first, and build the firmware with
 // tools/build-firmware.sh. Each board's build is validated with tools/update-firmware.py (the same
@@ -57,6 +62,9 @@ const requireFirmware = args.has('--require-firmware');
 const allowDirty = args.has('--allow-dirty');
 const python = process.env.PYTHON ?? 'python3';
 
+// The contact address on the privacy and support pages, filled in wherever they say %SUPPORT_EMAIL%.
+const SUPPORT_EMAIL = 'support@reapermesh.com';
+
 const site = 'dist/site';
 const installer = join(site, 'flash');
 const firmwareDir = join(installer, 'firmware');
@@ -69,6 +77,16 @@ for (const part of ['dist/web/index.html', 'dist/flasher/index.html']) {
 rmSync(site, { recursive: true, force: true });
 cpSync('dist/web', site, { recursive: true });
 cpSync('dist/flasher', installer, { recursive: true });
+for (const file of listFiles('agents/site')) {
+  const target = join(site, relative('agents/site', file));
+  if (existsSync(target)) throw new Error(`${target} from agents/site would replace a built file`);
+  mkdirSync(dirname(target), { recursive: true });
+  if (file.endsWith('.html')) {
+    writeFileSync(target, readFileSync(file, 'utf8').replaceAll('%SUPPORT_EMAIL%', SUPPORT_EMAIL));
+  } else {
+    cpSync(file, target);
+  }
+}
 mkdirSync(firmwareDir, { recursive: true });
 
 const boards = [];

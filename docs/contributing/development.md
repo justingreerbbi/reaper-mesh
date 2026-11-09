@@ -35,7 +35,7 @@ npm run check
 | `npm run build:web` | Builds the portal into `dist/web/` |
 | `npm run build:flasher` | Builds the firmware installer (`agents/flasher/`) into `dist/flasher/` |
 | `npm run build:site` | Builds both and assembles the GitHub Pages site in `dist/site/`, with any firmware you built in `build/` (see [GitHub Pages](#github-pages)) |
-| `npm run preview:site` | Serves `dist/site/` at <http://127.0.0.1:4173/reaper-mesh/>, the same path as on Pages |
+| `npm run preview:site` | Serves `dist/site/` at <http://127.0.0.1:4173/>, the same path as on Pages |
 
 ## Formatting
 
@@ -82,18 +82,26 @@ Passing host checks does not establish browser permission behavior, native seria
 
 ## GitHub Pages
 
-Every push to `main` that passes CI publishes two pages:
+Every push to `main` that passes CI publishes the site at <https://reapermesh.com/>:
 
 | Page | Address | Source |
 | --- | --- | --- |
-| Web portal | <https://justingreerbbi.github.io/reaper-mesh/> | `agents/web/` |
-| Firmware installer | <https://justingreerbbi.github.io/reaper-mesh/flash/> | `agents/flasher/` |
+| Web portal | <https://reapermesh.com/> | `agents/web/` |
+| Firmware installer | <https://reapermesh.com/flash/> | `agents/flasher/` |
+| Mobile app (App Store marketing URL) | <https://reapermesh.com/app/> | `agents/site/app/` |
+| Support | <https://reapermesh.com/support/> | `agents/site/support/` |
+| Privacy policy | <https://reapermesh.com/privacy/> | `agents/site/privacy/` |
+
+The App Store and Google Play listings link to the last three, so keep their addresses stable.
+The privacy policy must stay true to the mobile app's code and its "Data Not Collected" App Store
+label: update it, and its effective date, before shipping anything that collects or sends data.
+The contact address on those pages is `SUPPORT_EMAIL` in `tools/build-site.ts`.
 
 How it works:
 
 1. The **Firmware build** jobs build every board and keep the images as artifacts.
 2. The **Pages site** job builds both apps with a relative base path (`--base ./`), so they work
-   under `/reaper-mesh/` or any custom domain, then runs `node tools/build-site.ts
+   at the domain root or under any subpath, then runs `node tools/build-site.ts
    --require-firmware`. That script validates each firmware build with
    `tools/update-firmware.py`, the same checks as a USB install, and lays out the site:
 
@@ -101,6 +109,7 @@ How it works:
    dist/site/                 the portal
    dist/site/flash/           the installer
    dist/site/flash/firmware/  index.json, one folder of images per board and build, notices/
+   dist/site/app/, support/, privacy/   static pages copied from agents/site/
    ```
 
 3. The **Deploy to GitHub Pages** job publishes it, using the `github-pages` environment.
@@ -111,13 +120,18 @@ from the latest `main`. Image folders are named after the firmware version and c
 browser holding a cached image can never pair it with a newer index.
 
 **One-time setup:** in the repository's **Settings → Pages**, set **Source** to **GitHub
-Actions**. Pages is free for public repositories.
+Actions** and **Custom domain** to `reapermesh.com`, then tick **Enforce HTTPS**. The domain is
+set there, not with a `CNAME` file, because the site deploys from Actions. Its DNS needs the
+GitHub Pages `A` and `AAAA` records on the apex and a `www` `CNAME` to `justingreerbbi.github.io`.
+reapermesh.org only redirects to reapermesh.com. Pages is free for public repositories.
 
-**Origin:** browsers isolate storage by origin, and every Pages site of the account shares
-`justingreerbbi.github.io`. Any other Pages site published from the same account could read the
-portal's browser storage, including channel keys. Don't publish other Pages sites from this
-account, or give this site a custom domain (**Settings → Pages → Custom domain**). The apps use
-relative paths, so a custom domain needs no code change.
+**Origin:** browsers isolate storage by origin. On its own domain the portal's browser storage,
+including channel keys, is not shared with any other site. Without the custom domain it would
+share `justingreerbbi.github.io` with every other Pages site of the account, which could read it.
+GitHub redirects the old `justingreerbbi.github.io/reaper-mesh/` links to the domain, but
+browser storage does not move with them: someone who used the portal at the old address finds it
+empty at reapermesh.com and has to rejoin their channels there. Every page uses relative paths,
+so the site works at either address with no code change.
 
 Firmware published this way is unsigned prototype firmware. The installer checks every image's
 SHA-256 against the index, and the index comes from the same deploy, so this detects corruption

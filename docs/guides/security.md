@@ -103,10 +103,10 @@ bundle. Treat every code as a secret: anyone who sees it, even in a photo, can r
   In Open mode, discovery and positions are readable by anyone in range.
 - **The PIN is a convenience lock.** A 4–6 digit PIN cannot resist offline guessing of copied
   browser storage, and nothing protects an unlocked app from malicious extensions or malware.
-- **The hosted portal shares its origin.** Browsers isolate storage by origin, and every GitHub
-  Pages site under `justingreerbbi.github.io` is the same origin. Another Pages site published
-  from that account could read the portal's saved keys and messages. Turn on the PIN, or run the
-  portal from source, if that matters to you; a custom domain for the site removes the risk.
+- **The hosted portal's storage belongs to its domain.** Browsers isolate storage by origin, and
+  the hosted portal has its own, <https://reapermesh.com/>, so no other site can read its saved
+  keys and messages. Anything else that runs on that origin could, so it serves only Reaper Mesh
+  pages. Turn on the PIN, or run the portal from source, for more protection.
 - **Plugins** never receive keys, but anything that runs inside the app must be trusted until
   code plugins run in an isolated sandbox (D40).
 

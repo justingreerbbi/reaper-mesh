@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050505" />
+    <meta
+      name="description"
+      content="Help with the Reaper Mesh app: pairing your radio, permissions, offline maps, range and contact details."
+    />
+    <title>Support · Reaper Mesh</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <link rel="stylesheet" href="../theme.css" />
+    <link rel="stylesheet" href="../site.css" />
+  </head>
+  <body>
+    <main class="page">
+      <a class="brand" href="../app/">
+        <img src="../favicon.svg" width="40" height="40" alt="" />
+        Reaper Mesh
+      </a>
+      <span class="eyebrow">Support</span>
+      <h1>Getting connected</h1>
+      <p class="lead">
+        Reaper Mesh needs a Reaper Mesh radio. Your phone connects to the radio over Bluetooth, and
+        the radio carries your messages over LoRa to other radios in range.
+      </p>
+
+      <div class="card">
+        <h2>Pair your radio</h2>
+        <ol>
+          <li>Turn the radio on and hold its main button for 5 seconds to open pairing.</li>
+          <li>
+            In the app, pick the device with a name like <strong>Reaper-1A2B</strong>. The last four
+            characters match your radio.
+          </li>
+          <li>Enter the 6-digit passkey shown on the radio's screen.</li>
+        </ol>
+        <p>
+          The app remembers the radio, so next time you pick it from your devices, and it reconnects
+          on its own if the link drops. No firmware yet?
+          <a href="../flash/">Install it from your browser</a> over USB.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>No radio? Try the demo</h2>
+        <p>
+          Tap <strong>No radio? Try the demo</strong> at the foot of the connect screen. It runs the
+          whole app against a simulated radio, so you can look around before you buy hardware.
+        </p>
+      </div>
+
+      <h2>Permissions</h2>
+      <p>The app asks only for what it uses. Each can be turned off in your phone's settings.</p>
+      <ul>
+        <li>
+          <strong>Bluetooth:</strong> to connect to your Reaper radio, and to stay linked while the
+          app is in the background so messages keep arriving. Without it the app cannot reach the
+          radio.
+        </li>
+        <li>
+          <strong>Location:</strong> to show where you are on the map and measure distances. It is
+          sent to your radio only if you choose to save it there, and the radio then broadcasts it
+          unencrypted to anyone in range.
+        </li>
+        <li><strong>Camera:</strong> to scan channel and team QR codes. Nothing is recorded.</li>
+        <li>
+          <strong>Notifications:</strong> to tell you about messages that arrive in the background.
+          Choose sender only, full text or off in the app's settings.
+        </li>
+        <li>
+          <strong>Photos:</strong> asked only when you save a channel QR code to your photo library.
+        </li>
+      </ul>
+
+      <h2>Common questions</h2>
+      <h3>Do maps work offline?</h3>
+      <p>
+        Only for areas you have already viewed while online. Those tiles are kept on your phone, up
+        to 512 MB. Before heading out, open the map with a connection and look over the area you
+        need at the zoom levels you will use.
+      </p>
+      <h3>How far does it reach?</h3>
+      <p>
+        Range depends on terrain, antennas and the mesh. Hills, buildings and trees block the
+        signal; height and a better antenna help most. Every radio in the mesh can relay messages,
+        so adding radios between people extends the reach.
+      </p>
+      <h3>A message shows as not delivered</h3>
+      <p>
+        The other radio may be out of range or switched off. Check the <strong>Nodes</strong> tab to
+        see who has been heard recently and how long ago.
+      </p>
+      <h3>How do I remove my data?</h3>
+      <p>
+        <strong>Erase</strong> in the app's settings removes all local data on your phone, including
+        messages, keys and the map cache. It cannot remove messages other radios have already
+        received. See the <a href="../privacy/">privacy policy</a> for details.
+      </p>
+      <h3>Can I use a computer instead?</h3>
+      <p>
+        Yes. The <a href="../">web portal</a> runs in Chrome, Edge or Brave and connects to the
+        radio over USB or Bluetooth.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Email <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a>. Tell us your phone model, the
+        app version and which radio board you use. Bugs and feature requests are also welcome on
+        <a href="https://github.com/justingreerbbi/reaper-mesh/issues">GitHub</a>.
+      </p>
+    </main>
+    <footer class="site-footer">
+      <nav aria-label="Site">
+        <a href="../app/">Mobile app</a>
+        <a href="../support/" aria-current="page">Support</a>
+        <a href="../privacy/">Privacy</a>
+        <a href="../">Web portal</a>
+        <a href="../flash/">Install firmware</a>
+      </nav>
+      <p>Reaper Mesh is open source under the Apache 2.0 license.</p>
+    </footer>
+  </body>
+</html>

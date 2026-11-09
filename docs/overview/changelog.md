@@ -22,6 +22,16 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** the Pages site moves to its own domain, <https://reapermesh.com/>, and gains the
+  pages the App Store and Google Play listings need: a privacy policy (`/privacy/`), support
+  (`/support/`) and a mobile app page (`/app/`), from `agents/site/`. The portal and installer
+  already used relative paths, so they work from the root unchanged; `npm run preview:site` now
+  serves at `/`. Old `justingreerbbi.github.io/reaper-mesh/` links redirect, but browser
+  storage stays with the old origin.
+- **Verified:** the site built locally and served from `/`: every page and link loads, the
+  installer lists all three boards' firmware, and the new pages fit a 375-pixel phone screen.
+- **Not verified:** DNS, HTTPS and the redirect on the live domain, which need the owner's
+  registrar and GitHub settings.
 - **Added:** a desk relay test build (D56), `tools/hardware-relay-smoke.ts` (Open mode) and
   `tools/hardware-relay-team-smoke.ts` (Team mode, a relay-key-only relay, key rotation), which
   test three boards on one desk by making the two ends ignore frames heard straight from their

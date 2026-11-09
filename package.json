@@ -18,7 +18,7 @@
     "build:web": "vite build agents/web --base ./ --outDir ../../dist/web --emptyOutDir",
     "build:flasher": "vite build agents/flasher --base ./ --outDir ../../dist/flasher --emptyOutDir",
     "build:site": "npm run build:web && npm run build:flasher && node tools/build-site.ts",
-    "preview:site": "vite preview agents/web --outDir ../../dist/site --base /reaper-mesh/ --host 127.0.0.1 --port 4173 --strictPort",
+    "preview:site": "vite preview agents/web --outDir ../../dist/site --base / --host 127.0.0.1 --port 4173 --strictPort",
     "test": "npm run check:generated && node --test tests/simulator/*.test.ts"
   },
   "devDependencies": {
