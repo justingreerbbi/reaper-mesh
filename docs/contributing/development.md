@@ -86,7 +86,8 @@ Every push to `main` that passes CI publishes the site at <https://reapermesh.co
 
 | Page | Address | Source |
 | --- | --- | --- |
-| Web portal | <https://reapermesh.com/> | `agents/web/` |
+| Project landing page | <https://reapermesh.com/> | `agents/site/index.html` |
+| Web portal | <https://reapermesh.com/web/> | `agents/web/` |
 | Firmware installer | <https://reapermesh.com/flash/> | `agents/flasher/` |
 | Mobile app (App Store marketing URL) | <https://reapermesh.com/app/> | `agents/site/app/` |
 | Support | <https://reapermesh.com/support/> | `agents/site/support/` |
@@ -106,11 +107,18 @@ How it works:
    `tools/update-firmware.py`, the same checks as a USB install, and lays out the site:
 
    ```text
-   dist/site/                 the portal
+   dist/site/                 the landing page, with theme.css and favicon.svg from the portal
+   dist/site/web/             the portal
    dist/site/flash/           the installer
    dist/site/flash/firmware/  index.json, one folder of images per board and build, notices/
-   dist/site/app/, support/, privacy/   static pages copied from agents/site/
+   dist/site/app/, support/, privacy/, assets/   static pages and images from agents/site/
    ```
+
+   The pages in `agents/site/` share one header and footer, `agents/site/partials/`, which the
+   script fills in, together with the relative path to the site root and the contact address.
+   Their images are cropped from `docs/assets/` and kept in `agents/site/assets/`. Before the
+   mobile app launches, its App Store and Google Play buttons say "Coming soon"; at launch,
+   replace them in `index.html` and `app/index.html` with the stores' official badges and links.
 
 3. The **Deploy to GitHub Pages** job publishes it, using the `github-pages` environment.
 
@@ -130,7 +138,8 @@ including channel keys, is not shared with any other site. Without the custom do
 share `justingreerbbi.github.io` with every other Pages site of the account, which could read it.
 GitHub redirects the old `justingreerbbi.github.io/reaper-mesh/` links to the domain, but
 browser storage does not move with them: someone who used the portal at the old address finds it
-empty at reapermesh.com and has to rejoin their channels there. Every page uses relative paths,
+empty at reapermesh.com and has to rejoin their channels there. Moving the portal from the root to
+`/web/` kept it on the same origin, so its storage carried over. Every page uses relative paths,
 so the site works at either address with no code change.
 
 Firmware published this way is unsigned prototype firmware. The installer checks every image's

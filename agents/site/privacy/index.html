@@ -4,137 +4,175 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#050505" />
+    <title>Privacy Policy · Reaper Mesh</title>
     <meta
       name="description"
-      content="How the Reaper Mesh apps and web portal handle your data: nothing is collected, and everything stays on your device."
+      content="How the Reaper Mesh apps and web app handle your data: nothing is collected, and everything stays on your device."
     />
-    <title>Privacy Policy · Reaper Mesh</title>
-    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
-    <link rel="stylesheet" href="../theme.css" />
-    <link rel="stylesheet" href="../site.css" />
+    <link rel="canonical" href="https://reapermesh.com/privacy/" />
+    <link rel="icon" type="image/svg+xml" href="%ROOT%favicon.svg" />
+    <link rel="stylesheet" href="%ROOT%theme.css" />
+    <link rel="stylesheet" href="%ROOT%site.css" />
   </head>
   <body>
-    <main class="page">
-      <a class="brand" href="../app/">
-        <img src="../favicon.svg" width="40" height="40" alt="" />
-        Reaper Mesh
-      </a>
-      <span class="eyebrow">Privacy policy</span>
-      <h1>Your data stays with you</h1>
-      <p class="lead">
-        Effective 8 November 2026. This policy covers the Reaper Mesh apps for iOS and Android and
-        the Reaper Mesh web portal at reapermesh.com.
-      </p>
+    <!-- site:header -->
+    <main id="main">
+      <section class="doc-hero">
+        <div class="wrap">
+          <span class="eyebrow">Privacy policy</span>
+          <h1 class="display">Your data stays with you</h1>
+          <p class="lead">
+            Effective 8 November 2026. This policy covers the Reaper Mesh apps for iOS and Android,
+            the Reaper Mesh web app and this website, reapermesh.com.
+          </p>
+        </div>
+      </section>
 
-      <div class="card callout">
-        <h2>The short version</h2>
-        <p>
-          We don't collect any data. There are no accounts, analytics, ads or tracking, and the apps
-          don't talk to any server of ours. Your messages, contacts, map items and keys stay on your
-          phone or in your browser. The one outside service the app uses is Esri's map tiles,
-          described below.
-        </p>
+      <div class="wrap doc-layout">
+        <nav class="toc" aria-label="On this page">
+          <b>On this page</b>
+          <a href="#collect">What we collect</a>
+          <a href="#on-device">What stays on your device</a>
+          <a href="#mesh">Your Reaper radio and the mesh</a>
+          <a href="#permissions">Permissions</a>
+          <a href="#maps">Maps</a>
+          <a href="#website">This website</a>
+          <a href="#deleting">Deleting your data</a>
+          <a href="#children">Children</a>
+          <a href="#changes">Changes to this policy</a>
+          <a href="#contact">Contact</a>
+        </nav>
+
+        <div class="prose">
+          <div class="callout good">
+            <svg class="icon" aria-hidden="true"><use href="%ROOT%assets/icons.svg#lock" /></svg>
+            <div>
+              <h3>The short version</h3>
+              <p>
+                We don't collect any data. There are no accounts, analytics, ads or tracking, and
+                the apps don't talk to any server of ours. Your messages, contacts, map items and
+                keys stay on your phone or in your browser. The one outside service the app uses is
+                Esri's map tiles, described below.
+              </p>
+            </div>
+          </div>
+          <section id="collect">
+            <h2>What we collect</h2>
+            <p>
+              Nothing. Reaper Mesh has no accounts and no developer servers. The apps contain no
+              analytics, advertising or tracking code, and nothing you do in them is sent to us.
+            </p>
+          </section>
+          <section id="on-device">
+            <h2>What stays on your device</h2>
+            <p>
+              <strong>Mobile apps.</strong> Messages, contacts, map items and encryption keys are
+              kept on your phone in a single store encrypted with AES-256. The key to that store is
+              held by the iOS Keychain or the Android Keystore. It is never backed up and never
+              moves to another phone, so the data cannot be restored from a backup or read on a
+              different device.
+            </p>
+            <p>
+              <strong>Web app.</strong> Messages, keys and settings are kept in your browser's
+              storage for this site. You can lock them with a PIN. The site only delivers the app;
+              it receives none of your data.
+            </p>
+          </section>
+          <section id="mesh">
+            <h2>Your Reaper radio and the mesh</h2>
+            <p>
+              Reaper Mesh sends messages over LoRa radio between Reaper devices, not over the
+              internet. What you send is received by radios in range. Channels can be encrypted with
+              keys shared by QR code, and team networks rotate their keys on a schedule. Anyone who
+              has a channel's key can read that channel's messages, and anyone who receives a
+              message may keep it. Deleting something on your phone does not delete it from other
+              people's devices or from your radio.
+            </p>
+          </section>
+          <section id="permissions">
+            <h2>Permissions and what they are used for</h2>
+            <h3>Location</h3>
+            <p>
+              Used only on your phone, to show your position on the map and measure distances. It
+              reaches your radio only if you save it in <strong>Position</strong> settings or choose
+              <strong>This phone</strong> as the position source. Your radio then broadcasts it over
+              the air <strong>unencrypted, even on encrypted channels</strong>. Anyone in range can
+              receive it and may keep it.
+            </p>
+            <h3>Bluetooth</h3>
+            <p>
+              Used only to connect to your own Reaper radio. The app stays linked to it while it is
+              in the background so messages keep arriving. Bluetooth is never used to work out your
+              location.
+            </p>
+            <h3>Camera</h3>
+            <p>Used only to scan channel and team QR codes. Nothing is recorded or stored.</p>
+            <h3>Photos</h3>
+            <p>
+              The app adds a channel QR image to your photo library only when you choose to save
+              one. It does not read your photos. Anyone who gets that image can join the channel.
+            </p>
+            <h3>Notifications</h3>
+            <p>
+              Notifications are created on your phone, with no push service. A setting chooses what
+              they show: the sender only (the default), the full message text, or nothing.
+            </p>
+          </section>
+          <section id="maps">
+            <h2>Maps</h2>
+            <p>
+              Map tiles are downloaded from Esri's ArcGIS Online servers
+              (<code>server.arcgisonline.com</code>). Like any web server, Esri receives your IP
+              address and the map areas you view, and handles them under
+              <a href="https://www.esri.com/en-us/privacy/overview">Esri's own privacy policy</a>.
+              We do not receive this information. Tiles you have viewed are cached on your phone, up
+              to 512 MB, so the map works offline for those areas. The cache is kept outside the
+              encrypted store but under your phone's normal data protection, and it holds no
+              messages or positions from the mesh.
+            </p>
+          </section>
+          <section id="website">
+            <h2>This website</h2>
+            <p>
+              reapermesh.com is a static site hosted on GitHub Pages. Like any web server, GitHub
+              receives your IP address and the pages you request, and handles them under the
+              <a
+                href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+                >GitHub Privacy Statement</a
+              >. The site sets no cookies and contains no analytics, advertising or tracking code,
+              and we do not receive this information.
+            </p>
+          </section>
+          <section id="deleting">
+            <h2>Deleting your data</h2>
+            <p>
+              <strong>Erase</strong> in the app's settings deletes all of the app's data on your
+              phone, including the map cache. Uninstalling the app also removes it. In the web app,
+              wiping local data does the same for that browser. This cannot remove messages already
+              received by other radios or phones.
+            </p>
+          </section>
+          <section id="children">
+            <h2>Children</h2>
+            <p>
+              Reaper Mesh is not directed at children, and we do not knowingly collect information
+              from anyone, including children.
+            </p>
+          </section>
+          <section id="changes">
+            <h2>Changes to this policy</h2>
+            <p>
+              If this policy changes, the new version will be posted on this page with a new
+              effective date.
+            </p>
+          </section>
+          <section id="contact">
+            <h2>Contact</h2>
+            <p>Questions about privacy: <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a>.</p>
+          </section>
+        </div>
       </div>
-
-      <h2>What we collect</h2>
-      <p>
-        Nothing. Reaper Mesh has no accounts and no developer servers. The apps contain no
-        analytics, advertising or tracking code, and nothing you do in them is sent to us.
-      </p>
-
-      <h2>What stays on your device</h2>
-      <p>
-        <strong>Mobile apps.</strong> Messages, contacts, map items and encryption keys are kept on
-        your phone in a single store encrypted with AES-256. The key to that store is held by the
-        iOS Keychain or the Android Keystore. It is never backed up and never moves to another
-        phone, so the data cannot be restored from a backup or read on a different device.
-      </p>
-      <p>
-        <strong>Web portal.</strong> Messages, keys and settings are kept in your browser's storage
-        for this site. You can lock them with a PIN. The site only delivers the app; it receives
-        none of your data.
-      </p>
-
-      <h2>Your Reaper radio and the mesh</h2>
-      <p>
-        Reaper Mesh sends messages over LoRa radio between Reaper devices, not over the internet.
-        What you send is received by radios in range. Channels can be encrypted with keys shared by
-        QR code, and team networks rotate their keys on a schedule. Anyone who has a channel's key
-        can read that channel's messages, and anyone who receives a message may keep it. Deleting
-        something on your phone does not delete it from other people's devices or from your radio.
-      </p>
-
-      <h2>Permissions and what they are used for</h2>
-      <h3>Location</h3>
-      <p>
-        Used only on your phone, to show your position on the map and measure distances. It reaches
-        your radio only if you save it in <strong>Position</strong> settings or choose
-        <strong>This phone</strong> as the position source. Your radio then broadcasts it over the
-        air <strong>unencrypted, even on encrypted channels</strong>. Anyone in range can receive it
-        and may keep it.
-      </p>
-      <h3>Bluetooth</h3>
-      <p>
-        Used only to connect to your own Reaper radio. The app stays linked to it while it is in the
-        background so messages keep arriving. Bluetooth is never used to work out your location.
-      </p>
-      <h3>Camera</h3>
-      <p>Used only to scan channel and team QR codes. Nothing is recorded or stored.</p>
-      <h3>Photos</h3>
-      <p>
-        The app adds a channel QR image to your photo library only when you choose to save one. It
-        does not read your photos. Anyone who gets that image can join the channel.
-      </p>
-      <h3>Notifications</h3>
-      <p>
-        Notifications are created on your phone, with no push service. A setting chooses what they
-        show: the sender only (the default), the full message text, or nothing.
-      </p>
-
-      <h2>Maps</h2>
-      <p>
-        Map tiles are downloaded from Esri's ArcGIS Online servers
-        (<code>server.arcgisonline.com</code>). Like any web server, Esri receives your IP address
-        and the map areas you view, and handles them under
-        <a href="https://www.esri.com/en-us/privacy/overview">Esri's own privacy policy</a>. We do
-        not receive this information. Tiles you have viewed are cached on your phone, up to 512 MB,
-        so the map works offline for those areas. The cache is kept outside the encrypted store but
-        under your phone's normal data protection, and it holds no messages or positions from the
-        mesh.
-      </p>
-
-      <h2>Deleting your data</h2>
-      <p>
-        <strong>Erase</strong> in the app's settings deletes all of the app's data on your phone,
-        including the map cache. Uninstalling the app also removes it. In the web portal, wiping
-        local data does the same for that browser. This cannot remove messages already received by
-        other radios or phones.
-      </p>
-
-      <h2>Children</h2>
-      <p>
-        Reaper Mesh is not directed at children, and we do not knowingly collect information from
-        anyone, including children.
-      </p>
-
-      <h2>Changes to this policy</h2>
-      <p>
-        If this policy changes, the new version will be posted on this page with a new effective
-        date.
-      </p>
-
-      <h2>Contact</h2>
-      <p>Questions about privacy: <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a>.</p>
     </main>
-    <footer class="site-footer">
-      <nav aria-label="Site">
-        <a href="../app/">Mobile app</a>
-        <a href="../support/">Support</a>
-        <a href="../privacy/" aria-current="page">Privacy</a>
-        <a href="../">Web portal</a>
-        <a href="../flash/">Install firmware</a>
-      </nav>
-      <p>Reaper Mesh is open source under the Apache 2.0 license.</p>
-    </footer>
+    <!-- site:footer -->
   </body>
 </html>

@@ -4,95 +4,272 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#050505" />
+    <title>Reaper Mesh for iOS and Android</title>
     <meta
       name="description"
       content="Reaper Mesh for iOS and Android: off-grid messaging, maps and team networks over LoRa radio. Coming soon to the App Store and Google Play."
     />
-    <title>Reaper Mesh for iOS and Android</title>
-    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
-    <link rel="stylesheet" href="../theme.css" />
-    <link rel="stylesheet" href="../site.css" />
+    <link rel="canonical" href="https://reapermesh.com/app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Reaper Mesh" />
+    <meta property="og:title" content="Reaper Mesh for iOS and Android" />
+    <meta
+      property="og:description"
+      content="Off-grid messaging, maps and team networks over LoRa radio. Coming soon to the App Store and Google Play."
+    />
+    <meta property="og:url" content="https://reapermesh.com/app/" />
+    <meta property="og:image" content="https://reapermesh.com/assets/social.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="%ROOT%favicon.svg" />
+    <link rel="stylesheet" href="%ROOT%theme.css" />
+    <link rel="stylesheet" href="%ROOT%site.css" />
   </head>
   <body>
-    <main class="page">
-      <a class="brand" href="../app/">
-        <img src="../favicon.svg" width="40" height="40" alt="" />
-        Reaper Mesh
-      </a>
-      <span class="eyebrow">Mobile app</span>
-      <h1>Off-grid comms for your team</h1>
-      <p class="lead">
-        Reaper Mesh pairs your phone with a Reaper Mesh radio over Bluetooth. Send messages, share
-        positions and see your team on the map over LoRa, with no cell signal and no internet.
-      </p>
-      <p><span class="badge">Coming soon to the App Store and Google Play</span></p>
-
-      <div class="grid">
-        <div class="card">
-          <h3>Comms</h3>
-          <p>
-            Channels and direct messages with real delivery states, and quick brevity phrases you
-            can send in two taps.
-          </p>
+    <!-- site:header -->
+    <main id="main">
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <span class="eyebrow">Mobile app</span>
+            <h1 class="display">Off-grid comms for <em>your team.</em></h1>
+            <p class="lead">
+              Reaper Mesh pairs your phone with a Reaper Mesh radio over Bluetooth. Send messages,
+              share positions and see your team on the map over LoRa, with no cell signal and no
+              internet.
+            </p>
+            <!-- At launch, replace each button with the store's official badge and listing link. -->
+            <div class="stores">
+              <span class="store is-soon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Coming soon</small><b>App Store</b></span>
+              </span>
+              <span class="store is-soon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Coming soon</small><b>Google Play</b></span>
+              </span>
+            </div>
+            <p class="hero-note">
+              <strong>Can't wait?</strong> The same app runs in your browser today.
+              <a href="%ROOT%web/">Open the web app</a>.
+            </p>
+          </div>
+          <figure class="hero-art">
+            <img
+              src="%ROOT%assets/hero-phones.webp"
+              width="1320"
+              height="1120"
+              alt="The Reaper Mesh app on three phones: conversations, live radio status and a map with team positions."
+              fetchpriority="high"
+            />
+          </figure>
         </div>
-        <div class="card">
-          <h3>Map</h3>
-          <p>
-            Your team's positions, points and areas, distance measuring and an MGRS or decimal
-            readout. Areas you've viewed stay available offline.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Nodes</h3>
-          <p>Everyone your radio has heard, when, and how far away, with discovery on demand.</p>
-        </div>
-        <div class="card">
-          <h3>Device</h3>
-          <p>Live status for your radio and every setting, without plugging in a computer.</p>
-        </div>
-      </div>
+      </section>
 
-      <div class="card">
-        <h2>Private by design</h2>
-        <p>
-          Channels can be encrypted with keys shared by QR code, and team networks rotate their keys
-          on a schedule. There are no accounts, no tracking and no servers of ours: your messages,
-          contacts and keys stay on your phone in an encrypted store. Read the
-          <a href="../privacy/">privacy policy</a>.
-        </p>
-      </div>
+      <section class="section" aria-labelledby="tabs-title">
+        <div class="wrap">
+          <div class="section-head center">
+            <span class="eyebrow">Inside the app</span>
+            <h2 class="section-title" id="tabs-title">Everything in reach, nothing in the way.</h2>
+          </div>
+          <ul class="phones">
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-comms.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Comms tab with channels and direct messages."
+                />
+                <figcaption>
+                  <b>Comms</b
+                  ><span
+                    >Channels and direct messages with real delivery states, and quick brevity
+                    phrases you can send in two taps.</span
+                  >
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-map.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Map tab showing team members and an MGRS readout."
+                />
+                <figcaption>
+                  <b>Map</b
+                  ><span
+                    >Positions, points and areas, distance measuring and an MGRS or decimal readout.
+                    Areas you've viewed stay available offline.</span
+                  >
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-nodes.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Nodes tab listing who has been heard, when and how far away."
+                />
+                <figcaption>
+                  <b>Nodes</b
+                  ><span
+                    >Everyone your radio has heard, when, and how far away, with discovery on
+                    demand.</span
+                  >
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-device.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="The Device tab with live radio status."
+                />
+                <figcaption>
+                  <b>Device</b><span>Live status for your radio, at a glance.</span>
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <figure>
+                <img
+                  src="%ROOT%assets/app-settings.webp"
+                  width="452"
+                  height="941"
+                  loading="lazy"
+                  alt="Radio settings: mode, transmit power, boost and relay."
+                />
+                <figcaption>
+                  <b>Settings</b><span>Every setting, without plugging in a computer.</span>
+                </figcaption>
+              </figure>
+            </li>
+          </ul>
+        </div>
+      </section>
 
-      <div class="card">
-        <h2>Built for gloves and mounted phones</h2>
-        <p>
-          Large touch targets, a night palette that keeps your eyes adjusted, and a layout that
-          works in portrait or landscape on a vest, dash or handlebar mount.
-        </p>
-      </div>
+      <section class="section" aria-labelledby="built-title">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="eyebrow">Built for the field</span>
+            <h2 class="section-title" id="built-title">Made for the places phones stop working.</h2>
+          </div>
+          <div class="grid-3">
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#lock" />
+                </svg>
+              </div>
+              <h3>Private by design</h3>
+              <p>
+                Channels can be encrypted with keys shared by QR code, and team networks rotate
+                their keys on a schedule. No accounts, no tracking and no servers of ours. Read the
+                <a href="%ROOT%privacy/">privacy policy</a>.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#hand" />
+                </svg>
+              </div>
+              <h3>Gloves and mounts</h3>
+              <p>
+                Large touch targets and a layout that works in portrait or landscape on a vest, dash
+                or handlebar mount.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#moon" />
+                </svg>
+              </div>
+              <h3>Night palette</h3>
+              <p>A dark, low-glare interface that keeps your eyes adjusted to the dark.</p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#bluetooth" />
+                </svg>
+              </div>
+              <h3>Stays connected</h3>
+              <p>
+                Pairs with a passkey shown on the radio, remembers it, and reconnects on its own if
+                the link drops, even in the background.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#check-check" />
+                </svg>
+              </div>
+              <h3>Honest delivery</h3>
+              <p>
+                A message shows as delivered only after the other radio confirms it, never as a
+                guess.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#monitor" />
+                </svg>
+              </div>
+              <h3>Try it with no radio</h3>
+              <p>
+                <strong>No radio? Try the demo</strong> runs the whole app against a simulated
+                radio, so you can look around before you buy hardware.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
 
-      <h2>Use it today</h2>
-      <p>
-        The same app runs in your browser now. Flash a supported board over USB, then connect from
-        the web portal in Chrome, Edge or Brave.
-      </p>
-      <div class="actions">
-        <a class="button-link" href="../">Open the web portal</a>
-        <a class="button-link secondary" href="../flash/">Install firmware</a>
-      </div>
-      <p>
-        Questions? See <a href="../support/">support</a>. Reaper Mesh is open source on
-        <a href="https://github.com/justingreerbbi/reaper-mesh">GitHub</a>.
-      </p>
+      <section class="section" aria-labelledby="today-title">
+        <div class="wrap">
+          <div class="cta-band">
+            <h2 class="section-title" id="today-title">Use it today.</h2>
+            <p class="lead">
+              The web app runs in Chrome, Edge or Brave right now. Flash a supported board over USB,
+              then connect from your browser.
+            </p>
+            <div class="actions">
+              <a class="button-link" href="%ROOT%web/">
+                Open the web app
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#arrow-right" />
+                </svg>
+              </a>
+              <a class="button-link secondary" href="%ROOT%flash/">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                Install firmware
+              </a>
+            </div>
+            <p class="hero-note">Questions? Visit <a href="%ROOT%support/">support</a>.</p>
+          </div>
+        </div>
+      </section>
     </main>
-    <footer class="site-footer">
-      <nav aria-label="Site">
-        <a href="../app/" aria-current="page">Mobile app</a>
-        <a href="../support/">Support</a>
-        <a href="../privacy/">Privacy</a>
-        <a href="../">Web portal</a>
-        <a href="../flash/">Install firmware</a>
-      </nav>
-      <p>Reaper Mesh is open source under the Apache 2.0 license.</p>
-    </footer>
+    <!-- site:footer -->
   </body>
 </html>

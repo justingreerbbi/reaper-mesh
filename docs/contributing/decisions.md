@@ -397,7 +397,8 @@ Details: [radio configuration](../reference/radio-configuration.md#channel-ids),
 
 ### D54. Portal and firmware installer on GitHub Pages
 Nov 7 · **Confirmed**. Owner direction. Every push to `main` that passes CI publishes the web portal
-at the site root and a browser firmware installer at `flash/`, on GitHub Pages, at no cost. The
+at `web/` and a browser firmware installer at `flash/`, on GitHub Pages, at no cost. The site root
+is the project's landing page (owner direction, November 8; the portal was at the root before). The
 installer is its own page (`agents/flasher/`), not part of the portal, because flashing takes over
 the USB port and restarts the board. It uses Espressif's `esptool-js` and repeats the updater's
 checks (D16): published SHA-256 hashes, chip, flash size and security state, four images only,

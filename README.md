@@ -33,7 +33,7 @@ the apps instead of the firmware, so your radios rarely need updating.
 <h3 align="center">Get started in under a minute</h3>
 
 <p align="center">
-  <a href="https://reapermesh.com/"><img src="docs/assets/buttons/try-web-app.png" alt="Try the web app: runs in your browser, no radio needed" width="400"></a>
+  <a href="https://reapermesh.com/web/"><img src="docs/assets/buttons/try-web-app.png" alt="Try the web app: runs in your browser, no radio needed" width="400"></a>
   &nbsp;
   <a href="https://reapermesh.com/flash/"><img src="docs/assets/buttons/install-firmware.png" alt="Install firmware: flash your board over USB" width="400"></a>
 </p>
@@ -65,7 +65,7 @@ the apps instead of the firmware, so your radios rarely need updating.
   <img src="docs/assets/screenshots/mobile-app.png" alt="The Reaper Mesh mobile app: the Comms tab with channels and direct messages, the Map tab with nodes, the Nodes tab listing who has been heard and how far away, the Device tab with live radio status, and the Radio settings page." width="100%">
 </p>
 
-<p align="center"><sub>The Reaper Mesh mobile app, developed in its own repository.</sub></p>
+<p align="center"><sub>The Reaper Mesh mobile app, developed in its own repository. It is coming to the App Store and Google Play; see <a href="https://reapermesh.com/app/">reapermesh.com/app</a>.</sub></p>
 
 <br>
 
@@ -121,7 +121,7 @@ Exact evidence for every line is in [Status](docs/overview/status.md).
 
 ## Quick start
 
-**Try it right now, no radio and no install:** open the **[web app](https://reapermesh.com/)** in
+**Try it right now, no radio and no install:** open the **[web app](https://reapermesh.com/web/)** in
 Chrome, Edge or Brave and choose **Use simulated device**. The simulated device speaks the real
 protocol, so you can send messages, explore the map and change settings exactly as you would with
 a board.
@@ -148,7 +148,7 @@ recover. The [Getting started guide](docs/guides/getting-started.md) walks you t
 2. **Install the firmware** from your browser with the
    **[firmware installer](https://reapermesh.com/flash/)**: pick your board, plug it in, click Install.
    Prefer to build it yourself? See [Flashing firmware](docs/guides/flashing-firmware.md).
-3. **Connect** each board in the **[web app](https://reapermesh.com/)** over USB, and choose a
+3. **Connect** each board in the **[web app](https://reapermesh.com/web/)** over USB, and choose a
    radio network in **Device → Radio network**.
 4. **Say hello.** Messages show as delivered when the other radio confirms them.
 
