@@ -48,8 +48,9 @@ privacy pages the store listings link to. HTTPS works, and `www`, plain `http` a
 `v0.11.1` for all three boards, built by CI from a clean `31abc1b`. Installing from the live
 installer onto a board has not been reported yet.
 
-The iOS app is submitted to the App Store and waiting for review (owner-reported, November 8).
-Until it is approved, the site's store buttons say "Coming soon". The app is developed in its own
+The iOS app is live on the [App Store](https://apps.apple.com/us/app/reaper-mesh/id6832375918)
+(owner-reported, November 10), and the site's App Store buttons link to the listing. The Google
+Play button says "Coming soon" until the Android app is approved. The app is developed in its own
 repository (D48), which holds its test results.
 
 ## Development boards

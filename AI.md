@@ -75,7 +75,7 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
   until each later step ships, and an independent security review is still open.
 - Phase 1 is complete by owner decision. Phase 2 is active; the messaging and map portal (2.3)
   resumes after qualification.
-- The website is live at reapermesh.com and the iOS app is in App Store review. The store
+- The website is live at reapermesh.com and the iOS app is live on the App Store. The store
   listings link to the support and privacy pages in `agents/site/`, so keep them true to the app
   (see [Development and CI](docs/contributing/development.md#github-pages)).
 - GPS acquisition is deferred by the owner. Do not start it without a new decision.

@@ -482,8 +482,8 @@ img {
   }
 }
 
-/* Store buttons. Until launch they say "Coming soon" and link nowhere; at launch, replace each with
-   the store's official badge and listing link. */
+/* Store buttons. A launched store's button links to its listing; one not yet launched says
+   "Coming soon" and links nowhere. */
 .stores {
   display: flex;
   flex-wrap: wrap;
@@ -522,6 +522,9 @@ img {
 }
 .store.is-soon small {
   color: var(--warn);
+}
+a.store:hover {
+  border-color: var(--accent);
 }
 
 /* Feature grid */

@@ -117,8 +117,9 @@ How it works:
    The pages in `agents/site/` share one header and footer, `agents/site/partials/`, which the
    script fills in, together with the relative path to the site root and the contact address.
    Their images are cropped from `docs/assets/` and kept in `agents/site/assets/`. Before the
-   mobile app launches, its App Store and Google Play buttons say "Coming soon"; at launch,
-   replace them in `index.html` and `app/index.html` with the stores' official badges and links.
+   mobile app launches in a store, that store's button says "Coming soon"; at launch, replace it
+   in `index.html` and `app/index.html` with a link to the store's listing. The App Store button
+   links to <https://apps.apple.com/us/app/reaper-mesh/id6832375918>.
 
 3. The **Deploy to GitHub Pages** job publishes it, using the `github-pages` environment.
 

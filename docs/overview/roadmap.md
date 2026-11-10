@@ -28,11 +28,11 @@ to bug fixes, testing on real devices, and keeping the portal in step with the m
    to the new baseline and declare core v1 (D41, D42).
 6. **Resume feature work** on top of core v1, in agents and plugins (below).
 
-## When the mobile app is approved
+## When the Android app is approved
 
-The iOS app is in App Store review, and the Android app follows. When a store approves it,
-replace that store's "Coming soon" button on the website (`agents/site/index.html` and
-`agents/site/app/index.html`) with the store's official badge and listing link.
+The iOS app is live on the App Store, and the website's App Store buttons link to its listing.
+When Google Play approves the Android app, replace its "Coming soon" button on the website
+(`agents/site/index.html` and `agents/site/app/index.html`) with a link to its listing.
 
 ## Planned after core v1
 

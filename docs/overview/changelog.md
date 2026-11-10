@@ -34,6 +34,9 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
   every page, and the installer listing `v0.11.1` for all three boards from a clean CI build.
   Locally, every internal link resolves and the pages fit a 375-pixel phone screen.
 - **Not verified:** installing from the live installer onto a board.
+- **Changed:** the iOS app is live on the App Store, so the website's App Store buttons (home page
+  and `/app/`) link to its listing, <https://apps.apple.com/us/app/reaper-mesh/id6832375918>.
+  Google Play still says "Coming soon".
 - **Added:** a desk relay test build (D56), `tools/hardware-relay-smoke.ts` (Open mode) and
   `tools/hardware-relay-team-smoke.ts` (Team mode, a relay-key-only relay, key rotation), which
   test three boards on one desk by making the two ends ignore frames heard straight from their

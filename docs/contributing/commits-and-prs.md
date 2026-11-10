@@ -71,7 +71,8 @@ browser storage keys and frozen fixtures.
 ### Footers
 
 - `Refs: #12` or `Fixes: #12` to link an issue.
-- `Co-Authored-By: Name <email>` for co-authors, including AI assistants.
+- `Co-Authored-By: Name <email>` for human co-authors. Don't add co-author trailers for AI
+  assistants, and don't add AI attribution lines to pull request descriptions.
 
 ### Examples
 
