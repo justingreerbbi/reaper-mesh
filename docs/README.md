@@ -27,6 +27,7 @@
 | [Getting started](guides/getting-started.md) | Run the web portal with a simulated device, no hardware needed |
 | [Hardware](guides/hardware.md) | What you need, and the rules every board shares |
 | [Boards](boards/README.md) | Every supported board, with a page each: buying, using and developer details |
+| [Desktop app](guides/desktop-app.md) | Install the app for macOS, Windows or Linux, use it, and build it yourself |
 | [Flashing firmware](guides/flashing-firmware.md) | Install firmware from your browser or build it from source, and recover if it fails |
 | [Web portal](guides/web-portal.md) | Messaging, channels, the map, nodes and every device setting |
 | [Security and privacy](guides/security.md) | Team networks, channel encryption, the app PIN, and their limits |
@@ -57,7 +58,8 @@
 | [Development and CI](contributing/development.md) | Toolchain, checks, formatting and continuous integration |
 | [Commits and pull requests](contributing/commits-and-prs.md) | Commit format, signing, branch names and the pull request checklist |
 | [Architecture and standards](contributing/plan.md) | Repository layout, architecture, product requirements and test standards |
-| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D57`) and the open questions |
+| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D58`) and the open questions |
+| [Releases](contributing/releases.md) | How to cut a release and what the release workflow publishes |
 | [Adding a board](contributing/adding-a-board.md) | Everything a new board touches, and how it is qualified |
 | [Field qualification plan](contributing/field-qualification.md) | Relay, range, power-loss and soak test procedures |
 | [Security architecture](contributing/security-architecture.md) | The approved trusted-device design (D50) and its delivery order |

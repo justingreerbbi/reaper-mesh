@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Reaper Mesh",
+  "version": "0.11.1",
+  "identifier": "com.reapermesh.desktop",
+  "build": {
+    "frontendDist": "../../../dist/desktop"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'wasm-unsafe-eval'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: https://*.arcgisonline.com https://services.arcgisonline.com https://server.arcgisonline.com",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "font-src": "'self' data:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "frame-src": "'none'"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis", "deb", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "shortDescription": "Off-grid text messaging over LoRa radio",
+    "longDescription": "Reaper Mesh lets a team text each other over LoRa radio with no internet. This app is the Reaper Mesh web portal and firmware installer, with direct USB access to your radio.",
+    "copyright": "Copyright 2026 Justin Greer",
+    "license": "Apache-2.0",
+    "linux": {
+      "deb": { "depends": [] }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
+    },
+    "windows": {
+      "nsis": { "installMode": "currentUser" }
+    }
+  }
+}

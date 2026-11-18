@@ -27,4 +27,8 @@ SDK's license and notice files under notices/esp-idf/. T1000-E images are
 built with Zephyr v4.5.0 (Apache License 2.0) and its pinned modules, listed in
 firmware/zephyr.lock.json, which keep their own licenses.
 
+The desktop app is built with Tauri 2 (MIT or Apache License 2.0) and Rust crates
+listed in agents/desktop/src-tauri/Cargo.lock, including serialport (Mozilla
+Public License 2.0) and open (MIT License), under their own licenses.
+
 See docs/contributing/third-party-notices.md for details.

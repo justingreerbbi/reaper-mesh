@@ -26,3 +26,7 @@ firmware/tbeam-v12/sdkconfig.old
 
 firmware/heltec-stick-v3/sdkconfig
 firmware/heltec-stick-v3/sdkconfig.old
+
+# Desktop app (Rust build output and generated schemas)
+agents/desktop/src-tauri/target/
+agents/desktop/src-tauri/gen/

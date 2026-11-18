@@ -223,6 +223,21 @@ says 1.6 V, and the lower value cannot overstress the part. A wrong value shows 
 US/915 MHz model with its built-in antenna (Nov 17), which opens its radio gate. GNSS, the
 accelerometer, sensors and buzzer stay off. See [Hardware](../boards/t1000-e.md).
 
+### D58. Desktop app with Tauri, and tag-driven releases
+Nov 17 · **Confirmed**. Owner direction: a downloadable desktop app for macOS, Windows and Ubuntu,
+developed once with the web portal, and releases built and published when the owner pushes a version
+tag. The mobile app is React Native and stays in its own repository (D48); React Native's desktop
+ports have no Linux, and the owner did not want Electron, so the app uses **Tauri 2** (Rust): it
+shows the portal and installer builds in the system web view and adds the USB serial access those
+web views lack, through a Rust bridge (`serialport`) behind an injected Web Serial shim. The portal,
+`packages/agent-core` and the installer are unchanged, apart from the portal's wording when
+Bluetooth is unavailable. The app is about 5 MB. Bluetooth is not in the first version: system web
+views have no Web Bluetooth, and Linux passkey pairing needs a BlueZ agent, so it is later work.
+Releases (`.github/workflows/release.yml`) build the firmware, site and desktop app from one tag and
+publish installers, firmware zips and checksums to GitHub Releases under version-free names, which
+the website's download page links to. Releases are not code-signed yet. No firmware, protocol or
+storage change (D41). See [Desktop app](../guides/desktop-app.md) and [Releases](releases.md).
+
 ## Protocol and synchronization
 
 ### D17. Device is authoritative for configuration

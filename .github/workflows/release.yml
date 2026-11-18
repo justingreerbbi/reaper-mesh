@@ -1,0 +1,176 @@
+# Builds and publishes a release when a version tag (v1.2.3) is pushed, or when run by hand from a
+# tag (Actions → Release → Run workflow → choose the tag). It checks that every file carries the
+# tag's version, runs the full checks (which build and validate all firmware and the site), builds
+# the desktop app for macOS, Windows and Linux, and publishes a GitHub release with the installers,
+# one firmware zip per board and SHA256SUMS. Running it again for the same tag replaces the files.
+# See docs/contributing/releases.md.
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    name: Version matches the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run only from a version tag
+        if: github.ref_type != 'tag' || !startsWith(github.ref_name, 'v')
+        run: |
+          echo "Run this workflow from a version tag such as v0.12.0, not ${GITHUB_REF_NAME}." >&2
+          exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: node tools/release-version.ts check "$GITHUB_REF_NAME"
+
+  checks:
+    name: Checks
+    needs: version
+    uses: ./.github/workflows/checks.yml
+    # checks.yml holds the Pages deploy job, which asks for these; it runs only on main, never here.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+  desktop:
+    name: Desktop app (${{ matrix.name }})
+    needs: checks
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+            build: --target universal-apple-darwin --bundles dmg
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: Windows
+            os: windows-latest
+            build: --bundles nsis
+            targets: x86_64-pc-windows-msvc
+          - name: Linux
+            # The oldest supported Ubuntu, so the AppImage and .deb run on newer ones too.
+            os: ubuntu-22.04
+            build: --bundles deb,appimage
+            targets: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Linux build libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev patchelf
+      - name: Pinned Rust (agents/desktop/src-tauri/rust-toolchain.toml)
+        shell: bash
+        working-directory: agents/desktop/src-tauri
+        run: |
+          channel="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          rustup toolchain install "$channel" --profile minimal --target "${{ matrix.targets }}"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: dist/site
+      - run: npm run build:desktop-pages
+      - name: macOS signing, when its secrets are set
+        # Without them the app is ad-hoc signed and macOS asks people to allow it once; see
+        # docs/guides/desktop-app.md. With them it is signed with a Developer ID and notarized.
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              printf '%s<<EOF\n%s\nEOF\n' "$name" "${!name}" >> "$GITHUB_ENV"
+            done
+          fi
+      - name: Build
+        shell: bash
+        run: npx tauri build --config agents/desktop/src-tauri/tauri.conf.json ${{ matrix.build }}
+      - name: Name the installers for "latest" download links
+        shell: bash
+        run: |
+          mkdir -p release
+          bundle=agents/desktop/src-tauri/target
+          case "${{ runner.os }}" in
+            macOS) cp "$(ls "$bundle"/universal-apple-darwin/release/bundle/dmg/*.dmg)" release/Reaper-Mesh-macOS.dmg ;;
+            Windows) cp "$(ls "$bundle"/release/bundle/nsis/*-setup.exe)" release/Reaper-Mesh-Windows-x64-setup.exe ;;
+            Linux)
+              cp "$(ls "$bundle"/release/bundle/appimage/*.AppImage)" release/Reaper-Mesh-Linux-x86_64.AppImage
+              cp "$(ls "$bundle"/release/bundle/deb/*.deb)" release/Reaper-Mesh-Linux-amd64.deb ;;
+          esac
+          ls -l release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ matrix.name }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish the release
+    needs: [checks, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: dist/site
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-*
+          path: release
+          merge-multiple: true
+      - name: Firmware zips, one per board
+        run: node tools/release-firmware.ts release
+      - name: Checksums and notes
+        run: |
+          (cd release && sha256sum * > SHA256SUMS)
+          node tools/release-version.ts notes "$GITHUB_REF_NAME" > notes.md
+          cat .github/release-notes-footer.md >> notes.md
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Reaper Mesh $GITHUB_REF_NAME" --notes-file notes.md
+          fi
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber release/*

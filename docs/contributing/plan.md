@@ -12,8 +12,8 @@ Reliable text messaging and device configuration through a small web agent over 
 backed by custom firmware on supported LoRa boards. The firmware and protocol core stays small and
 stable, and new features are built in agents and plugins (D41); before core v1, breaking changes are
 allowed with owner approval (D42). No cloud service is required. Mobile apps are built outside this
-repository (D48). Native desktop agents, additional boards and EU operation are later, separately
-scoped work.
+repository (D48). The desktop app wraps the same portal for macOS, Windows and Linux (D58). EU
+operation is later, separately scoped work.
 
 Longer messages consume more airtime and may reduce reliability, so message size, fragment count
 and retry behavior need explicit budgets backed by measurements, not just a larger text field.
@@ -27,6 +27,7 @@ ranges and security advisories, without forcing routine upgrades just to keep co
 | `packages/protocol/` | `schema.json` (the single source for USB message types), generated TypeScript bindings, framing, typed config/position/discovery/map/encryption payloads, and frozen fixtures |
 | `packages/agent-core/` | Transport-independent agent logic: serial adapter, connection state machine, commands, sync, messaging, inbox and discovery |
 | `packages/simulator/` | Simulated devices used by host tests and the portal's Simulator mode |
+| `agents/desktop/` | The desktop app (Tauri 2, D58): `src-tauri/` holds the Rust program (window, menu, USB serial bridge), its config and icons; `serial-shim.ts` gives the page a Web Serial `navigator.serial` over that bridge. It shows the portal and installer builds unchanged. See [Desktop app](../guides/desktop-app.md) |
 | `agents/boards.json` | The supported boards, in display order: the website's board cards and list, the installer's board menu and the site build read it. See [Adding a board](adding-a-board.md) |
 | `agents/flasher/` | Browser firmware installer (TypeScript, Vite, `esptool-js`). `firmware.ts` holds the checks host tests cover; `main.ts` drives the page. Published at `flash/` on GitHub Pages (D54) |
 | `agents/web/` | Browser portal (TypeScript, Vite, native DOM, Leaflet). `main.ts` wires the UI modules and runs the render loop; `app-state.ts` holds shared state and the render hook; one `*-ui.ts` module per area, such as `connection`, `messages`, `map`, `nodes`, `device`, `settings`, `channels`, `network` and `access`. Static markup lives in `index.html`, including `<template>` elements that `map-workspace.ts` clones |

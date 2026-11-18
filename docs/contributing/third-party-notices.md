@@ -14,6 +14,15 @@ The radio component vendors the unmodified radio, system and register-memory sou
 
 The T1000-E firmware is built with pinned Zephyr v4.5.0 (Apache-2.0) and its hal_nordic (nrfx, BSD-3-Clause), CMSIS (Apache-2.0), Mbed TLS and TF-PSA-Crypto (Apache-2.0) and picolibc (BSD-style) modules, listed in firmware/zephyr.lock.json. Preserve their license notices in T1000-E firmware distributions; inspect the pinned modules' LICENSE files when packaging releases. The board's Adafruit nRF52 bootloader and Nordic SoftDevice ship on the device and are not distributed by this project.
 
+## Desktop app
+
+The desktop app (`agents/desktop/`) is built with Tauri 2 (MIT or Apache-2.0) and links the Rust
+crates in `agents/desktop/src-tauri/Cargo.lock`, including `serialport` (MPL-2.0, used unmodified;
+its source is published on crates.io) and `open` (MIT). Preserve their license notices in desktop
+app distributions; `cargo about` or a similar tool can list them from the lock file when packaging.
+On Windows the installer may download Microsoft's WebView2 runtime, which Microsoft distributes
+under its own terms.
+
 ## ESP-IDF
 
 Firmware uses pinned ESP-IDF v5.5.4. Preserve its Apache-2.0 license and applicable bundled third-party notices in firmware distributions; inspect the actual pinned SDK's LICENSE/NOTICE materials when packaging releases. Local SDK/tool downloads remain ignored.

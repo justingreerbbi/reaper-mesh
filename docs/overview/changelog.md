@@ -22,6 +22,18 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** a desktop app for macOS, Windows and Linux (D58), built with Tauri 2 in
+  `agents/desktop/`. It shows the web portal and the firmware installer unchanged and gives them USB
+  through a Rust serial bridge behind a Web Serial shim. Bluetooth is not in it yet. See
+  [Desktop app](../guides/desktop-app.md).
+- **Added:** tag-driven releases. `tools/release-version.ts` sets one version across the firmware,
+  desktop app and package; pushing a `v` tag runs `.github/workflows/release.yml`, which builds
+  everything and publishes the installers, one firmware zip per board and `SHA256SUMS` to GitHub
+  Releases. The website has a [download page](https://reapermesh.com/download/) that links to the
+  newest release. See [Releases](../contributing/releases.md).
+- **Verified:** the macOS app on the owner's Mac lists the USB ports, connects the portal to the
+  T1000-E and opens the installer. **Not verified:** installing firmware from the app, the Windows
+  and Linux builds, and the release workflow, which has not run yet.
 - **Changed (docs and website):** boards are listed from one place. `agents/boards.json` drives
   the website's board cards and supported-boards list and the installer's board menu. Each board
   has a page in [`docs/boards/`](../boards/README.md) from a shared template; the hardware guide

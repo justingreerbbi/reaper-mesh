@@ -1,12 +1,13 @@
 # Checks every change. On main, also builds and deploys the GitHub Pages site: the landing page at
 # the root, the web portal at web/ and the firmware installer at flash/, with the firmware images
-# built here.
+# built here. release.yml runs it on a version tag and builds the release from its site artifact.
 name: Checks
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
@@ -188,6 +189,34 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  desktop:
+    # Formats and lints the desktop app (agents/desktop) and compiles it on Linux, so a change cannot
+    # break it between releases. Release builds for every system come from release.yml.
+    name: Desktop app
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Linux build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev
+      - name: Pinned Rust
+        working-directory: agents/desktop/src-tauri
+        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" --profile minimal --component clippy,rustfmt
+      # The app embeds its pages when it compiles; these have no firmware, which is fine for a check.
+      - run: npm run build:web && npm run build:flasher && node tools/build-site.ts && npm run build:desktop-pages
+      - name: Format and lint
+        working-directory: agents/desktop/src-tauri
+        run: cargo fmt --check && cargo clippy --locked -- -D warnings
+
   scripts:
     name: Shell script lint
     runs-on: ubuntu-latest
@@ -203,7 +232,7 @@ jobs:
     # USB install (tools/update-firmware.py). Runs on every change so pull requests prove the site
     # still builds; only main uploads it.
     name: Pages site
-    needs: [host, format, firmware-unit, firmware-build, t1000e-build, scripts]
+    needs: [host, format, firmware-unit, firmware-build, t1000e-build, desktop, scripts]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -237,6 +266,15 @@ jobs:
           path: build
       - run: npm run build:web && npm run build:flasher
       - run: node tools/build-site.ts --require-firmware
+      - name: Keep the site for a release
+        # release.yml builds the desktop app and the firmware zips from exactly these files.
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: dist/site
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload the site
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050505" />
+    <title>Reaper Mesh for macOS, Windows and Linux</title>
+    <meta
+      name="description"
+      content="Download the Reaper Mesh desktop app for macOS, Windows and Linux: the web portal and the firmware installer, with direct USB access to your radio."
+    />
+    <link rel="canonical" href="https://reapermesh.com/download/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Reaper Mesh" />
+    <meta property="og:title" content="Reaper Mesh for macOS, Windows and Linux" />
+    <meta
+      property="og:description"
+      content="The Reaper Mesh web portal and firmware installer as a desktop app, with direct USB access to your radio."
+    />
+    <meta property="og:url" content="https://reapermesh.com/download/" />
+    <meta property="og:image" content="https://reapermesh.com/assets/social.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="%ROOT%favicon.svg" />
+    <link rel="stylesheet" href="%ROOT%theme.css" />
+    <link rel="stylesheet" href="%ROOT%site.css" />
+  </head>
+  <body>
+    <!-- site:header -->
+    <main id="main">
+      <section class="hero">
+        <div class="wrap">
+          <div class="hero-copy">
+            <span class="eyebrow">Desktop app</span>
+            <h1 class="display">Reaper Mesh on <em>your computer.</em></h1>
+            <p class="lead">
+              The web portal and the firmware installer as an app for macOS, Windows and Linux. Plug
+              in your radio over USB to message, map and manage it, or install its firmware. No
+              browser needed.
+            </p>
+            <!-- These links always fetch the newest release; .github/workflows/release.yml names
+                 the files. -->
+            <div class="stores">
+              <a
+                class="store"
+                href="https://github.com/justingreerbbi/reaper-mesh/releases/latest/download/Reaper-Mesh-macOS.dmg"
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Download for</small><b>macOS</b></span>
+              </a>
+              <a
+                class="store"
+                href="https://github.com/justingreerbbi/reaper-mesh/releases/latest/download/Reaper-Mesh-Windows-x64-setup.exe"
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Download for</small><b>Windows</b></span>
+              </a>
+              <a
+                class="store"
+                href="https://github.com/justingreerbbi/reaper-mesh/releases/latest/download/Reaper-Mesh-Linux-x86_64.AppImage"
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#download" />
+                </svg>
+                <span><small>Download for</small><b>Linux</b></span>
+              </a>
+            </div>
+            <p class="hero-note">
+              macOS 11 or later (Apple silicon or Intel), 64-bit Windows 10 or later, or 64-bit
+              Linux. On Ubuntu and Debian you can also install the
+              <a
+                href="https://github.com/justingreerbbi/reaper-mesh/releases/latest/download/Reaper-Mesh-Linux-amd64.deb"
+                >.deb package</a
+              >. Every version, with firmware files and checksums, is on the
+              <a href="https://github.com/justingreerbbi/reaper-mesh/releases">releases page</a>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="first-title">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="eyebrow">First launch</span>
+            <h2 class="section-title" id="first-title">Allow it once.</h2>
+            <p class="lead">
+              The app is not signed by Apple or Microsoft yet, so your computer asks before opening
+              it the first time.
+            </p>
+          </div>
+          <div class="grid-3">
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#monitor" />
+                </svg>
+              </div>
+              <h3>macOS</h3>
+              <p>
+                Drag Reaper Mesh to Applications and open it. If macOS says it can't check the app,
+                open <b>System Settings → Privacy &amp; Security</b> and choose <b>Open Anyway</b>.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#monitor" />
+                </svg>
+              </div>
+              <h3>Windows</h3>
+              <p>
+                Run the installer. If Windows shows "Windows protected your PC", choose
+                <b>More info</b>, then <b>Run anyway</b>.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon">
+                <svg class="icon" aria-hidden="true">
+                  <use href="%ROOT%assets/icons.svg#monitor" />
+                </svg>
+              </div>
+              <h3>Linux</h3>
+              <p>
+                Make the AppImage executable (<code>chmod +x Reaper-Mesh-Linux-x86_64.AppImage</code
+                >) and run it. To use USB without sudo, add yourself to the
+                <code>dialout</code> group and log in again.
+              </p>
+            </article>
+          </div>
+          <div class="callout spaced-top">
+            <svg class="icon" aria-hidden="true"><use href="%ROOT%assets/icons.svg#alert" /></svg>
+            <div>
+              <h3>USB today, Bluetooth later</h3>
+              <p>
+                The desktop app connects to your radio over USB. For Bluetooth, use the
+                <a href="%ROOT%web/">web app</a> in Chrome or Edge, or the
+                <a href="%ROOT%app/">mobile app</a>. Its messages and settings stay on this
+                computer, separate from your browser's.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <!-- site:footer -->
+  </body>
+</html>
