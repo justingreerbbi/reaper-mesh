@@ -22,6 +22,8 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+## v0.12.0 — November 18, 2026
+
 - **Added:** a desktop app for macOS, Windows and Linux (D58), built with Tauri 2 in
   `agents/desktop/`. It shows the web portal and the firmware installer unchanged and gives them USB
   through a Rust serial bridge behind a Web Serial shim. Bluetooth is not in it yet. See
