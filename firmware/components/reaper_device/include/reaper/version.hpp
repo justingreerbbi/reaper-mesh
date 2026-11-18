@@ -8,15 +8,15 @@ namespace reaper::device {
 #define REAPER_FIRMWARE_SUFFIX ""
 #endif
 #if defined(REAPER_TBEAM_V12)
-inline constexpr char kFirmwareVersion[] = "tbeam-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
+inline constexpr char kFirmwareVersion[] = "tbeam-reaper-mesh-v0.12.0" REAPER_FIRMWARE_SUFFIX;
 #elif defined(REAPER_T1000_E)
-inline constexpr char kFirmwareVersion[] = "t1000e-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
+inline constexpr char kFirmwareVersion[] = "t1000e-reaper-mesh-v0.12.0" REAPER_FIRMWARE_SUFFIX;
 #elif defined(REAPER_HELTEC_STICK_V3)
 inline constexpr char kFirmwareVersion[] =
-    "heltec-stick-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
+    "heltec-stick-reaper-mesh-v0.12.0" REAPER_FIRMWARE_SUFFIX;
 #else
-inline constexpr char kFirmwareVersion[] = "heltec-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
+inline constexpr char kFirmwareVersion[] = "heltec-reaper-mesh-v0.12.0" REAPER_FIRMWARE_SUFFIX;
 #endif
 // Short form shown in the corner of the device screen.
-inline constexpr char kDisplayVersion[] = "v0.11.1";
+inline constexpr char kDisplayVersion[] = "v0.12.0";
 }  // namespace reaper::device

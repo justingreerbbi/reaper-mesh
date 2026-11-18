@@ -86,6 +86,16 @@ if (command === 'set') {
 } else {
   const notes = section(version);
   if (!notes) throw new Error(`${CHANGELOG} has no "## v${version}" section`);
-  // The heading becomes the release title; the body is the notes.
-  console.log(notes.split('\n').slice(1).join('\n').trim());
+  // The heading becomes the release title; the body is the notes. Links relative to the changelog
+  // would break on the release page, so they point at the tagged docs on GitHub instead.
+  const base = `https://github.com/justingreerbbi/reaper-mesh/blob/v${version}/docs/overview/`;
+  const body = notes
+    .split('\n')
+    .slice(1)
+    .join('\n')
+    .replace(
+      /\]\((?!https?:|mailto:|#)([^)\s]+)\)/g,
+      (_, link: string) => `](${new URL(link, base)})`,
+    );
+  console.log(body.trim());
 }
