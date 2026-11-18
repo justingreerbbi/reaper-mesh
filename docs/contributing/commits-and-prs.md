@@ -48,6 +48,8 @@ spans the whole project.
 | `simulator` | `packages/simulator/` |
 | `web` | `agents/web/` |
 | `flasher` | `agents/flasher/` (the browser firmware installer) |
+| `desktop` | `agents/desktop/` (the desktop app) |
+| `release` | Release versioning and `.github/workflows/release.yml` |
 | `firmware` | `firmware/components/` and changes shared by both boards |
 | `heltec` | `firmware/heltec-v3/` only |
 | `stick` | `firmware/heltec-stick-v3/` only |

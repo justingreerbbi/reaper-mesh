@@ -25,8 +25,11 @@ export function bluetoothProblem(error: unknown) {
     : text;
 }
 export const bluetooth = (navigator as Navigator & { bluetooth?: BleBluetooth }).bluetooth;
-export const bluetoothHelp =
-  'This browser has no Web Bluetooth. Chrome and Edge include it; in Brave it may need turning on in brave://flags. Safari does not support it.';
+/** True in the Reaper Mesh desktop app (agents/desktop), which provides USB but not Bluetooth yet. */
+export const desktopApp = '__TAURI__' in window;
+export const bluetoothHelp = desktopApp
+  ? 'The desktop app connects over USB. Bluetooth is not in it yet; for Bluetooth, use the web portal in Chrome or Edge.'
+  : 'This browser has no Web Bluetooth. Chrome and Edge include it; in Brave it may need turning on in brave://flags. Safari does not support it.';
 export const app = document.querySelector('.app') as HTMLElement;
 
 export const demo = new FieldDevice();

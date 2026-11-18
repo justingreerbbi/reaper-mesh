@@ -205,6 +205,7 @@ the firmware small, build features in the apps), commit format and the pull requ
 | --- | --- |
 | [`firmware/`](firmware/) | Embedded C++17 components and one application folder per board |
 | [`agents/web/`](agents/web/) | The web portal (TypeScript, Vite, Leaflet) |
+| [`agents/desktop/`](agents/desktop/) | The desktop app for macOS, Windows and Linux (Tauri 2, Rust): the portal and installer with native USB |
 | [`agents/flasher/`](agents/flasher/) | The browser firmware installer (TypeScript, Vite, esptool-js and nRF52 serial DFU) |
 | [`agents/boards.json`](agents/boards.json) | The supported boards, which the website and installer list |
 | [`packages/protocol/`](packages/protocol/) | The protocol schema, generated bindings and frozen compatibility fixtures |

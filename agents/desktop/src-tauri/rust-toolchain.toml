@@ -1,0 +1,5 @@
+# The same Rust on every machine and in CI.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

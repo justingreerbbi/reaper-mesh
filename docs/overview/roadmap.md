@@ -68,6 +68,9 @@ When Google Play approves the Android app, replace its "Coming soon" button on t
   installed version and exports settings first, and a published support policy.
 - **More regions and boards:** EU support needs verified hardware, countries and settings
   before any transmission.
+- **Desktop app (D58):** Bluetooth (a native bridge, with a BlueZ pairing agent on Linux), code
+  signing for macOS and Windows, and automatic updates. The first release will be its first
+  installs on Windows and Linux.
 - **T1000-E (D57):** radio links with the ESP32 boards, Bluetooth pairing, the LED, button and
   battery voltage on the owner's unit; then a CI build so the live installer serves it.
 

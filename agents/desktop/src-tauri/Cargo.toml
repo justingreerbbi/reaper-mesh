@@ -1,0 +1,29 @@
+[package]
+name = "reaper-mesh-desktop"
+version = "0.11.1"
+description = "Reaper Mesh desktop app: the web portal and firmware installer with native USB access"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "reaper-mesh"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "=2.7.3", features = [] }
+
+[dependencies]
+# Pinned to releases at least two weeks old when added; see docs/guides/desktop-app.md.
+tauri = { version = "=2.12.4", features = [] }
+# Its default libudev feature is what lets Linux tell USB ports apart; it does nothing elsewhere.
+serialport = "=4.10.1"
+serde = { version = "=1.0.229", features = ["derive"] }
+open = "=5.4.4"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

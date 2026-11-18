@@ -69,6 +69,7 @@ Then run `npm run format` to rewrite files, or `npm run format:check` to check t
 | Firmware unit tests | Standalone CMake build of the portable firmware components with `-Werror`, the CTest suite and `codec_bridge selftest` |
 | Firmware build (heltec-v3, heltec-stick-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
 | Firmware build (t1000-e) | `tools/bootstrap-zephyr.sh` installs the Zephyr workspace and SDK pinned, with checksums, in `firmware/zephyr.lock.json`; `tools/build-t1000e.sh` builds the image and manifest the Pages installer publishes (D57) |
+| Desktop app | `cargo fmt --check` and `cargo clippy -D warnings` for `agents/desktop/` on Ubuntu 22.04, after building its pages. Release builds for every system come from the release workflow |
 | Shell script lint | `shellcheck --severity=warning tools/*.sh` |
 | Pages site | After every job above passes: builds the portal and installer, validates both firmware builds with `tools/update-firmware.py`, and assembles the site. On `main` it uploads the site |
 | Deploy to GitHub Pages | On `main` only: publishes the site |
@@ -80,6 +81,12 @@ Firmware build jobs keep their images (and the ESP-IDF license notices) as workf
 `tools/build-firmware.sh` uses the bootstrapped ESP-IDF under `.tools/` by default. Set `REAPER_IDF_FROM_ENV=1` to use a preinstalled ESP-IDF at `IDF_PATH` instead, as CI does.
 
 Passing host checks does not establish browser permission behavior, native serial-driver cleanup, firmware flash durability, or RF delivery. See [Serial adapter](../reference/serial-adapter.md) and [Hardware](../guides/hardware.md) for those boundaries.
+
+### Releases
+
+`.github/workflows/release.yml` runs only on a pushed version tag (or by hand from one). It checks
+the version, runs this workflow, builds the desktop app on macOS, Windows and Ubuntu, and publishes a
+GitHub release. See [Releases](releases.md).
 
 ## GitHub Pages
 

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The app window: Tauri's core features (IPC channels, events). The serial commands are the app's own.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

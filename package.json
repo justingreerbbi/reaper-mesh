@@ -1,6 +1,6 @@
 {
   "name": "reaper-mesh",
-  "version": "0.0.0",
+  "version": "0.11.1",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -19,9 +19,14 @@
     "build:flasher": "vite build agents/flasher --base ./ --outDir ../../dist/flasher --emptyOutDir",
     "build:site": "npm run build:web && npm run build:flasher && node tools/build-site.ts",
     "preview:site": "vite preview agents/web --outDir ../../dist/site --base / --host 127.0.0.1 --port 4173 --strictPort",
-    "test": "npm run check:generated && node --test tests/simulator/*.test.ts"
+    "test": "npm run check:generated && node --test tests/simulator/*.test.ts",
+    "build:desktop-shim": "vite build agents/desktop --config agents/desktop/vite.config.ts",
+    "build:desktop-pages": "npm run build:desktop-shim && node tools/build-desktop.ts",
+    "desktop:dev": "npm run build:desktop-pages && tauri dev --config agents/desktop/src-tauri/tauri.conf.json",
+    "desktop:build": "npm run build:desktop-pages && tauri build --config agents/desktop/src-tauri/tauri.conf.json"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.12.4",
     "@types/leaflet": "1.9.20",
     "@types/node": "24.19.2",
     "@types/w3c-web-serial": "1.0.8",
