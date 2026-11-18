@@ -35,9 +35,22 @@ export type Conversation = Readonly<{
 export function canDeleteConversation(row: Pick<Conversation, 'kind' | 'channel'>) {
   return row.kind !== 'channel' || row.channel !== 0;
 }
+/**
+ * Firmware names a sender with a 48-bit node ID `heltec-` plus 12 hex digits, whatever the board;
+ * the name dates from when the Heltec was the only board. It is the same node as `node-0000` plus
+ * those digits, which is how the portal stores and shows it.
+ */
 export function canonicalNode(id: string) {
   return /^heltec-[0-9a-f]{12}$/.test(id) ? 'node-0000' + id.slice(7) : id;
 }
+/** The short ID the portal shows: the last four hex digits of a node ID, upper case. */
+export function shortNode(node: string) {
+  const match = /^node-[0-9a-f]{12}([0-9a-f]{4})$/.exec(canonicalNode(node));
+  return match ? match[1].toUpperCase() : node;
+}
+/** A node's saved name, or `Node` and its short ID before it has been discovered. */
+export const nodeLabel = (name: string | undefined, node: string) =>
+  name || `Node ${shortNode(node)}`;
 export function conversationKey(destination: string, channel: number) {
   return `${channel}:${canonicalNode(destination)}`;
 }
@@ -166,8 +179,10 @@ export function conversations(
         ? channelLabel(channels, channel)
         : canonicalNode(destination) === canonicalNode(device ?? '')
           ? 'This device'
-          : peers.find(p => canonicalNode(p.node) === canonicalNode(destination))?.name ||
-            destination;
+          : nodeLabel(
+              peers.find(p => canonicalNode(p.node) === canonicalNode(destination))?.name,
+              destination,
+            );
     const messages = threadMessages(device, destination, channel, outgoing, incoming);
     rows.set(key, {
       key,

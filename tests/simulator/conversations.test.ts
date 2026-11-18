@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   canonicalNode,
+  nodeLabel,
+  shortNode,
   conversationKey,
   conversations,
   threadMessages,
@@ -111,4 +113,13 @@ test('drafts remain isolated, bounded and removable after successful upload', ()
   for (let i = 0; i < 65; i++) drafts.save('draft' + i, 'text');
   assert.equal(drafts.get('draft0'), '');
   assert.equal(drafts.get('draft64'), 'text');
+});
+
+test('undiscovered senders are named by short ID, never by the legacy heltec- prefix', () => {
+  // Every board with a 48-bit node ID reports senders as heltec-…; it is not a Heltec.
+  assert.equal(shortNode('heltec-16de9ef217e2'), '17E2');
+  assert.equal(shortNode('node-000016de9ef217e2'), '17E2');
+  assert.equal(nodeLabel(undefined, 'heltec-16de9ef217e2'), 'Node 17E2');
+  assert.equal(nodeLabel('SENSECAP', 'heltec-16de9ef217e2'), 'SENSECAP');
+  assert.equal(shortNode('broadcast'), 'broadcast');
 });

@@ -22,6 +22,9 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Fixed (portal):** a sender not yet discovered showed as `heltec-…` or "Node heltec-…" whatever
+  board it was. Firmware still names every 48-bit node ID with the old `heltec-` prefix; the portal
+  now shows it as `Node` and the last four hex digits, as for every other node. No firmware change.
 - **Added:** a Seeed SenseCAP T1000-E target, `t1000-e`, built with Zephyr (D57). It shares the
   portable components and mesh service with the ESP32 boards and adds an LR1110 radio driver over
   Semtech's pinned LR11xx driver, a PSA Crypto backend, and T1000-E USB, storage, Bluetooth, button,

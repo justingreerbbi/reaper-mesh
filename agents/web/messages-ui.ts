@@ -25,6 +25,7 @@ import {
   threadMessages,
   conversationKey,
   canonicalNode,
+  nodeLabel,
   ConversationDrafts,
   channelLabel,
   deliveryOf,
@@ -118,11 +119,7 @@ export function setConnectAction(action: () => void) {
 export const lastDeviceId = () => lastDevice;
 /** The conversations on show, for choosing where to share something. */
 export const shareTargets = () => conversationRows;
-export function shortNode(node: string) {
-  const match = /^node-[0-9a-f]{12}([0-9a-f]{4})$/.exec(node);
-  return match ? match[1].toUpperCase() : node;
-}
-const nodeLabel = (name: string | undefined, node: string) => name || `Node ${shortNode(node)}`;
+export { shortNode } from './conversations.ts';
 
 /** Forces the thread to re-render on the next pass. */
 export function invalidateThread() {
