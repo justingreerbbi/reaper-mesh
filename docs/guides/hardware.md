@@ -136,12 +136,12 @@ agree with RIOT's board support.
 | Property | Value |
 | --- | --- |
 | Processor | nRF52840, 1 MB flash, 256 KB RAM |
-| USB | Native USB, one CDC ACM serial port (`/dev/cu.usbmodem…` on macOS). Opening it at 1200 baud and closing it restarts into the UF2 bootloader |
+| USB | Native USB, one CDC ACM serial port (`/dev/cu.usbmodem…` on macOS). Opening it at 1200 baud and closing it restarts into the bootloader's serial DFU mode, which the browser installer uses. The bootloader shows Seeed's USB ID, `2886:0057` |
 | Radio | Semtech LR1110 on SPIM2: SCK P0.11, MOSI P1.09, MISO P1.08, NSS P0.12, reset P1.10, BUSY P0.07, IRQ P1.01. TCXO on DIO3 at 1.6 V; DIO5-DIO8 drive the RF switch (receive DIO5+DIO8, high-power PA DIO6+DIO8) |
 | Power | P1.06 turns on the 3.3 V rail at boot. GNSS (P1.11), the buzzer (P1.05) and the sensor rail (P0.04) are held off |
 | Button and LED | Button P0.06, active high with pull-down; status LED P0.24, active high |
 | Battery | Voltage only, on P0.02 (AIN0) behind a 2:1 divider; USB power on P0.05. No percentage is shown, because there is no fuel gauge |
-| Flash layout | SoftDevice S140 v7 `0x0` (kept for the bootloader), app `0x27000`, settings `reaper_nvs` `0xe6000` (16 KB), keys `reaper_keys` `0xea000` (8 KB), Bluetooth `storage` `0xec000` (32 KB), UF2 bootloader `0xf4000` |
+| Flash layout | SoftDevice S140 v7 `0x0` (kept for the bootloader), app `0x27000`, settings `reaper_nvs` `0xe2000` (16 KB), keys `reaper_keys` `0xe6000` (8 KB), Bluetooth `storage` `0xe8000` (8 KB). `0xea000`–`0xf4000` is the bootloader's reserved app-data area and is left alone; the UF2 bootloader starts at `0xf4000` |
 | Node ID | 48 bits of the chip's factory device ID. Bluetooth advertises a separate random address |
 | Radio gate | Set in `firmware/t1000-e/src/t1000e_profile.hpp`. Open on the development unit: the owner confirmed its US/915 MHz model and antenna on November 17, 2026 |
 | Not used | GNSS (AG3335), accelerometer, light and temperature sensors, buzzer, Wi-Fi scanning |

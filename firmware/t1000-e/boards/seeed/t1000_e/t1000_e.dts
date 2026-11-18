@@ -129,12 +129,17 @@
 
 &flash0 {
 	/*
-	 * 0x00000 SoftDevice S140 v7, kept for the bootloader (156 KB)
-	 * 0x27000 Reaper Mesh application                      (764 KB)
-	 * 0xe6000 reaper_nvs: settings and the boot counter     (16 KB)
-	 * 0xea000 reaper_keys: the network key record, 2 sectors (8 KB)
-	 * 0xec000 storage: Bluetooth bonds and address          (32 KB)
-	 * 0xf4000 UF2 bootloader                                (48 KB)
+	 * 0x00000 SoftDevice S140 v7, kept for the bootloader      (156 KB)
+	 * 0x27000 Reaper Mesh application                           (748 KB)
+	 * 0xe2000 reaper_nvs: settings and the boot counter          (16 KB)
+	 * 0xe6000 reaper_keys: the network key record, 2 sectors      (8 KB)
+	 * 0xe8000 storage: Bluetooth bonds and identity               (8 KB)
+	 * 0xea000 left alone: the bootloader reserves it for app data (40 KB)
+	 * 0xf4000 UF2 bootloader                                      (48 KB)
+	 *
+	 * The bootloader's serial update erases only the pages the new image needs, from 0x27000, so
+	 * the data areas survive updates. A first install sends an image padded with 0xff up to
+	 * 0xea000 instead, which blanks them; nothing above 0xea000 can be written that way.
 	 */
 	partitions {
 		ranges;
@@ -151,25 +156,25 @@
 		code_partition: partition@27000 {
 			compatible = "zephyr,mapped-partition";
 			label = "code";
-			reg = <0x00027000 0x000bf000>;
+			reg = <0x00027000 0x000bb000>;
 		};
 
-		reaper_nvs_partition: partition@e6000 {
+		reaper_nvs_partition: partition@e2000 {
 			compatible = "zephyr,mapped-partition";
 			label = "reaper_nvs";
-			reg = <0x000e6000 0x00004000>;
+			reg = <0x000e2000 0x00004000>;
 		};
 
-		reaper_keys_partition: partition@ea000 {
+		reaper_keys_partition: partition@e6000 {
 			compatible = "zephyr,mapped-partition";
 			label = "reaper_keys";
-			reg = <0x000ea000 0x00002000>;
+			reg = <0x000e6000 0x00002000>;
 		};
 
-		storage_partition: partition@ec000 {
+		storage_partition: partition@e8000 {
 			compatible = "zephyr,mapped-partition";
 			label = "storage";
-			reg = <0x000ec000 0x00008000>;
+			reg = <0x000e8000 0x00002000>;
 		};
 
 		boot_partition: partition@f4000 {

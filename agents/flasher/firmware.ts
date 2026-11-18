@@ -45,6 +45,8 @@ export const SUPPORTED: Record<string, { chip: string; flashSize: string; offset
     offsets: [0x0, 0x8000, 0x10000, 0x21a000],
   },
   'tbeam-v12': { chip: 'ESP32', flashSize: '4MB', offsets: [0x1000, 0x8000, 0x10000, 0x21a000] },
+  // One application image at 0x27000, after the SoftDevice; see nrf-dfu.ts (D57).
+  't1000-e': { chip: 'nRF52840', flashSize: '1MB', offsets: [0x27000] },
 };
 
 function fail(message: string): never {
@@ -238,6 +240,7 @@ export function imageName(image: FirmwareImage): string {
 
 /** The README in a firmware download: what it is and how to write it without erasing settings. */
 export function downloadReadme(board: BoardBuild, installerUrl: string, repo: string): string {
+  if (board.chip === 'nRF52840') return nrfReadme(board, installerUrl, repo);
   const offsets = board.images
     .map(image => `0x${image.offset.toString(16)} ${imageName(image)}`)
     .join(' ');
@@ -265,7 +268,31 @@ export function downloadReadme(board: BoardBuild, installerUrl: string, repo: st
   ].join('\n');
 }
 
-/** A download's files: the four verified images, a README, the notices and SHA256SUMS. */
+/** The T1000-E's README: one application image for its Adafruit nRF52 bootloader. */
+function nrfReadme(board: BoardBuild, installerUrl: string, repo: string): string {
+  const image = board.images[0];
+  return [
+    `Reaper Mesh firmware ${board.firmware}`,
+    `Board: ${board.name} (${board.chip}, ${board.flashSize} flash)`,
+    `Source: ${repo}/commit/${board.sourceCommit}${board.sourceDirty ? ' (with uncommitted changes)' : ''}`,
+    '',
+    'The easiest way to install it is the browser installer:',
+    installerUrl,
+    '',
+    `${imageName(image)} is the application, written at 0x${image.offset.toString(16)} by the`,
+    "T1000-E's Adafruit nRF52 bootloader. To install it yourself, build UF2 files from the source",
+    'with tools/build-t1000e.sh and copy one onto the bootloader drive (see the flashing guide in',
+    'the repository). Never overwrite the bootloader or the SoftDevice.',
+    '',
+    "SHA256SUMS lists every file's SHA-256 hash. It detects corruption, not a malicious publisher:",
+    'releases are not signed yet. This is prototype firmware, not an RF certification.',
+    '',
+    'Reaper Mesh is licensed under Apache-2.0 (LICENSE, NOTICE). Third-party notices are in notices/.',
+    '',
+  ].join('\n');
+}
+
+/** A download's files: the verified images, a README, the notices and SHA256SUMS. */
 export async function downloadFiles(
   board: BoardBuild,
   images: Uint8Array[],

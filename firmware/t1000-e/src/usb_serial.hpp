@@ -11,7 +11,7 @@ class UsbSerial {
   bool write(const std::uint8_t* data, std::size_t size);
   // True once after the host closed the port or input overflowed, so the session resets.
   bool take_closed();
-  // The 1200-baud touch: a host that opens the port at 1200 baud and closes it asks for the UF2
-  // bootloader, so firmware can be updated without pressing the button.
+  // The 1200-baud touch: a host that opens the port at 1200 baud and closes it asks for the
+  // bootloader, so the browser installer can update the firmware without the button.
   bool bootloader_requested();
 };

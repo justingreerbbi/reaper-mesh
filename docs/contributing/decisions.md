@@ -208,11 +208,15 @@ the same modem, sync word and power levels as the SX1262 (-9 to +22 dBm on the h
 boost). Chip firmware older than 0x0303 cannot set the sync word, so the radio refuses it. No
 protocol, storage format or radio change (D41).
 
-The board keeps its factory Adafruit nRF52 UF2 bootloader and SoftDevice S140 v7, and is installed by
-copying a UF2 file. A first install over other firmware uses an image that also blanks the
-settings, key and Bluetooth areas, because Reaper never erases storage it cannot read; updates use
-an app-only image that keeps them. Opening the USB port at 1200 baud and closing it restarts into
-the UF2 bootloader. The board has no screen, so the portal over USB shows the Bluetooth passkey.
+The board keeps its factory Adafruit nRF52 bootloader and SoftDevice S140 v7. The browser installer
+installs it like the other boards, through the bootloader's serial DFU (`agents/flasher/nrf-dfu.ts`,
+the protocol adafruit-nrfutil speaks): opening the USB port at 1200 baud and closing it restarts
+into that mode, from Reaper or other firmware alike. Serial DFU erases only the pages an image
+needs, so Reaper's settings, key and Bluetooth areas sit at the end of what it can write
+(`0xe2000`–`0xea000`; the bootloader keeps the 40 KB above for app data). An update sends the
+application alone and keeps them; a first install over other firmware sends it padded with `0xff`
+to `0xea000`, which blanks them, because Reaper never erases storage it cannot read. UF2 files are
+also built for the bootloader drive. The board has no screen, so the portal over USB shows the Bluetooth passkey.
 The LR1110's TCXO supply is set to 1.6 V: Seeed's reference code says 3.0 V and firmware in wide use
 says 1.6 V, and the lower value cannot overstress the part. A wrong value shows as an
 `HF_XOSC_START` probe fault, not a transmission. The owner confirmed the development unit is the

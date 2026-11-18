@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds the T1000-E firmware (D57) with the Zephyr workspace and SDK pinned in
-# firmware/zephyr.lock.json (run tools/bootstrap-zephyr.sh first). Writes build/t1000-e/ with
-# t1000e-reaper-mesh-v<version>-install.uf2 (first install over other firmware: also blanks the
-# settings, key and Bluetooth areas) and -update.uf2 (keeps them).
+# firmware/zephyr.lock.json (run tools/bootstrap-zephyr.sh first). Writes build/t1000-e/ with the
+# application image and manifest the browser installer publishes, and UF2 files for installing by
+# hand (see tools/t1000e-package.py).
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 tools="$repo_root/.tools"
@@ -33,5 +33,4 @@ cmake -S "$repo_root/firmware/t1000-e" -B "$build_dir" -G Ninja ${extra[@]+"${ex
 ninja -C "$build_dir"
 version="$(sed -n 's/.*"t1000e-reaper-mesh-v\([0-9.]*\)".*/\1/p' \
   "$repo_root/firmware/components/reaper_device/include/reaper/version.hpp")"
-python3 "$repo_root/tools/uf2-image.py" "$build_dir/zephyr/zephyr.bin" "$build_dir" \
-  "t1000e-reaper-mesh-v$version$suffix"
+python3 "$repo_root/tools/t1000e-package.py" "$build_dir" "t1000e-reaper-mesh-v$version$suffix"

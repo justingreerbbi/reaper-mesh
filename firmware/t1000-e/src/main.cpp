@@ -38,9 +38,11 @@ std::uint64_t now_ms() {
   for (;;)
     k_sleep(K_SECONDS(1));
 }
-// The Adafruit nRF52 bootloader starts in UF2 mode after a reset with this retained value.
+// The Adafruit nRF52 bootloader starts its serial DFU mode after a reset with this retained value.
+// That is what the browser installer talks to, and what other nRF52 firmware's 1200-baud reset
+// opens, so the installer works the same whatever the T1000-E was running.
 [[noreturn]] void enter_bootloader() {
-  nrf_power_gpregret_set(NRF_POWER, 0, 0x57);
+  nrf_power_gpregret_set(NRF_POWER, 0, 0x4e);
   sys_reboot(SYS_REBOOT_COLD);
   halt();
 }
