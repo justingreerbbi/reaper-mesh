@@ -1,0 +1,18 @@
+description: |
+  SPI link to a Semtech LR1110 for Reaper Mesh's own driver (firmware/components/reaper_radio).
+  It is not Zephyr's LoRa driver; only the wiring is described here.
+
+compatible: 'reaper,lr1110-bus'
+
+include: spi-device.yaml
+
+properties:
+  reset-gpios:
+    type: phandle-array
+    required: true
+  busy-gpios:
+    type: phandle-array
+    required: true
+  irq-gpios:
+    type: phandle-array
+    required: true

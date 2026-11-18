@@ -8,7 +8,8 @@ There are two ways to put Reaper Mesh firmware on a board:
 | **[Build from source](#build-and-install-from-source)** | Developers changing the firmware | The ESP-IDF toolchain, about 20 minutes to set up |
 
 Both write the same four images, check the board first, and keep your Reaper Mesh settings,
-Bluetooth pairings and network keys.
+Bluetooth pairings and network keys. The **Seeed SenseCAP T1000-E** installs differently, by copying
+one file: see [T1000-E](#seeed-sensecap-t1000-e).
 
 > [!IMPORTANT]
 > Releases are not signed yet. The browser installer serves firmware built by this repository's
@@ -111,6 +112,40 @@ Open the web portal, connect over USB, and check on the **Device** tab that:
 
 A freshly flashed board is silent until you choose a radio network in
 **Device → Radio network**.
+
+## Seeed SenseCAP T1000-E
+
+The T1000-E has a UF2 bootloader that appears as a USB drive, so it installs by copying one file
+onto that drive. The browser installer does not support it yet; build it from source (D57).
+
+1. Install the pinned Zephyr toolchain once (about 2.6 GB under `.tools/`):
+
+   ```bash
+   bash tools/bootstrap-zephyr.sh
+   ```
+
+2. Build. This writes two files to `build/t1000-e/`:
+
+   ```bash
+   bash tools/build-t1000e.sh
+   ```
+
+   | File | Use it when |
+   | --- | --- |
+   | `t1000e-reaper-mesh-v….-install.uf2` | The T1000-E runs other firmware, such as Meshtastic. It also blanks the settings, key and Bluetooth areas, because Reaper never erases storage it cannot read |
+   | `t1000e-reaper-mesh-v….-update.uf2` | The T1000-E already runs Reaper Mesh. Settings, network keys and Bluetooth pairings are kept |
+
+3. Open the bootloader drive (named like `T1000-E`):
+   - If it runs Reaper Mesh, open its USB port at 1200 baud and close it, for example
+     `python3 -c "import serial; serial.Serial('/dev/cu.usbmodem101', 1200).close()"`.
+   - Otherwise, unplug it, then hold its button while plugging the USB cable back in. Meshtastic's
+     own 1200-baud reset opens a serial-only bootloader with no drive, so it does not help here.
+
+4. Copy the `.uf2` file onto the drive. The T1000-E restarts into Reaper Mesh when the copy ends,
+   and its serial port reappears.
+
+To go back to Meshtastic, open the bootloader drive the same way and copy Meshtastic's T1000-E UF2
+onto it. The bootloader and SoftDevice are never changed, so this always works.
 
 ## If something goes wrong
 

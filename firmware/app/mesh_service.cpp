@@ -99,7 +99,11 @@ MeshService::MeshService(d::MessageQueue& messages, d::Inbox& inbox, d::RadioInf
       nonce_seed_(seed),
       node_(node),
       antenna_verified_(verified),
+#if defined(REAPER_T1000_E)
+      radio_(bus_, reaper::board::kRadioWiring),
+#else
       radio_(bus_),
+#endif
       mesh_(node),
       discovery_(node, boot) {
   literal(info_.state, "off");

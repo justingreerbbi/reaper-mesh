@@ -115,6 +115,18 @@ target_link_libraries(radio_test PRIVATE reaper_radio)
 foreach(scenario receive tx faults)
   add_test(NAME radio_driver_${scenario} COMMAND radio_test ${scenario})
 endforeach()
+# The T1000-E's LR1110 through Semtech's pinned LR11xx driver, against a simulated chip.
+add_library(reaper_lr1110 components/reaper_radio/lr1110.cpp components/reaper_radio/lr11xx_hal.cpp components/reaper_radio/lr11xx/lr11xx_radio.c components/reaper_radio/lr11xx/lr11xx_system.c components/reaper_radio/lr11xx/lr11xx_regmem.c)
+target_include_directories(reaper_lr1110 PUBLIC components/reaper_radio/include PRIVATE components/reaper_radio/lr11xx)
+target_link_libraries(reaper_lr1110 PUBLIC reaper_mesh)
+# Lr1110::configure refuses chip firmware too old for the sync word the warning is about.
+target_compile_definitions(reaper_lr1110 PRIVATE LR11XX_DISABLE_WARNINGS)
+add_executable(lr1110_test tests/lr1110_test.cpp)
+target_link_libraries(lr1110_test PRIVATE reaper_lr1110)
+target_compile_options(lr1110_test PRIVATE -Wall -Wextra -Werror -pedantic)
+foreach(scenario receive tx faults)
+  add_test(NAME lr1110_driver_${scenario} COMMAND lr1110_test ${scenario})
+endforeach()
 
 add_executable(inbox_test tests/inbox_test.cpp)
 target_link_libraries(inbox_test PRIVATE reaper_device)

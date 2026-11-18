@@ -1,5 +1,11 @@
 #pragma once
+#if defined(REAPER_T1000_E)
+#include "t1000e_radio_bus.hpp"
+#include "t1000e_profile.hpp"
+#include "reaper/lr1110.hpp"
+#else
 #include "radio_bus.hpp"
+#endif
 #ifdef REAPER_TBEAM_V12
 #include "reaper/sx1276.hpp"
 #endif
@@ -8,8 +14,10 @@
 #include "reaper/mesh.hpp"
 class MeshService {
  public:
-#ifdef REAPER_TBEAM_V12
+#if defined(REAPER_TBEAM_V12)
   using Driver = reaper::radio::Sx1276;
+#elif defined(REAPER_T1000_E)
+  using Driver = reaper::radio::Lr1110;
 #else
   using Driver = reaper::radio::Radio;
 #endif

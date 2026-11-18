@@ -37,6 +37,7 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 | Device screen, buttons and LED | Startup screen, pages, button gestures, screen timeout, wake on message, battery display, status LED (off by default) | Confirmed by the owner on both boards; settings round trip and persist over USB | Heltec battery voltage against a meter; the LED toggle in a native browser |
 | Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins. Published at <https://reapermesh.com/web/> from `main` (D54) | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location |
 | Wireless Stick V3 target | `heltec-stick-v3` build, updater, CI and browser installer support; compact 64 × 32 screen layout (D55) | Over the air with the T-Beam: direct both ways with acknowledgment, Public and channel broadcasts, invites, encryption, discovery both ways. Over USB: identity, SX1262 probe, local delivery, settings storage. The owner confirmed the compact screen shows content | Every compact page and the pairing passkey on screen; Bluetooth pairing; the LED, battery voltage and button gestures; installing from the browser installer |
+| T1000-E target | `t1000-e` Zephyr build: LR1110 driver over Semtech's pinned driver, USB, settings and key storage, Bluetooth link, button, LED and battery voltage; UF2 install and update images (D57). Host tests for the LR1110 driver against a simulated chip | Nothing yet | Everything on hardware: boot, USB session, LR1110 probe, radio links with the other boards, Bluetooth pairing, storage across a reset, the LED and button, battery voltage; PSA Crypto against the frame fixtures |
 | Firmware updates | Manifest-checking USB updater that keeps settings and keys; a browser installer at <https://reapermesh.com/flash/> with the same checks, serving the CI builds of `main` for all three boards (D54) | Many installs on both boards with the USB updater | **The browser installer on a real board**; interrupted flash, rollback, signed releases |
 
 ## Website and mobile app
@@ -63,11 +64,13 @@ the current settings from the board rather than this table.
 | Heltec WiFi LoRa 32 V3 (ESP32-S3, SX1262, US/915) | `heltec-reaper-mesh-v0.11.1` | `/dev/cu.usbserial-0001` |
 | LILYGO T-Beam V1.2 (ESP32, SX1276, AXP2101, US/915) | `tbeam-reaper-mesh-v0.11.1` | `/dev/cu.wchusbserial57700003341` |
 | Heltec Wireless Stick V3 (ESP32-S3, SX1262, US/915) | `heltec-stick-reaper-mesh-v0.11.1` | `/dev/cu.usbserial-0001` (the same name the Heltec V3 gets) |
+| Seeed SenseCAP T1000-E (nRF52840, LR1110, US/915) | Meshtastic (Reaper Mesh not installed yet) | `/dev/cu.usbmodem101` |
 
 The Heltec V3 and T-Beam run local development builds on `9e17ca9` with uncommitted changes
 (November 7), and both antennas are owner-confirmed. The Wireless Stick V3 runs a local
 development build of `02db7a5` with its radio gate opened (November 8); its US/915 model and
-antenna are owner-confirmed.
+antenna are owner-confirmed. The T1000-E's US/915 MHz model and built-in antenna are
+owner-confirmed (November 17).
 
 ## Field qualification
 

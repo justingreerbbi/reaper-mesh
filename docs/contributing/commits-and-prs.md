@@ -52,6 +52,7 @@ spans the whole project.
 | `heltec` | `firmware/heltec-v3/` only |
 | `stick` | `firmware/heltec-stick-v3/` only |
 | `tbeam` | `firmware/tbeam-v12/` only |
+| `t1000e` | `firmware/t1000-e/` only |
 | `radio` | Radio drivers and the radio/mesh protocol |
 | `tools` | `tools/` (build, update, package, hardware smoke tests) |
 | `tests` | `tests/` |

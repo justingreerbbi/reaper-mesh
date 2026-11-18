@@ -68,6 +68,9 @@ When Google Play approves the Android app, replace its "Coming soon" button on t
   installed version and exports settings first, and a published support policy.
 - **More regions and boards:** EU support needs verified hardware, countries and settings
   before any transmission.
+- **T1000-E (D57):** bring-up on the owner's unit (USB session, LR1110 probe, radio links with the
+  ESP32 boards, Bluetooth pairing, storage across a reset), then a CI build in a pinned Zephyr
+  container and the UF2 images on the Pages site.
 
 ## Phases
 

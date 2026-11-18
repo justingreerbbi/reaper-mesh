@@ -194,6 +194,31 @@ it obvious on a board. `tools/hardware-relay-smoke.ts` refuses to run unless the
 relay does not. It tests the relay logic over real radios, not range. See
 [Field qualification](field-qualification.md#1-three-node-relay).
 
+### D57. Seeed SenseCAP T1000-E target on Zephyr
+Nov 17 · **Confirmed**. Owner direction. The T1000-E (nRF52840 with a Semtech LR1110) is a target,
+`t1000-e`, with firmware name `t1000e-reaper-mesh-v{semver}` (D8). ESP-IDF cannot build for the
+nRF52840, so the owner chose **Zephyr** over the Arduino nRF52 core: it is pinned the same way
+(`firmware/zephyr.lock.json`, Zephyr v4.5.0 and SDK 1.0.1, installed under `.tools/` by
+`tools/bootstrap-zephyr.sh`), Apache-2.0, and brings a Bluetooth host with passkey bonding, USB, flash
+storage and PSA Crypto. The portable components and `app/mesh_service.cpp` are shared unchanged;
+`firmware/t1000-e/src/` holds the T1000-E's USB, storage, radio bus, button, LED, battery and
+Bluetooth adapters, and `components/reaper_crypto/crypto_psa.cpp` computes the same frame crypto
+through PSA. The LR1110 uses Semtech's LR11xx driver, pinned and vendored like the SX126x driver, with
+the same modem, sync word and power levels as the SX1262 (-9 to +22 dBm on the high-power PA, no
+boost). Chip firmware older than 0x0303 cannot set the sync word, so the radio refuses it. No
+protocol, storage format or radio change (D41).
+
+The board keeps its factory Adafruit nRF52 UF2 bootloader and SoftDevice S140 v7, and is installed by
+copying a UF2 file. A first install over other firmware uses an image that also blanks the
+settings, key and Bluetooth areas, because Reaper never erases storage it cannot read; updates use
+an app-only image that keeps them. Opening the USB port at 1200 baud and closing it restarts into
+the UF2 bootloader. The board has no screen, so the portal over USB shows the Bluetooth passkey.
+The LR1110's TCXO supply is set to 1.6 V: Seeed's reference code says 3.0 V and firmware in wide use
+says 1.6 V, and the lower value cannot overstress the part. A wrong value shows as an
+`HF_XOSC_START` probe fault, not a transmission. The owner confirmed the development unit is the
+US/915 MHz model with its built-in antenna (Nov 17), which opens its radio gate. GNSS, the
+accelerometer, sensors and buzzer stay off. See [Hardware](../guides/hardware.md#seeed-sensecap-t1000-e).
+
 ## Protocol and synchronization
 
 ### D17. Device is authoritative for configuration

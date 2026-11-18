@@ -9,6 +9,8 @@ namespace reaper::device {
 #endif
 #if defined(REAPER_TBEAM_V12)
 inline constexpr char kFirmwareVersion[] = "tbeam-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
+#elif defined(REAPER_T1000_E)
+inline constexpr char kFirmwareVersion[] = "t1000e-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
 #elif defined(REAPER_HELTEC_STICK_V3)
 inline constexpr char kFirmwareVersion[] =
     "heltec-stick-reaper-mesh-v0.11.1" REAPER_FIRMWARE_SUFFIX;
