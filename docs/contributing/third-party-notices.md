@@ -6,6 +6,14 @@ Reaper Mesh is licensed under the Apache License 2.0 (`LICENSE`, with attributio
 
 The radio component vendors the unmodified core of Semtech's official sx126x_driver 2.5.0 at commit a10c5dfdf89788c6ac805e9fe98889de44175aa2. Source/provenance and the full Clear BSD license are in firmware/components/reaper_radio/vendor/. Include that LICENSE.txt in binary release materials, preserve source notices, and do not imply endorsement. The Clear BSD license does not grant patent rights. LR-FHSS/BPSK modules and Arduino/RadioLib/Meshtastic code are not included.
 
+## Semtech LR11xx driver
+
+The radio component vendors the unmodified radio, system and register-memory sources of Semtech's official LR11xx driver (SWDR001) 3.0.0 at commit a333238acfa0a9dee9ce2824ce52e89b98f3d24b, for the T1000-E's LR1110. Source/provenance and the full Clear BSD license are in firmware/components/reaper_radio/lr11xx/. The same obligations as the SX126x driver apply. GNSS, Wi-Fi scanning, LR-FHSS, ranging, crypto-engine and bootloader modules are not included.
+
+## Zephyr
+
+The T1000-E firmware is built with pinned Zephyr v4.5.0 (Apache-2.0) and its hal_nordic (nrfx, BSD-3-Clause), CMSIS (Apache-2.0), Mbed TLS and TF-PSA-Crypto (Apache-2.0) and picolibc (BSD-style) modules, listed in firmware/zephyr.lock.json. Preserve their license notices in T1000-E firmware distributions; inspect the pinned modules' LICENSE files when packaging releases. The board's Adafruit nRF52 bootloader and Nordic SoftDevice ship on the device and are not distributed by this project.
+
 ## ESP-IDF
 
 Firmware uses pinned ESP-IDF v5.5.4. Preserve its Apache-2.0 license and applicable bundled third-party notices in firmware distributions; inspect the actual pinned SDK's LICENSE/NOTICE materials when packaging releases. Local SDK/tool downloads remain ignored.

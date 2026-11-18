@@ -1,0 +1,2 @@
+# Pinned upstream Semtech sources; tools/check-vendor.ts verifies their hashes.
+DisableFormat: true

@@ -1,0 +1,19 @@
+{
+  "source": "https://github.com/Lora-net/SWDR001",
+  "commit": "a333238acfa0a9dee9ce2824ce52e89b98f3d24b",
+  "version": "3.0.0",
+  "license": "BSD-3-Clause-Clear",
+  "files": {
+    "LICENSE.txt": "ef81b9bff0368ad558fc3d21485bafc59f14c3ae957fa6ddffbf6cc4122bf5b7",
+    "lr11xx_hal.h": "3d06a086a0d83e5c2ee927fecef34361104716ba64b82cabecc8317883920d46",
+    "lr11xx_radio.c": "9386985f0f75a128593bcb256ef74f245989bac2b2d22c5d4142a7585f16854b",
+    "lr11xx_radio.h": "13dac09d38751c69868e7c9154e3cf04056cef86540f8c04164283fa9ae71f4b",
+    "lr11xx_radio_types.h": "c7d79f8166af0b0325fc3ad7fb5f6911b2d63bf30f89e45340a7e1b23f23f389",
+    "lr11xx_regmem.c": "3713ddcbb842e520870b19139474065dc835b85c29b388f075dbadfb8f3285e5",
+    "lr11xx_regmem.h": "ac2e03c79352f962155362e68ddf8e49bc062ba3bde31558cb5066f86c7ef112",
+    "lr11xx_system.c": "a80971c1cd401437ff99609eb351b5190d9df6f0c5df140820d425f0949312c4",
+    "lr11xx_system.h": "b473952ae1024dd7c8a5d98b48e06893cdcb52782f8626cca33091587b465be0",
+    "lr11xx_system_types.h": "98a39cf1ffdcdcbad38e93080750cf9d7550ce66c875b0d5e8588f872c47f39c",
+    "lr11xx_types.h": "25ce1e163cdc35733b6ddd53d6968356f2be2a5b87ec97d2e64eaee27eadfc76"
+  }
+}

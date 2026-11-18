@@ -8,7 +8,8 @@ There are two ways to put Reaper Mesh firmware on a board:
 | **[Build from source](#build-and-install-from-source)** | Developers changing the firmware | The ESP-IDF toolchain, about 20 minutes to set up |
 
 Both write the same four images, check the board first, and keep your Reaper Mesh settings,
-Bluetooth pairings and network keys.
+Bluetooth pairings and network keys. The **Seeed SenseCAP T1000-E** uses its own bootloader instead:
+see [T1000-E](#seeed-sensecap-t1000-e).
 
 > [!IMPORTANT]
 > Releases are not signed yet. The browser installer serves firmware built by this repository's
@@ -111,6 +112,43 @@ Open the web portal, connect over USB, and check on the **Device** tab that:
 
 A freshly flashed board is silent until you choose a radio network in
 **Device → Radio network**.
+
+## Seeed SenseCAP T1000-E
+
+Use the [browser installer](#install-from-your-browser) like the other boards: choose
+**Seeed SenseCAP T1000-E**, click **Connect and install** and pick the T1000-E's port. Nothing needs
+to be put in a special mode first (D57).
+
+- The installer opens the port at 1200 baud and closes it, which restarts the T1000-E into its
+  bootloader, whether it runs Reaper Mesh or other firmware such as Meshtastic. The bootloader
+  appears as a new USB device named `T1000_E`. The first time, the page asks you to choose that port
+  once; after that it is found automatically.
+- **Over Reaper Mesh** it sends the application only, about 20 seconds, and keeps settings,
+  Bluetooth pairings and network keys.
+- **Over other firmware** it also blanks Reaper's settings, key and Bluetooth areas, because Reaper
+  never erases storage it cannot read. This takes about a minute and a half, most of it erasing.
+- If the T1000-E is already in its bootloader, the page cannot tell what it ran and asks whether to
+  keep or blank that data.
+
+The bootloader and SoftDevice are never written, so an interrupted install can always be run again.
+If the T1000-E stops showing a port, hold its button while plugging it in to start the bootloader.
+
+To build it yourself, install the pinned Zephyr toolchain once (about 2.6 GB under `.tools/`), then
+build:
+
+```bash
+bash tools/bootstrap-zephyr.sh
+```
+
+```bash
+bash tools/build-t1000e.sh
+```
+
+`build/t1000-e/` then holds the application image the installer publishes and two UF2 files for its
+bootloader drive: `-install.uf2` (also blanks the data areas, for a first install) and `-update.uf2`
+(keeps them). `tools/hardware-t1000e-install.ts` installs a build over USB from this computer with the
+installer's own code. To go back to Meshtastic, open the bootloader drive by holding the button while
+plugging in, and copy Meshtastic's T1000-E UF2 onto it.
 
 ## If something goes wrong
 

@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components and the target-built ESP-IDF board applications (Heltec WiFi LoRa 32 V3, Heltec Wireless Stick V3 and T-Beam V1.2). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); installing is covered in [Flashing firmware](../docs/guides/flashing-firmware.md).
+This directory contains the portable C++17 protocol/configuration/session components, the target-built ESP-IDF board applications (Heltec WiFi LoRa 32 V3, Heltec Wireless Stick V3 and T-Beam V1.2), and the Zephyr application for the Seeed SenseCAP T1000-E in `t1000-e/` (D57; build with `tools/bootstrap-zephyr.sh` then `tools/build-t1000e.sh`). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); installing is covered in [Flashing firmware](../docs/guides/flashing-firmware.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Layout

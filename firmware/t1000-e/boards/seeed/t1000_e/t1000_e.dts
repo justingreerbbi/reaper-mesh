@@ -1,0 +1,196 @@
+/*
+ * Seeed SenseCAP Card Tracker T1000-E: nRF52840 with a Semtech LR1110, the factory Adafruit nRF52
+ * UF2 bootloader and SoftDevice S140 v7. Pins follow Seeed's T1000-E reference firmware; see
+ * docs/guides/hardware.md. GNSS, the accelerometer, the light and temperature sensors and the
+ * buzzer are not used, and their power stays off.
+ */
+
+/dts-v1/;
+#include <nordic/nrf52840_qiaa.dtsi>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+#include "t1000_e-pinctrl.dtsi"
+
+/ {
+	model = "Seeed SenseCAP Card Tracker T1000-E";
+	compatible = "seeed,t1000-e";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &code_partition;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0: led_0 {
+			gpios = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+			label = "Status LED";
+		};
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		button0: button_0 {
+			gpios = <&gpio0 6 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+			label = "Main button";
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	/* Board signals read by the firmware. */
+	zephyr,user {
+		/* Battery: P0.02 (AIN0) behind a 2:1 divider. */
+		io-channels = <&adc 0>;
+		/* High while USB power is present. */
+		external-power-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+	};
+
+	aliases {
+		led0 = &led0;
+		sw0 = &button0;
+	};
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+
+	/* Sensor rail off: the light and temperature sensors are not used. */
+	sensor-power-off {
+		gpio-hog;
+		gpios = <4 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+};
+
+&gpio1 {
+	status = "okay";
+
+	/* The board's 3.3 V rail on, as Seeed's and RIOT's board code do at boot. */
+	rail-3v3-on {
+		gpio-hog;
+		gpios = <6 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	/* GNSS power off: GPS is deferred (see AI.md). */
+	gnss-power-off {
+		gpio-hog;
+		gpios = <11 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+
+	/* Buzzer power off. */
+	buzzer-power-off {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+};
+
+&adc {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <600>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40)>;
+		zephyr,input-positive = <NRF_SAADC_AIN0>;
+		zephyr,resolution = <12>;
+	};
+};
+
+&spi2 {
+	compatible = "nordic,nrf-spim";
+	status = "okay";
+	cs-gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&spi2_default>;
+	pinctrl-1 = <&spi2_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	lr1110: lr1110@0 {
+		compatible = "reaper,lr1110-bus";
+		reg = <0>;
+		spi-max-frequency = <DT_FREQ_M(8)>;
+		reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		busy-gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&flash0 {
+	/*
+	 * 0x00000 SoftDevice S140 v7, kept for the bootloader      (156 KB)
+	 * 0x27000 Reaper Mesh application                           (748 KB)
+	 * 0xe2000 reaper_nvs: settings and the boot counter          (16 KB)
+	 * 0xe6000 reaper_keys: the network key record, 2 sectors      (8 KB)
+	 * 0xe8000 storage: Bluetooth bonds and identity               (8 KB)
+	 * 0xea000 left alone: the bootloader reserves it for app data (40 KB)
+	 * 0xf4000 UF2 bootloader                                      (48 KB)
+	 *
+	 * The bootloader's serial update erases only the pages the new image needs, from 0x27000, so
+	 * the data areas survive updates. A first install sends an image padded with 0xff up to
+	 * 0xea000 instead, which blanks them; nothing above 0xea000 can be written that way.
+	 */
+	partitions {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		softdevice_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "softdevice";
+			reg = <0x00000000 0x00027000>;
+			read-only;
+		};
+
+		code_partition: partition@27000 {
+			compatible = "zephyr,mapped-partition";
+			label = "code";
+			reg = <0x00027000 0x000bb000>;
+		};
+
+		reaper_nvs_partition: partition@e2000 {
+			compatible = "zephyr,mapped-partition";
+			label = "reaper_nvs";
+			reg = <0x000e2000 0x00004000>;
+		};
+
+		reaper_keys_partition: partition@e6000 {
+			compatible = "zephyr,mapped-partition";
+			label = "reaper_keys";
+			reg = <0x000e6000 0x00002000>;
+		};
+
+		storage_partition: partition@e8000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000e8000 0x00002000>;
+		};
+
+		boot_partition: partition@f4000 {
+			compatible = "zephyr,mapped-partition";
+			label = "uf2";
+			reg = <0x000f4000 0x0000c000>;
+			read-only;
+		};
+	};
+};
+
+zephyr_udc0: &usbd {
+	compatible = "nordic,nrf-usbd";
+	status = "okay";
+
+	cdc_acm_uart: cdc_acm_uart {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

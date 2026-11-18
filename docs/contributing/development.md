@@ -68,6 +68,7 @@ Then run `npm run format` to rewrite files, or `npm run format:check` to check t
 | Formatting | `npm run format:check` with the pinned Prettier, clang-format and ruff |
 | Firmware unit tests | Standalone CMake build of the portable firmware components with `-Werror`, the CTest suite and `codec_bridge selftest` |
 | Firmware build (heltec-v3, heltec-stick-v3, tbeam-v12) | `tools/build-firmware.sh` inside the `espressif/idf:v5.5.4` container (pinned by digest). The script verifies the ESP-IDF commit against `firmware/esp-idf.lock.json`. The job fails if the build touches tracked files, and writes image sizes and hashes to the job summary |
+| Firmware build (t1000-e) | `tools/bootstrap-zephyr.sh` installs the Zephyr workspace and SDK pinned, with checksums, in `firmware/zephyr.lock.json`; `tools/build-t1000e.sh` builds the image and manifest the Pages installer publishes (D57) |
 | Shell script lint | `shellcheck --severity=warning tools/*.sh` |
 | Pages site | After every job above passes: builds the portal and installer, validates both firmware builds with `tools/update-firmware.py`, and assembles the site. On `main` it uploads the site |
 | Deploy to GitHub Pages | On `main` only: publishes the site |

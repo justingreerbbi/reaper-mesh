@@ -1,6 +1,7 @@
 # Hardware
 
-Reaper Mesh runs on three inexpensive LoRa development boards. You need at least **two boards**
+Reaper Mesh runs on inexpensive LoRa development boards: three ESP32 boards and the
+Seeed SenseCAP T1000-E card tracker. You need at least **two boards**
 to send messages between them, and **three** to test relaying.
 
 > [!WARNING]
@@ -20,6 +21,12 @@ to send messages between them, and **three** to test relaying.
 | USB chip | CP2102 | CP2102 | CH9102 |
 | Battery display | Voltage | Voltage, read in the portal | Percent, plus a plugged-in indicator |
 | Firmware target | `heltec-v3` | `heltec-stick-v3` | `tbeam-v12` |
+
+The **Seeed SenseCAP Card Tracker T1000-E** is the newest target (D57): a credit-card-sized
+tracker with a built-in battery and antenna, an nRF52840 processor and a Semtech LR1110 radio. It
+has no screen, so you use it through the portal or the mobile app. Its firmware target is
+`t1000-e`. It is **experimental**: see [Status](../overview/status.md) for what has been tested on
+it.
 
 Other boards, and other bands such as EU 868 MHz, are not supported yet. Adding a board needs a
 validated hardware profile and physical testing; see the [roadmap](../overview/roadmap.md).
@@ -41,6 +48,7 @@ the radio chip, before antenna gain. The default is medium.
 | --- | ---: | ---: | ---: | --- |
 | Heltec V3 and Wireless Stick V3 (SX1262) | −9 dBm | +7 dBm | +22 dBm | No boost |
 | T-Beam V1.2 (SX1276, PA_BOOST) | +2 dBm | +10 dBm | +17 dBm | +5 / +13 / +20 dBm |
+| T1000-E (LR1110, high-power PA) | −9 dBm | +7 dBm | +22 dBm | No boost |
 
 Boost uses the SX1276's high-power mode, which the datasheet limits to a 1% duty cycle and a
 well-matched antenna. Output power on real units has not been measured. Sources:
@@ -66,6 +74,7 @@ The firmware never guesses the region from your computer's time zone.
 | --- | --- | --- |
 | Heltec V3 and Wireless Stick V3 | **PRG** | RST resets the board |
 | T-Beam V1.2 | The **middle** button (GPIO38) | A short **PWR** press goes to the next page; holding PWR about 6 s powers off. RST resets |
+| T1000-E | Its only button | None. There is no screen: holding the button 5 seconds opens Bluetooth pairing, and the portal shows the passkey |
 
 On the main button: one press turns the screen on or off, two presses go to the next page, and
 a long press returns to the main page. Holding it for **5 seconds** opens Bluetooth pairing.
@@ -119,9 +128,31 @@ References (no code copied): [LILYGO T-Beam hardware](https://github.com/Xinyuan
 [AXP2101 registers](https://github.com/lewisxhe/XPowersLib/blob/master/src/REG/AXP2101Constants.h)
 and [SX1276 registers](https://github.com/Lora-net/LoRaMac-node/blob/master/src/radio/sx1276/sx1276Regs-LoRa.h).
 
+### Seeed SenseCAP T1000-E
+
+Built with Zephyr rather than ESP-IDF (D57). Pins follow Seeed's T1000-E reference firmware and
+agree with RIOT's board support.
+
+| Property | Value |
+| --- | --- |
+| Processor | nRF52840, 1 MB flash, 256 KB RAM |
+| USB | Native USB, one CDC ACM serial port (`/dev/cu.usbmodem…` on macOS). Opening it at 1200 baud and closing it restarts into the bootloader's serial DFU mode, which the browser installer uses. The bootloader shows Seeed's USB ID, `2886:0057` |
+| Radio | Semtech LR1110 on SPIM2: SCK P0.11, MOSI P1.09, MISO P1.08, NSS P0.12, reset P1.10, BUSY P0.07, IRQ P1.01. TCXO on DIO3 at 1.6 V; DIO5-DIO8 drive the RF switch (receive DIO5+DIO8, high-power PA DIO6+DIO8) |
+| Power | P1.06 turns on the 3.3 V rail at boot. GNSS (P1.11), the buzzer (P1.05) and the sensor rail (P0.04) are held off |
+| Button and LED | Button P0.06, active high with pull-down; status LED P0.24, active high |
+| Battery | Voltage only, on P0.02 (AIN0) behind a 2:1 divider; USB power on P0.05. No percentage is shown, because there is no fuel gauge |
+| Flash layout | SoftDevice S140 v7 `0x0` (kept for the bootloader), app `0x27000`, settings `reaper_nvs` `0xe2000` (16 KB), keys `reaper_keys` `0xe6000` (8 KB), Bluetooth `storage` `0xe8000` (8 KB). `0xea000`–`0xf4000` is the bootloader's reserved app-data area and is left alone; the UF2 bootloader starts at `0xf4000` |
+| Node ID | 48 bits of the chip's factory device ID. Bluetooth advertises a separate random address |
+| Radio gate | Set in `firmware/t1000-e/src/t1000e_profile.hpp`. Open on the development unit: the owner confirmed its US/915 MHz model and antenna on November 17, 2026 |
+| Not used | GNSS (AG3335), accelerometer, light and temperature sensors, buzzer, Wi-Fi scanning |
+
+The LR1110 must run chip firmware 0x0303 or later, which can set Reaper's sync word; an older chip
+reports a probe fault and stays off.
+
 ### All boards
 
-Firmware uses ESP-IDF 5.5.4 and C++17. Secure boot and flash encryption must be off; the
-updater refuses a board that has them on and never changes eFuses. Several boards can be plugged
+The ESP32 boards use ESP-IDF 5.5.4 and the T1000-E uses Zephyr 4.5.0, all with C++17. On the ESP32
+boards, secure boot and flash encryption must be off; the updater refuses a board that has them on
+and never changes eFuses. Several boards can be plugged
 into one computer at once. The web portal talks to one at a time, and the two- and three-board
 test tools in `tools/` open each port separately.

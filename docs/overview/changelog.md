@@ -22,6 +22,19 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** a Seeed SenseCAP T1000-E target, `t1000-e`, built with Zephyr (D57). It shares the
+  portable components and mesh service with the ESP32 boards and adds an LR1110 radio driver over
+  Semtech's pinned LR11xx driver, a PSA Crypto backend, and T1000-E USB, storage, Bluetooth, button,
+  LED and battery adapters. `tools/bootstrap-zephyr.sh` pins Zephyr v4.5.0 and SDK 1.0.1;
+  `tools/build-t1000e.sh` builds the image. The browser installer installs it through the board's
+  bootloader over Web Serial (serial DFU), from Reaper or Meshtastic alike. No protocol or storage
+  format change.
+- **Verified:** on the owner's T1000-E, a first install over Meshtastic and an update over Reaper
+  with the installer's DFU code, an update from the installer page in the owner's browser
+  (owner-reported), USB sessions, the LR1110 probe, US receive mode, and settings kept
+  across an update and a restart. Host tests for the LR1110 driver and the DFU protocol pass.
+- **Not verified:** the installer page's first install over other firmware, transmitting, radio links with the other
+  boards, Bluetooth pairing, the LED, button and battery voltage. Not built in CI yet.
 - **Added:** the website at <https://reapermesh.com/>, published from `main` (D54). The root is
   a landing page for the project: features, screenshots, how it works, supported boards and
   where the mobile app will be available. The web portal moves to `/web/` and the installer stays
