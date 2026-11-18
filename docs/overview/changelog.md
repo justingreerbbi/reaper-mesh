@@ -33,8 +33,13 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
   with the installer's DFU code, an update from the installer page in the owner's browser
   (owner-reported), USB sessions, the LR1110 probe, US receive mode, and settings kept
   across an update and a restart. Host tests for the LR1110 driver and the DFU protocol pass.
-- **Not verified:** the installer page's first install over other firmware, transmitting, radio links with the other
-  boards, Bluetooth pairing, the LED, button and battery voltage. Not built in CI yet.
+- **Fixed:** pairing a phone halted the T1000-E until it was reset. LE Secure Connections pairing
+  runs P-256 and AES-CMAC on Zephyr's Bluetooth work queues, whose default stacks (1,200 and 1,400
+  bytes) overflowed. They are now 6 KB each, and any fatal error restarts the board instead of
+  halting it. With the larger stacks a phone paired and the app connected (owner-reported).
+- **Not verified:** the installer page's first install over other firmware, transmitting, radio
+  links with the other boards, Bluetooth messaging from the app, the LED, button and battery
+  voltage. Not built in CI yet.
 - **Added:** the website at <https://reapermesh.com/>, published from `main` (D54). The root is
   a landing page for the project: features, screenshots, how it works, supported boards and
   where the mobile app will be available. The web portal moves to `/web/` and the installer stays
