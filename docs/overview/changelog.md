@@ -22,9 +22,15 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
-- **Fixed (portal):** a sender not yet discovered showed as `heltec-…` or "Node heltec-…" whatever
-  board it was. Firmware still names every 48-bit node ID with the old `heltec-` prefix; the portal
-  now shows it as `Node` and the last four hex digits, as for every other node. No firmware change.
+- **Breaking (firmware, owner-approved under D42):** every board now names nodes `node-` and 16
+  hex digits. Earlier firmware named any 48-bit node ID `heltec-` and 12 hex digits whatever the
+  board, a leftover from when the Heltec was the only board, and the Heltec named itself that way
+  too. After reflashing, the Heltec reports `node-0000…` like the T-Beam and T1000-E, so a browser
+  treats it as a new radio: its earlier local history, discovered nodes and team-radio record stay
+  under the old ID, and it has to be added to the team again. A `heltec-` destination is still
+  accepted. The mobile app's handling of the new form is not checked here.
+- **Fixed (portal):** a sender not yet discovered showed as `heltec-…` or "Node heltec-…". The
+  portal now shows `Node` and the last four hex digits for both forms.
 - **Added:** a Seeed SenseCAP T1000-E target, `t1000-e`, built with Zephyr (D57). It shares the
   portable components and mesh service with the ESP32 boards and adds an LR1110 radio driver over
   Semtech's pinned LR11xx driver, a PSA Crypto backend, and T1000-E USB, storage, Bluetooth, button,
@@ -40,8 +46,14 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
   runs P-256 and AES-CMAC on Zephyr's Bluetooth work queues, whose default stacks (1,200 and 1,400
   bytes) overflowed. They are now 6 KB each, and any fatal error restarts the board instead of
   halting it. With the larger stacks a phone paired and the app connected (owner-reported).
+- **Fixed:** the T1000-E could stop answering over USB while a phone was connected, until the
+  Bluetooth link dropped. Its main loop sent notifications, and Zephyr waits forever for a buffer
+  there. Notifications now go out from the system work queue, where Zephyr never waits, as the ESP
+  boards' NimBLE link never blocks. The board also restarts if its main loop stalls for 30 seconds.
+  The stall was seen once and not reproduced. With the change, the phone app connected and sent
+  messages through the T1000-E (owner-reported).
 - **Not verified:** the installer page's first install over other firmware, transmitting, radio
-  links with the other boards, Bluetooth messaging from the app, the LED, button and battery
+  links with the other boards, the LED, button and battery
   voltage. Not built in CI yet.
 - **Added:** the website at <https://reapermesh.com/>, published from `main` (D54). The root is
   a landing page for the project: features, screenshots, how it works, supported boards and

@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
   if (argc != 2)
     return 2;
   const std::string scenario = argv[1];
-  const auto device = text<64>("heltec-000000000001");
+  const auto device = text<64>("node-0000000000000001");
   const auto boot = text<64>("2a00000000000000000000000000000000");
   const std::uint32_t boot_counter = 42;
   reaper::crypto::Key nonce_seed{};
@@ -181,8 +181,8 @@ int main(int argc, char** argv) {
     CHECK(info.reason.length == 5);  // ready
     const std::uint8_t body[] = {'h', 'i'};
     CHECK(messages
-              .submit(text<64>("agent"), text<75>("agent:2"), 0, text<64>("heltec-000000000009"), 0,
-                      1, body, sizeof(body), 3)
+              .submit(text<64>("agent"), text<75>("agent:2"), 0, text<64>("node-0000000000000009"),
+                      0, 1, body, sizeof(body), 3)
               .state == d::MessageState::Queued);
     transmitted = false;
     service.tick(&config, 3);
@@ -308,6 +308,7 @@ int main(int argc, char** argv) {
     std::cout << "ok discovery\n";
     return 0;
   }
+  // The legacy heltec- form of a 48-bit node ID is still accepted as a destination.
   const auto destination = scenario == "local" ? device : text<64>("heltec-000000000002");
   const std::uint8_t body[] = {'h', 'i'};
   auto result = messages.submit(text<64>("agent"), text<75>("agent:1"), 0, destination, 0, 1, body,
@@ -356,6 +357,13 @@ int main(int argc, char** argv) {
     CHECK(item);
     CHECK(item->message_id.length == id.length &&
           !std::memcmp(item->message_id.bytes.data(), id.bytes.data(), id.length));
+    // Every board names a sender node- and 16 hex digits, never by its make.
+    const auto named = [](const d::Text<64>& value, const char* expected) {
+      return value.length == std::strlen(expected) &&
+             !std::memcmp(value.bytes.data(), expected, value.length);
+    };
+    CHECK(named(item->origin, "node-0000000000000002"));
+    CHECK(named(item->destination, "node-0000000000000001"));
   } else if (scenario == "unset") {
     // A radio with no network chosen sends nothing and hears nothing.
     CHECK(messages.query(text<75>("agent:1")).state == d::MessageState::Failed && !transmitted);

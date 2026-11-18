@@ -44,10 +44,11 @@ d::PairingWindow window;
 std::uint64_t connected_at = 0, unavailable_until = 0;
 char advertised_name[16] = "Reaper";
 enum class Advertising { Off, Paired, Pairing } advertising = Advertising::Off;
+// Owned by the send work item (pump below) while a link is up.
 std::array<std::uint8_t, kMaxChunk> pending{};
 std::size_t pending_size = 0;
 std::int64_t blocked_since = -1;
-bool output_fault = false;
+std::atomic<bool> output_fault{false};
 
 bt_conn* take_connection() {
   k_mutex_lock(&connection_lock, K_FOREVER);
@@ -152,10 +153,18 @@ void advertise() {
                       want == Advertising::Pairing ? 1 : 0) != 0)
     advertising = Advertising::Off;  // Tried again on the next tick.
 }
-void pump_output(std::uint64_t now) {
+// Notifications are sent from the system work queue, where Zephyr never waits for a buffer: it
+// returns -ENOMEM and this runs again shortly. From any other thread bt_gatt_notify() waits forever
+// for one, which could stall the main loop and with it USB and the radio. The ESP boards' NimBLE
+// link is non-blocking for the same reason. The main thread only fills `output`.
+void pump(k_work* work);
+K_WORK_DELAYABLE_DEFINE(pump_work, pump);
+k_work_sync pump_sync;
+void pump(k_work*) {
   bt_conn* conn = take_connection();
   if (!conn)
     return;
+  const auto now = k_uptime_get();
   for (int sent = 0; sent < 8; ++sent) {
     if (!trusted || !reaper_ble_subscribed(conn))
       break;
@@ -171,16 +180,20 @@ void pump_output(std::uint64_t now) {
     if (error != 0) {
       notify_error = error;
       if (blocked_since < 0)
-        blocked_since = static_cast<std::int64_t>(now);
-      // Only transient resource errors are retried.
+        blocked_since = now;
+      // Only transient resource errors are retried, and only for five seconds.
       if ((error != -ENOMEM && error != -EAGAIN && error != -ENOBUFS) ||
-          now - static_cast<std::uint64_t>(blocked_since) >= 5000)
+          now - blocked_since >= 5000)
         output_fault = true;
+      else
+        k_work_schedule(&pump_work, K_MSEC(10));
       break;
     }
     pending_size = 0;
     blocked_since = -1;
   }
+  if (pending_size || ring_buf_size_get(&output))
+    k_work_schedule(&pump_work, K_MSEC(pending_size ? 10 : 0));
   bt_conn_unref(conn);
 }
 }  // namespace
@@ -316,6 +329,8 @@ void BleLink::tick(std::uint64_t now, d::HostLinks& links) {
     if (shown_passkey.exchange(-1) >= 0)
       window.failed(now);
     window_open = window.open();
+    // Stop the sender before clearing what it owns.
+    k_work_cancel_delayable_sync(&pump_work, &pump_sync);
     ring_buf_reset(&input);
     ring_buf_reset(&output);
     pending_size = 0;
@@ -325,9 +340,8 @@ void BleLink::tick(std::uint64_t now, d::HostLinks& links) {
     advertising = Advertising::Off;  // Connecting stopped it; start it again below.
   }
   if (bt_conn* conn = take_connection()) {
-    if (output_fault) {
+    if (output_fault.exchange(false)) {
       // A permanent notification error cannot be repaired by replaying the same chunk.
-      output_fault = false;
       bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
     } else {
       if (!trusted && now - connected_at > window.connection_deadline())
@@ -344,7 +358,7 @@ void BleLink::tick(std::uint64_t now, d::HostLinks& links) {
           [&](const std::uint8_t* data, std::size_t size) {
             links.feed(d::HostLink::Ble, data, size, now);
           },
-          [&] { pump_output(now); }, 4096);
+          [] { k_work_schedule(&pump_work, K_NO_WAIT); }, 4096);
     }
     bt_conn_unref(conn);
   }

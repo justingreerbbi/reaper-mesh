@@ -104,13 +104,10 @@ static void run(void*) {
   std::array<std::uint8_t, 6> mac{};
   if (esp_efuse_mac_get_default(mac.data()) != ESP_OK)
     halt();
+  // Every board names itself node- and 16 hex digits, whatever its make.
   char device_string[32]{};
-#ifdef REAPER_TBEAM_V12
-  std::snprintf(device_string, sizeof(device_string), "node-0000%02x%02x%02x%02x%02x%02x",
-#else
-  std::snprintf(device_string, sizeof(device_string), "heltec-%02x%02x%02x%02x%02x%02x",
-#endif
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  std::snprintf(device_string, sizeof(device_string), "node-0000%02x%02x%02x%02x%02x%02x", mac[0],
+                mac[1], mac[2], mac[3], mac[4], mac[5]);
   d::Text<64> boot{}, device{};
   boot.assign(reinterpret_cast<const std::uint8_t*>(boot_string), 32);
   std::size_t device_length = 0;

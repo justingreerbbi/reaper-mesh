@@ -116,7 +116,7 @@ test('drafts remain isolated, bounded and removable after successful upload', ()
 });
 
 test('undiscovered senders are named by short ID, never by the legacy heltec- prefix', () => {
-  // Every board with a 48-bit node ID reports senders as heltec-…; it is not a Heltec.
+  // Older firmware reported any 48-bit node as heltec-…, whatever the board.
   assert.equal(shortNode('heltec-16de9ef217e2'), '17E2');
   assert.equal(shortNode('node-000016de9ef217e2'), '17E2');
   assert.equal(nodeLabel(undefined, 'heltec-16de9ef217e2'), 'Node 17E2');

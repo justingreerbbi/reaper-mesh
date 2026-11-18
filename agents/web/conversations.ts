@@ -36,9 +36,9 @@ export function canDeleteConversation(row: Pick<Conversation, 'kind' | 'channel'
   return row.kind !== 'channel' || row.channel !== 0;
 }
 /**
- * Firmware names a sender with a 48-bit node ID `heltec-` plus 12 hex digits, whatever the board;
- * the name dates from when the Heltec was the only board. It is the same node as `node-0000` plus
- * those digits, which is how the portal stores and shows it.
+ * Firmware before the node- naming change called a 48-bit node ID `heltec-` plus 12 hex digits,
+ * whatever the board. It is the same node as `node-0000` plus those digits, the form every board
+ * now uses, so messages saved from older firmware still match.
  */
 export function canonicalNode(id: string) {
   return /^heltec-[0-9a-f]{12}$/.test(id) ? 'node-0000' + id.slice(7) : id;

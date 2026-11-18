@@ -25,6 +25,22 @@
 extern "C" int malloc_runtime_stats_get(sys_memory_stats* stats);
 
 namespace d = reaper::device;
+// If the main loop stops for 30 seconds, a timer interrupt restarts the board, like the ESP boards'
+// watchdog. Nothing in the loop should wait that long; this keeps a fault from leaving the T1000-E
+// unreachable until someone resets it.
+namespace {
+volatile std::uint32_t heartbeat = 0;
+void check_loop(k_timer*) {
+  static std::uint32_t last = 0, stalled = 0;
+  if (heartbeat != last) {
+    last = heartbeat;
+    stalled = 0;
+  } else if (++stalled >= 30) {
+    sys_reboot(SYS_REBOOT_COLD);
+  }
+}
+K_TIMER_DEFINE(loop_timer, check_loop, nullptr);
+}  // namespace
 namespace {
 UsbSerial usb;
 BleLink ble;
@@ -54,6 +70,7 @@ bool random_bytes(std::uint8_t* out, std::size_t size) {
 }  // namespace
 
 int main() {
+  k_timer_start(&loop_timer, K_SECONDS(1), K_SECONDS(1));
   if (!usb.begin())
     halt();
   // The nRF52840's hardware random generator; no radio is running yet.
@@ -153,6 +170,7 @@ int main() {
     led_input.seen = press != reaper::ui::Press::None || links.attached(at);
     status_led.set(indicator.update(led_input, at));
     (void)power.read(at);
+    heartbeat = heartbeat + 1;
     k_msleep(2);  // The radio is polled; this keeps the loop responsive without spinning.
   }
 }

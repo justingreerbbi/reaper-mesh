@@ -54,7 +54,7 @@ function agent() {
 try {
   opened.push(await openBoard(python, heltecPort));
   opened.push(await openBoard(python, tbeamPort));
-  assert.match(opened[0].connection.device!, /^heltec-/);
+  assert.match(opened[0].connection.capabilities?.firmware ?? '', /^heltec-reaper-mesh-v/);
   assert.match(opened[1].connection.capabilities?.firmware ?? '', /^tbeam-reaper-mesh-v/);
   for (const [index, board] of opened.entries()) {
     const config = board.connection.sync.config!;

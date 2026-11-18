@@ -20,6 +20,7 @@ std::uint64_t destination(const d::Text<64>& text) {
   if (text.length == 9 && !std::memcmp(text.bytes.data(), "broadcast", 9))
     return m::kBroadcast;
   std::size_t start = 0;
+  // Earlier firmware named 48-bit nodes heltec- and 12 hex digits; agents may still hold that form.
   if (text.length == 19 && !std::memcmp(text.bytes.data(), "heltec-", 7))
     start = 7;
   else if (text.length == 21 && !std::memcmp(text.bytes.data(), "node-", 5))
@@ -67,12 +68,10 @@ d::Text<64> message_id(const m::MessageKey& key) {
   literal(value, id);
   return value;
 }
+// The same form the boards use for themselves and discovery reports: node- and 16 hex digits.
 d::Text<64> origin(std::uint64_t node) {
   char id[64]{};
-  if (node <= 0xffffffffffffULL)
-    std::snprintf(id, sizeof(id), "heltec-%012llx", static_cast<unsigned long long>(node));
-  else
-    std::snprintf(id, sizeof(id), "node-%016llx", static_cast<unsigned long long>(node));
+  std::snprintf(id, sizeof(id), "node-%016llx", static_cast<unsigned long long>(node));
   d::Text<64> value{};
   literal(value, id);
   return value;
