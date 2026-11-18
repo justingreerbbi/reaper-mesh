@@ -124,7 +124,7 @@ memory, then its settings:
 | Page | What it sets |
 | --- | --- |
 | **General** | Device name and region. Only US is implemented; any other region turns the radio off |
-| **Radio** | Mode (Off, Listen, Mesh), transmit power, boost (T-Beam) and relay |
+| **Radio** | Mode (Off, Listen, Mesh), transmit power, boost (on boards that have it) and relay |
 | **Radio network** | Open mode or a team, adding this radio as a member or relay, and key rotation. See [Security and privacy](security.md#team-networks) |
 | **Channels** | See [Channels](#channels) |
 | **Position** | Off, a fixed point, or this browser's location, and whether to share it |

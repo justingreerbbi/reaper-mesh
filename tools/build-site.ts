@@ -14,6 +14,8 @@
 // In agents/site, each page's <!-- site:header --> and <!-- site:footer --> markers are replaced by
 // partials/header.html and partials/footer.html, %ROOT% by the relative path to the site root, and
 // %SUPPORT_EMAIL% by the contact address. Links to the page itself are marked aria-current.
+// Board listings come from agents/boards.json: <!-- site:boards --> becomes a card per board,
+// %BOARD_NAMES% the boards' names in a sentence and %BOARD_MAKERS% their makers.
 //
 // Run `npm run build:web` and `npm run build:flasher` first, and build the firmware with
 // tools/build-firmware.sh. Each board's build is validated with tools/update-firmware.py (the same
@@ -38,6 +40,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
+import { BOARDS as BOARD_LIST, type Board, listNames, makers } from '../agents/boards.ts';
 
 interface Artifact {
   offset: string;
@@ -56,12 +59,7 @@ interface Manifest {
   artifacts: Artifact[];
 }
 
-const BOARDS = [
-  { id: 'heltec-v3', chip: 'ESP32-S3' },
-  { id: 'heltec-stick-v3', chip: 'ESP32-S3' },
-  { id: 'tbeam-v12', chip: 'ESP32' },
-  { id: 't1000-e', chip: 'nRF52840' },
-];
+const BOARDS = BOARD_LIST.map(board => ({ id: board.id, chip: board.processor }));
 
 const args = new Set(process.argv.slice(2));
 const requireFirmware = args.has('--require-firmware');
@@ -195,6 +193,37 @@ const index = { format: 1, built: new Date().toISOString(), boards, notices: not
 writeFileSync(join(firmwareDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
 console.log(`Site ready in ${site} with ${boards.length} firmware build(s).`);
 
+/** A card per board for the home page, in agents/boards.json's order. */
+function boardCards(boards: readonly Board[], root: string): string {
+  return boards
+    .map(board => {
+      const status =
+        board.status === 'experimental'
+          ? '<span class="board-status" title="Not every hardware check has passed yet">Experimental</span>'
+          : '';
+      const facts = board.highlights.map(fact => `<li>${escapeHtml(fact)}</li>`).join('');
+      return `<article class="card board-card">
+              <div class="board-card-head">
+                <div class="card-icon">
+                  <svg class="icon" aria-hidden="true"><use href="${root}assets/icons.svg#cpu" /></svg>
+                </div>
+                ${status}
+              </div>
+              <h3>${escapeHtml(board.name)}</h3>
+              <p>${escapeHtml(board.summary)}</p>
+              <ul class="meta">${facts}</ul>
+            </article>`;
+    })
+    .join('\n            ');
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(
+    /[&<>"]/g,
+    char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]!,
+  );
+}
+
 /** The T1000-E manifest from tools/t1000e-package.py: one application image after the SoftDevice. */
 function checkNrfManifest(manifest: Manifest) {
   const [image, ...extra] = manifest.artifacts;
@@ -226,7 +255,10 @@ function renderPage(path: string, html: string): string {
     .replace('<!-- site:footer -->', partials.footer.trim())
     .replaceAll(`href="%ROOT%${dir}"`, `href="%ROOT%${dir}" aria-current="page"`)
     .replaceAll('%ROOT%', root)
-    .replaceAll('%SUPPORT_EMAIL%', SUPPORT_EMAIL);
+    .replaceAll('%SUPPORT_EMAIL%', SUPPORT_EMAIL)
+    .replace('<!-- site:boards -->', boardCards(BOARD_LIST, root))
+    .replaceAll('%BOARD_NAMES%', escapeHtml(listNames(BOARD_LIST.map(board => board.name))))
+    .replaceAll('%BOARD_MAKERS%', escapeHtml(listNames(makers())));
   const left = /<!-- site:\w+ -->|%[A-Z_]+%/.exec(page);
   if (left) throw new Error(`agents/site/${path}: ${left[0]} was not filled in`);
   return page;

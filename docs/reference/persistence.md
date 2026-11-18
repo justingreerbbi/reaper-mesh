@@ -1,6 +1,6 @@
 # Device configuration authority and storage boundary
 
-`firmware/components/reaper_device/` is the portable C++ configuration authority. It is compiled and fault-tested on the host and runs on both boards through the ESP-IDF/NVS adapter. Power-cut behavior on hardware is not yet tested; see [Status](../overview/status.md).
+`firmware/components/reaper_device/` is the portable C++ configuration authority. It is compiled and fault-tested on the host and runs on every board: through ESP-IDF NVS on the ESP32 boards and Zephyr NVS on the T1000-E. Power-cut behavior on hardware is not yet tested; see [Status](../overview/status.md).
 
 ## Serialized command behavior
 

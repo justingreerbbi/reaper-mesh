@@ -22,6 +22,7 @@ import {
   zip,
 } from './firmware.ts';
 import { type ByteLink, USB, dfuImage, runningOn, sendDfu } from './nrf-dfu.ts';
+import { BOARDS } from '../boards.ts';
 
 const ROM_BAUD = 115200;
 const FLASH_BAUD = 460800;
@@ -89,17 +90,9 @@ function refreshButton() {
       : 'Choose a board first';
 }
 
-// Both Heltec boards have the same chip, so the installer can't tell them apart; the hint does.
-const BOARD_CHOICES = [
-  { id: 'heltec-v3', name: 'Heltec WiFi LoRa 32 V3', hint: 'ESP32-S3 · 0.96″ screen' },
-  { id: 'heltec-stick-v3', name: 'Heltec Wireless Stick V3', hint: 'ESP32-S3 · tiny 0.49″ screen' },
-  { id: 'tbeam-v12', name: 'LILYGO T-Beam V1.2', hint: 'ESP32 · battery holder' },
-  {
-    id: 't1000-e',
-    name: 'Seeed SenseCAP T1000-E',
-    hint: 'nRF52840 · card tracker, no screen. Installing over Meshtastic replaces it and erases its data.',
-  },
-];
+// From agents/boards.json, in its order. Boards with the same chip can't be told apart by the
+// installer (the two Heltecs), so the hint under the menu says which is which.
+const BOARD_CHOICES = BOARDS.map(({ id, name, installHint }) => ({ id, name, hint: installHint }));
 
 function renderBoards() {
   const placeholder = new Option(index ? 'Select your board…' : 'Loading boards…', '');

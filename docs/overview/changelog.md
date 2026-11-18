@@ -22,6 +22,13 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Changed (docs and website):** boards are listed from one place. `agents/boards.json` drives
+  the website's board cards and supported-boards list and the installer's board menu. Each board
+  has a page in [`docs/boards/`](../boards/README.md) from a shared template; the hardware guide
+  keeps only what every board shares; transmit power is listed per radio chip; Status has a row per
+  board. [Adding a board](../contributing/adding-a-board.md) lists everything a new board touches,
+  and `tests/simulator/boards.test.ts` fails when one is missed. The website and support page now
+  list the T1000-E, marked experimental.
 - **Breaking (firmware, owner-approved under D42):** every board now names nodes `node-` and 16
   hex digits. Earlier firmware named any 48-bit node ID `heltec-` and 12 hex digits whatever the
   board, a leftover from when the Heltec was the only board, and the Heltec named itself that way

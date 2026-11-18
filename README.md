@@ -54,7 +54,8 @@ the apps instead of the firmware, so your radios rarely need updating.
   of guessing or resending.
 - **Private when you need it.** Encrypted channels keep message text between key holders, and
   team networks keep outsiders from reading, sending or relaying on your network.
-- **Cheap, open hardware.** Runs on the Heltec WiFi LoRa 32 V3, Heltec Wireless Stick V3 and LILYGO T-Beam V1.2.
+- **Cheap, open hardware.** Runs on low-cost LoRa boards from several makers; see the
+  [board list](docs/boards/README.md).
 - **Open source.** Firmware, apps, protocol and docs, under the Apache 2.0 license.
 
 <br>
@@ -143,8 +144,9 @@ recover. The [Getting started guide](docs/guides/getting-started.md) walks you t
 
 ## Use real radios
 
-1. **Get two boards** (three to test relaying): a [Heltec WiFi LoRa 32 V3, Wireless Stick V3
-   or LILYGO T-Beam V1.2](docs/guides/hardware.md), 915 MHz version, with antennas.
+1. **Get two boards** (three to test relaying): any mix from the
+   [board list](docs/boards/README.md), 915 MHz version. [Hardware](docs/guides/hardware.md) says
+   what else you need.
 2. **Install the firmware** from your browser with the
    **[firmware installer](https://reapermesh.com/flash/)**: pick your board, plug it in, click Install.
    Prefer to build it yourself? See [Flashing firmware](docs/guides/flashing-firmware.md).
@@ -201,9 +203,10 @@ the firmware small, build features in the apps), commit format and the pull requ
 
 | Path | What's inside |
 | --- | --- |
-| [`firmware/`](firmware/) | Embedded C++17 components and the board applications (`heltec-v3`, `heltec-stick-v3`, `tbeam-v12`) |
+| [`firmware/`](firmware/) | Embedded C++17 components and one application folder per board |
 | [`agents/web/`](agents/web/) | The web portal (TypeScript, Vite, Leaflet) |
-| [`agents/flasher/`](agents/flasher/) | The browser firmware installer (TypeScript, Vite, esptool-js) |
+| [`agents/flasher/`](agents/flasher/) | The browser firmware installer (TypeScript, Vite, esptool-js and nRF52 serial DFU) |
+| [`agents/boards.json`](agents/boards.json) | The supported boards, which the website and installer list |
 | [`packages/protocol/`](packages/protocol/) | The protocol schema, generated bindings and frozen compatibility fixtures |
 | [`packages/agent-core/`](packages/agent-core/) | Transport-independent connection, sync, messaging and recovery logic |
 | [`packages/simulator/`](packages/simulator/) | Simulated devices for tests and the portal |

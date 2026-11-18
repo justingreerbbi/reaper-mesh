@@ -1,8 +1,7 @@
 # Reaper Mesh: contributor handoff
 
-Reaper Mesh is custom LoRa firmware for Heltec and LILYGO ESP32 boards and the Seeed SenseCAP
-T1000-E, plus
-a browser agent that talks to a node over USB or Bluetooth. It uses its own documented protocol; Meshtastic is
+Reaper Mesh is custom LoRa firmware for low-cost LoRa boards (the
+[board list](docs/boards/README.md)), plus a browser agent that talks to a node over USB or Bluetooth. It uses its own documented protocol; Meshtastic is
 a functional reference only.
 
 ## Project principles
@@ -115,8 +114,9 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
 
 ## Hardware and owner authorizations
 
-- All four bench boards (three ESP32 boards and the T1000-E) are US/915 MHz with owner-confirmed
-  antennas. Ports and installed builds are in [Status](docs/overview/status.md).
+- Every bench board is US/915 MHz with an owner-confirmed antenna. Which boards, their ports and
+  installed builds are in [Status](docs/overview/status.md#development-boards). A new board follows
+  [Adding a board](docs/contributing/adding-a-board.md) and starts `experimental`.
 - The owner authorized ongoing reversible USB development, testing and firmware installs without
   routine prompts, and waived preserving the factory firmware. Ask before any firmware change in
   portal work.

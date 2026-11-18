@@ -32,8 +32,9 @@ Presses are debounced for 30 ms. During the startup sequence, any button skips t
 | LILYGO T-Beam V1.2 | Middle button, GPIO38 (active low, board pull-up) | PWR short press: next page. Read from the AXP2101 power-key interrupt: enable INTEN2 `0x41` bit 3, poll INTSTS2 `0x49` bit 3 every 50 ms and clear it by writing 1. Holding PWR about 6 s still powers the board off in hardware. |
 | Heltec WiFi LoRa 32 V3 | PRG button, GPIO0 (active low, internal pull-up) | None |
 | Heltec Wireless Stick V3 | PRG button, GPIO0, as on the WiFi LoRa 32 V3 | None |
+| Seeed SenseCAP T1000-E | Its only button, P0.06 (active high, pull-down) | None. No screen, so only the 5 s and 15 s Bluetooth holds do anything; the portal shows the pairing passkey |
 
-The RST button on every board resets the processor. The Wireless Stick V3's 0.49-inch 64 x 32
+The RST button on boards that have one resets the processor. The Wireless Stick V3's 0.49-inch 64 x 32
 panel shows a compact version of each page (`render_compact`, built with `REAPER_DISPLAY_64X32`):
 four rows of up to ten characters for the name, radio state and battery, new messages and nodes,
 plus compact Nodes, Debug and Bluetooth pairing pages. The same buttons and gestures switch pages.
@@ -100,14 +101,15 @@ The bolt means plugged in (USB power present), whether or not the battery is cha
 | Board | Source | State |
 | --- | --- | --- |
 | LILYGO T-Beam V1.2 | AXP2101, read only every 2 s while the screen is on: STATUS1 `0x00` bit 5 VBUS good (plugged in) and bit 3 battery present, `0x18` bit 3 fuel gauge enabled, `0xA4` fuel-gauge percent. The percent is shown only when a battery is present and the gauge is enabled. | Built in `v0.2.0`; owner confirmed the percent with a battery and the bolt and `USB` without one |
-| Heltec WiFi LoRa 32 V3 | Calibrated ADC1 channel 0 (GPIO1), 390 kΩ / 100 kΩ divider gated by GPIO37. Sixteen samples at each control level account for opposite gate polarities on V3.1/V3.2; the divider is disabled between two-second polls. Only 2.5–4.5 V readings are displayed. | Implemented in `v0.6.1`; measured voltage, not an estimated percentage. No USB-sense or battery-presence input: the charger can energize the measured rail even without a battery. Hardware measurement accuracy remains unqualified. |
+| Heltec WiFi LoRa 32 V3 and Wireless Stick V3 | Calibrated ADC1 channel 0 (GPIO1), 390 kΩ / 100 kΩ divider gated by GPIO37. Sixteen samples at each control level account for opposite gate polarities on V3.1/V3.2; the divider is disabled between two-second polls. Only 2.5–4.5 V readings are displayed. | Implemented in `v0.6.1`; measured voltage, not an estimated percentage. No USB-sense or battery-presence input: the charger can energize the measured rail even without a battery. Hardware measurement accuracy remains unqualified. |
+| Seeed SenseCAP T1000-E | SAADC on P0.02 (AIN0) behind a 2:1 divider, read every 2 s; USB power on P0.05. Voltage only, no fuel gauge. No screen, so nothing is drawn | Built; not checked against a meter |
 
 Heltec pin/divider references: the manufacturer's
 [V3.1 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/HTIT-WB32LA(F)_V3.1_Schematic_Diagram.pdf),
 [V3.2 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/WiFi_LoRa_32_V3.2_Schematic_Diagram.pdf)
 and [V3.2 ADC example](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/examples/ESP32/WiFiLoRa32_battery_read/WiFiLoRa32_battery_read.ino).
 ADC setup, calibration or read failures show `?` rather than a stale or invented value.
-Both boards otherwise use the same screen, settings, message, discovery and BLE code. The
+Every board otherwise uses the same screen, settings, message, discovery and Bluetooth rules. The
 T-Beam's PMU fuel gauge, USB sensing, extra PWR button and radio boost are hardware-specific.
 
 ## Status LED

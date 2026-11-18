@@ -1,6 +1,6 @@
 # Embedded protocol foundation
 
-This directory contains the portable C++17 protocol/configuration/session components, the target-built ESP-IDF board applications (Heltec WiFi LoRa 32 V3, Heltec Wireless Stick V3 and T-Beam V1.2), and the Zephyr application for the Seeed SenseCAP T1000-E in `t1000-e/` (D57; build with `tools/bootstrap-zephyr.sh` then `tools/build-t1000e.sh`). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); installing is covered in [Flashing firmware](../docs/guides/flashing-firmware.md).
+This directory contains the portable C++17 protocol/configuration/session components and one application folder per board, named for its firmware target (see the [board list](../docs/boards/README.md)). ESP32 boards are ESP-IDF projects; the T1000-E is a Zephyr application (D57). Adding one: [Adding a board](../docs/contributing/adding-a-board.md). Installed builds and hardware verification are tracked in [Status](../docs/overview/status.md); installing is covered in [Flashing firmware](../docs/guides/flashing-firmware.md).
 `components/reaper_protocol/` implements the draft USB envelope and typed TLV payloads with fixed-size arrays, caller-owned output buffers, and no heap allocation in codec code. `schema.generated.hpp` comes from the same `packages/protocol/schema.json` as the TypeScript declarations. Never hand-edit the generated header. Field index constants are zero-based; wire field tags are one-based.
 
 ## Layout
@@ -9,10 +9,11 @@ This directory contains the portable C++17 protocol/configuration/session compon
 | --- | --- |
 | `components/` | Portable components shared by every board and by host tests |
 | `app/` | Shared board application: `main.cpp`, NVS storage, mesh service, Bluetooth link, device UI, and the `radio_bus.hpp`, `status_display.hpp`, `board_input.hpp` and `board_power.hpp` interfaces |
-| `heltec-v3/`, `heltec-stick-v3/`, `tbeam-v12/` | One ESP-IDF project per board. `heltec-stick-v3/` reuses `heltec-v3/main/`'s board files, adds its own profile, and builds the compact 64 × 32 display layout (`REAPER_DISPLAY_64X32`), and its SDK defaults layer on the V3's: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's implementations of those interfaces; its `CMakeLists.txt` compiles them together with `app/` |
+| `heltec-v3/`, `heltec-stick-v3/`, `tbeam-v12/` | One ESP-IDF project per ESP32 board. `heltec-stick-v3/` reuses `heltec-v3/main/`'s board files, adds its own profile, and builds the compact 64 × 32 display layout (`REAPER_DISPLAY_64X32`), and its SDK defaults layer on the V3's: `main/` holds the board profile (`board_profile.hpp` or `tbeam_profile.hpp`) and the board's implementations of those interfaces; its `CMakeLists.txt` compiles them together with `app/` |
+| `t1000-e/` | The T1000-E's Zephyr application: board definition and devicetree, and its USB, storage, radio bus, Bluetooth, button, LED and battery adapters around the shared `mesh_service`. Build with `tools/bootstrap-zephyr.sh`, then `tools/build-t1000e.sh` |
 | `tests/` | Host tests and stubs for the standalone CMake/CTest build |
 
-Board differences that remain inside `app/` are selected with `REAPER_TBEAM_V12`. A new board gets its own project folder with a profile and the board implementations; it should not need to copy `app/`.
+Board differences that remain inside `app/` are selected with a board define such as `REAPER_TBEAM_V12` or `REAPER_T1000_E`. A new board gets its own folder with a profile and the board implementations; it should not need to copy `app/`.
 
 ## Build and test
 
@@ -56,6 +57,6 @@ Run `bash tools/bootstrap-esp-idf.sh`, then `bash tools/build-firmware.sh` from 
 
 ## Device screen and buttons
 
-Both boards share the screen pages, button gestures and SSD1306 driver in `app/`. See
+Boards with a screen share the screen pages, button gestures and SSD1306 driver in `app/`. See
 [device screen and buttons](../docs/reference/device-display.md) for the design, board pins and
 code map.

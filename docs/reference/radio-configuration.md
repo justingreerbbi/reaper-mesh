@@ -10,14 +10,18 @@ Eight logical channel slots share one physical radio preset. Slot 0 is always Pu
 
 Since firmware `v0.4.0` (D46), power is low, medium or high instead of a dBm number. Low is the radio's minimum, high its maximum and medium halfway between them in dBm, rounded up. The default is medium with boost off.
 
-| Board | Low | Medium | High | Boost |
-| --- | --- | --- | --- | --- |
-| Heltec V3 (SX1262) | −9 dBm | +7 dBm | +22 dBm | Not available |
-| T-Beam V1.2 (SX1276, PA_BOOST) | +2 dBm | +10 dBm | +17 dBm | About 3 dB more at each level: +5, +13 and +20 dBm |
+The levels depend on the radio chip's driver, so boards with the same chip share a row. Each
+[board's page](../boards/README.md) repeats its values.
+
+| Radio chip (driver) | Boards | Low | Medium | High | Boost |
+| --- | --- | ---: | ---: | ---: | --- |
+| Semtech SX1262 | Heltec WiFi LoRa 32 V3, Heltec Wireless Stick V3 | −9 dBm | +7 dBm | +22 dBm | Not available |
+| Semtech SX1276, PA_BOOST | LILYGO T-Beam V1.2 | +2 dBm | +10 dBm | +17 dBm | About 3 dB more at each level: +5, +13 and +20 dBm |
+| Semtech LR1110, high-power PA | Seeed SenseCAP T1000-E | −9 dBm | +7 dBm | +22 dBm | Not available |
 
 Values are nominal settings at the radio output, before antenna gain; they have not been measured on these units. Medium is halfway in dBm, not half the milliwatts.
 
-Boost is the SX1276's high-power mode. It raises the PA DAC (RegPaDac 0x87 instead of 0x84) and the current limit (140 mA instead of 100 mA), and leaves the output setting alone. The datasheet limits this mode to a 1% duty cycle, which the shared [airtime budget](#regional-bring-up-target) also holds to, and adds supply and antenna-mismatch conditions. It stays off until someone turns it on. The SX1262 has no equivalent, so the Heltec reports no boost and refuses it.
+Boost is the SX1276's high-power mode. It raises the PA DAC (RegPaDac 0x87 instead of 0x84) and the current limit (140 mA instead of 100 mA), and leaves the output setting alone. The datasheet limits this mode to a 1% duty cycle, which the shared [airtime budget](#regional-bring-up-target) also holds to, and adds supply and antenna-mismatch conditions. It stays off until someone turns it on. The SX1262 and LR1110 drivers have no equivalent, so those boards report no boost and refuse it.
 
 Over USB, `txLevel` is 0 (low), 1 (medium) or 2 (high). It takes the place of `txPower` at the same tag. `txBoost` is 0 or 1 and is required with the other radio fields. Welcome feature bit 11 (2048) means the board uses levels, and bit 12 (4096) means it has boost. The device refuses a level above 2, and boost without bit 12. Agents do not change radio settings on firmware without bit 11, because its `txLevel` field still holds dBm. The device screen's debug page shows the resulting dBm.
 

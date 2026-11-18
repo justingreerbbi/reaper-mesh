@@ -1,0 +1,49 @@
+{
+  "$comment": "Supported boards, in display order. The website's board cards and supported-boards list, the installer's board menu and the site build's firmware list come from here. Adding a board: docs/contributing/adding-a-board.md.",
+  "boards": [
+    {
+      "id": "heltec-v3",
+      "name": "Heltec WiFi LoRa 32 V3",
+      "maker": "Heltec",
+      "status": "supported",
+      "processor": "ESP32-S3",
+      "radio": "SX1262",
+      "summary": "The simplest, cheapest place to start, with a built-in screen.",
+      "highlights": ["ESP32-S3", "SX1262", "0.96″ OLED"],
+      "installHint": "ESP32-S3 · 0.96″ screen"
+    },
+    {
+      "id": "heltec-stick-v3",
+      "name": "Heltec Wireless Stick V3",
+      "maker": "Heltec",
+      "status": "supported",
+      "processor": "ESP32-S3",
+      "radio": "SX1262",
+      "summary": "The smallest board, for compact kits and cases, with a glanceable status screen.",
+      "highlights": ["ESP32-S3", "SX1262", "0.49″ OLED"],
+      "installHint": "ESP32-S3 · tiny 0.49″ screen"
+    },
+    {
+      "id": "tbeam-v12",
+      "name": "LILYGO T-Beam V1.2",
+      "maker": "LILYGO",
+      "status": "supported",
+      "processor": "ESP32",
+      "radio": "SX1276",
+      "summary": "Built for battery use, with an 18650 holder and a fuel gauge.",
+      "highlights": ["ESP32", "SX1276", "18650"],
+      "installHint": "ESP32 · battery holder"
+    },
+    {
+      "id": "t1000-e",
+      "name": "Seeed SenseCAP T1000-E",
+      "maker": "Seeed",
+      "status": "experimental",
+      "processor": "nRF52840",
+      "radio": "LR1110",
+      "summary": "A card-sized tracker with a built-in battery and antenna, used from the app or portal.",
+      "highlights": ["nRF52840", "LR1110", "No screen"],
+      "installHint": "nRF52840 · card tracker, no screen. Installing over Meshtastic replaces it and erases its data."
+    }
+  ]
+}

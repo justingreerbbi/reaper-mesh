@@ -12,7 +12,7 @@ if you want the exact rules.
 
 | Piece | What it is | What it does |
 | --- | --- | --- |
-| **Radio board** (a *node*) | A Heltec WiFi LoRa 32 V3 or LILYGO T-Beam V1.2 running Reaper Mesh firmware | Sends and receives radio packets, relays traffic for others, and stores its own settings and a small inbox |
+| **Radio board** (a *node*) | A [supported LoRa board](../boards/README.md) running Reaper Mesh firmware | Sends and receives radio packets, relays traffic for others, and stores its own settings and a small inbox |
 | **App** (an *agent*) | The web portal in this repository, or the Reaper Mesh mobile app | Where you read and write messages, see the map and change settings. It talks to one board over USB or Bluetooth |
 | **Protocol** | The documented rules both sides follow | Defines the bytes on the USB or Bluetooth link and the packets on the air, so every app and board understands each other |
 
@@ -112,7 +112,7 @@ apply.
 | Message length | 1,024 bytes of UTF-8 text | About 947 bytes on an encrypted channel |
 | Channels per board | 8, including Public | Channels share one radio frequency; they are groups, not separate radios |
 | Radio preset | `US915_LAB1`: 915 MHz, 500 kHz bandwidth, spreading factor 7 | A fast, short-range preset. Range has not been measured yet |
-| Transmit power | Low, medium (default) or high | Up to +22 dBm on the Heltec V3. See [Hardware](../guides/hardware.md#transmit-power) |
+| Transmit power | Low, medium (default) or high | Up to +22 dBm, depending on the board's radio chip. See [Radio configuration](../reference/radio-configuration.md#transmit-power) |
 | Airtime budget | 1% average with a one-second burst | Roughly one full-length message per node per minute once the burst is used |
 | Nodes remembered | 32 on the board | The app remembers more |
 | Board inbox | 8 messages | The app keeps its own history |

@@ -180,7 +180,7 @@ protocol, storage or radio change (D41). The owner confirmed the development uni
 model and antenna on Nov 8, which opens its radio gate. A board must not be installed as another board's image for real use: it
 would report the wrong identity. A Heltec CubeCell HTCC-AB01 (ASR6501, 16 KB RAM) was checked the
 same day and cannot run Reaper: the firmware needs about 109 KB of RAM. See
-[Hardware](../guides/hardware.md#heltec-wireless-stick-v3).
+[Hardware](../boards/heltec-stick-v3.md).
 
 ### D56. Desk relay test build
 Nov 8 · **Confirmed**. Owner direction. Three boards on one desk all hear each other, so a relay is
@@ -221,7 +221,7 @@ The LR1110's TCXO supply is set to 1.6 V: Seeed's reference code says 3.0 V and 
 says 1.6 V, and the lower value cannot overstress the part. A wrong value shows as an
 `HF_XOSC_START` probe fault, not a transmission. The owner confirmed the development unit is the
 US/915 MHz model with its built-in antenna (Nov 17), which opens its radio gate. GNSS, the
-accelerometer, sensors and buzzer stay off. See [Hardware](../guides/hardware.md#seeed-sensecap-t1000-e).
+accelerometer, sensors and buzzer stay off. See [Hardware](../boards/t1000-e.md).
 
 ## Protocol and synchronization
 

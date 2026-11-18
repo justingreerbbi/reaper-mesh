@@ -744,6 +744,28 @@ a.store:hover {
   width: 100%;
   filter: drop-shadow(0 30px 60px rgb(0 0 0 / 70%));
 }
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
+}
+.board-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.board-status {
+  padding: 3px 10px;
+  border: 1px solid rgb(235 187 95 / 45%);
+  border-radius: 999px;
+  background: rgb(235 187 95 / 10%);
+  color: rgb(235 187 95);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .board-card .meta {
   margin: 16px 0 0;
   padding: 0;
