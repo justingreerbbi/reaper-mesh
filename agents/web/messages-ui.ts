@@ -30,6 +30,7 @@ import {
   channelLabel,
   deliveryOf,
   type Conversation,
+  type Incoming,
   type Outgoing,
 } from './conversations.ts';
 import {
@@ -46,6 +47,7 @@ import {
   mode,
   models,
   nodeCache,
+  preferences,
   recovery,
   render,
   setMessageStateError,
@@ -55,8 +57,9 @@ import { element, text } from './dom.ts';
 import { accessDialog, onLocalAppStop } from './access-ui.ts';
 import { channelBlockReason, openChannel, removeChannelFromDevice } from './channels-ui.ts';
 import { mapWorkspace, selectNode, setSelectedNode } from './map-ui.ts';
-import { currentView } from './nav.ts';
+import { currentView, setView } from './nav.ts';
 import { confirmSheet, icon } from './ui.ts';
+import { alertFor, Announcer, away, show as showAlerts, type Alert } from './notifications.ts';
 
 const deleteDialog = element<HTMLDialogElement>('delete-history');
 const linkLost = () => !!document.querySelector('#link-banner:not([hidden])');
@@ -490,6 +493,7 @@ export function renderMessages() {
   const unread = (messageState?.unread(mode.value, connection.inbox.history) ?? []).filter(m =>
     onDevice(m.channel),
   );
+  announce(unread, incoming, names);
   const totalUnread = sources.reduce(
     (n, source) =>
       n +
@@ -970,6 +974,35 @@ function renderQuickPhrases(blocked: boolean) {
       return button;
     }),
   );
+}
+
+const announcer = new Announcer();
+
+/** Notifies about messages that arrived since the last look, while the portal is out of sight. */
+function announce(
+  unread: readonly Incoming[],
+  decoded: readonly (Incoming & { text: string; mapWire?: string })[],
+  channels: ReturnType<typeof deviceChannels>,
+) {
+  if (!lastDevice) return;
+  const keyOf = (m: Incoming) => receivedKey(mode.value, m);
+  const fresh = new Set(announcer.fresh(messageScope(mode.value, lastDevice), unread.map(keyOf)));
+  if (!fresh.size || !away() || preferences.notifications === 'off') return;
+  const alerts = decoded
+    .filter(m => fresh.has(keyOf(m)))
+    .map(m =>
+      alertFor(
+        { ...m, text: m.mapWire ? 'Shared a map item' : m.text },
+        { channels, nodes: nodeCache.nodes },
+        preferences.notifications,
+      ),
+    )
+    .filter((alert): alert is Alert => !!alert);
+  showAlerts(alerts, alert => {
+    chooseConversation(alert.destination, alert.channel);
+    setView('comms');
+    render();
+  });
 }
 
 export function renderInbox() {

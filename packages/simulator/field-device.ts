@@ -10,6 +10,14 @@ const fixed = (degrees: number, limit: number) => Math.round((degrees + limit) *
 
 export const FIELD_DEVICE_ID = 'node-00000000a1b2c3d4';
 
+/**
+ * In the demo, Alpha 1 walks a slow loop near its post, reporting every half minute, so its trail
+ * shows on the map. About 1.3 km round at a walking pace. Same loop as the mobile app's demo.
+ */
+const WALK = { latitude: 39.7481, longitude: -104.9752, radius: 0.0018 };
+const WALK_STEP_MS = 30 * 1000;
+const WALK_LOOP_MS = 18 * 60 * 1000;
+
 type Node = {
   node: string;
   peerBoot: string;
@@ -18,6 +26,7 @@ type Node = {
   ageMs: number;
   latitude?: number;
   longitude?: number;
+  walkStep?: number;
 };
 type Sent = {
   destination: string;
@@ -108,12 +117,15 @@ export class FieldDevice {
   #scenarioStarted = false;
   #drop: (() => void) | undefined;
   #live = false;
+  /** Whether Alpha 1 walks its loop; off for tests that need fixed positions. */
+  readonly #walking: boolean;
   /** How quickly scripted traffic arrives. Tests pass 0 to run it on the next tick. */
   readonly #pace: number;
 
   constructor(options: { pace?: number; scenario?: boolean } = {}) {
     this.#pace = options.pace ?? 1;
     if (options.scenario === false) this.#scenarioStarted = true;
+    this.#walking = options.scenario !== false;
   }
 
   /** Drops the link the way losing range or the cable would. The device stays as it was. */
@@ -488,10 +500,28 @@ export class FieldDevice {
     });
   }
 
+  /** Moves the demo's walker to where it is now, as a new report from it. */
+  #walk(now = Date.now()) {
+    const row = this.nodes.find(item => item.name === 'Alpha 1');
+    if (!row) return;
+    const step = Math.floor(now / WALK_STEP_MS);
+    if (row.walkStep === step) return;
+    row.walkStep = step;
+    const turn = (2 * Math.PI * ((step * WALK_STEP_MS) % WALK_LOOP_MS)) / WALK_LOOP_MS;
+    const latitude = WALK.latitude + WALK.radius * Math.sin(turn);
+    const longitude =
+      WALK.longitude + (WALK.radius * Math.cos(turn)) / Math.cos((WALK.latitude * Math.PI) / 180);
+    row.latitude = fixed(latitude, 90);
+    row.longitude = fixed(longitude, 180);
+    row.peerSequence++;
+    row.ageMs = 0;
+  }
+
   #nodeQuery(
     message: Extract<Message, { type: 'nodeQuery' }>,
     send: (message: Record<string, unknown>) => void,
   ) {
+    if (this.#walking) this.#walk();
     const base = {
       type: 'nodeReply',
       boot: this.boot,

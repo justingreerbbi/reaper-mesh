@@ -1,7 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The app window: Tauri's core features (IPC channels, events). The serial commands are the app's own.",
+  "description": "The app window: Tauri's core features (IPC channels, events) and message notifications. The serial and keep-awake commands are the app's own.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify"
+  ]
 }

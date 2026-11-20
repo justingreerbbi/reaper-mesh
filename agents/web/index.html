@@ -291,6 +291,15 @@
             >
               <i data-icon="list"></i>
             </button>
+            <button
+              id="map-track"
+              class="round filled"
+              type="button"
+              aria-label="Track"
+              title="Track"
+            >
+              <i data-icon="footprints"></i>
+            </button>
           </div>
           <div class="map-column map-column-right">
             <button
@@ -315,8 +324,9 @@
               id="map-locate"
               class="round filled"
               type="button"
-              aria-label="Show my position"
-              title="Show my position"
+              aria-label="Follow my position"
+              title="Follow my position"
+              aria-pressed="false"
             >
               <i data-icon="locate-fixed"></i>
             </button>
@@ -345,7 +355,10 @@
             class="map-coordinate"
             type="button"
             aria-label="Crosshair coordinate. Select to change format."
-          ></button>
+          >
+            <span id="map-coordinate-text"></span>
+            <span id="map-readout" class="map-readout" aria-live="off" hidden></span>
+          </button>
           <div id="map-layers-panel" class="map-popover" hidden>
             <div class="segmented" id="map-basemaps" role="radiogroup" aria-label="Basemap"></div>
             <label class="toggle-row">
@@ -402,6 +415,37 @@
                 type="button"
                 aria-label="Close measure"
               >
+                <i data-icon="x"></i>
+              </button>
+            </div>
+            <div id="map-track-panel" class="map-panel" hidden>
+              <div class="panel-text">
+                <strong id="track-state"></strong>
+                <small id="track-detail" class="muted"></small>
+              </div>
+              <button id="track-start" class="primary compact" type="button">Start</button>
+              <button id="track-stop" class="danger compact" type="button" hidden>Stop</button>
+              <button
+                id="track-save"
+                class="round compact"
+                type="button"
+                aria-label="Save track as GPX"
+                title="Save track as GPX"
+                hidden
+              >
+                <i data-icon="download"></i>
+              </button>
+              <button
+                id="track-clear"
+                class="round compact"
+                type="button"
+                aria-label="Clear track"
+                title="Clear track"
+                hidden
+              >
+                <i data-icon="trash-2"></i>
+              </button>
+              <button id="track-close" class="round compact" type="button" aria-label="Close track">
                 <i data-icon="x"></i>
               </button>
             </div>
@@ -1122,7 +1166,8 @@
                   <small class="muted">
                     The device announces this browser's location while this page is open, so others
                     see you move on their map. It updates after you move about 25 m, as often as the
-                    beacon timer allows.
+                    beacon timer allows. With a USB GPS chosen in This app, the GPS position is
+                    used.
                   </small>
                   <small id="position-last-sent" class="muted"></small>
                   <p id="position-beacon-off" class="notice" data-tone="warn" hidden>
@@ -1431,6 +1476,38 @@
                       <option value="dd">Decimal</option>
                     </select>
                   </div>
+                  <div class="field">
+                    <label for="pref-angles">Bearings</label>
+                    <small class="muted">Mils are NATO mils, 6400 to the circle.</small>
+                    <select id="pref-angles" data-segmented>
+                      <option value="degrees">Degrees</option>
+                      <option value="mils">Mils</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="pref-north">Heading north</label>
+                    <small id="pref-north-detail" class="muted"></small>
+                    <select id="pref-north" data-segmented>
+                      <option value="true">True</option>
+                      <option value="magnetic">Magnetic</option>
+                    </select>
+                  </div>
+                  <label class="toggle-row">
+                    <span
+                      ><span>Keep screen on</span
+                      ><small id="pref-keep-awake-detail" class="muted"></small
+                    ></span>
+                    <input id="pref-keep-awake" type="checkbox" />
+                  </label>
+                  <div class="field">
+                    <label for="pref-notifications">Message notifications</label>
+                    <small id="pref-notifications-detail" class="muted"></small>
+                    <select id="pref-notifications" data-segmented>
+                      <option value="sender">Sender only</option>
+                      <option value="full">Full text</option>
+                      <option value="off">Off</option>
+                    </select>
+                  </div>
                   <label class="toggle-row">
                     <span
                       ><span>Rejoin on load</span
@@ -1443,6 +1520,37 @@
                   </label>
                 </div>
                 <div class="field-stack">
+                  <div class="card field-card">
+                    <h2>Your location</h2>
+                    <small class="muted"
+                      >For following on the map, recording a track and following this browser with
+                      the device's position.</small
+                    >
+                    <div class="field">
+                      <label for="pref-location-source">Location from</label>
+                      <select id="pref-location-source" data-segmented>
+                        <option value="browser">This browser</option>
+                        <option value="gps">USB GPS</option>
+                      </select>
+                    </div>
+                    <div id="gps-settings" class="field" hidden>
+                      <small id="gps-status" class="muted" role="status"></small>
+                      <div class="inline wrap">
+                        <button id="gps-connect" class="primary" type="button">
+                          Connect GPS receiver
+                        </button>
+                        <button id="gps-disconnect" type="button" hidden>Disconnect</button>
+                      </div>
+                      <small class="faint"
+                        >A USB GPS receiver (NMEA) gives a laptop in a vehicle its position, speed
+                        and heading. It is a separate USB port from the radio.</small
+                      >
+                    </div>
+                    <small id="location-browser-note" class="faint"
+                      >Laptops without GPS get a rough position from Wi-Fi, with no speed or
+                      heading.</small
+                    >
+                  </div>
                   <div class="card field-card">
                     <h2>Your devices</h2>
                     <div id="app-devices" class="row-list"></div>

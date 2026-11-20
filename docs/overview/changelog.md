@@ -22,6 +22,16 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** the mobile app's November map and notification features in the web portal and desktop
+  app (D59): follow mode with a heading, speed and elevation readout, bearings in mils, true or
+  magnetic heading, keeping the screen on, node trails, track recording with GPX export, Alpha 1
+  walking in the demo, and message notifications. For a laptop in a vehicle, a USB GPS receiver
+  (NMEA) can be the location source, and the desktop app keeps the computer awake.
+- **Verified:** host tests for declination against NOAA's WMM2025 test values, NMEA parsing, trails,
+  the track store and notification wording; the desktop app builds. **Not verified:** any of it in
+  a browser or the desktop app, a real USB GPS receiver, notifications and keeping awake on Windows
+  and Linux. No firmware change.
+
 ## v0.12.0 — November 18, 2026
 
 - **Added:** a desktop app for macOS, Windows and Linux (D58), built with Tauri 2 in

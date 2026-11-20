@@ -11,6 +11,7 @@ import { MessageState } from './message-state.ts';
 import { AppAccess } from './app-access.ts';
 import { EncryptionVault } from './encryption.ts';
 import { NodeCache } from './node-cache.ts';
+import { TrackStore } from './track-store.ts';
 import { readPreferences, writePreferences, type Preferences } from './preferences.ts';
 
 /** Which model the app is showing: a real device (USB or Bluetooth), or the simulated one. */
@@ -60,6 +61,8 @@ try {
 export const access = encryption ? new AppAccess(encryption, localStorage) : undefined;
 export const current = () => models[mode.value];
 export const nodeCache = new NodeCache(localStorage, () => recovery.writable);
+/** This browser's recorded track (map breadcrumbs). */
+export const track = new TrackStore(localStorage, () => recovery.writable);
 
 export const preferences: Preferences = readPreferences(localStorage);
 export function setPreference<K extends keyof Preferences>(key: K, value: Preferences[K]) {

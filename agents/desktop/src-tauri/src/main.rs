@@ -3,6 +3,7 @@
 //! the same builds the website serves; see docs/guides/desktop-app.md.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod power;
 mod serial;
 
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -41,8 +42,11 @@ fn allow_navigation(url: &Url) -> bool {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .manage(serial::Ports::default())
+        .manage(power::Awake::default())
         .invoke_handler(tauri::generate_handler![
+            power::keep_awake,
             serial::serial_list,
             serial::serial_open,
             serial::serial_write,

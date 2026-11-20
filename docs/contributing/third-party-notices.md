@@ -18,7 +18,9 @@ The T1000-E firmware is built with pinned Zephyr v4.5.0 (Apache-2.0) and its hal
 
 The desktop app (`agents/desktop/`) is built with Tauri 2 (MIT or Apache-2.0) and links the Rust
 crates in `agents/desktop/src-tauri/Cargo.lock`, including `serialport` (MPL-2.0, used unmodified;
-its source is published on crates.io) and `open` (MIT). Preserve their license notices in desktop
+its source is published on crates.io), `open` (MIT), `tauri-plugin-notification` (MIT or
+Apache-2.0) for message notifications and `keepawake` (MIT) for keeping the computer awake while
+the map follows or a track records. Preserve their license notices in desktop
 app distributions; `cargo about` or a similar tool can list them from the lock file when packaging.
 On Windows the installer may download Microsoft's WebView2 runtime, which Microsoft distributes
 under its own terms.
@@ -43,6 +45,13 @@ The web agent bundles four small libraries, each pinned in package-lock.json. Pr
 - `jsqr` 1.4.0 (Apache License 2.0) reads QR codes from the camera and from images.
 - `lucide` 1.68.0 (ISC License) provides the icons, the same set as the mobile app.
 - `mgrs` 2.2.0 (MIT License) converts coordinates to MGRS.
+
+## World Magnetic Model
+
+The web agent includes the coefficients of NOAA's World Magnetic Model WMM2025
+(`agents/web/declination.ts`), used to show headings from true or magnetic north. The model is a
+work of the United States government and is in the public domain. It is valid from 2025.0 to
+2030.0; the coefficients should be replaced with the next release after that.
 
 ## Firmware installer libraries
 

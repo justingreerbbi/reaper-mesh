@@ -23,6 +23,21 @@ import {
 } from '../../packages/protocol/radio-config.ts';
 import { setNotice } from './ui.ts';
 import type { Preferences } from './preferences.ts';
+import { canKeepAwake } from './keep-awake.ts';
+import {
+  connectGps,
+  disconnectGps,
+  gpsState,
+  gpsSupported,
+  hasSavedGps,
+  onGpsChange,
+} from './gps.ts';
+import { updateSource } from './location.ts';
+import {
+  notificationPermission,
+  notificationsSupported,
+  requestNotifications,
+} from './notifications.ts';
 
 const NODE_CAPACITY = 32;
 const MODE_LABELS = { off: 'Off', receive: 'Listen', mesh: 'Mesh' };
@@ -183,6 +198,68 @@ export function renderDevice() {
   element<HTMLSelectElement>('pref-units').value = preferences.units;
   element<HTMLSelectElement>('pref-coordinates').value = preferences.coordinates;
   element<HTMLInputElement>('pref-connect-on-load').checked = preferences.connectOnLoad;
+  element<HTMLSelectElement>('pref-angles').value = preferences.angles;
+  element<HTMLSelectElement>('pref-north').value = preferences.north;
+  text(
+    'pref-north-detail',
+    preferences.north === 'magnetic'
+      ? 'The heading readout matches a hand compass and shows "mag". Bearings measured on the map stay true, like a protractor on a paper map.'
+      : 'The heading readout is from true north, like the map. Choose Magnetic to match a hand compass.',
+  );
+  element<HTMLInputElement>('pref-keep-awake').checked = preferences.keepAwake;
+  element<HTMLInputElement>('pref-keep-awake').disabled = !canKeepAwake();
+  text(
+    'pref-keep-awake-detail',
+    canKeepAwake()
+      ? 'While the map follows your position or a track records, so the screen and computer stay on. Uses more battery.'
+      : "This browser can't keep the screen on.",
+  );
+  element<HTMLSelectElement>('pref-notifications').value = preferences.notifications;
+  text('pref-notifications-detail', notificationText());
+  renderLocationSettings();
+}
+
+function notificationText() {
+  const permission = notificationPermission();
+  if (preferences.notifications === 'off')
+    return 'No notifications. New messages still wait in Comms.';
+  if (permission === 'unsupported') return "This browser can't show notifications.";
+  if (permission === 'denied')
+    return "Notifications are blocked for this site. Allow them in the browser's site settings.";
+  if (permission === 'default') return 'Choose a setting again to allow notifications.';
+  return preferences.notifications === 'full'
+    ? 'Shows who sent it and the message, while the portal is in the background.'
+    : 'Shows who sent it, not the message, while the portal is in the background.';
+}
+
+function renderLocationSettings() {
+  const gps = preferences.locationSource === 'gps';
+  element<HTMLSelectElement>('pref-location-source').value = preferences.locationSource;
+  element('gps-settings').hidden = !gps;
+  element('location-browser-note').hidden = gps;
+  if (!gps) return;
+  const state = gpsState();
+  const satellites = (count: number | null) =>
+    count === null ? '' : ` · ${count} ${count === 1 ? 'satellite' : 'satellites'}`;
+  text(
+    'gps-status',
+    !gpsSupported()
+      ? 'This browser has no Web Serial. Use Chrome, Edge or the desktop app.'
+      : state.kind === 'off'
+        ? 'Not connected.'
+        : state.kind === 'connecting'
+          ? `Connecting · ${state.detail}`
+          : state.kind === 'searching'
+            ? `Connected · searching for satellites${satellites(state.satellites)}`
+            : state.kind === 'fix'
+              ? `Connected · position fix${satellites(state.satellites)}`
+              : state.message,
+  );
+  const connected = state.kind !== 'off' && state.kind !== 'error';
+  const connect = element<HTMLButtonElement>('gps-connect');
+  connect.hidden = connected;
+  connect.disabled = !gpsSupported();
+  element('gps-disconnect').hidden = !connected && !(state.kind === 'error' && hasSavedGps());
 }
 
 export function initDevice() {
@@ -193,13 +270,43 @@ export function initDevice() {
     render();
   });
   element('device-disconnect').addEventListener('click', () => void endSession());
-  const bind = <K extends 'theme' | 'units' | 'coordinates'>(id: string, key: K) =>
+  const bind = <K extends 'theme' | 'units' | 'coordinates' | 'angles' | 'north'>(
+    id: string,
+    key: K,
+  ) =>
     element(id).addEventListener('change', () =>
       setPreference(key, element<HTMLSelectElement>(id).value as Preferences[K]),
     );
   bind('pref-theme', 'theme');
   bind('pref-units', 'units');
   bind('pref-coordinates', 'coordinates');
+  bind('pref-angles', 'angles');
+  bind('pref-north', 'north');
+  element('pref-keep-awake').addEventListener('change', () =>
+    setPreference('keepAwake', element<HTMLInputElement>('pref-keep-awake').checked),
+  );
+  element('pref-notifications').addEventListener('change', () => {
+    setPreference(
+      'notifications',
+      element<HTMLSelectElement>('pref-notifications').value as Preferences['notifications'],
+    );
+    // Asking needs a click, and this is one.
+    if (preferences.notifications !== 'off' && notificationPermission() === 'default')
+      void requestNotifications().then(render);
+  });
+  element('pref-location-source').addEventListener('change', () => {
+    const source = element<HTMLSelectElement>('pref-location-source')
+      .value as Preferences['locationSource'];
+    setPreference('locationSource', source);
+    if (source === 'browser') void disconnectGps();
+    else if (hasSavedGps()) void connectGps(false);
+    updateSource();
+  });
+  element('gps-connect').addEventListener('click', () => void connectGps(true));
+  element('gps-disconnect').addEventListener('click', () => void disconnectGps(true));
+  onGpsChange(render);
+  // A receiver used before reconnects on load, as the radio does.
+  if (preferences.locationSource === 'gps' && hasSavedGps()) void connectGps(false);
   element('pref-connect-on-load').addEventListener('change', () => {
     setPreference('connectOnLoad', element<HTMLInputElement>('pref-connect-on-load').checked);
     render();
