@@ -1,5 +1,6 @@
 import type { MapItem } from '../../packages/protocol/map-item.ts';
 import L from 'leaflet';
+import type { LngLat } from './geo.ts';
 
 export type MapPoint = Readonly<{
   id: string;
@@ -47,6 +48,11 @@ function tag(kind: string, shape: string, label: string, size: number) {
     iconAnchor: [size / 2, size / 2],
   });
 }
+/** This computer's recorded track: orange, so it stands apart from nodes, areas and measuring. */
+export const TRACK_COLOR = '#ff7a45';
+
+export type TrailStep = Readonly<{ from: LngLat; to: LngLat; fade: number }>;
+
 const nodeIcon = (point: MapPoint) =>
   tag(
     `node-marker node-marker--${point.kind}${point.stale ? ' node-marker--stale' : ''}`,
@@ -68,6 +74,10 @@ export class FieldMap {
   #basemap = '';
   #tool: L.LayerGroup;
   #me: L.Marker | undefined;
+  #trails: L.LayerGroup;
+  #trailSignature = '';
+  /** Moving the map to follow this computer, which the user's own drag ends. */
+  #following = false;
   #drawing = false;
   #dragStart?: L.LatLng;
   #preview?: L.Rectangle;
@@ -83,6 +93,8 @@ export class FieldMap {
   onAnnotation?: (id: string, context: boolean) => void;
   onSelect?: (id: string | undefined) => void;
   onMove?: () => void;
+  /** The user dragged the map, which ends following. */
+  onUserDrag?: () => void;
 
   constructor(container: HTMLElement) {
     this.map = L.map(container, {
@@ -92,12 +104,14 @@ export class FieldMap {
     }).setView([39.8283, -98.5795], 4);
     L.control.scale({ position: 'bottomleft' }).addTo(this.map);
     this.setBasemap('dark');
+    this.#trails = L.layerGroup().addTo(this.map);
     this.#layer = L.layerGroup().addTo(this.map);
     this.#annotations = L.layerGroup().addTo(this.map);
     this.#tool = L.layerGroup().addTo(this.map);
     this.map.on('move', () => this.onMove?.());
     this.map.on('dragstart', () => {
       this.#userMoved = true;
+      if (this.#following) this.onUserDrag?.();
     });
     container.addEventListener('wheel', () => (this.#userMoved = true), { passive: true });
     container.addEventListener('touchstart', () => (this.#userMoved = true), { passive: true });
@@ -247,7 +261,8 @@ export class FieldMap {
       }).addTo(this.#tool);
   }
 
-  setMe(position: readonly [number, number] | undefined) {
+  /** This computer's position, with an arrow for the way it faces or travels when that's known. */
+  setMe(position: LngLat | undefined, heading?: number) {
     if (!position) {
       this.#me?.remove();
       this.#me = undefined;
@@ -258,8 +273,69 @@ export class FieldMap {
     else
       this.#me = L.marker(latLng, {
         interactive: false,
-        icon: tag('node-marker node-marker--me', '<div class="node-dot"></div>', 'You', 22),
+        zIndexOffset: 1000,
+        icon: tag(
+          'node-marker node-marker--me',
+          '<div class="me-heading" hidden></div><div class="node-dot"></div>',
+          'You',
+          22,
+        ),
       }).addTo(this.map);
+    const arrow = this.#me.getElement()?.querySelector<HTMLElement>('.me-heading');
+    if (arrow) {
+      arrow.hidden = heading === undefined;
+      if (heading !== undefined) arrow.style.transform = `rotate(${heading}deg)`;
+    }
+  }
+
+  /** Starts or stops keeping the map centred on this computer. */
+  setFollowing(on: boolean) {
+    this.#following = on;
+  }
+  get following() {
+    return this.#following;
+  }
+  /** Centres on this computer while following, zooming in the first time. */
+  followTo(position: LngLat, zoomIn: boolean) {
+    this.#userMoved = true;
+    const latLng = L.latLng(position[1], position[0]);
+    if (zoomIn) this.map.setView(latLng, Math.max(this.map.getZoom(), 15));
+    else this.map.panTo(latLng, { animate: true, duration: 0.5 });
+  }
+
+  /** Node trails, fading with age, and this computer's recorded track. */
+  setTrails(steps: readonly TrailStep[], track: readonly (readonly LngLat[])[], accent: string) {
+    const signature = JSON.stringify([steps, track, accent]);
+    if (signature === this.#trailSignature) return;
+    this.#trailSignature = signature;
+    this.#trails.clearLayers();
+    const latLngs = (line: readonly LngLat[]) => line.map(([lng, lat]) => L.latLng(lat, lng));
+    for (const step of steps)
+      L.polyline(latLngs([step.from, step.to]), {
+        color: accent,
+        weight: 2.5,
+        opacity: step.fade * 0.8,
+        lineCap: 'round',
+        interactive: false,
+      }).addTo(this.#trails);
+    if (track.length) {
+      const lines = track.map(latLngs);
+      L.polyline(lines, {
+        color: '#050505',
+        weight: 7,
+        opacity: 0.45,
+        lineCap: 'round',
+        lineJoin: 'round',
+        interactive: false,
+      }).addTo(this.#trails);
+      L.polyline(lines, {
+        color: TRACK_COLOR,
+        weight: 4,
+        lineCap: 'round',
+        lineJoin: 'round',
+        interactive: false,
+      }).addTo(this.#trails);
+    }
   }
 
   setPoints(points: readonly MapPoint[]) {

@@ -24,10 +24,12 @@ import {
 import { element, text } from './dom.ts';
 import { invalidateThread } from './messages-ui.ts';
 import { formatAgo } from './geo.ts';
+import { currentFix, wantLocation } from './location.ts';
 import { isShowing, onPageChange } from './nav.ts';
 import { confirmSheet, downloadBlob, setNotice } from './ui.ts';
 import {
   MAX_ACCURACY_METERS,
+  MAX_FIX_AGE_MS,
   POSITION_SENT_KEY,
   shouldSendPosition,
   type Fix,
@@ -100,8 +102,6 @@ export function renderRadio() {
 
 // ---- Position, including following this browser's location ----
 
-let fix: Fix | undefined;
-let watchId: number | undefined;
 let lastSentAt = 0;
 let lastPosition = '';
 try {
@@ -117,23 +117,24 @@ function recordPositionChange() {
     // Only matters across a reload.
   }
 }
-function stopWatching() {
-  if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
-  watchId = undefined;
-  fix = undefined;
-}
-
+/** One position for the fixed-position fields: the USB GPS if that is the source, else the browser. */
 function browserFix() {
-  return new Promise<GeolocationPosition>((resolve, reject) => {
+  if (preferences.locationSource === 'gps') {
+    const fix = currentFix(MAX_FIX_AGE_MS);
+    return fix
+      ? Promise.resolve({ latitude: fix.lngLat[1], longitude: fix.lngLat[0] })
+      : Promise.reject(new Error('No position from the USB GPS yet. Check it in This app.'));
+  }
+  return new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('This browser has no location access.'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, error => reject(new Error(error.message)), {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 10000,
-    });
+    navigator.geolocation.getCurrentPosition(
+      position => resolve(position.coords),
+      error => reject(new Error(error.message)),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    );
   });
 }
 
@@ -144,20 +145,14 @@ function publishPosition() {
   const { sync } = connection;
   const following = preferences.positionMode === 'browser';
   const ready = sync.state === 'ready';
-  if (following && ready && watchId === undefined && navigator.geolocation)
-    watchId = navigator.geolocation.watchPosition(
-      position => {
-        // A fix worse than this could put the device somewhere it isn't.
-        if (position.coords.accuracy > MAX_ACCURACY_METERS) return;
-        fix = {
-          lngLat: [position.coords.longitude, position.coords.latitude],
-          at: Date.now(),
-        };
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 10000 },
-    );
-  if ((!following || !ready) && watchId !== undefined) stopWatching();
+  // The location source runs only while something needs it; this is one.
+  wantLocation('device', following && ready);
+  const latest = currentFix(MAX_FIX_AGE_MS);
+  // A fix worse than this could put the device somewhere it isn't.
+  const fix: Fix | undefined =
+    latest && (latest.accuracy === null || latest.accuracy <= MAX_ACCURACY_METERS)
+      ? { lngLat: latest.lngLat, at: latest.at }
+      : undefined;
 
   // Any position change restarts the device's beacon timer, whoever made it.
   const saved = sync.config?.position;
@@ -405,10 +400,7 @@ export function renderDiscovery() {
 }
 
 export function initSettings() {
-  onLocalAppStop(() => {
-    if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
-    watchId = undefined;
-  });
+  onLocalAppStop(() => wantLocation('device', false));
   onPageChange(left => {
     // A page's unsaved edits don't follow you away from it.
     if (left === 'radio') radioDirty = false;
@@ -504,8 +496,8 @@ export function initSettings() {
     setNotice('position-error', undefined);
     try {
       const position = await browserFix();
-      element<HTMLInputElement>('position-latitude').value = position.coords.latitude.toFixed(7);
-      element<HTMLInputElement>('position-longitude').value = position.coords.longitude.toFixed(7);
+      element<HTMLInputElement>('position-latitude').value = position.latitude.toFixed(7);
+      element<HTMLInputElement>('position-longitude').value = position.longitude.toFixed(7);
       positionDirty = true;
       render();
       return true;

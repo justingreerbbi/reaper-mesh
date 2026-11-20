@@ -131,6 +131,7 @@ export function renderNodes() {
           preferences.units,
         )} · ${formatBearing(
           bearingDegrees(origin, [node.position.longitude, node.position.latitude]),
+          preferences.angles,
         )}`
       : undefined,
   );

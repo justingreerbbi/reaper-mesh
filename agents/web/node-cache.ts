@@ -1,5 +1,6 @@
 // Keeps heard nodes across reconnects, per device. A position is only as fresh as its last report.
 import { fromWire } from './geo.ts';
+import { extendTrail, type TrailPoint } from './trail.ts';
 
 export const NODE_CACHE_PREFIX = 'reaper-mesh.nodes.v1.';
 export const FORGOTTEN_NODES_PREFIX = 'reaper-mesh.nodes-forgotten.v1.';
@@ -15,6 +16,8 @@ export type CachedNode = Readonly<{
   heardAt: number;
   /** Degrees. */
   position?: Readonly<{ latitude: number; longitude: number }>;
+  /** Where it has reported from over the last hour, for its trail on the map. */
+  trail?: readonly TrailPoint[];
 }>;
 type LiveNode = Readonly<{
   node: string;
@@ -38,7 +41,15 @@ function validNode(value: unknown): value is CachedNode {
     Number.isFinite(row.peerSequence) &&
     Number.isFinite(row.heardAt) &&
     (row.position === undefined ||
-      (Number.isFinite(row.position.latitude) && Number.isFinite(row.position.longitude)))
+      (Number.isFinite(row.position.latitude) && Number.isFinite(row.position.longitude))) &&
+    (row.trail === undefined ||
+      (Array.isArray(row.trail) &&
+        row.trail.every(
+          point =>
+            Array.isArray(point) &&
+            point.length === 3 &&
+            point.every(value => Number.isFinite(value)),
+        )))
   );
 }
 
@@ -118,20 +129,22 @@ export class NodeCache {
         prior.name === row.name
       )
         continue;
+      const heardAt = now - row.ageMs;
+      const position = row.position
+        ? {
+            latitude: fromWire(row.position.latitude, 90),
+            longitude: fromWire(row.position.longitude, 180),
+          }
+        : undefined;
+      const trail = position ? extendTrail(prior?.trail, position, heardAt, now) : prior?.trail;
       merged.set(row.node, {
         node: row.node,
         name: row.name,
         peerBoot: row.peerBoot,
         peerSequence: row.peerSequence,
-        heardAt: now - row.ageMs,
-        ...(row.position
-          ? {
-              position: {
-                latitude: fromWire(row.position.latitude, 90),
-                longitude: fromWire(row.position.longitude, 180),
-              },
-            }
-          : {}),
+        heardAt,
+        ...(position ? { position } : {}),
+        ...(trail?.length ? { trail } : {}),
       });
       changed = true;
     }

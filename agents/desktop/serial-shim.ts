@@ -25,6 +25,8 @@ interface TauriCore {
   Channel: new () => TauriChannel;
 }
 type Filter = { usbVendorId?: number; usbProductId?: number };
+/** Not part of Web Serial: the portal passes 'gps' when choosing a USB GPS receiver. */
+type Purpose = 'board' | 'gps';
 
 (() => {
   const core = (window as unknown as { __TAURI__?: { core: TauriCore } }).__TAURI__?.core;
@@ -164,7 +166,7 @@ type Filter = { usbVendorId?: number; usbProductId?: number };
       await refresh();
       return [...ports.values()];
     }
-    async requestPort(options: { filters?: Filter[] } = {}) {
+    async requestPort(options: { filters?: Filter[]; reaperPurpose?: Purpose } = {}) {
       await refresh();
       const filters = options.filters ?? [];
       const matches = [...ports.values()].filter(
@@ -176,7 +178,7 @@ type Filter = { usbVendorId?: number; usbProductId?: number };
               (filter.usbProductId === undefined || filter.usbProductId === port.info.productId),
           ),
       );
-      const chosen = await choose(matches);
+      const chosen = await choose(matches, options.reaperPurpose ?? 'board');
       if (!chosen) throw new DOMException('No port selected by the user.', 'NotFoundError');
       return chosen;
     }
@@ -218,7 +220,11 @@ type Filter = { usbVendorId?: number; usbProductId?: number };
   setInterval(() => void refresh(), 1000);
 
   /** The port picker, in its own shadow root so the page's styles never reach it. */
-  function choose(candidates: DesktopSerialPort[]): Promise<DesktopSerialPort | undefined> {
+  function choose(
+    candidates: DesktopSerialPort[],
+    purpose: Purpose,
+  ): Promise<DesktopSerialPort | undefined> {
+    const thing = purpose === 'gps' ? 'GPS receiver' : 'board';
     return new Promise(resolve => {
       const host = document.createElement('div');
       const root = host.attachShadow({ mode: 'closed' });
@@ -249,7 +255,7 @@ type Filter = { usbVendorId?: number; usbProductId?: number };
       </style>
       <div class="scrim" role="dialog" aria-modal="true" aria-labelledby="title">
         <div class="sheet">
-          <h2 id="title">Choose your board's USB port</h2>
+          <h2 id="title">Choose your ${thing}'s USB port</h2>
           <p></p>
           <ul></ul>
           <div class="actions"><button class="cancel" type="button">Cancel</button></div>
@@ -257,8 +263,8 @@ type Filter = { usbVendorId?: number; usbProductId?: number };
       </div>`;
       const list = root.querySelector('ul')!;
       root.querySelector('p')!.textContent = candidates.length
-        ? 'Plug in your board with a USB data cable if it is not listed.'
-        : 'No matching USB device is connected. Plug in your board with a USB data cable, then try again.';
+        ? `Plug in your ${thing} with a USB data cable if it is not listed.`
+        : `No matching USB device is connected. Plug in your ${thing} with a USB data cable, then try again.`;
       const finish = (port?: DesktopSerialPort) => {
         document.removeEventListener('keydown', onKey, true);
         host.remove();

@@ -1,5 +1,5 @@
 // Display preferences for this browser. Device settings stay on the device.
-import type { CoordinateFormat, Units } from './geo.ts';
+import type { Angles, CoordinateFormat, Units } from './geo.ts';
 
 export const PREFERENCES_KEY = 'reaper-mesh.preferences.v1';
 
@@ -7,6 +7,16 @@ export type Preferences = {
   theme: 'night' | 'day';
   units: Units;
   coordinates: CoordinateFormat;
+  /** Bearings and headings: degrees, or NATO mils. */
+  angles: Angles;
+  /** Which north the heading readout is from: true, or magnetic to match a hand compass. */
+  north: 'true' | 'magnetic';
+  /** Keep the screen awake while the map follows this computer or a track is recording. */
+  keepAwake: boolean;
+  /** Where this browser's own location comes from: the browser, or a USB GPS receiver. */
+  locationSource: 'browser' | 'gps';
+  /** What a message notification shows: the sender only, the full text, or nothing. */
+  notifications: 'sender' | 'full' | 'off';
   basemap: 'dark' | 'topo' | 'imagery';
   /** Whether the device's saved position is its own, or follows this browser's location. */
   positionMode: 'fixed' | 'browser';
@@ -18,6 +28,11 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   theme: 'night',
   units: 'metric',
   coordinates: 'mgrs',
+  angles: 'degrees',
+  north: 'true',
+  keepAwake: true,
+  locationSource: 'browser',
+  notifications: 'sender',
   basemap: 'dark',
   positionMode: 'fixed',
   connectOnLoad: true,
@@ -27,6 +42,11 @@ const ALLOWED: { [K in keyof Preferences]: readonly Preferences[K][] } = {
   theme: ['night', 'day'],
   units: ['metric', 'imperial'],
   coordinates: ['mgrs', 'dd'],
+  angles: ['degrees', 'mils'],
+  north: ['true', 'magnetic'],
+  keepAwake: [true, false],
+  locationSource: ['browser', 'gps'],
+  notifications: ['sender', 'full', 'off'],
   basemap: ['dark', 'topo', 'imagery'],
   positionMode: ['fixed', 'browser'],
   connectOnLoad: [true, false],

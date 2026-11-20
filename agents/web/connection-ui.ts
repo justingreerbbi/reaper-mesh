@@ -28,6 +28,7 @@ import { fieldMap, setSelectedNode } from './map-ui.ts';
 import { onLocalAppStop } from './access-ui.ts';
 import { icon, setNotice } from './ui.ts';
 import { formatAgo } from './geo.ts';
+import { gpsPort, setRadioPortSource } from './gps.ts';
 import {
   forgetDevice,
   readDevices,
@@ -145,7 +146,10 @@ async function attemptConnect(target: Target, quiet: boolean) {
 /** USB adapters can come back as a new port object after being unplugged. */
 async function findUsbPort(known?: { usbVendorId?: number; usbProductId?: number }) {
   const ports = (await serial?.getPorts?.()) ?? [];
+  // A USB GPS can use the same USB serial chip as a board.
+  const gps = gpsPort();
   return ports.find(port => {
+    if ((port as unknown) === gps) return false;
     const info = port.getInfo?.();
     return (
       info && info.usbVendorId === known?.usbVendorId && info.usbProductId === known?.usbProductId
@@ -495,6 +499,9 @@ export function renderConnection(model: ConfigModel, active: boolean, cleanupErr
 }
 
 export function initConnection() {
+  setRadioPortSource(() =>
+    wanted?.kind === 'usb' ? (wanted.port as unknown as SerialPort) : undefined,
+  );
   setConnectAction(() => {
     browsing = false;
     render();

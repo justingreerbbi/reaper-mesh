@@ -459,11 +459,21 @@ Nov 4 · **Confirmed**. Owner direction: the portal should look like the Reaper 
 - **Portal features kept.** Search and filters, PIN protection, plugins, recovery tools, renaming a channel and Reset Public have no mobile equivalent and stay.
 - **Mobile features adapted.** Following the phone becomes following this browser, with the same limits. Bluetooth scanning becomes the browser's chooser, and USB stays alongside it. Swiping a row becomes a trash button, shown on hover or focus for conversations and always on a touchscreen.
 - **Earlier removals reversed.** Following the app brings back deleting a sent message and a conversation, and a way to show a node on the map from its thread, which the portal removed on November 3. The portal keeps its confirmation before deleting all of a conversation's messages, which the app does not ask for.
-- **Not carried over.** Orientation lock has no equivalent in a browser tab. Keeping the screen on is not added, because a desktop browser is not mounted on a rig.
+- **Not carried over.** Orientation lock has no equivalent in a browser tab. Keeping the screen on was left out at first because a desktop browser is not mounted on a rig; D59 adds it for a laptop in a vehicle.
 - **Rejoin on load** is on by default, as on the phone, and can be turned off. Unlike Bluetooth, opening a USB port can restart a board, so this default is one to revisit after use.
 - **New dependencies.** `qrcode-generator`, `jsqr`, `lucide` and `mgrs`, all permissive and with no transitive dependencies. See [third-party notices](third-party-notices.md).
 
 See the [web portal guide](../guides/web-portal.md).
+
+### D59. Map field tools in the portal and desktop app, for a laptop in a vehicle
+Nov 20 · **Confirmed**. Owner direction: keep the portal and desktop app in step with the mobile app's November 7 to 20 features, bearing in mind that the desktop app may run on a laptop in a vehicle. Under D49, this is an exception to the pause on portal features. It needs no firmware, radio, USB or wire format change (D41). The new data lives in local storage under new keys only.
+
+- **Carried over from the app.** Follow mode on the locate button, a heading, speed and elevation readout while following, bearings in degrees or NATO mils, a true or magnetic north setting for the heading, keeping the screen on while following, breadcrumb trails (an hour-long fading trail for each node, and a recorded track for this computer that can be saved as GPX and cleared), Alpha 1 walking a loop in the demo, and message notifications (sender only by default, full text, or off).
+- **Adapted.** Leaflet cannot rotate the map, so follow mode stays north up and the position dot gets an arrow for the way it faces or travels; there is no heading-up step. Laptops have no compass, so the heading comes from the direction of travel while moving, or from the compass on a phone or tablet. Browsers give no declination, so the portal computes it with NOAA's World Magnetic Model (WMM2025, public domain). Browsers report height above the ellipsoid, which the app corrects with a geoid model the browser lacks, so elevation shows only from a USB GPS. A track records only while the page is open, and a browser may pause location in a hidden tab. Keeping awake also covers recording, because a sleeping laptop records nothing.
+- **Added for vehicles.** A USB GPS receiver (NMEA 0183) can be this computer's location source, read through Web Serial in Chrome and Edge and through the desktop app's serial bridge. It is remembered and reconnects after being unplugged. It also feeds "follow this browser" for the device's position. The radio's reconnect skips the receiver's port.
+- **Desktop app.** Two Rust crates: `keepawake`, which keeps the display and computer awake (system web views do not all offer the Screen Wake Lock API, and it would not stop sleep), and `tauri-plugin-notification`, which provides the standard Notification API in the web view. The page gains only the plugin's permission check, permission request and notify commands. Clicking a desktop notification does not open the conversation.
+
+See the [web portal guide](../guides/web-portal.md#following-trails-and-tracks) and [Desktop app](../guides/desktop-app.md).
 
 ### D48. Mobile apps are built outside this repository
 Nov 4 · **Confirmed**. Owner direction. This repository holds firmware, the protocol and the web

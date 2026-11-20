@@ -18,7 +18,7 @@ import {
 import { MapStore, type SharedPayload } from './map-store.ts';
 import type { FieldMap } from './map.ts';
 import type { ReceivedMessage } from '../../packages/agent-core/inbox.ts';
-import { bearingDegrees, distanceMeters, formatBearing, pathLength, type LngLat } from './geo.ts';
+import { bearingDegrees, distanceMeters, pathLength, type LngLat } from './geo.ts';
 import { confirmSheet, downloadBlob, icon } from './ui.ts';
 type Context = {
   channels: readonly { id: number; name: string }[];
@@ -48,6 +48,7 @@ type Host = {
   range(at: LngLat): string | undefined;
   coordinate(at: LngLat): string;
   distance(meters: number): string;
+  bearing(degrees: number): string;
   notify(message: string | undefined): void;
   selectedItem(): void;
 };
@@ -303,7 +304,7 @@ export class MapWorkspace {
         points.length > 1 ? this.host.distance(pathLength(points)) : 'Click points to measure';
       $('measure-leg').textContent =
         last && prior
-          ? `Last leg ${this.host.distance(distanceMeters(prior, last))} · ${formatBearing(
+          ? `Last leg ${this.host.distance(distanceMeters(prior, last))} · ${this.host.bearing(
               bearingDegrees(prior, last),
             )}`
           : '';

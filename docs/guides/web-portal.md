@@ -95,9 +95,10 @@ Codes are `RMCH1` invites and `RMKEY1` key bundles. See [Security and privacy](s
 The map fills the tab with tools floating over it. Tiles load from Esri's Dark, Topo and
 Satellite services; if they fail offline, nodes and messages keep working.
 
-- **Left column:** drop a point at the crosshair, measure, draw an area, layers, saved items.
-  **Right column:** zoom, show my position, fit everything, full screen (Escape leaves).
-- **Readout:** the crosshair's coordinate in MGRS or decimal degrees. Select it to switch.
+- **Left column:** drop a point at the crosshair, measure, draw an area, layers, saved items,
+  track. **Right column:** zoom, follow my position, fit everything, full screen (Escape leaves).
+- **Readout:** the crosshair's coordinate in MGRS or decimal degrees. Select it to switch. While
+  following, it also shows heading, speed and elevation.
 - **Right-click or long-press** the map to add a point or start an area there.
 - **Markers:** a node not heard for 15 minutes is dimmed (which does not mean it is offline).
   Select one for its last report, range and bearing.
@@ -105,9 +106,37 @@ Satellite services; if they fail offline, nodes and messages keep working.
 - **Share** always asks which conversation to send to. Received items appear as cards in the
   conversation with **Add to map** and **Dismiss**; nothing changes your map until you accept.
 
-"Show my position" asks for your location only when pressed, and keeps it in this browser
-unless you choose **This browser** in **Device → Position**. Plugins can add new item types; see
+Your location is asked for only when you follow your position, record a track or choose **This
+browser** in **Device → Position**, and stays on this computer otherwise. Plugins can add new item types; see
 [Plugins](plugins.md). The sharing format is in [Shared map items](../reference/map-sharing.md).
+
+### Following, trails and tracks
+
+These match the mobile app (D59), adapted for a browser and for a laptop in a vehicle.
+
+- **Follow my position** keeps the map centred on you; select it again or drag the map to stop.
+  The map stays north up, and your dot shows an arrow for the way you face or travel. The readout
+  shows heading, speed and elevation. On a laptop the heading comes from your direction of travel
+  while moving; on a phone or tablet, from its compass. A heading in amber needs the compass
+  calibrated. Elevation shows only with a USB GPS, because browsers report a height that can be
+  tens of metres off.
+- **Trails.** Each node that reports positions leaves a trail of the last hour, fading with age.
+  Hide them with the Devices layer.
+- **Track** (footprints button) records where this computer goes: **Start**, **Stop**, save as GPX,
+  and clear. One track is kept; starting a new one replaces it. It records only while the page is
+  open. In a browser, keep the tab in front, because browsers may pause location in a hidden tab.
+  A track left recording when the page closes is kept, stopped.
+- **Keep screen on** (This app) keeps the screen, and in the desktop app the computer, awake while
+  following or recording.
+
+### USB GPS
+
+Most laptops have no GPS, and their Wi-Fi location has no speed or heading. For a laptop in a
+vehicle, plug in a USB GPS receiver that sends NMEA (nearly all do), then in **This app → Your
+location** choose **USB GPS** and **Connect GPS receiver**. Pick the receiver's port, which is not
+the radio's. The portal finds its speed (4800 to 115200 baud), remembers it, reconnects on the next
+visit, and picks it up again if the cable is pulled and replugged. The GPS then feeds following,
+tracks and **Device → Position → This browser**. It needs Chrome, Edge or the desktop app.
 
 ## Nodes
 
@@ -132,13 +161,21 @@ memory, then its settings:
 | **Screen** | Screen timeout, wake on message, and the status light |
 | **Bluetooth** | Start pairing over USB, see the passkey, pair this browser |
 | **Diagnostics, Plugins, Storage** | Technical status, JSON plugins, history export and recovery tools |
-| **This app** | Theme, units, coordinate format, Rejoin on load, your devices, PIN lock and erasing local data |
+| **This app** | Theme, units, coordinate format, bearings in degrees or mils, true or magnetic heading, keeping the screen on, message notifications, your location source (this browser or a USB GPS), Rejoin on load, your devices, PIN lock and erasing local data |
 | **Install or update firmware** | Opens the [firmware installer](flashing-firmware.md#install-from-your-browser) in this tab. Flashing needs the USB port, so the portal disconnects |
 
 **Position → This browser** saves your browser's location to the board as its fixed position.
 To spare the board's flash, it updates only after you move 25 m, no more often than once per
 beacon interval, and ignores fixes worse than 100 m. Positions are sent unencrypted, even on
 encrypted channels.
+
+## Notifications
+
+With **This app → Message notifications** set to **Sender only** (the default) or **Full text**,
+a message that arrives while the portal is in the background shows a notification. The browser
+asks permission the first time you choose a setting. Selecting a notification opens its
+conversation. Nothing arrives while the page is closed, because there is no push service, and
+nothing about notifications leaves this computer.
 
 ## Bluetooth
 

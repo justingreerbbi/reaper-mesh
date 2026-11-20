@@ -6,7 +6,20 @@ import {
 } from '../../packages/protocol/radio-config.ts';
 import { degrees } from '../../packages/protocol/position-config.ts';
 import { MapWorkspace } from './map-workspace.ts';
-import { BASEMAPS, FieldMap, type MapPoint } from './map.ts';
+import { BASEMAPS, FieldMap, type MapPoint, type TrailStep } from './map.ts';
+import { trailSteps } from './trail.ts';
+import {
+  currentFix,
+  locationProblem,
+  onFix,
+  stopLocation,
+  wantLocation,
+  type Fix,
+} from './location.ts';
+import { compassReading, startCompass, stopCompass } from './compass.ts';
+import { declination, decimalYear, turnHeading } from './declination.ts';
+import { keepAwake, setKeepAwakeAllowed } from './keep-awake.ts';
+import { initTrack, renderTrack, trackLinesToDraw } from './track-ui.ts';
 import { canonicalNode } from './conversations.ts';
 import {
   app,
@@ -33,6 +46,8 @@ import {
   formatBearing,
   formatCoordinate,
   formatDistance,
+  formatHeight,
+  formatSpeed,
   fromWire,
   type LngLat,
 } from './geo.ts';
@@ -41,7 +56,10 @@ import { setIcon } from './ui.ts';
 
 let selectedNode = '';
 let me: LngLat | undefined;
-let watchId: number | undefined;
+/** The map keeps this computer in the middle until the user drags it or turns it off. */
+let following = false;
+/** Following is on but no fix has arrived yet; the first one centres and zooms in. */
+let awaitingFirst = false;
 export const selectedNodeId = () => selectedNode;
 export function setSelectedNode(id: string) {
   selectedNode = id;
@@ -60,6 +78,7 @@ export function rangeTo(target: LngLat) {
   return origin
     ? `${formatDistance(distanceMeters(origin, target), preferences.units)} · ${formatBearing(
         bearingDegrees(origin, target),
+        preferences.angles,
       )}`
     : undefined;
 }
@@ -119,6 +138,7 @@ export const mapWorkspace = new MapWorkspace(fieldMap, {
   range: rangeTo,
   coordinate: at => formatCoordinate(at, preferences.coordinates),
   distance: meters => formatDistance(meters, preferences.units),
+  bearing: degrees => formatBearing(degrees, preferences.angles),
   notify: showMessage,
   selectedItem: () => {
     selectedNode = '';
@@ -199,14 +219,35 @@ export function renderMap() {
   fieldMap.setPoints(points);
   fieldMap.select(selectedNode || undefined);
   fieldMap.setBasemap(preferences.basemap);
-  fieldMap.setMe(me);
+  const fix = currentFix(60000);
+  me = fix?.lngLat ?? me;
+  fieldMap.setMe(me, fix ? heading(currentFix())?.trueDegrees : undefined);
+  const showDevices = element<HTMLInputElement>('map-show-devices').checked;
+  const steps: TrailStep[] = showDevices
+    ? nodes
+        .filter(node => canonicalNode(node.node) !== canonicalNode(device ?? ''))
+        .flatMap(node => trailSteps(node.trail, now))
+    : [];
+  fieldMap.setTrails(
+    steps,
+    trackLinesToDraw(),
+    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9fd18b',
+  );
+  setKeepAwakeAllowed(preferences.keepAwake);
+  renderTrack();
   document.querySelector<HTMLElement>('.map-view')!.dataset.basemap = preferences.basemap;
   for (const button of element('map-basemaps').querySelectorAll<HTMLButtonElement>('button')) {
     const active = button.dataset.basemap === preferences.basemap;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-checked', String(active));
   }
-  element('map-locate').classList.toggle('is-active', !!me);
+  const locate = element('map-locate');
+  locate.classList.toggle('is-active', following);
+  locate.setAttribute('aria-pressed', String(following));
+  const label = following ? 'Stop following my position' : 'Follow my position';
+  locate.setAttribute('aria-label', label);
+  locate.title = label;
+  document.querySelector<HTMLElement>('.map-view')!.classList.toggle('is-following', following);
   renderCoordinate();
   if (currentView() === 'map') {
     fieldMap.map.invalidateSize({ animate: false });
@@ -216,8 +257,14 @@ export function renderMap() {
 
 function renderCoordinate() {
   const value = formatCoordinate(fieldMap.center(), preferences.coordinates);
-  const button = element('map-coordinate');
-  if (button.textContent !== value) button.textContent = value;
+  const coordinate = element('map-coordinate-text');
+  if (coordinate.textContent !== value) coordinate.textContent = value;
+  const line = element('map-readout');
+  line.hidden = !following;
+  if (!following) return;
+  const { text: reading, rough } = readout(currentFix());
+  if (line.textContent !== reading) line.textContent = reading;
+  line.classList.toggle('is-rough', rough);
 }
 
 function togglePopover(id: string) {
@@ -230,30 +277,79 @@ function togglePopover(id: string) {
   element('map-items').classList.toggle('is-active', id === 'map-items-panel' && open);
 }
 
-function locate() {
-  if (!navigator.geolocation) {
-    showMessage('This browser has no location access.');
-    return;
+/** Below this the direction of travel is mostly noise. About a slow walk. */
+const MOVING_MS = 0.7;
+/** A compass worse than this needs calibrating before its reading is worth trusting. */
+const ROUGH_DEGREES = 30;
+
+type Heading = { degrees: number; trueDegrees: number; magnetic: boolean; rough: boolean };
+
+/**
+ * Which way this computer faces or travels: the compass on a phone or tablet, otherwise the GPS
+ * direction of travel while moving. `degrees` is in the user's chosen north; `trueDegrees` is for
+ * the arrow on the (true north up) map.
+ */
+function heading(fix: Fix | undefined): Heading | undefined {
+  const compass = compassReading(fix?.lngLat);
+  const wantMagnetic = preferences.north === 'magnetic';
+  if (compass) {
+    const magnetic = wantMagnetic || !compass.trueNorth;
+    return {
+      degrees: wantMagnetic ? compass.magnetic : compass.heading,
+      trueDegrees: compass.heading,
+      magnetic,
+      rough: compass.accuracy === null ? false : compass.accuracy > ROUGH_DEGREES,
+    };
   }
-  if (watchId === undefined)
-    watchId = navigator.geolocation.watchPosition(
-      position => {
-        const first = !me;
-        me = [position.coords.longitude, position.coords.latitude];
-        if (first) fieldMap.flyTo(me[0], me[1]);
-        render();
-      },
-      () => {
-        navigator.geolocation.clearWatch(watchId!);
-        watchId = undefined;
-        me = undefined;
-        showMessage('Location permission is off. Allow it in your browser to show your position.');
-        render();
-      },
-      { enableHighAccuracy: true, maximumAge: 10000 },
-    );
-  if (me) fieldMap.flyTo(me[0], me[1]);
-  else showMessage('Waiting for a location fix.');
+  if (!fix || fix.speed === null || fix.speed < MOVING_MS || fix.course === null) return undefined;
+  const offset = wantMagnetic ? declination(fix.lngLat[1], fix.lngLat[0], decimalYear(fix.at)) : 0;
+  return {
+    degrees: turnHeading(fix.course, -offset),
+    trueDegrees: fix.course,
+    magnetic: wantMagnetic,
+    rough: false,
+  };
+}
+
+/** One line while following: heading, speed and height, as in "047° NE · 42 km/h · 1,610 m". */
+function readout(fix: Fix | undefined) {
+  if (!fix) return { text: locationProblem() || 'Following · waiting for location', rough: false };
+  const facing = heading(fix);
+  const parts = [
+    facing ? formatBearing(facing.degrees, preferences.angles, facing.magnetic) : undefined,
+    fix.speed !== null ? formatSpeed(fix.speed, preferences.units) : undefined,
+    fix.altitude !== null ? formatHeight(fix.altitude, preferences.units) : undefined,
+  ].filter(Boolean);
+  return {
+    text: parts.length ? parts.join('  ·  ') : 'Following',
+    rough: !!facing?.rough,
+  };
+}
+
+function setFollowing(on: boolean) {
+  following = on;
+  awaitingFirst = on && !currentFix();
+  fieldMap.setFollowing(on);
+  keepAwake('follow', on);
+  if (on) {
+    wantLocation('map', true);
+    void startCompass(render);
+    const fix = currentFix();
+    if (fix) fieldMap.followTo(fix.lngLat, true);
+    else showMessage(locationProblem() || 'Waiting for a location fix.');
+  } else stopCompass();
+  render();
+}
+
+/** Each fix moves the dot, and the map with it while following. */
+function onLocation(fix: Fix) {
+  me = fix.lngLat;
+  if (!following) return;
+  fieldMap.followTo(fix.lngLat, awaitingFirst);
+  if (awaitingFirst) {
+    awaitingFirst = false;
+    showMessage(undefined);
+  }
 }
 
 function setExpanded(expanded: boolean) {
@@ -278,9 +374,14 @@ export function initMap() {
     if (currentView() !== 'map' && app.classList.contains('map-expanded')) setExpanded(false);
   });
   onLocalAppStop(() => {
-    if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
-    watchId = undefined;
+    following = false;
+    keepAwake('follow', false);
+    stopCompass();
+    stopLocation();
   });
+  fieldMap.onUserDrag = () => setFollowing(false);
+  onFix(onLocation);
+  initTrack(showMessage);
   element('map-basemaps').replaceChildren(
     ...BASEMAPS.map(row => {
       const button = document.createElement('button');
@@ -294,7 +395,7 @@ export function initMap() {
   );
   element('map-zoom-in').addEventListener('click', () => fieldMap.zoom(1));
   element('map-zoom-out').addEventListener('click', () => fieldMap.zoom(-1));
-  element('map-locate').addEventListener('click', locate);
+  element('map-locate').addEventListener('click', () => setFollowing(!following));
   element('map-layers').addEventListener('click', () => togglePopover('map-layers-panel'));
   element('map-items').addEventListener('click', () => togglePopover('map-items-panel'));
   element('map-full').addEventListener('click', () =>

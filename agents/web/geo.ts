@@ -10,6 +10,8 @@ const toMgrs = mgrsModule.forward ?? mgrsModule.default!.forward;
 export type LngLat = readonly [number, number];
 export type Units = 'metric' | 'imperial';
 export type CoordinateFormat = 'mgrs' | 'dd';
+/** Bearings and headings in degrees, or NATO mils (6400 to the circle). */
+export type Angles = 'degrees' | 'mils';
 
 const EARTH_RADIUS_METERS = 6371008.8;
 const rad = (degrees: number) => (degrees * Math.PI) / 180;
@@ -53,10 +55,33 @@ export function formatDistance(meters: number, units: Units = 'metric') {
   return `${km < 10 ? km.toFixed(2) : km.toFixed(1)} km`;
 }
 
+/** Speed from metres per second, with one decimal while slow enough for it to matter. */
+export function formatSpeed(metersPerSecond: number, units: Units = 'metric') {
+  const value = units === 'imperial' ? metersPerSecond * 2.236936 : metersPerSecond * 3.6;
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units === 'imperial' ? 'mph' : 'km/h'}`;
+}
+
+/** Height, which reads in feet in imperial even when large. */
+export function formatHeight(meters: number, units: Units = 'metric') {
+  const value = Math.round(units === 'imperial' ? meters * 3.28084 : meters);
+  const grouped = String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${grouped} ${units === 'imperial' ? 'ft' : 'm'}`;
+}
+
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-export function formatBearing(degrees: number) {
-  const whole = Math.round(degrees) % 360;
-  return `${String(whole).padStart(3, '0')}° ${COMPASS[Math.round(degrees / 45) % 8]}`;
+const MILS = 6400;
+
+/**
+ * A bearing as "047° NE", or with `angles` 'mils' as "0836 mils" (NATO, 6400 to the circle).
+ * `magnetic` marks one measured from magnetic north, as "047° NE mag".
+ */
+export function formatBearing(degrees: number, angles: Angles = 'degrees', magnetic = false) {
+  const turned = ((degrees % 360) + 360) % 360;
+  const text =
+    angles === 'mils'
+      ? `${String(Math.round((turned * MILS) / 360) % MILS).padStart(4, '0')} mils`
+      : `${String(Math.round(turned) % 360).padStart(3, '0')}° ${COMPASS[Math.round(turned / 45) % 8]}`;
+  return magnetic ? `${text} mag` : text;
 }
 
 /** MGRS is undefined near the poles, so it falls back to decimal degrees there. */
@@ -79,4 +104,17 @@ export function formatAgo(at: number, now = Date.now()) {
   const hours = Math.round(minutes / 60);
   if (hours < 48) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
+}
+
+/** A duration as "42 min" or "2 h 05 min". */
+export function formatDuration(ms: number) {
+  const minutes = Math.max(0, Math.floor(ms / 60000));
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
+}
+
+/** A clock time as "14:05". */
+export function formatTime(at: number) {
+  const date = new Date(at);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }

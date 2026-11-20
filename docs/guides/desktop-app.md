@@ -33,7 +33,12 @@ Get it from the [download page](https://reapermesh.com/download/), which always 
   Ctrl+1) returns. The installer installs every [supported board](../boards/README.md) as it does in a
   browser, including the T1000-E without any special mode.
 - Links to the website and other sites open in your normal browser.
-- Settings exports and firmware downloads are saved to your **Downloads** folder.
+- Settings exports, firmware downloads and saved GPX tracks go to your **Downloads** folder.
+- For a laptop in a vehicle: a USB GPS receiver can be the location source (the port list then asks
+  for the GPS receiver), and **Keep screen on** stops the screen and the computer sleeping while the
+  map follows you or a track records. See [USB GPS](web-portal.md#usb-gps).
+- Message notifications appear as system notifications. Selecting one brings nothing up yet; open
+  Comms to read it.
 - The app keeps its own messages, settings and team keys, separate from any browser's. To move a
   team, export it from one and import it in the other, as between browsers.
 
@@ -52,9 +57,11 @@ those web views lack.
 | Web Serial shim | `agents/desktop/serial-shim.ts` | Injected before each page's own scripts. It provides the standard `navigator.serial` API on top of the Rust serial commands, so the portal, `packages/agent-core` and the installer run unchanged |
 | Serial bridge | `agents/desktop/src-tauri/src/serial.rs` | Lists USB serial ports, opens them, reads, writes and sets DTR and RTS, through the `serialport` crate |
 | Window and menu | `agents/desktop/src-tauri/src/main.rs` | The window, the Go menu, keeping navigation on the app's pages, and downloads |
+| Keep awake | `agents/desktop/src-tauri/src/power.rs` | The `keep_awake` command, which holds the display and computer awake through the `keepawake` crate while the page asks |
+| Notifications | `tauri-plugin-notification` | Provides the standard Notification API in the web view, which the portal uses for message notifications |
 
-The page can only call the five serial commands and Tauri's core channel features
-(`capabilities/default.json`), and its content security policy allows scripts only from the app
+The page can only call the five serial commands, `keep_awake`, the notification plugin's permission
+and notify commands, and Tauri's core channel features (`capabilities/default.json`), and its content security policy allows scripts only from the app
 itself, plus the map's tile server for images.
 
 ## Build it yourself
