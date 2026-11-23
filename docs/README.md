@@ -58,12 +58,13 @@
 | [Development and CI](contributing/development.md) | Toolchain, checks, formatting and continuous integration |
 | [Commits and pull requests](contributing/commits-and-prs.md) | Commit format, signing, branch names and the pull request checklist |
 | [Architecture and standards](contributing/plan.md) | Repository layout, architecture, product requirements and test standards |
-| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D58`) and the open questions |
+| [Decisions](contributing/decisions.md) | Every design decision (`D1`–`D60`) and the open questions |
 | [Releases](contributing/releases.md) | How to cut a release and what the release workflow publishes |
 | [Adding a board](contributing/adding-a-board.md) | Everything a new board touches, and how it is qualified |
 | [Field qualification plan](contributing/field-qualification.md) | Relay, range, power-loss and soak test procedures |
 | [Security architecture](contributing/security-architecture.md) | The approved trusted-device design (D50) and its delivery order |
 | [Rotation and rekey design](contributing/rotation-design.md) | Epoch proofs, network frames, rekeying and relay status (D52) |
+| [Signals add-on design](contributing/signals-design.md) | A XIAO ESP32-C5 that listens to Wi-Fi, Bluetooth and drone Remote ID, on its own or through a Heltec V3 (D60) |
 | [Third-party notices](contributing/third-party-notices.md) | Bundled dependencies and their licenses |
 
 Also see [`firmware/README.md`](../firmware/README.md) for the embedded C++ components,

@@ -12,7 +12,8 @@ which is cheaper to do now than after more features depend on it.
 
 Until relay and range testing pass, new web portal features are paused. Portal work is limited
 to bug fixes, testing on real devices, and keeping the portal in step with the mobile app
-(D49), including team setup (D51) and key rotation controls (D52).
+(D49), including team setup (D51) and key rotation controls (D52). The signals add-on (D60) is
+also an exception (below).
 
 ## Next, in order
 
@@ -27,6 +28,20 @@ to bug fixes, testing on real devices, and keeping the portal in step with the m
    compatibility layers to remove. With owner approval, reflash the boards, reset the fixtures
    to the new baseline and declare core v1 (D41, D42).
 6. **Resume feature work** on top of core v1, in agents and plugins (below).
+
+## Alongside field qualification: signals add-on (D60)
+
+A XIAO ESP32-C5 that listens to Wi-Fi, Bluetooth and drone Remote ID, on its own over USB or
+through a Heltec V3's accessory port. The owner approved it as an exception to the portal pause.
+Each phase's checks are in the [signals add-on design](../contributing/signals-design.md#delivery-order-and-acceptance).
+
+1. **Bench spike** on a real C5: 5 GHz listening, Bluetooth long range, Remote ID reception,
+   current draw and battery power through the Heltec.
+2. **Sensor protocol:** schema, generated bindings, fixtures and a simulated add-on.
+3. **Add-on firmware and the portal's Signals view** over direct USB.
+4. **Accessory port on the Heltec V3**, and the same view through the node over USB and Bluetooth.
+5. **Install and publish:** installer, CI build and board page.
+6. **Sharing drone sightings** on a channel, agent-side.
 
 ## When the Android app is approved
 

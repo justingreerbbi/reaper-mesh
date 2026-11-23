@@ -28,7 +28,7 @@ These cannot be answered yet. Each waits on a specific trigger; revisit it then.
 | Q9 | EU countries and bands | When EU hardware or operation is planned (D3) |
 | Q10 | Signed releases, rollback and stable-release support policy. D50 sets the direction: signed dual-slot updates, flash encryption and Secure Boot V2 on release builds. The browser installer (D54) publishes unsigned prototype firmware meanwhile | Before the first public release |
 
-Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs), Q12 → D50 (security architecture), Q13 → D52 (rotation and rekey design).
+Resolved: Q2 → D6 (Apache-2.0), Q4 → D38 (keep TLV), Q6 → D40 (sandboxed code plugins), Q11 → D45 (channel IDs), Q12 → D50 (security architecture), Q13 → D52 (rotation and rekey design), Q14 → D60 (signals add-on).
 
 ## Product and scope
 
@@ -237,6 +237,21 @@ Releases (`.github/workflows/release.yml`) build the firmware, site and desktop 
 publish installers, firmware zips and checksums to GitHub Releases under version-free names, which
 the website's download page links to. Releases are not code-signed yet. No firmware, protocol or
 storage change (D41). See [Desktop app](../guides/desktop-app.md) and [Releases](releases.md).
+
+### D60. Signals add-on with the XIAO ESP32-C5
+Nov 23 · **Confirmed** by the owner (closes Q14). Nothing is built yet. Owner request: a Seeed Studio XIAO ESP32-C5 that
+listens to Wi-Fi (2.4 and 5 GHz), Bluetooth LE and drone Remote ID broadcasts and reports to the
+apps, either plugged into a computer's USB port or wired to a Heltec V3, which detects it and passes
+its reports through the node's USB or Bluetooth link. The add-on only listens, parses broadcast
+metadata and never Wi-Fi data, and keeps probe capture off by default. It speaks its own sensor
+protocol (`RS` envelope, `sensor-schema.json`), which the node forwards unread. The node change is a
+generic accessory port: detection on a spare UART (GPIO47 and GPIO48), a bounded frame ring, and
+query-based USB messages. No agent or plugin can read a UART on the board, so this needs firmware
+(D41); it adds messages, a feature bit and two field kinds, and changes no existing fixture, storage
+or radio format. The owner approved the accessory port as a node firmware and USB protocol change,
+and the portal's Signals view as an exception to the pause on portal features (D37), like D49. The
+design's own open questions (battery power, image name, an off setting, other boards) stay open
+until the phase that needs them. See the [signals add-on design](signals-design.md).
 
 ## Protocol and synchronization
 

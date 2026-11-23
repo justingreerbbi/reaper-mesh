@@ -61,7 +61,7 @@ Write documentation in plain, complete sentences. Do not drop spaces or articles
   to bug fixes and native QA. See the
   [field qualification plan](docs/contributing/field-qualification.md). The exceptions are
   keeping the portal in step with the mobile app (D49, D59), team setup (D51), and the portal controls
-  for key rotation and rekeying (D52). The third board, a Wireless Stick V3 (D55), is on the bench,
+  for key rotation and rekeying (D52), and the signals add-on (D60). The third board, a Wireless Stick V3 (D55), is on the bench,
   and the desk relay runs (D56) pass in Open and Team mode; the separated-boards run is next.
 - Phase 4 device firmware: the status LED is built as `v0.11.1` (D53, off by default, with an
   owner-approved portal toggle) and works on the boards. The
