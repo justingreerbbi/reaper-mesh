@@ -1,5 +1,6 @@
 # Generated, frozen or vendored files must keep their exact bytes.
 packages/protocol/messages.generated.ts
+packages/protocol/sensor-messages.generated.ts
 packages/protocol/fixtures/
 firmware/components/reaper_radio/vendor/
 package-lock.json

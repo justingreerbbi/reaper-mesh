@@ -24,7 +24,7 @@ ranges and security advisories, without forcing routine upgrades just to keep co
 
 | Path | Contents |
 | --- | --- |
-| `packages/protocol/` | `schema.json` (the single source for USB message types), generated TypeScript bindings, framing, typed config/position/discovery/map/encryption payloads, and frozen fixtures |
+| `packages/protocol/` | `schema.json` (the single source for USB message types), `sensor-schema.json` (the signals add-on's [sensor protocol](../reference/sensor-protocol.md), D60), generated TypeScript bindings, framing, typed config/position/discovery/map/encryption payloads, and frozen fixtures |
 | `packages/agent-core/` | Transport-independent agent logic: serial adapter, connection state machine, commands, sync, messaging, inbox and discovery |
 | `packages/simulator/` | Simulated devices used by host tests and the portal's Simulator mode |
 | `agents/desktop/` | The desktop app (Tauri 2, D58): `src-tauri/` holds the Rust program (window, menu, USB serial bridge), its config and icons; `serial-shim.ts` gives the page a Web Serial `navigator.serial` over that bridge. It shows the portal and installer builds unchanged. See [Desktop app](../guides/desktop-app.md) |

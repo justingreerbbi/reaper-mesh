@@ -38,6 +38,7 @@ when that changes. Plans belong in the [roadmap](roadmap.md) and release notes i
 | Web portal | Comms, Map, Nodes and Device tabs; channels with QR codes; reconnect; optional PIN; local wipe; JSON plugins; map follow mode, node trails, track recording, USB GPS and message notifications (D59). Published at <https://reapermesh.com/web/> from `main` (D54) | Earlier versions in native Brave over USB; team setup, messaging and discovery on two boards (owner-reported) | The current interface on a real device for Bluetooth, the camera scanner and browser location; D59's follow, tracks, notifications and a real USB GPS receiver |
 | Desktop app | Tauri 2 app for macOS, Windows and Linux with the portal and installer unchanged, a Rust USB serial bridge behind a Web Serial shim, and a tag-driven release workflow that publishes installers, firmware zips and checksums (D58); keeping the computer awake and system notifications (D59) | On the owner's Mac (November 17): the app builds (5 MB), lists both boards' USB ports in its own picker, connects the portal to the T1000-E with a live session (radio, power, nodes and packet counts), and opens the installer with its firmware list | Installing firmware from the app; keeping awake, notifications and location in the app (D59); the Windows and Linux builds; the release workflow, which has not run yet; Bluetooth (not built) |
 | Firmware updates | Manifest-checking USB updater that keeps settings and keys; a browser installer at <https://reapermesh.com/flash/> with the same checks, serving the CI builds of `main` for every board in the [board list](../boards/README.md) (D54) | Many installs with the USB updater on the ESP32 boards; T1000-E installs and updates through the installer's serial DFU, including from the installer page | The installer page on an ESP32 board; interrupted flash, rollback, signed releases |
+| Signals add-on (D60) | The [sensor protocol](../reference/sensor-protocol.md) with TypeScript and C++ codecs, frozen fixtures and a simulated add-on (phase 1 of the [design](../contributing/signals-design.md)) | Nothing; host tests only | Everything on hardware: no add-on firmware, accessory port or Signals view exists yet |
 
 ## Boards
 
@@ -97,9 +98,9 @@ New portal features are paused until these pass. Procedures are in the
 
 ## Automated checks
 
-`npm run check` passes all 402 tests on macOS (November 8): strict TypeScript, generated-schema
+`npm run check` passes all 459 tests on macOS (November 23): strict TypeScript, generated-schema
 and vendor checks, compiler-backed host tests and the web and installer builds. The standalone
-firmware CTest suite passes 133 tests. CI runs all of these plus formatting, shell lint and all
+firmware CTest suite passes 137 tests. CI runs all of these plus formatting, shell lint and all
 three board builds, and passed on `main` at `31abc1b`, which the site deploys only after; see
 [Development and CI](../contributing/development.md).
 

@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 namespace reaper::protocol {
-enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version, ChannelIds };
+enum class Kind : std::uint8_t { U32, Id, CommandId, Region, Label, Outcome, Hex, MessageState, RadioMode, Channels, Version, ChannelIds, I32, Bytes };
 enum class MessageType : std::uint8_t { Hello = 1, Welcome = 2, Sync = 3, Snapshot = 4, Event = 5, Ping = 6, Pong = 7, Configure = 8, Result = 9, Query = 10, Error = 11, Submit = 12, MessageStatus = 13, MessageQuery = 14, RadioQuery = 15, RadioStatus = 16, InboxQuery = 17, InboxHead = 18, InboxRead = 19, InboxItem = 20, InboxMissing = 21, Discover = 22, DiscoveryStatus = 23, NodeQuery = 24, NodeReply = 25, PairingRequest = 26, PairingStatus = 27, NetworkQuery = 28, NetworkStatus = 29, NetworkFill = 30, TeamLoad = 31, NetworkErase = 32, InboxChanged = 33, NetworkAdvance = 34 };
 struct FieldDescriptor { Kind kind; bool optional; };
 struct MessageDescriptor { MessageType type; const FieldDescriptor* fields; std::size_t count; };

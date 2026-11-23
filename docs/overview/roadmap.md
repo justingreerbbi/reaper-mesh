@@ -37,11 +37,11 @@ Each phase's checks are in the [signals add-on design](../contributing/signals-d
 
 1. **Bench spike** on a real C5: 5 GHz listening, Bluetooth long range, Remote ID reception,
    current draw and battery power through the Heltec.
-2. **Sensor protocol:** schema, generated bindings, fixtures and a simulated add-on.
-3. **Add-on firmware and the portal's Signals view** over direct USB.
-4. **Accessory port on the Heltec V3**, and the same view through the node over USB and Bluetooth.
-5. **Install and publish:** installer, CI build and board page.
-6. **Sharing drone sightings** on a channel, agent-side.
+2. **Add-on firmware and the portal's Signals view** over direct USB, with the simulated add-on in
+   the portal's Simulator mode.
+3. **Accessory port on the Heltec V3**, and the same view through the node over USB and Bluetooth.
+4. **Install and publish:** installer, CI build and board page.
+5. **Sharing drone sightings** on a channel, agent-side.
 
 ## When the Android app is approved
 

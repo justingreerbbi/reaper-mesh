@@ -22,6 +22,13 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** the signals add-on's [sensor protocol](../reference/sensor-protocol.md) (D60, phase 1):
+  `sensor-schema.json` with generated TypeScript and C++ bindings, the `RS` envelope with a
+  512-byte payload, `i32` and `bytes` field kinds, frozen fixtures, and a simulated add-on. The C++
+  codec is split so both protocols share its field and envelope code; node frames and fixtures are
+  unchanged. **Verified:** host tests only, including byte-for-byte agreement between the
+  TypeScript and C++ codecs. **Not verified:** anything on hardware; no add-on firmware exists yet,
+  and no node firmware or portal change ships.
 - **Added:** the mobile app's November map and notification features in the web portal and desktop
   app (D59): follow mode with a heading, speed and elevation readout, bearings in mils, true or
   magnetic heading, keeping the screen on, node trails, track recording with GPX export, Alpha 1

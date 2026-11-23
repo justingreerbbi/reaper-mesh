@@ -11,7 +11,7 @@ separate, and frozen fixtures in `packages/protocol/fixtures/` pin the exact byt
 
 ## USB envelope draft v1
 
-`packages/protocol/framing.ts` encodes and incrementally decodes binary envelopes. Decode the complete COBS frame (excluding its zero delimiter), then validate this raw layout:
+`packages/protocol/framing.ts` encodes and incrementally decodes binary envelopes. The signals add-on's [sensor protocol](sensor-protocol.md) uses the same envelope with magic `52 53` (`RS`) and a 512-byte payload limit, so each side drops the other's frames. Decode the complete COBS frame (excluding its zero delimiter), then validate this raw layout:
 
 | Offset | Length | Meaning |
 | --- | --- | --- |

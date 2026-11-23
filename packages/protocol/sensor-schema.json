@@ -1,0 +1,132 @@
+{
+  "hello": {
+    "tag": 1,
+    "fields": { "link": "id", "minVersion": "u32", "maxVersion": "u32" }
+  },
+  "welcome": {
+    "tag": 2,
+    "fields": {
+      "link": "id",
+      "sensor": "id",
+      "boot": "id",
+      "minVersion": "u32",
+      "maxVersion": "u32",
+      "firmware": "version",
+      "capabilities": "u32",
+      "maxFrame": "u32"
+    }
+  },
+  "planSet": {
+    "tag": 3,
+    "fields": {
+      "boot": "id",
+      "request": "u32",
+      "profile": "u32",
+      "bands": "u32",
+      "dwell": "u32",
+      "bluetooth": "u32",
+      "probes": "u32",
+      "channels": "bytes?"
+    }
+  },
+  "planStatus": {
+    "tag": 4,
+    "fields": {
+      "boot": "id",
+      "request": "u32",
+      "state": "id",
+      "profile": "u32",
+      "bands": "u32",
+      "dwell": "u32",
+      "bluetooth": "u32",
+      "probes": "u32",
+      "channels": "bytes?"
+    }
+  },
+  "status": {
+    "tag": 5,
+    "fields": {
+      "boot": "id",
+      "at": "u32",
+      "profile": "u32",
+      "band": "u32",
+      "channel": "u32",
+      "wifiFrames": "u32",
+      "bleReports": "u32",
+      "remoteIdReports": "u32",
+      "sent": "u32",
+      "dropped": "u32",
+      "evicted": "u32"
+    }
+  },
+  "wifiAp": {
+    "tag": 6,
+    "fields": {
+      "boot": "id",
+      "at": "u32",
+      "address": "bytes",
+      "ssid": "bytes",
+      "hidden": "u32",
+      "channel": "u32",
+      "band": "u32",
+      "security": "u32",
+      "rssi": "i32",
+      "rssiMin": "i32",
+      "rssiMax": "i32",
+      "count": "u32"
+    }
+  },
+  "wifiProbe": {
+    "tag": 7,
+    "fields": {
+      "boot": "id",
+      "at": "u32",
+      "address": "bytes",
+      "channel": "u32",
+      "band": "u32",
+      "rssi": "i32",
+      "count": "u32",
+      "ssid": "bytes?"
+    }
+  },
+  "bleDevice": {
+    "tag": 8,
+    "fields": {
+      "boot": "id",
+      "at": "u32",
+      "address": "bytes",
+      "addressType": "u32",
+      "phy": "u32",
+      "rssi": "i32",
+      "rssiMin": "i32",
+      "rssiMax": "i32",
+      "count": "u32",
+      "name": "bytes?",
+      "manufacturer": "u32?",
+      "services": "bytes?",
+      "tracker": "u32?"
+    }
+  },
+  "remoteId": {
+    "tag": 9,
+    "fields": {
+      "boot": "id",
+      "at": "u32",
+      "transport": "u32",
+      "uasId": "bytes",
+      "idType": "u32",
+      "uaType": "u32",
+      "rssi": "i32",
+      "address": "bytes?",
+      "latitude": "i32?",
+      "longitude": "i32?",
+      "altitude": "i32?",
+      "height": "i32?",
+      "speed": "u32?",
+      "heading": "u32?",
+      "operatorLatitude": "i32?",
+      "operatorLongitude": "i32?",
+      "operatorId": "bytes?"
+    }
+  }
+}
