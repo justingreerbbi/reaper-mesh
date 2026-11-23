@@ -70,8 +70,10 @@ bool utf8(const std::uint8_t* p, std::size_t size) {
   return true;
 }
 bool valid(Kind kind, const FieldValue& value) {
-  if (kind == Kind::U32)
+  if (kind == Kind::U32 || kind == Kind::I32)
     return true;
+  if (kind == Kind::Bytes)
+    return value.length <= kMaxBytes;
   if (value.length > kMaxText)
     return false;
   const auto* p = value.text.data();
@@ -153,6 +155,9 @@ bool valid(Kind kind, const FieldValue& value) {
   }
   return false;
 }
+bool four_bytes(Kind kind) {
+  return kind == Kind::U32 || kind == Kind::I32;
+}
 bool versions(const Message& message) {
   if (message.type == MessageType::Hello)
     return message.fields[kHelloMinVersion].number <= message.fields[kHelloMaxVersion].number;
@@ -171,16 +176,15 @@ bool valid_message_text(const std::uint8_t* p, std::size_t size) {
   return true;
 }
 
-bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output) {
-  if (!data || size < 2 || size > kMaxPayload || data[0] != 1)
-    return false;
-  Message next{};
-  next.type = static_cast<MessageType>(data[1]);
-  const auto* desc = descriptor(next.type);
-  if (!desc)
-    return false;
+namespace codec {
+bool valid_field(Kind kind, const FieldValue& value) {
+  return valid(kind, value);
+}
+
+bool decode_fields(const std::uint8_t* data, std::size_t size, const FieldDescriptor* descriptors,
+                   std::size_t count, FieldValue* fields) {
   std::array<bool, 256> seen{};
-  for (std::size_t cursor = 2; cursor < size;) {
+  for (std::size_t cursor = 0; cursor < size;) {
     if (size - cursor < 3)
       return false;
     const auto tag = data[cursor];
@@ -189,11 +193,11 @@ bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output)
     if (!tag || seen[tag] || length > size - cursor)
       return false;
     seen[tag] = true;
-    if (tag <= desc->count) {
-      auto& value = next.fields[tag - 1];
-      const auto kind = desc->fields[tag - 1].kind;
+    if (tag <= count) {
+      auto& value = fields[tag - 1];
+      const auto kind = descriptors[tag - 1].kind;
       value.present = true;
-      if (kind == Kind::U32) {
+      if (four_bytes(kind)) {
         if (length != 4)
           return false;
         value.number = read32(data + cursor);
@@ -208,64 +212,45 @@ bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output)
     }
     cursor += length;
   }
-  for (std::size_t i = 0; i < desc->count; ++i)
-    if (!next.fields[i].present && !desc->fields[i].optional)
+  for (std::size_t i = 0; i < count; ++i)
+    if (!fields[i].present && !descriptors[i].optional)
       return false;
-  if (!versions(next))
-    return false;
-  output = next;
   return true;
 }
 
-bool encode_payload(const Message& message, std::uint8_t* output, std::size_t capacity,
-                    std::size_t& length) {
-  length = 0;
-  const auto* desc = descriptor(message.type);
-  if (!output || capacity < 2 || !desc || !versions(message))
-    return false;
-  std::size_t cursor = 2;
-  output[0] = 1;
-  output[1] = static_cast<std::uint8_t>(message.type);
-  for (std::size_t i = 0; i < desc->count; ++i) {
-    const auto& value = message.fields[i];
-    const auto kind = desc->fields[i].kind;
+bool encode_fields(const FieldValue* fields, const FieldDescriptor* descriptors, std::size_t count,
+                   std::uint8_t* output, std::size_t capacity, std::size_t max_payload,
+                   std::size_t& cursor) {
+  for (std::size_t i = 0; i < count; ++i) {
+    const auto& value = fields[i];
+    const auto kind = descriptors[i].kind;
     if (!value.present) {
-      if (desc->fields[i].optional)
+      if (descriptors[i].optional)
         continue;
       return false;
     }
     if (!valid(kind, value))
       return false;
-    const auto size = kind == Kind::U32 ? 4 : value.length;
-    if (size + 3 > capacity - cursor || size + 3 > kMaxPayload - cursor)
+    const auto size = four_bytes(kind) ? 4 : value.length;
+    if (cursor > capacity || cursor > max_payload || size + 3 > capacity - cursor ||
+        size + 3 > max_payload - cursor)
       return false;
     output[cursor++] = static_cast<std::uint8_t>(i + 1);
     output[cursor++] = static_cast<std::uint8_t>(size);
     output[cursor++] = static_cast<std::uint8_t>(size >> 8);
-    if (kind == Kind::U32)
+    if (four_bytes(kind))
       write32(output + cursor, value.number);
     else
       std::memcpy(output + cursor, value.text.data(), size);
     cursor += size;
   }
-  length = cursor;
   return true;
 }
 
-std::uint32_t crc32(const std::uint8_t* data, std::size_t size) {
-  std::uint32_t crc = 0xffffffff;
-  for (std::size_t i = 0; i < size; ++i) {
-    crc ^= data[i];
-    for (unsigned bit = 0; bit < 8; ++bit)
-      crc = (crc >> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
-  }
-  return crc ^ 0xffffffff;
-}
-
-bool decode_frame(const std::uint8_t* encoded, std::size_t size, Message& output) {
+bool open_envelope(std::uint8_t magic, std::size_t max_payload, const std::uint8_t* encoded,
+                   std::size_t size, std::array<std::uint8_t, kMaxRaw>& raw, std::size_t& payload) {
   if (!encoded || size == 0 || size > kMaxEncoded)
     return false;
-  std::array<std::uint8_t, kMaxRaw> raw{};
   std::size_t cursor = 0, count = 0;
   while (cursor < size) {
     const auto code = encoded[cursor++];
@@ -282,30 +267,25 @@ bool decode_frame(const std::uint8_t* encoded, std::size_t size, Message& output
       raw[count++] = 0;
     }
   }
-  if (count < 11 || raw[0] != 0x52 || raw[1] != 0x4d || raw[2] != 1 || raw[3] != 0)
+  if (count < 11 || raw[0] != 0x52 || raw[1] != magic || raw[2] != 1 || raw[3] != 0)
     return false;
-  const std::size_t payload = raw[4] | (std::size_t(raw[5]) << 8);
-  if (payload == 0 || payload > kMaxPayload || count != payload + 10 ||
-      read32(raw.data() + count - 4) != crc32(raw.data(), count - 4))
-    return false;
-  return decode_payload(raw.data() + 6, payload, output);
+  payload = raw[4] | (std::size_t(raw[5]) << 8);
+  return payload != 0 && payload <= max_payload && payload <= kMaxPayload &&
+         count == payload + 10 && read32(raw.data() + count - 4) == crc32(raw.data(), count - 4);
 }
 
-bool encode_frame(const Message& message, std::uint8_t* output, std::size_t capacity,
-                  std::size_t& length) {
+bool seal_envelope(std::uint8_t magic, std::array<std::uint8_t, kMaxRaw>& raw, std::size_t payload,
+                   std::uint8_t* output, std::size_t capacity, std::size_t& length) {
   length = 0;
-  if (!output || capacity < kMaxEncoded + 1)
-    return false;
-  std::array<std::uint8_t, kMaxRaw> raw{};
-  std::size_t payload = 0;
-  if (!encode_payload(message, raw.data() + 6, kMaxPayload, payload))
+  const auto raw_size = payload + 10;
+  if (!output || payload == 0 || payload > kMaxPayload || capacity < raw_size + raw_size / 254 + 2)
     return false;
   raw[0] = 0x52;
-  raw[1] = 0x4d;
+  raw[1] = magic;
   raw[2] = 1;
+  raw[3] = 0;
   raw[4] = static_cast<std::uint8_t>(payload);
   raw[5] = static_cast<std::uint8_t>(payload >> 8);
-  const auto raw_size = payload + 10;
   write32(raw.data() + raw_size - 4, crc32(raw.data(), raw_size - 4));
   std::size_t code_index = 0, cursor = 1;
   std::uint8_t code = 1;
@@ -328,37 +308,65 @@ bool encode_frame(const Message& message, std::uint8_t* output, std::size_t capa
   length = cursor;
   return true;
 }
+}  // namespace codec
 
-FrameDecoder::Counts FrameDecoder::feed(const std::uint8_t* data, std::size_t size, Handler handler,
-                                        void* context) {
-  Counts counts{};
-  if (!data || !handler)
-    return counts;
+bool decode_payload(const std::uint8_t* data, std::size_t size, Message& output) {
+  if (!data || size < 2 || size > kMaxPayload || data[0] != 1)
+    return false;
+  Message next{};
+  next.type = static_cast<MessageType>(data[1]);
+  const auto* desc = descriptor(next.type);
+  if (!desc ||
+      !codec::decode_fields(data + 2, size - 2, desc->fields, desc->count, next.fields.data()))
+    return false;
+  if (!versions(next))
+    return false;
+  output = next;
+  return true;
+}
+
+bool encode_payload(const Message& message, std::uint8_t* output, std::size_t capacity,
+                    std::size_t& length) {
+  length = 0;
+  const auto* desc = descriptor(message.type);
+  if (!output || capacity < 2 || !desc || !versions(message))
+    return false;
+  std::size_t cursor = 2;
+  output[0] = 1;
+  output[1] = static_cast<std::uint8_t>(message.type);
+  if (!codec::encode_fields(message.fields.data(), desc->fields, desc->count, output, capacity,
+                            kMaxPayload, cursor))
+    return false;
+  length = cursor;
+  return true;
+}
+
+std::uint32_t crc32(const std::uint8_t* data, std::size_t size) {
+  std::uint32_t crc = 0xffffffff;
   for (std::size_t i = 0; i < size; ++i) {
-    if (data[i] == 0) {
-      if (discarding_) {
-        reset();
-        continue;
-      }
-      if (!length_)
-        continue;
-      Message message{};
-      const bool accepted = decode_frame(buffer_.data(), length_, message);
-      length_ = 0;
-      if (accepted) {
-        ++counts.accepted;
-        handler(message, context);
-      } else
-        ++counts.rejected;
-    } else if (!discarding_) {
-      if (length_ == buffer_.size()) {
-        length_ = 0;
-        discarding_ = true;
-        ++counts.rejected;
-      } else
-        buffer_[length_++] = data[i];
-    }
+    crc ^= data[i];
+    for (unsigned bit = 0; bit < 8; ++bit)
+      crc = (crc >> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
   }
-  return counts;
+  return crc ^ 0xffffffff;
+}
+
+bool decode_frame(const std::uint8_t* encoded, std::size_t size, Message& output) {
+  std::array<std::uint8_t, kMaxRaw> raw{};
+  std::size_t payload = 0;
+  return codec::open_envelope(kNodeMagic, kMaxPayload, encoded, size, raw, payload) &&
+         decode_payload(raw.data() + 6, payload, output);
+}
+
+bool encode_frame(const Message& message, std::uint8_t* output, std::size_t capacity,
+                  std::size_t& length) {
+  length = 0;
+  if (!output || capacity < kMaxEncoded + 1)
+    return false;
+  std::array<std::uint8_t, kMaxRaw> raw{};
+  std::size_t payload = 0;
+  if (!encode_payload(message, raw.data() + 6, kMaxPayload, payload))
+    return false;
+  return codec::seal_envelope(kNodeMagic, raw, payload, output, capacity, length);
 }
 }  // namespace reaper::protocol

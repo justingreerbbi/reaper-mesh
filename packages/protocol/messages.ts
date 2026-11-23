@@ -6,6 +6,10 @@ export type { Message } from './messages.generated.ts';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 type Descriptor = { tag: number; fields: Record<string, string> };
+/** A message schema: message names with their tag and ordered field kinds. */
+export type Schema = Record<string, Descriptor>;
+/** Largest value of the `bytes` kind, which agents hold as lowercase hex. */
+export const MAX_BYTES = 64;
 
 export function validateField(kind: string, value: unknown) {
   if (kind === 'u32') {
@@ -14,7 +18,23 @@ export function validateField(kind: string, value: unknown) {
     }
     return;
   }
+  if (kind === 'i32') {
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < -0x80000000 ||
+      value > 0x7fffffff
+    ) {
+      throw new Error('invalid signed integer');
+    }
+    return;
+  }
   if (typeof value !== 'string') throw new Error('invalid string');
+  if (kind === 'bytes') {
+    if (!/^(?:[0-9a-f]{2})*$/.test(value) || value.length > MAX_BYTES * 2)
+      throw new Error('invalid bytes');
+    return;
+  }
   if (kind === 'id' && !/^[A-Za-z0-9_-]{1,64}$/.test(value)) throw new Error('invalid identity');
   if (kind === 'version' && !/^[A-Za-z0-9._-]{1,64}$/.test(value))
     throw new Error('invalid version');
@@ -58,11 +78,49 @@ export function validateField(kind: string, value: unknown) {
 
 /** Draft TLV payload. Field order/tags in schema.json are append-only. */
 export function encodeMessage(message: Message): Uint8Array {
-  const descriptor = (schema as Record<string, Descriptor>)[message.type];
+  return encodeTlv(schema as Schema, message, MAX_PAYLOAD);
+}
+
+export function decodeMessage(payload: Uint8Array): Message {
+  return decodeTlv(schema as Schema, payload, MAX_PAYLOAD) as Message;
+}
+
+function fromHex(value: string) {
+  const output = new Uint8Array(value.length / 2);
+  for (let i = 0; i < output.length; i++) output[i] = parseInt(value.slice(2 * i, 2 * i + 2), 16);
+  return output;
+}
+
+function toHex(bytes: Uint8Array) {
+  let output = '';
+  for (const byte of bytes) output += byte.toString(16).padStart(2, '0');
+  return output;
+}
+
+function fieldBytes(kind: string, value: unknown) {
+  if (kind === 'u32' || kind === 'i32') {
+    const data = new Uint8Array(4);
+    const view = new DataView(data.buffer);
+    if (kind === 'u32') view.setUint32(0, value as number, true);
+    else view.setInt32(0, value as number, true);
+    return data;
+  }
+  if (kind === 'bytes') return fromHex(value as string);
+  return encoder.encode(value as string);
+}
+
+/** Encodes any schema's message. Each schema has its own payload limit. */
+export function encodeTlv(
+  messages: Schema,
+  message: Readonly<{ type: string }>,
+  maxPayload: number,
+): Uint8Array {
+  const descriptor = Object.hasOwn(messages, message.type) ? messages[message.type] : undefined;
   if (!descriptor) throw new Error('unknown message');
+  const record = message as unknown as Record<string, unknown>;
   if (
     (message.type === 'hello' || message.type === 'welcome') &&
-    message.minVersion > message.maxVersion
+    (record.minVersion as number) > (record.maxVersion as number)
   ) {
     throw new Error('invalid version range');
   }
@@ -72,11 +130,10 @@ export function encodeMessage(message: Message): Uint8Array {
   for (const [name, descriptorKind] of Object.entries(descriptor.fields)) {
     ++tag;
     const kind = descriptorKind.replace(/\?$/, '');
-    const value = (message as unknown as Record<string, unknown>)[name];
+    const value = record[name];
     if (value === undefined && descriptorKind.endsWith('?')) continue;
     validateField(kind, value);
-    const data = kind === 'u32' ? new Uint8Array(4) : encoder.encode(value as string);
-    if (kind === 'u32') new DataView(data.buffer).setUint32(0, value as number, true);
+    const data = fieldBytes(kind, value);
     const field = new Uint8Array(3 + data.length);
     field[0] = tag;
     new DataView(field.buffer).setUint16(1, data.length, true);
@@ -84,7 +141,7 @@ export function encodeMessage(message: Message): Uint8Array {
     chunks.push(field);
     total += field.length;
   }
-  if (total > MAX_PAYLOAD) throw new Error('message too large');
+  if (total > maxPayload) throw new Error('message too large');
   const output = new Uint8Array(total);
   let cursor = 0;
   for (const chunk of chunks) {
@@ -94,11 +151,16 @@ export function encodeMessage(message: Message): Uint8Array {
   return output;
 }
 
-export function decodeMessage(payload: Uint8Array): Message {
-  if (payload.length < 2 || payload.length > MAX_PAYLOAD || payload[0] !== 1) {
+/** Decodes any schema's message into a frozen object. */
+export function decodeTlv(
+  messages: Schema,
+  payload: Uint8Array,
+  maxPayload: number,
+): Readonly<{ type: string }> {
+  if (payload.length < 2 || payload.length > maxPayload || payload[0] !== 1) {
     throw new Error('unsupported payload');
   }
-  const match = Object.entries(schema).find(([, descriptor]) => descriptor.tag === payload[1]);
+  const match = Object.entries(messages).find(([, descriptor]) => descriptor.tag === payload[1]);
   if (!match) throw new Error('unknown message type');
   const [type, descriptor] = match;
   const fields = Object.entries(descriptor.fields);
@@ -116,11 +178,16 @@ export function decodeMessage(payload: Uint8Array): Message {
     if (field) {
       const [name, descriptorKind] = field;
       const kind = descriptorKind.replace(/\?$/, '');
-      if (kind === 'u32' && length !== 4) throw new Error('invalid integer width');
+      if ((kind === 'u32' || kind === 'i32') && length !== 4)
+        throw new Error('invalid integer width');
       const value =
         kind === 'u32'
           ? view.getUint32(cursor, true)
-          : decoder.decode(payload.subarray(cursor, cursor + length));
+          : kind === 'i32'
+            ? view.getInt32(cursor, true)
+            : kind === 'bytes'
+              ? toHex(payload.subarray(cursor, cursor + length))
+              : decoder.decode(payload.subarray(cursor, cursor + length));
       validateField(kind, value);
       output[name] = value;
     }
@@ -134,5 +201,5 @@ export function decodeMessage(payload: Uint8Array): Message {
   ) {
     throw new Error('invalid version range');
   }
-  return Object.freeze(output) as Message;
+  return Object.freeze(output) as Readonly<{ type: string }>;
 }

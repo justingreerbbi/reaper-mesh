@@ -5,6 +5,18 @@ const CHECKSUM = 4;
 const MAX_RAW = HEADER + MAX_PAYLOAD + CHECKSUM;
 export const MAX_ENCODED = MAX_RAW + Math.floor(MAX_RAW / 254) + 1;
 
+/** Which protocol an envelope carries: its second magic byte and its payload limit. */
+export type Envelope = Readonly<{ magic: number; maxPayload: number }>;
+/** The node protocol, `RM`. */
+export const NODE_ENVELOPE: Envelope = Object.freeze({ magic: 0x4d, maxPayload: MAX_PAYLOAD });
+/** The signals add-on's sensor protocol, `RS` (D60). */
+export const SENSOR_ENVELOPE: Envelope = Object.freeze({ magic: 0x53, maxPayload: 512 });
+/** Largest COBS-encoded frame, without its delimiter, for a payload limit. */
+export function maxEncoded(maxPayload: number) {
+  const raw = HEADER + maxPayload + CHECKSUM;
+  return raw + Math.floor(raw / 254) + 1;
+}
+
 /** CRC-32/ISO-HDLC: reflected polynomial, init/final xor 0xffffffff. */
 export function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
@@ -60,10 +72,11 @@ export function cobsDecode(encoded: Uint8Array): Uint8Array {
   return output.slice(0, count);
 }
 
-export function encodeFrame(payload: Uint8Array): Uint8Array {
-  if (payload.length < 1 || payload.length > MAX_PAYLOAD) throw new Error('invalid payload length');
+export function encodeFrame(payload: Uint8Array, envelope: Envelope = NODE_ENVELOPE): Uint8Array {
+  if (payload.length < 1 || payload.length > envelope.maxPayload)
+    throw new Error('invalid payload length');
   const raw = new Uint8Array(HEADER + payload.length + CHECKSUM);
-  raw.set([0x52, 0x4d, 1, 0]); // RM, envelope version, reserved flags.
+  raw.set([0x52, envelope.magic, 1, 0]); // R and the protocol's magic, envelope version, flags.
   const view = new DataView(raw.buffer);
   view.setUint16(4, payload.length, true);
   raw.set(payload, HEADER);
@@ -74,19 +87,19 @@ export function encodeFrame(payload: Uint8Array): Uint8Array {
   return framed; // Uint8Array initialization supplies the trailing zero delimiter.
 }
 
-export function decodeFrame(encoded: Uint8Array): Uint8Array {
+export function decodeFrame(encoded: Uint8Array, envelope: Envelope = NODE_ENVELOPE): Uint8Array {
   const raw = cobsDecode(encoded);
   if (
     raw.length < HEADER + 1 + CHECKSUM ||
     raw[0] !== 0x52 ||
-    raw[1] !== 0x4d ||
+    raw[1] !== envelope.magic ||
     raw[2] !== 1 ||
     raw[3] !== 0
   )
     throw new Error('unsupported envelope');
   const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
   const length = view.getUint16(4, true);
-  if (length < 1 || length > MAX_PAYLOAD || raw.length !== HEADER + length + CHECKSUM) {
+  if (length < 1 || length > envelope.maxPayload || raw.length !== HEADER + length + CHECKSUM) {
     throw new Error('invalid declared length');
   }
   if (view.getUint32(raw.length - CHECKSUM, true) !== crc32(raw.subarray(0, -CHECKSUM))) {
@@ -97,9 +110,14 @@ export function decodeFrame(encoded: Uint8Array): Uint8Array {
 
 /** Fixed receive buffer. Discard oversized input until a delimiter before resuming. */
 export class FrameDecoder {
-  #buffer = new Uint8Array(MAX_ENCODED);
+  readonly #envelope: Envelope;
+  readonly #buffer: Uint8Array;
   #length = 0;
   #discarding = false;
+  constructor(envelope: Envelope = NODE_ENVELOPE) {
+    this.#envelope = envelope;
+    this.#buffer = new Uint8Array(maxEncoded(envelope.maxPayload));
+  }
   get bufferedBytes() {
     return this.#length;
   }
@@ -124,7 +142,7 @@ export class FrameDecoder {
         this.#length = 0;
         let payload: Uint8Array;
         try {
-          payload = decodeFrame(this.#buffer.subarray(0, length));
+          payload = decodeFrame(this.#buffer.subarray(0, length), this.#envelope);
         } catch {
           rejected++;
           continue;
@@ -132,7 +150,7 @@ export class FrameDecoder {
         accepted++;
         onPayload(payload);
       } else if (!this.#discarding) {
-        if (this.#length === MAX_ENCODED) {
+        if (this.#length === this.#buffer.length) {
           this.#length = 0;
           this.#discarding = true;
           rejected++;

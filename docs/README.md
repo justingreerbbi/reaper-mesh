@@ -47,6 +47,7 @@
 | [Persistence](reference/persistence.md) | How the board stores settings and keys |
 | [Shared map items](reference/map-sharing.md) | Map item payloads, ownership, approval and limits |
 | [Device screen and buttons](reference/device-display.md) | Screen pages, button gestures, battery and the status LED |
+| [Sensor protocol](reference/sensor-protocol.md) | The signals add-on's link: the `RS` envelope, scan plans and Wi-Fi, Bluetooth and Remote ID reports |
 | [Serial adapter](reference/serial-adapter.md) | The Web Serial transport in the agent core |
 | [Compatibility](reference/compatibility.md) | How versions fit together, and recovery test coverage |
 

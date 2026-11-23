@@ -1,7 +1,9 @@
 # Signals add-on design
 
 Status: **Confirmed** by the owner on November 23, 2026
-([D60](decisions.md#d60-signals-add-on-with-the-xiao-esp32-c5)). Nothing here is built. Hardware facts come from vendor documents and have not been
+([D60](decisions.md#d60-signals-add-on-with-the-xiao-esp32-c5)). Phase 1 is built: the
+[sensor protocol](../reference/sensor-protocol.md), its codecs and a simulated add-on, tested on a
+computer only. Nothing else is built. Hardware facts come from vendor documents and have not been
 checked on a board; [Phase 0](#phase-0-bench-spike) checks them first. Where this page proposes a
 number (a rate, a size, a timeout), it is a starting point to measure, not a result.
 
@@ -103,41 +105,29 @@ are strapping pins.
 
 ## Sensor protocol
 
-The sensor protocol is a new, separately versioned protocol between the add-on and an app. It reuses
-the node protocol's machinery so there is still one generator and one codec:
+The sensor protocol is a separately versioned protocol between the add-on and an app. Its exact
+contract is the [sensor protocol reference](../reference/sensor-protocol.md); in short:
 
-- **Framing:** the same COBS envelope and CRC-32 as the [node protocol](../reference/protocol.md),
-  with magic bytes `52 53` (`RS`) instead of `52 4d` (`RM`). A node decoder drops sensor frames and
-  a sensor decoder drops node frames, so an app that opens the wrong port fails cleanly.
-- **Payload:** the same TLV encoding, from a new `packages/protocol/sensor-schema.json`, generated
-  into TypeScript and C++ by `tools/generate-protocol.ts`, with frozen fixtures.
-- **New field kinds:** `i32` (signal strength and coordinates are signed) and `bytes` (raw bytes;
-  `hex` doubles the size). Both are additive to the generator and codec.
-- **Frame size:** at most 512 bytes of payload per sensor frame (proposed). One observation per
-  frame, because TLV fields cannot repeat.
-
-### Messages
-
-| Message | Direction | Fields (proposed) | Purpose |
-| --- | --- | --- | --- |
-| `hello` | app → add-on | link, minVersion, maxVersion | Direct USB only. Starts a session |
-| `welcome` | add-on → app | link, sensor, boot, minVersion, maxVersion, firmware, capabilities, maxFrame | Identifies the add-on. Capability bits: 2.4 GHz Wi-Fi, 5 GHz Wi-Fi, Bluetooth, Bluetooth long range, Remote ID, probe capture |
-| `planSet` | app → add-on | boot, request, profile, bands, channels?, dwell, bluetooth, probes | Replaces the whole scan plan. Repeating it is harmless, so a lost reply can be retried |
-| `planStatus` | add-on → app | boot, request, state, plan fields | The plan now in force |
-| `status` | add-on → app | boot, uptime, channel, counters | Every few seconds: frames seen, records dropped, tables full |
-| `wifiAp` | add-on → app | boot, at, address, ssid, hidden, channel, band, security, rssi, rssiMin, rssiMax, count | One access point, new or changed |
-| `wifiProbe` | add-on → app | boot, at, address, ssid?, channel, rssi, count | One probing device. Only when probe capture is on |
-| `bleDevice` | add-on → app | boot, at, address, addressType, name?, manufacturer?, services?, tracker?, phy, rssi, rssiMin, rssiMax, count | One Bluetooth device, new or changed |
-| `remoteId` | add-on → app | boot, at, transport, uasId, idType, uaType, latitude?, longitude?, altitude?, height?, speed?, heading?, operatorLatitude?, operatorLongitude?, operatorId?, rssi | One drone's latest Remote ID state |
-
-`at` is milliseconds since the add-on started. Coordinates are degrees × 10⁷ as `i32`, as in
-ASTM F3411. Exact fields and tags are fixed in the reference page when Phase 1 builds them.
+- **Framing:** the node protocol's COBS envelope and CRC-32 with magic bytes `52 53` (`RS`), so a
+  node decoder drops sensor frames and a sensor decoder drops node frames. Payloads are at most
+  512 bytes.
+- **Payload:** the same TLV encoding, from `packages/protocol/sensor-schema.json`, generated into
+  TypeScript and C++ by the same generator, with frozen fixtures. The C++ codec shares the node
+  codec's code (`firmware/components/reaper_protocol/`), and node firmware does not link the sensor
+  half.
+- **New field kinds:** `i32` (signal strength and coordinates are signed) and `bytes` (up to
+  64 raw bytes; `hex` doubles the size). Node messages do not use them.
+- **Messages:** `hello` and `welcome`; `planSet` and `planStatus` for the scan plan; `status`; and
+  one report per frame: `wifiAp`, `wifiProbe`, `bleDevice` and `remoteId`. Reports summarize one
+  transmitter each and are sent when it is first heard and as it changes.
+- **Open code tables:** an app shows a code it does not know as unknown rather than rejecting the
+  report, so a newer add-on keeps working with an older app.
 
 ### Sessions
 
-- **Direct USB.** The app sends `hello`; after `welcome`, the add-on streams observations and
-  `status` to that link until it closes. Web Serial on a native USB port is fast enough not to need
-  flow control. The newest `hello` takes over, as on a node.
+- **Direct USB.** The app sends `hello`; after `welcome`, the add-on streams reports and `status`
+  to that link until it closes. Web Serial on a native USB port is fast enough not to need flow
+  control. The newest `hello` takes over, as on a node.
 - **Through a node.** There is no sensor `hello`. The node's [link messages](#link-messages)
   establish presence, the add-on streams to the node, and the app sends `planSet` through
   `accessorySend`. The add-on's identity comes from the node's `accessoryStatus`.
@@ -145,8 +135,9 @@ ASTM F3411. Exact fields and tags are fixed in the reference page when Phase 1 b
 ## Sensor firmware
 
 A new ESP-IDF project, `firmware/xiao-esp32c5-sensor/`, on the pinned ESP-IDF (ESP32-C5 support
-began in v5.5; Phase 0 confirms the pinned v5.5.4 builds it). Portable parsing and table logic go in
-a new `firmware/components/reaper_sensor/` with host tests, as the mesh core does.
+began in v5.5; Phase 0 confirms the pinned v5.5.4 builds it). It links the sensor codec
+(`sensor_protocol.cpp`). Portable parsing and table logic go in a new
+`firmware/components/reaper_sensor/` with host tests, as the mesh core does.
 
 - **Scheduler.** One radio, shared by taking turns. The plan sets bands, channels, dwell time per
   channel and whether Bluetooth windows are interleaved. Espressif rates Wi-Fi listening during
@@ -277,11 +268,12 @@ On a real XIAO ESP32-C5, with throwaway code:
   battery is checked with a meter.
 - The pinned ESP-IDF builds the C5, and whether opening its USB port resets it is recorded.
 
-### Phase 1: sensor protocol
+### Phase 1: sensor protocol (built)
 
 `sensor-schema.json`, the `RS` magic, the `i32` and `bytes` kinds, generated bindings, frozen
-fixtures, and host tests for framing, wrong-magic rejection, every message and bounds. A simulated
-add-on for the portal's Simulator mode.
+fixtures, and host tests for framing, wrong-magic rejection, every message and bounds, across the
+TypeScript and C++ codecs. A simulated add-on (`packages/simulator/sensor-device.ts`); the portal's
+Simulator mode uses it once the Signals view exists in Phase 2.
 
 ### Phase 2: add-on firmware and the portal over direct USB
 
