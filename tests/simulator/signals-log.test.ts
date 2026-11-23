@@ -3,13 +3,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LOG_EVERY_MS,
+  LOG_FIX_MS,
   LOG_LIMITS,
   logCsv,
   logGeoJson,
+  logPointsCsv,
   MemoryLogStorage,
+  routeOf,
   SignalLogger,
-  strongestPoints,
+  summarize,
+  type Here,
   type LogEntry,
+  type LogRow,
 } from '../../packages/agent-core/signals-log.ts';
 import type { Place } from '../../packages/agent-core/signals-intel.ts';
 
@@ -18,6 +23,8 @@ const near = (north: number, east: number): Place => ({
   lon: -77 + east / (111_320 * Math.cos((38.9 * Math.PI) / 180)),
   accuracy: 4,
 });
+/** A fresh position at `at`. */
+const fix = (place: Place, at: number): Here => ({ place, at });
 const ap = (rssi: number, extra: Partial<LogEntry> = {}): LogEntry => ({
   kind: 'wifi',
   id: '02:A1:B2:C3:D4:E5',
@@ -33,25 +40,62 @@ test('a signal is logged when first heard, then on movement, a change or time', 
   const logger = new SignalLogger(storage);
   assert.equal(logger.observe(ap(-60), 0), false, 'not monitoring yet');
   await logger.start(1000, 'log-1');
-  assert.equal(logger.observe(ap(-60), 1000, near(0, 0)), true, 'first time');
-  assert.equal(logger.observe(ap(-61), 2000, near(1, 0)), false, 'nothing changed');
-  assert.equal(logger.observe(ap(-62), 3000, near(6, 0)), true, 'moved 6 m');
-  assert.equal(logger.observe(ap(-68), 4000, near(6, 0)), true, 'changed 6 dB');
-  assert.equal(logger.observe(ap(-68), 4000 + LOG_EVERY_MS, near(6, 0)), true, 'half a minute on');
-  assert.equal(logger.observe(ap(-50, { id: 'other' }), 5000), true, 'another signal');
-  logger.moved(near(0, 0));
-  logger.moved(near(1, 0)); // Jitter.
-  logger.moved(near(40, 0));
+  assert.equal(logger.observe(ap(-60), 1000, fix(near(0, 0), 1000)), true, 'first time');
+  assert.equal(logger.observe(ap(-61), 2000, fix(near(1, 0), 2000)), false, 'nothing changed');
+  assert.equal(logger.observe(ap(-62), 3000, fix(near(6, 0), 3000)), true, 'moved 6 m');
+  assert.equal(logger.observe(ap(-68), 4000, fix(near(6, 0), 4000)), true, 'changed 6 dB');
+  assert.equal(
+    logger.observe(ap(-68), 4000 + LOG_EVERY_MS, fix(near(6, 0), 4000 + LOG_EVERY_MS)),
+    true,
+    'half a minute on',
+  );
+  assert.equal(logger.observe(ap(-50, { id: 'other' }), 5000, undefined), true, 'another signal');
   await logger.stop(60_000);
   assert.equal(logger.active, false);
   const [session] = await storage.listSessions();
   assert.equal(session.rows, 5);
   assert.equal(session.signals, 2);
   assert.equal(session.located, 4);
-  assert.ok(Math.abs(session.distance - 40) < 1);
   assert.equal(session.endedAt, 60_000);
   assert.equal((await storage.readRows('log-1')).length, 5);
   assert.equal(logger.observe(ap(-60), 70_000), false, 'stopped');
+});
+
+test("the user's route is logged, and its last point places the signals heard", async () => {
+  const storage = new MemoryLogStorage();
+  const logger = new SignalLogger(storage);
+  await logger.start(0, 'route');
+  assert.equal(logger.observe(ap(-70), 500), true);
+  logger.moved(near(0, 0), 1000);
+  logger.moved(near(1, 0), 2000); // Jitter: not a route point, but the position is fresh again.
+  logger.moved(near(40, 0), 3000);
+  // A phone sends nothing while standing still: the last position still places what is heard.
+  logger.moved(near(40, 0), 4000);
+  assert.equal(logger.observe(ap(-71), 50_000), true, 'first time with a position');
+  assert.equal(logger.observe(ap(-65, { id: 'parked' }), 4000 + LOG_FIX_MS + 1), true);
+  await logger.stop(200_000);
+  const rows = await storage.readRows('route');
+  assert.deepEqual(routeOf(rows), [near(0, 0), near(40, 0)]);
+  const [session] = await storage.listSessions();
+  assert.equal(session.route, 2);
+  assert.ok(Math.abs(session.distance - 40) < 1);
+  const signals = rows.filter(row => row.kind === 'wifi');
+  assert.equal(signals[0].kind === 'wifi' && signals[0].place, undefined, 'before any position');
+  assert.deepEqual(signals[1].kind === 'wifi' && signals[1].place, near(40, 0));
+  assert.equal(signals[1].kind === 'wifi' && signals[1].fixAge, 46, 'an old position says so');
+  assert.equal(signals[2].kind === 'wifi' && signals[2].place, undefined, 'too old to use');
+});
+
+test('a signal stronger than ever is logged, even standing still', async () => {
+  const logger = new SignalLogger(new MemoryLogStorage());
+  await logger.start(0, 'peak');
+  const here = fix(near(0, 0), 0);
+  assert.equal(logger.observe(ap(-70), 1000, undefined), true, 'first time, no position');
+  assert.equal(logger.observe(ap(-72), 2000, here), true, 'first position');
+  assert.equal(logger.observe(ap(-71), 3000, here), true, 'strongest with a position');
+  assert.equal(logger.observe(ap(-71), 4000, here), false, 'only as strong');
+  assert.equal(logger.observe(ap(-73), 5000, here), false, 'weaker');
+  assert.equal(logger.observe(ap(-69), 6000, undefined), false, 'stronger, nowhere to put it');
 });
 
 test('rows are written in chunks, and a full log stops itself', async () => {
@@ -86,77 +130,90 @@ test('old logs make room for a new one', async () => {
   assert.ok(!ids.includes('old-0') && ids.includes('new'));
 });
 
-test('a log exports as CSV and as GeoJSON points where each signal was heard', async () => {
-  const storage = new MemoryLogStorage();
-  const logger = new SignalLogger(storage);
-  await logger.start(Date.UTC(2026, 10, 23, 12), 'log');
-  logger.observe(
-    ap(-61, { name: '=Cafe, "free"', device: 'Flock Safety camera', maker: 'Flock' }),
-    Date.UTC(2026, 10, 23, 12, 0, 1),
-    { lat: 38.9, lon: -77, accuracy: 4 },
+const row = (
+  rssi: number,
+  place: Place | undefined,
+  at: number,
+  extra: Partial<LogEntry> = {},
+): LogRow => ({ ...ap(rssi, extra), at, ...(place ? { place } : {}) });
+
+test('a log sums up to one line per signal, placed where it was strongest', () => {
+  const signals = summarize([
+    row(-80, near(0, 0), 1),
+    { kind: 'route', at: 2, place: near(0, 0) },
+    row(-55, near(50, 0), 3, { name: '' }),
+    row(-55, near(90, 0), 4), // As strong, later: the first spot stays.
+    row(-70, near(120, 0), 5, { maker: 'Ubiquiti' }),
+    row(-40, undefined, 6), // Stronger, but no position.
+    row(-60, near(10, 10), 7, { kind: 'bluetooth', id: 'same-address-other-kind' }),
+    row(-90, undefined, 8, { id: 'never-placed', name: 'Hidden' }),
+  ]);
+  assert.deepEqual(
+    signals.map(signal => [signal.kind, signal.id, signal.strongest, signal.best?.rssi]),
+    [
+      ['wifi', '02:A1:B2:C3:D4:E5', -40, -55],
+      ['bluetooth', 'same-address-other-kind', -60, -60],
+      ['wifi', 'never-placed', -90, undefined],
+    ],
   );
-  logger.observe(
+  const [first] = signals;
+  assert.deepEqual(first.best?.place, near(50, 0));
+  assert.equal(first.logged, 5);
+  assert.equal(first.name, 'Field Net', 'the latest name that is not empty');
+  assert.equal(first.maker, 'Ubiquiti');
+  assert.equal([first.firstAt, first.lastAt].join(), '1,6');
+});
+
+test('a log exports a CSV per signal, a CSV of every point, and a map file', () => {
+  const t = (s: number) => Date.UTC(2026, 10, 23, 12, 0, s);
+  const rows: LogRow[] = [
+    { kind: 'route', at: t(0), place: { lat: 38.9, lon: -77, accuracy: 4 } },
+    {
+      ...ap(-61, { name: '=Cafe, "free"', device: 'Flock Safety camera', maker: 'Flock' }),
+      at: t(1),
+      place: { lat: 38.9, lon: -77, accuracy: 4 },
+      fixAge: 12,
+    },
     {
       kind: 'drone',
       id: 'DRONE1',
       name: 'DRONE1',
       rssi: -70,
       reported: { lat: 38.91, lon: -77.01 },
+      at: t(2),
     },
-    Date.UTC(2026, 10, 23, 12, 0, 2),
-  );
-  await logger.stop(Date.UTC(2026, 10, 23, 12, 1));
-  const rows = await storage.readRows('log');
-  const [head, first, second, end] = logCsv(rows).split('\r\n');
-  assert.match(head, /^Time \(UTC\),Latitude,Longitude,Accuracy \(m\),Signal \(dBm\),Kind,Name,/);
+    { kind: 'route', at: t(3), place: { lat: 38.901, lon: -77, accuracy: 5 } },
+  ];
+  const [head, cafe, drone, end] = logCsv(rows).split('\r\n');
+  assert.match(head, /^Kind,Name,Address or ID,Most likely,Maker,Known device,Strongest \(dBm\),/);
   assert.equal(
-    first,
-    `2026-11-23T12:00:01.000Z,38.9,-77,4,-61,Wi-Fi network,"'=Cafe, ""free""",02:A1:B2:C3:D4:E5,36,Router or access point,Flock,Flock Safety camera,,`,
+    cafe,
+    `Wi-Fi network,"'=Cafe, ""free""",02:A1:B2:C3:D4:E5,Router or access point,Flock,Flock Safety camera,-61,38.9,-77,4,-61,2026-11-23T12:00:01.000Z,12,2026-11-23T12:00:01.000Z,2026-11-23T12:00:01.000Z,1,36,,`,
   );
-  assert.equal(second, '2026-11-23T12:00:02.000Z,,,,-70,Drone,DRONE1,DRONE1,,,,,38.91,-77.01');
+  assert.equal(
+    drone,
+    'Drone,DRONE1,DRONE1,,,,-70,,,,,,,2026-11-23T12:00:02.000Z,2026-11-23T12:00:02.000Z,1,,38.91,-77.01',
+    'never placed, still listed',
+  );
   assert.equal(end, '');
-  const geo = JSON.parse(logGeoJson(logger.session!, rows));
+
+  const points = logPointsCsv(rows).split('\r\n');
+  assert.match(points[0], /^Time \(UTC\),Latitude,Longitude,Accuracy \(m\),Position age \(s\),/);
+  assert.equal(points.length, 6);
+  assert.equal(points[1], '2026-11-23T12:00:00.000Z,38.9,-77,4,,,You');
+
+  const geo = JSON.parse(logGeoJson({ id: 'log', startedAt: t(0) } as never, rows));
   assert.equal(geo.type, 'FeatureCollection');
-  assert.equal(geo.features.length, 1, 'only rows with the user’s position');
-  assert.deepEqual(geo.features[0].geometry, { type: 'Point', coordinates: [-77, 38.9] });
-  assert.equal(geo.features[0].properties.knownDevice, 'Flock Safety camera');
-  assert.equal(geo.features[0].properties.signal, -61);
-});
-
-test('a signal stronger than ever is logged, even standing still', async () => {
-  const logger = new SignalLogger(new MemoryLogStorage());
-  await logger.start(0, 'peak');
-  assert.equal(logger.observe(ap(-70), 1000), true, 'first time, no position');
-  assert.equal(logger.observe(ap(-72), 2000, near(0, 0)), true, 'first position');
-  assert.equal(logger.observe(ap(-71), 3000, near(1, 0)), true, 'strongest with a position');
-  assert.equal(logger.observe(ap(-71), 4000, near(1, 0)), false, 'only as strong');
-  assert.equal(logger.observe(ap(-73), 5000, near(1, 0)), false, 'weaker');
-  assert.equal(logger.observe(ap(-69), 6000), false, 'stronger, but nowhere to put it');
-});
-
-test('a log maps to one point per signal, where it was strongest', () => {
-  const at = (rssi: number, place: Place | undefined, extra: Partial<LogEntry> = {}) => ({
-    ...ap(rssi, extra),
-    at: 0,
-    ...(place ? { place } : {}),
-  });
-  const points = strongestPoints([
-    at(-80, near(0, 0)),
-    at(-55, near(50, 0)),
-    at(-55, near(90, 0)), // As strong, later: the first spot stays.
-    at(-70, near(120, 0)),
-    at(-40, undefined), // Stronger, but no position.
-    at(-60, near(10, 10), { kind: 'bluetooth', id: 'same-address-other-kind' }),
-    at(-90, undefined, { id: 'never-placed' }),
-  ]);
-  assert.equal(points.length, 2);
-  assert.deepEqual(
-    points.map(point => [point.kind, point.rssi, point.heard]),
-    [
-      ['bluetooth', -60, 1],
-      ['wifi', -55, 4],
+  assert.equal(geo.features.length, 2, 'the route, and the one signal with a position');
+  assert.deepEqual(geo.features[0].geometry, {
+    type: 'LineString',
+    coordinates: [
+      [-77, 38.9],
+      [-77, 38.901],
     ],
-    'weakest first, so the strongest draws on top',
-  );
-  assert.deepEqual(points[1].place, near(50, 0));
+  });
+  assert.deepEqual(geo.features[1].geometry, { type: 'Point', coordinates: [-77, 38.9] });
+  assert.equal(geo.features[1].properties.knownDevice, 'Flock Safety camera');
+  assert.equal(geo.features[1].properties.signal, -61);
+  assert.equal(geo.features[1].properties.positionAge, 12);
 });

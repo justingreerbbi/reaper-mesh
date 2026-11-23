@@ -11,11 +11,11 @@ import { fieldMap } from './map-ui.ts';
 import type { LogMark } from './map.ts';
 import { currentView, onViewChange, setView } from './nav.ts';
 import { keepAwake } from './keep-awake.ts';
-import { locationProblem, onFix, wantLocation } from './location.ts';
+import { currentFix, locationProblem, onFix, wantLocation, type Fix } from './location.ts';
 import { IndexedDbLogs } from './signals-db.ts';
 import { button, el, line, setText } from './signals-dom.ts';
 import { airText, formatAddress } from './signals-format.ts';
-import { herePlace, history, onRecorded } from './signals-history.ts';
+import { history, onRecorded } from './signals-history.ts';
 import { identityOf } from './signals-identity.ts';
 import { whatIs } from './signals-panel.ts';
 import { confirmSheet, downloadBlob } from './ui.ts';
@@ -23,8 +23,10 @@ import { displayName, type SignalKind } from '../../packages/agent-core/signals-
 import {
   logCsv,
   logGeoJson,
+  logPointsCsv,
+  routeOf,
   SignalLogger,
-  strongestPoints,
+  summarize,
   type LogEntry,
   type LogSession,
   type LogStorage,
@@ -53,7 +55,6 @@ function duration(ms: number) {
 
 function summary(session: LogSession) {
   return [
-    `${session.rows.toLocaleString()} point${session.rows === 1 ? '' : 's'}`,
     `${session.signals.toLocaleString()} signal${session.signals === 1 ? '' : 's'}`,
     session.distance >= 5 ? formatDistance(session.distance, preferences.units) : '',
   ]
@@ -88,6 +89,12 @@ async function refresh() {
   renderMonitor();
 }
 
+const placeOf = (fix: Fix) => ({
+  lat: fix.lngLat[1],
+  lon: fix.lngLat[0],
+  ...(fix.accuracy !== null ? { accuracy: fix.accuracy } : {}),
+});
+
 async function start() {
   if (!logger) return;
   problem = '';
@@ -97,6 +104,9 @@ async function start() {
     problem = `Monitoring couldn't start: ${error instanceof Error ? error.message : error}`;
     return renderMonitor();
   }
+  // A position the map or a track already has counts from the start.
+  const fix = currentFix();
+  if (fix) logger.moved(placeOf(fix), fix.at);
   wantLocation('signals-monitor', true);
   keepAwake('signals-monitor', true);
   flushTimer = setInterval(() => void logger.flush().catch(() => {}), 5000);
@@ -120,7 +130,7 @@ async function stop() {
   await refresh();
 }
 
-async function exportLog(session: LogSession, format: 'csv' | 'geojson') {
+async function exportLog(session: LogSession, format: 'csv' | 'points' | 'geojson') {
   if (!storage) return;
   if (logger?.session?.id === session.id) await logger.flush();
   const rows = await storage.readRows(session.id);
@@ -131,6 +141,11 @@ async function exportLog(session: LogSession, format: 'csv' | 'geojson') {
     .replace('T', '-');
   if (format === 'csv')
     downloadBlob(`reaper-signals-log-${stamp}.csv`, new Blob([logCsv(rows)], { type: 'text/csv' }));
+  else if (format === 'points')
+    downloadBlob(
+      `reaper-signals-log-${stamp}-all-points.csv`,
+      new Blob([logPointsCsv(rows)], { type: 'text/csv' }),
+    );
   else
     downloadBlob(
       `reaper-signals-log-${stamp}.geojson`,
@@ -163,17 +178,24 @@ const timeOf = (at: number) =>
   new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
 /**
- * Shows a log on the Map tab until the user leaves it: one point per signal, where it was strongest.
- * Nothing is added to the map's own items.
+ * Shows a log on the Map tab until the user leaves it: the user's route, and one point per signal
+ * where it was strongest. Nothing is added to the map's own items.
  */
 async function viewOnMap(session: LogSession) {
   if (!storage) return;
   if (logger?.session?.id === session.id) await logger.flush();
-  const points = strongestPoints(await storage.readRows(session.id));
-  if (!points.length) {
+  const rows = await storage.readRows(session.id);
+  const signals = summarize(rows);
+  const points = signals.flatMap(signal =>
+    signal.best ? [{ ...signal.best, name: signal.name, device: signal.device }] : [],
+  );
+  const route = routeOf(rows);
+  if (!points.length && route.length < 2) {
     problem = 'This log has no positions to show.';
     return renderMonitor();
   }
+  // Weakest first, so the strongest are drawn on top.
+  points.sort((a, b) => a.rssi - b.rssi);
   const marks: LogMark[] = points.map(point => ({
     at: [point.place.lon, point.place.lat],
     color: MAP_COLORS[point.device ? 'known' : point.kind],
@@ -189,8 +211,11 @@ async function viewOnMap(session: LogSession) {
   }));
   element<HTMLDialogElement>('signals-monitor-sheet').close();
   setView('map');
-  fieldMap.setLog(marks);
-  const unplaced = session.signals - points.length;
+  fieldMap.setLog(
+    marks,
+    route.map(place => [place.lon, place.lat]),
+  );
+  const unplaced = signals.length - points.length;
   setText(
     element('map-log-title'),
     `${points.length.toLocaleString()} signal${points.length === 1 ? '' : 's'}, where strongest` +
@@ -210,7 +235,7 @@ async function viewOnMap(session: LogSession) {
 
 function clearMapLog() {
   if (!fieldMap.hasLog) return;
-  fieldMap.setLog([]);
+  fieldMap.setLog([], []);
   element('map-log').hidden = true;
 }
 
@@ -229,9 +254,10 @@ function logRow(session: LogSession) {
     'div',
     'signal-card-actions',
     button('CSV', 'download', () => void exportLog(session, 'csv')),
+    button('All points', 'download', () => void exportLog(session, 'points')),
     button('Map file', 'map-pin', () => void exportLog(session, 'geojson')),
   );
-  if (session.located)
+  if (session.located || session.route)
     actions.prepend(button('View on map', 'map-pinned', () => void viewOnMap(session)));
   if (!active)
     actions.append(
@@ -253,7 +279,7 @@ function logRow(session: LogSession) {
     'card signals-log',
     title,
     line(`${length} · ${summary(session)}`),
-    session.rows && !session.located ? line('No positions', 'faint') : '',
+    session.rows && !session.located && !session.route ? line('No positions', 'faint') : '',
     actions,
   );
 }
@@ -276,13 +302,16 @@ export function renderMonitor() {
       ? `Recording ${duration(Date.now() - session.startedAt)} · ${summary(session)}`
       : logger.stoppedBecause || 'Logs signals with your position, for export.';
   setText(element('signals-monitor-status'), problem || status);
-  const here = herePlace();
+  const now = Date.now();
+  const here = logger?.here(now);
+  const age = here ? Math.round((now - here.at) / 1000) : 0;
   setText(
     element('signals-monitor-location'),
     !active
       ? ''
       : here
-        ? `Position ±${formatDistance(here.accuracy ?? 0, preferences.units)}`
+        ? `Position ±${formatDistance(here.place.accuracy ?? 0, preferences.units)}` +
+          (age > 10 ? ` · ${age} s old` : '')
         : locationProblem()
           ? 'No position: location is off'
           : 'Waiting for your position',
@@ -314,10 +343,11 @@ export function initMonitor() {
   onRecorded((key, rssi, at) => {
     if (!logger?.active || wiped) return;
     const entry = entryFor(key, rssi);
-    if (entry) logger.observe(entry, at, herePlace());
+    // The logger's own latest position: a phone sends none while it is standing still.
+    if (entry) logger.observe(entry, at);
     if (!logger.active) void stop(); // The log filled up.
   });
-  onFix(fix => logger?.moved({ lat: fix.lngLat[1], lon: fix.lngLat[0] }));
+  onFix(fix => logger?.moved(placeOf(fix), fix.at));
   // A log on the map is only a look: it goes when the user leaves the Map tab.
   onViewChange(() => {
     if (currentView() !== 'map') clearMapLog();

@@ -225,13 +225,17 @@ for a fixed time; live-feed guidance says to mark new items, not reorder silentl
   - A session logs a row when a signal is first heard, and again after the user moves 5 m, its
     strength changes 5 dB, it is the strongest it has been with a position, or 30 s pass. The
     last rule means the closest approach on a drive is never missed.
-  - Each row has the time, the user's position and accuracy, strength, kind, name, address, channel,
-    the guess, and a drone's reported position.
+  - Each row has the time, the user's position with its accuracy and, when older than 10 s, its age,
+    strength, kind, name, address, channel, the guess, and a drone's reported position.
+  - The user's route is logged in the same rows (`kind: 'route'`) after each 5 m moved.
+  - The logger keeps its own latest position and uses it for up to 2 minutes (`LOG_FIX_MS`). A
+    phone's browser sends a fix only when the position changes, and the app-wide 10 s staleness
+    left rows without a place whenever the user stopped.
   - Limits: 250,000 rows a session and 50 sessions.
-  - Export: CSV, and GeoJSON points at the places where each signal was heard.
-  - **View on map** (`strongestPoints`): one point per signal at the user's position when it was
-    strongest, drawn on a canvas layer of the Map tab (`FieldMap.setLog`). It is never stored and is
-    cleared when the Map tab is left.
+  - `summarize` gives one line per signal, placed at its strongest row with a position. The CSV and
+    the GeoJSON use it; **All points** (`logPointsCsv`) exports every row.
+  - **View on map**: the route and the summary's points, drawn on a canvas layer of the Map tab
+    (`FieldMap.setLog`). It is never stored and is cleared when the Map tab is left.
 - **Flock and Ring** are known devices in `signals-identify.ts`, each with its own chip. The
   signatures come from the flock-you project's lists, the IEEE registry and the Bluetooth SIG
   numbers:

@@ -296,10 +296,22 @@ export class FieldMap {
     return this.#log.getLayers().length > 0;
   }
 
-  /** Shows a monitoring log's points, framed; none clears them. */
-  setLog(marks: readonly LogMark[]) {
+  /** Shows a monitoring log's route and points, framed; none clears them. */
+  setLog(marks: readonly LogMark[], route: readonly LngLat[]) {
     this.#log.clearLayers();
-    if (!marks.length) return;
+    if (!marks.length && route.length < 2) return;
+    // The route first, under the points; orange like this computer's own tracks.
+    if (route.length > 1)
+      L.polyline(
+        route.map(([lng, lat]) => L.latLng(lat, lng)),
+        {
+          renderer: this.#logRenderer,
+          color: TRACK_COLOR,
+          weight: 3,
+          opacity: 0.75,
+          interactive: false,
+        },
+      ).addTo(this.#log);
     for (const mark of marks) {
       const popup = document.createElement('div');
       popup.className = 'log-popup';
@@ -323,8 +335,10 @@ export class FieldMap {
     this.#userMoved = true;
     // The map may have just been shown: its size must be right before framing.
     this.map.invalidateSize({ animate: false });
-    const bounds = L.latLngBounds(marks.map(mark => L.latLng(mark.at[1], mark.at[0])));
-    if (marks.length === 1) this.map.setView(bounds.getCenter(), Math.max(this.map.getZoom(), 16));
+    const corners = [...marks.map(mark => mark.at), ...route];
+    const bounds = L.latLngBounds(corners.map(([lng, lat]) => L.latLng(lat, lng)));
+    if (corners.length === 1)
+      this.map.setView(bounds.getCenter(), Math.max(this.map.getZoom(), 16));
     // Room at the top for the buttons, and at the bottom for the log's own panel.
     else
       this.map.fitBounds(bounds, {

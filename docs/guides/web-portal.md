@@ -286,31 +286,38 @@ signal from behind.
 ### Monitoring
 
 **Monitor** records a log for mapping afterwards. Press it, then **Start monitoring**. While it runs,
-every signal heard is logged with your position, the time and its strength: when it is first heard,
-and again whenever you have moved 5 m, its strength has changed by 5 dB, it is the strongest it has
-been, or 30 seconds have passed.
-The button shows the time recorded. Keep the page open and in front; the screen is kept awake where
-the browser allows.
+your route is logged, and every signal heard is logged with your position, the time and its
+strength: when it is first heard, and again whenever you have moved 5 m, its strength has changed by
+5 dB, it is the strongest it has been, or 30 seconds have passed. The button shows the time
+recorded. Keep the page open and in front; the screen is kept awake where the browser allows.
+
+A phone's browser sends a new position only when it changes, so while you stand still or crawl in
+traffic your last position is used, for up to 2 minutes. The sheet shows how old it is once it is
+more than 10 seconds old, and the exports give the age in **Position age (s)**. A signal heard before
+your first position, or after 2 minutes without one, is logged with no place; it gets one the next
+time it is heard with a position.
 
 **Stop monitoring** saves the log. **View on map** shows a log on the Map tab, during or after
-monitoring: one point per signal, at the place you were when it was strongest. Driving past, that is
-the closest you came, so it is the best single guess at where the signal is from (it is still on
-your route, not at the transmitter). Points are coloured by kind, with Flock and Ring devices larger
-and pink, and drawn more solid the stronger they were; tap one for its name, what it is, its
-strength and when. The points are only a look: they are not added to the map, and they go when you
-leave the Map tab or press the cross. A log being recorded is shown as it was when you pressed the
-button.
+monitoring: your route in orange, and one point per signal at the place you were when it was
+strongest. Driving past, that is the closest you came, so it is the best single guess at where the
+signal is from (it is still on your route, not at the transmitter). Points are coloured by kind,
+with Flock and Ring devices larger and pink, and drawn more solid the stronger they were; tap one for
+its name, what it is, its strength and when. The points are only a look: they are not added to the
+map, and they go when you leave the Map tab or press the cross. A log being recorded is shown as it
+was when you pressed the button.
 
-Each saved log can also be exported two ways:
+Each saved log can also be exported:
 
-- **CSV:** one row per logged point, with the time (UTC), your position and its accuracy, the
-  signal's strength, kind, name, address, channel, what it most likely is, and a drone's own
-  reported position.
-- **Map file:** GeoJSON points at the places where each signal was heard, for mapping tools such as
-  QGIS or geojson.io. Points logged without your position are left out.
+- **CSV:** one row per signal, at the place you were when it was strongest: kind, name, address,
+  what it most likely is, maker, the strongest strength, the latitude and longitude with their
+  accuracy and age, when it was first and last heard, how many times it was logged, its channel, and
+  a drone's own reported position. A signal never heard with your position is still listed, with no
+  place.
+- **All points:** every logged row, your route included (as **You**), for mapping coverage.
+- **Map file:** GeoJSON with your route as a line and the same one point per signal as the CSV, for
+  mapping tools such as QGIS or geojson.io.
 
-Without your position, points are still logged, with no place. A log holds up to 250,000 points, and
-the 50 newest logs are kept.
+A log holds up to 250,000 rows, and the 50 newest logs are kept.
 
 ### Alerts
 
