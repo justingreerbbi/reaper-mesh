@@ -22,6 +22,19 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** to the Signals screen, after a review of what was missing:
+  - **alerts** with a chirp, for a watched signal returning, a drone, a Flock or Ring device, and
+    anything **moving with you** (heard at several of your places);
+  - **known signals**, a baseline that is hidden and never alerts;
+  - every network name a searching device asks for;
+  - drone tracks on the map.
+
+  **Verified:** host tests; in a browser with the simulated add-on. **Not verified:** "moving with
+  you" with a real moving position, the chirp by ear.
+- **Changed:** the Signals list holds still. Rows keep their place, a new signal arrives at the top
+  with a mark that fades, watched signals stay first, and strengths are steadied (also on the
+  radar). **Filters → List order** adds Strongest and Name. **Verified:** host tests; in a browser
+  with the simulated add-on.
 - **Changed:** the Signals screen is rebuilt for phones: one row of chips, the rarer filters in a
   sheet, a shorter panel that is a bottom sheet on a phone, a plain-row list, and far less text.
   **Live** (on by default) drops a signal 30 seconds after it was last heard.

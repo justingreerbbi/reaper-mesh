@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import {
   airText,
   csvCell,
-  DroneAnnouncer,
   nearbyDrones,
   securityLabel,
   serviceIds,
@@ -94,24 +93,20 @@ test('the export has one row per signal, with notes and places', () => {
   assert.equal(
     droneRow,
     'Drone,1581F0TEST,,,1581F0TEST,no,Multirotor · Bluetooth,-70,-70,2026-11-23T12:00:00.000Z,' +
-      '2026-11-23T12:00:00.000Z,1,38.9,-77,38.9,-77,38.9,-77.0365,,,no',
+      '2026-11-23T12:00:00.000Z,1,38.9,-77,38.9,-77,38.9,-77.0365,,,no,no,',
   );
   assert.equal(
     wifiRow,
     'Wi-Fi network,"Cafe, ""free""",,,02:A1:B2:C3:D4:E5,yes,Open · 5 GHz channel 149,-61,-61,' +
-      "1970-01-01T00:00:01.000Z,1970-01-01T00:00:01.000Z,1,,,,,,,'=cmd,cafe open,yes",
+      "1970-01-01T00:00:01.000Z,1970-01-01T00:00:01.000Z,1,,,,,,,'=cmd,cafe open,yes,no,",
   );
   assert.equal(end, '');
 });
 
-test('drones are counted while recent and announced once each', () => {
+test('drones are counted while recent', () => {
   const now = Date.UTC(2026, 10, 23, 12, 1);
   const old = drone({ uasId: hex('OLD'), receivedAt: now - STALE_MS - 1 });
   assert.equal(nearbyDrones([drone(), old], now), 1);
-  const announcer = new DroneAnnouncer();
-  assert.equal(announcer.fresh([drone()]).length, 1);
-  assert.equal(announcer.fresh([drone(), old]).length, 1);
-  assert.equal(announcer.fresh([drone(), old]).length, 0);
 });
 
 test('the store keeps when a transmitter was first heard', () => {

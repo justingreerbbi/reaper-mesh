@@ -170,8 +170,18 @@ after it was last heard and drops off after 30. That allows two missed rounds, b
 takes about 11 seconds to go round every channel. The selected and hunted signals stay. With **Live**
 off, the screen shows history: the 300 signals heard most recently on the radar, 200 in the list.
 
-**List** shows the same signals as rows: name and what it is on the left, strength and when it was
-heard on the right.
+**List** shows the same signals as rows: name and what it is on the left, strength on the right. It
+is made to be watched:
+
+- Rows keep their place. A signal heard again doesn't move.
+- A new signal arrives at the top, marked for a few seconds. One that goes quiet fades, shows how
+  long ago it was heard, then leaves.
+- Watched signals stay first.
+- The strength shown is steadied. It changes only after a real move of 3 dB or more, and the radar's
+  points use the same value.
+
+**Filters → List order** can sort by **Strongest** (re-sorted every 10 seconds, still between times)
+or **Name** instead of **Newest**.
 
 The add-on is remembered. It reconnects on the next load and when plugged back in, without asking.
 **Disconnect** stops that. It never picks a port on its own when a radio you have used has the same
@@ -222,8 +232,8 @@ last heard, with three buttons:
 The rest is folded away:
 
 - **Details:** its strength over the last hour, when it was first heard and how often, where you
-  were, and everything it sends (network, security, Bluetooth services, or a drone's telemetry and
-  operator).
+  were, and everything it sends (network, security, Bluetooth services, every network a searching
+  device has asked for, or a drone's telemetry and operator).
 - **Why:** the reasons for the guess, and **Correct** to set it yourself, optionally for
   everything with that name.
 - **Notes:** your own name for it, a note and tags, and **Forget this signal**.
@@ -292,6 +302,34 @@ the browser allows.
 Without your position, points are still logged, with no place. A log holds up to 250,000 points, and
 the 50 newest logs are kept.
 
+### Alerts
+
+An alert bar appears above the chips, with a short chirp, when:
+
+- a signal you **Watch** comes back into range;
+- a drone, or a Flock or Ring device, comes into range;
+- something has been **moving with you**: the same device heard at three or more of your places, at
+  least 150 m apart, over 500 m and 20 minutes. That finds a tracker in a bag or a car following
+  you. It needs your position, and can't follow phones that change their address.
+
+**Show** opens the signal and moves to the next alert; the cross clears them. "Into range" means new,
+or heard again after 10 minutes of silence. The same signal alerts at most every 10 minutes, and
+"moving with you" once an hour. With the portal out of sight, an alert is also a notification.
+**Filters → Alert sound** turns the chirp off.
+
+A **Moving with you** chip appears while anything qualifies. Your own phone, watch and car will
+qualify too, so mark them known.
+
+### Known signals
+
+Mark what is yours or expected as **Known**, and it is hidden and never alerts. That leaves the
+screen for what is new.
+
+- One signal: **Notes → Known** in its panel.
+- Everything on screen: **Filters → Mark shown as known**. Do this once at home or at work. Watched
+  signals are left alone.
+- **Filters → Hide known signals** (on at first) shows them again when turned off.
+
 ### What is kept
 
 Every signal is kept in this browser (IndexedDB) with what it last sent, a sighting per minute with
@@ -300,8 +338,8 @@ is bounded, and past 20,000 signals the one heard longest ago without a note, ta
 first. Logs are kept the same way. The local wipe in This app deletes all of it. Nothing is sent over
 the mesh or anywhere else.
 
-The **Signals** button shows how many drones were heard in the last two minutes. With notifications
-allowed in **This app** and the portal out of sight, a new drone also raises a notification.
+The **Signals** button shows how many drones were heard in the last two minutes. On the map, a
+drone is drawn with its operator and the track it has flown.
 
 ## Device settings
 

@@ -10,7 +10,6 @@ import { formatAgo, type LngLat } from './geo.ts';
 import { fieldMap } from './map-ui.ts';
 import type { DroneMark } from './map.ts';
 import { setView } from './nav.ts';
-import { away, notify } from './notifications.ts';
 import { downloadBlob, icon, setNotice, syncSegmented } from './ui.ts';
 import {
   chooseSignalsPort,
@@ -24,22 +23,15 @@ import {
   signalsSource,
   signalsSupported,
 } from './signals.ts';
-import { badge, el, line, setText } from './signals-dom.ts';
-import {
-  airText,
-  DroneAnnouncer,
-  historyCsv,
-  nearbyDrones,
-  STALE_MS,
-  TRANSPORTS,
-  UA_TYPES,
-} from './signals-format.ts';
+import { badge, el, setText } from './signals-dom.ts';
+import { airText, historyCsv, nearbyDrones, STALE_MS } from './signals-format.ts';
 import {
   herePlace,
   history,
   historyProblem,
   loadHistory,
   onHistoryChange,
+  steadyRssi,
 } from './signals-history.ts';
 import { huntedKey, onHuntChange, renderHunt } from './signals-hunt-ui.ts';
 import {
@@ -51,10 +43,18 @@ import {
   onIdentityChange,
   renderSignalsSettings,
 } from './signals-identity.ts';
+import {
+  alertSound,
+  followingNow,
+  initAlerts,
+  renderAlert,
+  setAlertSound,
+} from './signals-alerts-ui.ts';
 import { initMonitor, isMonitoring, renderMonitor } from './signals-monitor-ui.ts';
 import { initPanel, KIND_ICONS, renderPanel, titleOf, whatIs } from './signals-panel.ts';
 import { drawRadar, initRadar, MAX_POINTS } from './signals-radar.ts';
 import type { Identity } from '../../packages/agent-core/signals-identify.ts';
+import { StableOrder, type ListSort } from '../../packages/agent-core/signals-steady.ts';
 import {
   matchesFilter,
   NOW_MS,
@@ -71,7 +71,9 @@ const DRAW_MS = 800;
 type View = Readonly<{
   id: string;
   label: string;
-  test: (record: SignalRecord, identity: Identity) => boolean;
+  test: (record: SignalRecord, identity: Identity, now: number) => boolean;
+  /** Shown only while it has something in it. */
+  rare?: boolean;
 }>;
 /** The chips: one tap picks what to show. */
 const VIEWS: readonly View[] = [
@@ -85,6 +87,12 @@ const VIEWS: readonly View[] = [
   { id: 'bluetooth', label: 'Bluetooth', test: r => r.kind === 'bluetooth' },
   { id: 'probe', label: 'Searching', test: r => r.kind === 'probe' },
   { id: 'watched', label: 'Watched', test: r => !!r.watch },
+  {
+    id: 'following',
+    label: 'Moving with you',
+    test: (r, _, now) => followingNow(r, now),
+    rare: true,
+  },
 ];
 /**
  * With Live on, a signal drops off this long after it was last heard, and fades halfway there.
@@ -99,6 +107,7 @@ let search = '';
 let live = true;
 let minRssi: number | undefined;
 let hidePrivate = true;
+let hideKnown = true;
 let notedOnly = false;
 let newToday = false;
 let selected: string | undefined;
@@ -106,7 +115,8 @@ let signature = '';
 let droneSignature = '';
 let drawnAt = 0;
 let drawTimer: ReturnType<typeof setTimeout> | undefined;
-const announcer = new DroneAnnouncer();
+/** The newest points of a drone's track drawn on the map. */
+const TRACK_DRAWN = 300;
 
 /** Redraws now, past the throttle: for something the user just did. */
 function redraw() {
@@ -123,7 +133,11 @@ function select(key: string | undefined) {
 /** How many of the sheet's filters are away from their defaults. */
 function filtersChanged() {
   return (
-    Number(minRssi !== undefined) + Number(!hidePrivate) + Number(notedOnly) + Number(newToday)
+    Number(minRssi !== undefined) +
+    Number(!hidePrivate) +
+    Number(!hideKnown) +
+    Number(notedOnly) +
+    Number(newToday)
   );
 }
 
@@ -136,6 +150,7 @@ function shown(now: number) {
     quick,
     text: search,
     hidePrivate,
+    hideKnown,
     ...(minRssi !== undefined ? { minRssi } : {}),
   };
   const hunted = huntedKey();
@@ -149,8 +164,8 @@ function shown(now: number) {
     if (!matchesFilter(record, filter, now, identityForFilter)) continue;
     const identity = identityOf(record);
     for (const v of VIEWS)
-      if (v.test(record, identity)) counts.set(v.id, (counts.get(v.id) ?? 0) + 1);
-    if (chosen.test(record, identity)) records.push(record);
+      if (v.test(record, identity, now)) counts.set(v.id, (counts.get(v.id) ?? 0) + 1);
+    if (chosen.test(record, identity, now)) records.push(record);
   }
   records.sort((a, b) => b.lastSeen - a.lastSeen);
   return { records, counts };
@@ -178,45 +193,115 @@ function renderChips(counts: Map<string, number>) {
     const count = counts.get(id) ?? 0;
     chip.setAttribute('aria-pressed', String(id === view));
     chip.classList.toggle('is-empty', count === 0 && id !== view && id !== 'all');
+    chip.hidden = !!VIEWS.find(v => v.id === id)?.rare && count === 0 && id !== view;
     setText(chip.querySelector('.chip-count')!, count ? String(count) : '');
   }
 }
 
-/** One row: name and what it is on the left, strength and when on the right. */
-function listRow(record: SignalRecord, now: number) {
-  const identity = identityOf(record);
-  const name = el('span', 'signal-row-name', el('strong', '', titleOf(record, identity)));
-  const r = record.latest;
-  if (identity.device) name.append(badge(identity.device === 'flock' ? 'Flock' : 'Ring', 'warn'));
-  else if (r.type === 'bleDevice' && r.tracker !== undefined) name.append(badge('Tracker', 'warn'));
-  if (record.watch) name.append(badge('Watched'));
-  const row = el(
+/**
+ * The list is built to be watched: rows keep their place, values change in place, and a new signal
+ * arrives at the top with a mark that fades (see signals-steady.ts for why). Rows are reused, so
+ * nothing flickers and a press always lands on the row it was aimed at.
+ */
+type Row = {
+  root: HTMLLIElement;
+  name: HTMLElement;
+  badges: HTMLElement;
+  sub: HTMLElement;
+  rssi: HTMLElement;
+  ago: HTMLElement;
+};
+const rows = new Map<string, Row>();
+const order = new StableOrder();
+let sort: ListSort = 'new';
+/** Bumped when the list comes into view, so what arrived while it was hidden isn't marked new. */
+let listShown = 0;
+
+function buildRow(record: SignalRecord): Row {
+  const name = el('strong');
+  const badges = el('span', 'signal-row-badges');
+  const sub = el('small', 'muted');
+  const rssi = el('span', 'signal-strength');
+  const ago = el('small', 'faint');
+  const root = el(
     'li',
     'signal-row',
     icon(KIND_ICONS[record.kind]),
-    el('div', 'signal-row-main', name, line(record.note || whatIs(identity))),
-    el(
-      'div',
-      'signal-row-meta',
-      el('span', 'signal-strength', `${r.rssi} dBm`),
-      line(formatAgo(record.lastSeen, now), 'faint'),
-    ),
+    el('div', 'signal-row-main', el('span', 'signal-row-name', name, badges), sub),
+    el('div', 'signal-row-meta', rssi, ago),
   );
-  row.classList.toggle('is-stale', now - record.lastSeen > (live ? LIVE_FADE_MS : STALE_MS));
-  row.classList.toggle('is-selected', record.key === selected);
-  row.tabIndex = 0;
-  row.setAttribute('role', 'button');
-  // On press, not click: the list redraws while reports stream in.
-  row.addEventListener('pointerdown', event => {
+  root.tabIndex = 0;
+  root.setAttribute('role', 'button');
+  root.addEventListener('pointerdown', event => {
     if (event.button === 0) select(record.key);
   });
-  row.addEventListener('keydown', event => {
+  root.addEventListener('keydown', event => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       select(record.key);
     }
   });
-  return row;
+  return { root, name, badges, sub, rssi, ago };
+}
+
+function updateRow(row: Row, record: SignalRecord, now: number, isNew: boolean) {
+  const identity = identityOf(record);
+  const r = record.latest;
+  setText(row.name, titleOf(record, identity));
+  const marks = [
+    identity.device === 'flock' ? 'Flock' : identity.device === 'ring' ? 'Ring' : '',
+    !identity.device && r.type === 'bleDevice' && r.tracker !== undefined ? 'Tracker' : '',
+    record.watch ? 'Watched' : '',
+  ].filter(Boolean);
+  if (row.badges.dataset.marks !== marks.join()) {
+    row.badges.dataset.marks = marks.join();
+    row.badges.replaceChildren(
+      ...marks.map(mark => badge(mark, mark === 'Watched' ? undefined : 'warn')),
+    );
+  }
+  setText(row.sub, record.note || whatIs(identity));
+  setText(row.rssi, `${steadyRssi(record)} dBm`);
+  // "Ago" only once it has gone quiet: a ticking clock on every row is just noise.
+  const quiet = now - record.lastSeen > (live ? LIVE_FADE_MS : STALE_MS);
+  setText(row.ago, quiet ? formatAgo(record.lastSeen, now) : '');
+  row.root.classList.toggle('is-stale', quiet);
+  row.root.classList.toggle('is-selected', record.key === selected);
+  row.root.classList.toggle('is-new', isNew);
+}
+
+function renderList(list: HTMLElement, records: readonly SignalRecord[], now: number) {
+  const byKey = new Map(records.map(record => [record.key, record]));
+  const scope = [view, search, live, minRssi, hidePrivate, notedOnly, newToday, listShown].join(
+    '|',
+  );
+  const { keys, fresh } = order.sync(
+    records.map(record => ({
+      key: record.key,
+      pinned: !!record.watch,
+      lastSeen: record.lastSeen,
+      rssi: steadyRssi(record),
+      name: titleOf(record, identityOf(record)),
+    })),
+    sort,
+    scope,
+    now,
+  );
+  const shownKeys = keys.slice(0, MAX_ROWS);
+  const keep = new Set(shownKeys);
+  for (const [key, row] of rows)
+    if (!keep.has(key)) {
+      row.root.remove();
+      rows.delete(key);
+    }
+  shownKeys.forEach((key, index) => {
+    const record = byKey.get(key)!;
+    let row = rows.get(key);
+    if (!row) rows.set(key, (row = buildRow(record)));
+    updateRow(row, record, now, fresh.has(key));
+    // Moves a row only when its place really changed.
+    if (list.children[index] !== row.root)
+      list.insertBefore(row.root, list.children[index] ?? null);
+  });
 }
 
 // The header, the add-on and drones.
@@ -272,27 +357,12 @@ function listenToAll() {
 const wirePoint = (lat?: number, lon?: number): LngLat | undefined =>
   lat === undefined || lon === undefined ? undefined : [lon / 1e7, lat / 1e7];
 
-/** Drones on the map, the count on the Signals button, and a notification for a new one. */
+/** Drones on the map with where they have been, and the count on the Signals button. */
 function renderDrones(now: number) {
   const drones = signalsLink().store.drones;
   const nearby = nearbyDrones(drones.values(), now);
   text('signals-badge', nearby || '');
   element('signals-badge').hidden = nearby === 0;
-
-  const added = announcer.fresh(drones.values());
-  if (added.length && away() && preferences.notifications !== 'off')
-    for (const drone of added.slice(0, 3))
-      notify(
-        'Drone heard',
-        `${airText(drone.uasId) || 'A drone'} (${UA_TYPES[drone.uaType] ?? 'unknown type'}) over ${
-          TRANSPORTS[drone.transport] ?? 'Remote ID'
-        }`,
-        `reaper-mesh:drone:${drone.uasId}`,
-        () => {
-          setView('signals');
-          select(`drone:${drone.uasId}`);
-        },
-      );
 
   const marks: DroneMark[] = [];
   for (const d of drones.values()) {
@@ -303,6 +373,10 @@ function renderDrones(now: number) {
       label: airText(d.uasId) || 'Drone',
       at,
       operator: wirePoint(d.operatorLatitude, d.operatorLongitude),
+      track: history.records
+        .get(`drone:${d.uasId}`)
+        ?.track?.slice(-TRACK_DRAWN)
+        .map((point): LngLat => [point.lon, point.lat]),
       stale: now - d.receivedAt > STALE_MS,
     });
   }
@@ -327,8 +401,10 @@ export function renderSignals() {
     mode,
     search,
     live,
+    sort,
     minRssi,
     hidePrivate,
+    hideKnown,
     notedOnly,
     newToday,
     selected,
@@ -371,6 +447,7 @@ export function renderSignals() {
     'warn',
   );
   renderMonitor();
+  renderAlert();
 
   const { records, counts } = shown(now);
   renderChips(counts);
@@ -394,10 +471,11 @@ export function renderSignals() {
       hunted: huntedKey(),
       staleAfter: live ? LIVE_FADE_MS : NOW_MS,
       onSelect: select,
+      rssi: steadyRssi,
       name: record => titleOf(record, identityOf(record)),
       describe: record => whatIs(identityOf(record)),
     });
-  if (!list.hidden) list.replaceChildren(...records.slice(0, MAX_ROWS).map(r => listRow(r, now)));
+  if (!list.hidden) renderList(list, records, now);
   const cap = mode === 'radar' ? MAX_POINTS : MAX_ROWS;
   const limit = element('signals-limit');
   limit.hidden = records.length <= cap;
@@ -433,17 +511,31 @@ export async function connectSignalsFromClick(): Promise<boolean> {
 function initFilters() {
   const sheet = element<HTMLDialogElement>('signals-filter-sheet');
   const rssiSelect = element<HTMLSelectElement>('signals-min-rssi');
+  const sortSelect = element<HTMLSelectElement>('signals-sort');
   const hide = element<HTMLInputElement>('signals-hide-private');
+  const known = element<HTMLInputElement>('signals-hide-known');
+  const chirps = element<HTMLInputElement>('signals-alert-sound');
+  chirps.checked = alertSound();
+  chirps.addEventListener('change', () => setAlertSound(chirps.checked));
+  // Marks everything on screen as known: a baseline, so what is new stands out and alerts.
+  element('signals-mark-known').addEventListener('click', () => {
+    for (const record of shown(Date.now()).records)
+      if (!record.watch) history.annotate(record.key, { known: true });
+    redraw();
+  });
   const noted = element<HTMLInputElement>('signals-noted');
   const today = element<HTMLInputElement>('signals-today');
   const read = () => {
     minRssi = rssiSelect.value === '' ? undefined : Number(rssiSelect.value);
+    sort = sortSelect.value as ListSort;
     hidePrivate = hide.checked;
+    hideKnown = known.checked;
     notedOnly = noted.checked;
     newToday = today.checked;
     redraw();
   };
-  for (const control of [rssiSelect, hide, noted, today]) control.addEventListener('change', read);
+  for (const control of [rssiSelect, sortSelect, hide, noted, today])
+    control.addEventListener('change', read);
   element('signals-filter').addEventListener('click', () => {
     sheet.showModal();
     syncSegmented();
@@ -451,7 +543,8 @@ function initFilters() {
   element('signals-filter-close').addEventListener('click', () => sheet.close());
   element('signals-filter-reset').addEventListener('click', () => {
     rssiSelect.value = '';
-    hide.checked = true;
+    sortSelect.value = 'new';
+    hide.checked = known.checked = true;
     noted.checked = today.checked = false;
     syncSegmented();
     read();
@@ -471,6 +564,10 @@ export function initSignals() {
   initPanel(() => select(undefined), redraw);
   initRadar(element('signals-radar'), redraw);
   initMonitor();
+  initAlerts(key => {
+    setView('signals');
+    select(key);
+  }, redraw);
   initSignalsSettings();
   element('signals-connect').addEventListener('click', () => void connectSignalsFromClick());
   element('signals-simulate').addEventListener('click', () => void connectSimulatedSignals());
@@ -478,6 +575,7 @@ export function initSignals() {
   for (const control of document.querySelectorAll<HTMLElement>('[data-signals-mode]'))
     control.addEventListener('click', () => {
       mode = control.dataset.signalsMode as 'radar' | 'list';
+      listShown++;
       redraw();
     });
   element('signals-live').addEventListener('click', () => {

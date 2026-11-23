@@ -21,7 +21,8 @@ import {
   TRANSPORTS,
   UA_TYPES,
 } from './signals-format.ts';
-import { herePlace, history } from './signals-history.ts';
+import { herePlace, history, steadyRssi } from './signals-history.ts';
+import { followingNow } from './signals-alerts-ui.ts';
 import { huntedKey, startHunt, stopHunt } from './signals-hunt-ui.ts';
 import {
   clearCorrection,
@@ -171,7 +172,10 @@ function moreFacts(record: SignalRecord, now: number): Fact[] {
   if (r.type === 'wifiProbe')
     rows.push(
       ['Address', `${formatAddress(r.address)}${record.privateAddress ? ' (changes)' : ''}`],
-      ['Looking for', airText(r.ssid) || 'Any network'],
+      [
+        'Looking for',
+        record.probed?.map(ssid => airText(ssid)).join(', ') || airText(r.ssid) || 'Any network',
+      ],
     );
   if (r.type === 'remoteId') {
     rows.push(
@@ -327,6 +331,11 @@ function notes(record: SignalRecord) {
       ].slice(0, 12),
     }),
   );
+  const known = el('input');
+  known.type = 'checkbox';
+  known.checked = !!record.known;
+  known.addEventListener('change', () => save({ known: known.checked }));
+  const knownRow = el('label', 'toggle-row', el('span', '', 'Known: hide it, no alerts'), known);
   const forget = button('Forget this signal', 'trash-2', () => {
     void confirmSheet({
       title: 'Forget this signal?',
@@ -345,6 +354,7 @@ function notes(record: SignalRecord) {
     field('Name', name),
     field('Note', note),
     field('Tags', tags),
+    knownRow,
     forget,
   );
 }
@@ -415,11 +425,15 @@ export function renderPanel(panel: HTMLElement, selected: string | undefined, no
   panel.hidden = false;
   const p = parts?.key === record.key ? parts : (parts = build(panel, record));
   const identity = identityOf(record);
-  const placement = placementOf(record, herePlace());
+  const placement = placementOf(record, herePlace(), steadyRssi(record));
 
   setText(p.name, titleOf(record, identity));
+  const marks: Node[] = [];
+  if (followingNow(record, now)) marks.push(badge('Moving with you', 'warn'));
+  if (record.known) marks.push(badge('Known'));
   p.what.replaceChildren(
     el('span', '', whatIs(identity)),
+    ...marks,
     badge(
       identity.fromUser ? 'Yours' : identity.confidence,
       identity.fromUser ? 'good' : undefined,
@@ -435,7 +449,7 @@ export function renderPanel(panel: HTMLElement, selected: string | undefined, no
   p.facts.replaceChildren(
     facts([
       ['Where', placementText(placement)],
-      ['Signal', strength(record.latest.rssi)],
+      ['Signal', strength(steadyRssi(record))],
       ['Heard', formatAgo(record.lastSeen, now)],
     ]),
   );

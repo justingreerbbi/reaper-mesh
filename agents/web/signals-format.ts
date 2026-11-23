@@ -116,24 +116,6 @@ export function nearbyDrones(drones: Iterable<Heard<RemoteId>>, now: number) {
   return count;
 }
 
-/**
- * Remembers which drones were announced, so each is announced once while the portal is open, even
- * across an add-on restart.
- */
-export class DroneAnnouncer {
-  #announced = new Set<string>();
-  /** The drones among `drones` not announced before. */
-  fresh(drones: Iterable<Heard<RemoteId>>) {
-    const added: Heard<RemoteId>[] = [];
-    for (const drone of drones) {
-      if (this.#announced.has(drone.uasId)) continue;
-      this.#announced.add(drone.uasId);
-      added.push(drone);
-    }
-    return added;
-  }
-}
-
 type Cell = string | number | undefined;
 const csv = (rows: Cell[][]) => rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -193,6 +175,8 @@ export function historyCsv(
       'Note',
       'Tags',
       'Watched',
+      'Known',
+      'Searched for',
     ],
     ...records.map(record => {
       const r = record.latest;
@@ -223,6 +207,8 @@ export function historyCsv(
         record.note,
         record.tags?.join(' '),
         record.watch ? 'yes' : 'no',
+        record.known ? 'yes' : 'no',
+        record.probed?.map(ssid => airText(ssid)).join(' | '),
       ];
     }),
   ]);

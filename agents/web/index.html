@@ -562,6 +562,19 @@
             </button>
           </header>
           <p id="signals-notice" class="notice" data-tone="warn" hidden></p>
+          <div id="signals-alert" class="signals-alert" role="alert" hidden>
+            <i data-icon="radar"></i>
+            <strong id="signals-alert-text" class="grow"></strong>
+            <button id="signals-alert-show" type="button" class="compact primary">Show</button>
+            <button
+              id="signals-alert-close"
+              type="button"
+              class="round compact"
+              aria-label="Dismiss"
+            >
+              <i data-icon="x"></i>
+            </button>
+          </div>
           <div id="signals-chips" class="signals-chips" role="group" aria-label="Show"></div>
           <div class="signals-tools">
             <input
@@ -1780,6 +1793,14 @@
     <dialog id="signals-filter-sheet" class="sheet" aria-labelledby="signals-filter-title">
       <h2 id="signals-filter-title">Filters</h2>
       <div class="field">
+        <label for="signals-sort">List order</label>
+        <select id="signals-sort" data-segmented>
+          <option value="new" selected>Newest</option>
+          <option value="strong">Strongest</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="signals-min-rssi">Signal</label>
         <select id="signals-min-rssi" data-segmented>
           <option value="" selected>Any</option>
@@ -1792,6 +1813,14 @@
         <input id="signals-hide-private" type="checkbox" checked />
       </label>
       <label class="toggle-row">
+        <span>Hide known signals</span>
+        <input id="signals-hide-known" type="checkbox" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Alert sound</span>
+        <input id="signals-alert-sound" type="checkbox" checked />
+      </label>
+      <label class="toggle-row">
         <span>With my notes</span>
         <input id="signals-noted" type="checkbox" />
       </label>
@@ -1802,6 +1831,14 @@
       <div class="sheet-actions">
         <button id="signals-export" type="button" class="grow">
           <i data-icon="download"></i>Export shown
+        </button>
+        <button
+          id="signals-mark-known"
+          type="button"
+          class="grow"
+          title="Hide what is shown now, and stop alerts for it"
+        >
+          Mark shown as known
         </button>
         <button id="signals-filter-reset" type="button" class="grow">Reset</button>
         <button id="signals-filter-close" type="button" class="primary grow">Done</button>

@@ -1169,6 +1169,28 @@ button.filled {
   color: var(--bad);
   font-variant-numeric: tabular-nums;
 }
+/* An alert: there only while it has something to say. */
+.signals-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, var(--surface));
+  flex-shrink: 0;
+}
+.signals-alert strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.signals-alert[data-kind='following'],
+.signals-alert[data-kind='drone'] {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 16%, var(--surface));
+}
 /* One row of chips, scrolled sideways on a narrow screen. */
 .signals-chips {
   display: flex;
@@ -1525,6 +1547,24 @@ button.filled {
 }
 .signal-row.is-stale {
   opacity: 0.55;
+}
+/* A new signal is marked for a few seconds instead of pushing the others around unnoticed. */
+.signal-row {
+  transition:
+    background-color 1.2s,
+    opacity 0.6s;
+}
+.signal-row.is-new {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 3px 0 0 var(--good);
+}
+.signal-row-badges {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.signal-row-meta small:empty {
+  display: none;
 }
 .signal-row-main,
 .signal-row-meta {

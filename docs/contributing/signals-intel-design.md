@@ -132,10 +132,21 @@ The pack already carries the full IEEE registry, so they would add nothing.
 
 - **Watched signal heard again.** The user marks a signal with **Watch**.
 - **Seen moving with you.** The same stable address is heard at three or more of the user's places,
-  over at least 500 m and 30 minutes. This is the useful counter-surveillance case, for a tracker
-  hidden in a bag or a vehicle. Apple and Samsung trackers away from their owner keep an address for
-  hours, so this works for them. It can't work for phones that change their address.
-- **New drone** (already built).
+  each at least 150 m from the others, over at least 500 m and 20 minutes within a day. This is the
+  useful counter-surveillance case, for a tracker hidden in a bag or a vehicle. Apple and Samsung
+  trackers away from their owner keep an address for hours, so this works for them. It can't work
+  for phones that change their address.
+- **A drone, or a Flock or Ring device, coming into range.**
+
+Built (`packages/agent-core/signals-alerts.ts`, `agents/web/signals-alerts-ui.ts`):
+
+- "Coming into range" means new, or heard again after 10 minutes of silence.
+- A signal alerts at most every 10 minutes; "moving with you" at most once an hour.
+- Signals the user marked **Known** never alert. The user's own phone, watch and car will otherwise
+  count as moving with them, so marking them known is the fix.
+- An alert shows a bar with **Show** (most important first, with a count of the rest), plays a short
+  chirp unless **Alert sound** is off, and raises a notification when the portal is out of sight.
+- Low-confidence Flock and Ring matches don't alert.
 
 ## Layout
 
@@ -162,6 +173,40 @@ The detail panel shows:
 ## Delivery
 
 Each step can be used on its own and is tested before the next one starts.
+
+**Review additions (November 23, 2026).** The owner asked for a review of what a signals
+intelligence tool was still missing. Added, with nothing permanent on screen:
+
+- **Known signals.** A flag per signal, set in its panel or for everything shown at once (**Mark
+  shown as known**). Known signals are hidden by default and never alert. This gives a baseline: at
+  home or at work everything normal is marked once, and what is new stands out.
+- **Alerts**, as described under [Alerts](#alerts), with a **Moving with you** chip that appears
+  only while something qualifies.
+- **Searched networks.** Every network name a searching device asks for is kept (16 per device),
+  shown in its details, searchable and exported. The names say where a device has been.
+- **Drone tracks.** The newest 300 positions of a drone's track are drawn on the map.
+- **Radar names** no longer land on each other: the selected, hunted and watched are named first,
+  then the strongest.
+- The CSV export gains **Known** and **Searched for** columns.
+- **Not verified:** "moving with you" with a real moving position (host tests only), and the chirp
+  by ear.
+
+**A list that can be watched (November 23, 2026).** The owner found the list changed too often to
+follow: it re-sorted by last heard and rebuilt every row several times a second. Scanner apps and
+live-list guidance agree on the fix (Simplicity Connect keeps discovery order, adds new devices
+without reshuffling and pins favourites; airodump-ng refreshes once a second and holds a quiet device
+for a fixed time; live-feed guidance says to mark new items, not reorder silently). So, in
+`packages/agent-core/signals-steady.ts`:
+
+- `StableOrder` keeps rows in place. A new signal goes on top and is marked for 8 s, a leaving one
+  closes the gap, watched ones stay first, and only a change of filters or sort lays the list out
+  again. Sorting by strength re-sorts every 10 s.
+- `SteadyRssi` smooths each signal's strength (30% of each report) and changes the shown value only
+  after a 3 dB move. The list, the panel and the radar's distance-only points all use it.
+- The portal reuses each row's elements and updates text in place. "Ago" shows only once a signal
+  has gone quiet.
+- Verified in a browser with the simulated add-on: over 15 s of reports, no row moved and no row
+  element was replaced.
 
 **Revamp for phones, monitoring, and Flock and Ring (November 23, 2026).**
 
@@ -263,7 +308,7 @@ Each step can be used on its own and is tested before the next one starts.
    built in step 1.
 4. **Telemetry.** The `advert` field (owner approval), the firmware passing it through, decoders and
    series.
-5. **Alerts.** Watched signals and "seen moving with you".
+5. **Alerts (built).** Watched signals, drones, Flock and Ring devices, and "seen moving with you".
 
 ## Owner decisions (November 23, 2026)
 

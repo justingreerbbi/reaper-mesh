@@ -161,6 +161,8 @@ export function drawRadar(
     /** Points not heard for this long are faded. */
     staleAfter: number;
     onSelect: (key: string) => void;
+    /** The steadied strength, so a point doesn't twitch with every report. */
+    rssi: (record: SignalRecord) => number;
     name: (record: SignalRecord) => string;
     describe: (record: SignalRecord) => string;
   },
@@ -170,7 +172,7 @@ export function drawRadar(
   const edge = centre - 22;
   const placed = records.slice(0, MAX_POINTS).map(record => ({
     record,
-    placement: placementOf(record, options.me),
+    placement: placementOf(record, options.me, options.rssi(record)),
   }));
   const radius = radiusSetting ?? autoRadius(placed.map(p => p.placement.distance));
   drawnRadius = radius;
@@ -210,19 +212,35 @@ export function drawRadar(
   north.textContent = 'N';
   root.append(north);
 
-  // Names under the strongest few, the watched, the hunted and the selected.
-  const named = new Set(
-    [...placed]
-      .sort((a, b) => b.record.latest.rssi - a.record.latest.rssi)
-      .slice(0, MAX_LABELS)
-      .map(p => p.record.key),
-  );
-  let onTop: SVGGElement | undefined;
-  for (const { record, placement } of [...placed].reverse()) {
+  const points = placed.map(({ record, placement }) => {
     const angle = ((placement.bearing ?? steadyAngle(record.key)) - 90) * (Math.PI / 180);
     const r = Math.min(placement.distance / radius, 1) * edge;
-    const x = centre + r * Math.cos(angle);
-    const y = centre + r * Math.sin(angle);
+    return { record, placement, x: centre + r * Math.cos(angle), y: centre + r * Math.sin(angle) };
+  });
+  // Names go to the selected, hunted and watched first, then the strongest, and only where a
+  // name doesn't land on one already placed.
+  const important = (p: (typeof points)[number]) =>
+    Number(p.record.key === options.selected) * 4 +
+    Number(p.record.key === options.hunted) * 2 +
+    Number(!!p.record.watch);
+  const labels = new Map<string, string>();
+  const boxes: { left: number; right: number; y: number }[] = [];
+  for (const point of [...points].sort(
+    (a, b) => important(b) - important(a) || options.rssi(b.record) - options.rssi(a.record),
+  )) {
+    if (labels.size >= MAX_LABELS && !important(point)) continue;
+    const full = options.name(point.record);
+    const name = full.length > 18 ? `${full.slice(0, 17)}…` : full;
+    const half = name.length * 2.9 + 2;
+    const box = { left: point.x - half, right: point.x + half, y: point.y + 19 };
+    if (boxes.some(b => Math.abs(b.y - box.y) < 11 && b.left < box.right && box.left < b.right)) {
+      if (!important(point)) continue;
+    }
+    boxes.push(box);
+    labels.set(point.record.key, name);
+  }
+  let onTop: SVGGElement | undefined;
+  for (const { record, placement, x, y } of [...points].reverse()) {
     const isSelected = record.key === options.selected;
     const group = marker(record, x, y, placement.how, isSelected ? 7 : 5);
     group.classList.toggle('is-stale', now - record.lastSeen > options.staleAfter);
@@ -242,10 +260,10 @@ export function drawRadar(
           }),
         );
     }
-    if (isSelected || record.watch || record.key === options.hunted || named.has(record.key)) {
+    const name = labels.get(record.key);
+    if (name) {
       const label = svg('text', { x, y: y + 19, class: 'radar-label', 'text-anchor': 'middle' });
-      const name = options.name(record);
-      label.textContent = name.length > 18 ? `${name.slice(0, 17)}…` : name;
+      label.textContent = name;
       group.append(label);
     }
     const hit = svg('circle', { cx: x, cy: y, r: 16, class: 'radar-hit' });

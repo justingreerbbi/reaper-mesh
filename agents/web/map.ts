@@ -58,6 +58,8 @@ export type DroneMark = Readonly<{
   label: string;
   at: LngLat;
   operator?: LngLat;
+  /** Where it has been, oldest first. */
+  track?: readonly LngLat[];
   stale: boolean;
 }>;
 
@@ -244,6 +246,11 @@ export class FieldMap {
     this.#drones.clearLayers();
     for (const drone of drones) {
       const at = L.latLng(drone.at[1], drone.at[0]);
+      if (drone.track && drone.track.length > 1)
+        L.polyline(
+          drone.track.map(([lng, lat]) => L.latLng(lat, lng)),
+          { color: '#e5484d', weight: 2, opacity: 0.7, interactive: false },
+        ).addTo(this.#drones);
       L.marker(at, {
         keyboard: false,
         icon: L.divIcon({

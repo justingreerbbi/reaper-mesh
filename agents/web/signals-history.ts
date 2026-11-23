@@ -6,10 +6,13 @@ import { onLocalAppStop } from './access-ui.ts';
 import { currentFix } from './location.ts';
 import { IndexedDbHistory } from './signals-db.ts';
 import {
+  keyOf,
   SignalHistory,
   type Place,
+  type SignalRecord,
   type SignalReport,
 } from '../../packages/agent-core/signals-intel.ts';
+import { SteadyRssi } from '../../packages/agent-core/signals-steady.ts';
 import type { SensorMessage } from '../../packages/protocol/sensor-messages.ts';
 
 const FLUSH_MS = 5000;
@@ -48,16 +51,24 @@ const isReport = (message: SensorMessage): message is SignalReport =>
   message.type === 'wifiProbe' ||
   message.type === 'remoteId';
 
-const recorded = new Set<(key: string, rssi: number, at: number) => void>();
-/** Hears each report as it is recorded, for hunting one signal. */
-export function onRecorded(listener: (key: string, rssi: number, at: number) => void) {
+/** Strengths steadied for display, so numbers and radar points don't twitch. */
+const steady = new SteadyRssi();
+export const steadyRssi = (record: SignalRecord) => steady.shown(record.key, record.latest.rssi);
+
+/** `previousSeen` is when the signal was last heard before this report; undefined if it is new. */
+type Recorded = (key: string, rssi: number, at: number, previousSeen: number | undefined) => void;
+const recorded = new Set<Recorded>();
+/** Hears each report as it is recorded: for hunting, monitoring and alerts. */
+export function onRecorded(listener: Recorded) {
   recorded.add(listener);
 }
 
 export function recordReport(message: SensorMessage, receivedAt: number) {
   if (stopped || !isReport(message)) return;
+  const previousSeen = history.records.get(keyOf(message))?.lastSeen;
   const record = history.observe(message, receivedAt, herePlace());
-  for (const listener of recorded) listener(record.key, message.rssi, receivedAt);
+  steady.update(record.key, message.rssi);
+  for (const listener of recorded) listener(record.key, message.rssi, receivedAt, previousSeen);
 }
 
 async function flush() {

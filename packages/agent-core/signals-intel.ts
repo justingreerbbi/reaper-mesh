@@ -66,13 +66,17 @@ export type SignalRecord = {
   note?: string;
   tags?: string[];
   watch?: boolean;
+  /** The user's own or expected: hidden by default, and never alerted on. */
+  known?: boolean;
+  /** Every network name a searching device has asked for (hex), oldest first. */
+  probed?: string[];
   /** The user's correction of what it is. */
   identity?: IdentityOverride;
   lookup?: NetworkLookup;
 };
 
 export type Annotation = Partial<
-  Pick<SignalRecord, 'label' | 'note' | 'tags' | 'watch' | 'identity' | 'lookup'>
+  Pick<SignalRecord, 'label' | 'note' | 'tags' | 'watch' | 'known' | 'identity' | 'lookup'>
 >;
 
 /** Where history is kept: IndexedDB in the portal, memory in tests. */
@@ -89,6 +93,8 @@ export const HISTORY_LIMITS = Object.freeze({
   sightings: 500,
   track: 2000,
 });
+/** Network names kept per searching device. */
+const PROBED_KEPT = 16;
 /** A transmitter not heard for this long is a new visit when heard again. */
 export const VISIT_GAP_MS = 10 * 60_000;
 /** Heard within this long counts as "heard now". */
@@ -152,7 +158,14 @@ export function displayName(record: SignalRecord) {
 }
 
 const annotated = (record: SignalRecord) =>
-  !!(record.label || record.note || record.tags?.length || record.watch || record.identity);
+  !!(
+    record.label ||
+    record.note ||
+    record.tags?.length ||
+    record.watch ||
+    record.known ||
+    record.identity
+  );
 
 function addSighting(record: SignalRecord, at: number, rssi: number, place?: Place) {
   const minute = at - (at % MINUTE);
@@ -259,6 +272,10 @@ export class SignalHistory {
     if (place) record.lastPlace = place;
     addSighting(record, at, report.rssi, place);
     if (report.type === 'remoteId') addTrack(record, report, at);
+    if (report.type === 'wifiProbe' && report.ssid && !record.probed?.includes(report.ssid)) {
+      // What a device asks for says where it has been; a few names are enough to tell.
+      record.probed = [...(record.probed ?? []), report.ssid].slice(-PROBED_KEPT);
+    }
     this.#dirty.add(key);
     this.version++;
     return record;
@@ -428,7 +445,7 @@ export type Placement = Readonly<{
 const LOOKUP_ERROR_M = 75;
 
 /** Where to draw a transmitter relative to the user at `me` (if the user's position is known). */
-export function placementOf(record: SignalRecord, me?: Place): Placement {
+export function placementOf(record: SignalRecord, me?: Place, rssi?: number): Placement {
   const r = record.latest;
   if (r.type === 'remoteId' && r.latitude !== undefined && r.longitude !== undefined) {
     const place = { lat: r.latitude / 1e7, lon: r.longitude / 1e7 };
@@ -459,7 +476,8 @@ export function placementOf(record: SignalRecord, me?: Place): Placement {
       distance: distanceBetween(me, estimate.place),
       bearing: bearingBetween(me, estimate.place),
     };
-  return { how: 'distance', distance: distanceFromRssi(record.kind, r.rssi) };
+  // `rssi` lets a screen pass a steadied strength, so the point doesn't twitch with every report.
+  return { how: 'distance', distance: distanceFromRssi(record.kind, rssi ?? r.rssi) };
 }
 
 /** A steady angle for a transmitter whose direction is unknown, so it doesn't wander on screen. */
@@ -467,6 +485,45 @@ export function steadyAngle(key: string) {
   let hash = 2166136261;
   for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 16777619);
   return (hash >>> 0) % 360;
+}
+
+// Following.
+
+/** What it takes to say a signal is moving with the user. */
+export const FOLLOWING = Object.freeze({
+  /** Different places of the user's it was heard at, each this far from the others, in metres. */
+  places: 3,
+  apart: 150,
+  /** From the first of those places to the last: at least this far and this long. */
+  span: 500,
+  minutes: 20,
+  /** Only sightings this recent count. */
+  within: 24 * 60 * 60_000,
+});
+
+/**
+ * Whether a signal has been moving with the user: heard at three or more of their places, at least
+ * 150 m apart, over 500 m and 20 minutes within the last day. A fixed transmitter can't be heard
+ * that far apart, so what is left is carried or driven along: the user's own things, or a tracker.
+ * Changing addresses can't be followed this way, and drones have their own alert.
+ */
+export function isFollowing(record: SignalRecord, now: number) {
+  if (record.kind === 'drone' || record.privateAddress) return false;
+  const placed = record.sightings.filter(
+    (s): s is Sighting & { place: Place } => !!s.place && now - s.at <= FOLLOWING.within,
+  );
+  if (placed.length < FOLLOWING.places) return false;
+  const first = placed[0];
+  const last = placed[placed.length - 1];
+  if (last.at - first.at < FOLLOWING.minutes * 60_000) return false;
+  const apart: Place[] = [];
+  let span = 0;
+  for (const sighting of placed) {
+    span = Math.max(span, distanceBetween(first.place, sighting.place));
+    if (apart.every(place => distanceBetween(place, sighting.place) >= FOLLOWING.apart))
+      apart.push(sighting.place);
+  }
+  return apart.length >= FOLLOWING.places && span >= FOLLOWING.span;
 }
 
 // Filters.
@@ -483,6 +540,8 @@ export type SignalFilter = Readonly<{
   hidePrivate?: boolean;
   /** Only those heard within this many milliseconds. */
   within?: number;
+  /** Leaves out signals the user marked as known. */
+  hideKnown?: boolean;
   /** Only this category (signals-identify.ts), with identityOf given to matchesFilter. */
   category?: string;
 }>;
@@ -506,6 +565,7 @@ const startOfDay = (now: number) => {
 export function searchText(record: SignalRecord) {
   const r = record.latest;
   const words = [displayName(record), record.id, record.note ?? '', ...(record.tags ?? [])];
+  for (const ssid of record.probed ?? []) words.push(airText(ssid));
   if (r.type === 'remoteId') words.push(airText(r.operatorId));
   if (r.type === 'wifiAp' || r.type === 'wifiProbe') words.push(airText(r.ssid));
   if (r.type === 'bleDevice') words.push(airText(r.name));
@@ -519,6 +579,7 @@ export function matchesFilter(
   identityOf?: IdentityOf,
 ) {
   if (filter.kinds?.length && !filter.kinds.includes(record.kind)) return false;
+  if (filter.hideKnown && record.known) return false;
   // Phones' Bluetooth addresses change about every 15 minutes, so each phone becomes many entries.
   if (
     filter.hidePrivate &&
