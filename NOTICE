@@ -32,3 +32,8 @@ listed in agents/desktop/src-tauri/Cargo.lock, including serialport (Mozilla
 Public License 2.0) and open (MIT License), under their own licenses.
 
 See docs/contributing/third-party-notices.md for details.
+
+The portal's signals reference data (agents/web/public/signals-reference.v1.json)
+includes IEEE Registration Authority public listings and Nordic Semiconductor's
+bluetooth-numbers-database (BSD 3-Clause, Copyright 2019-2020 Nordic Semiconductor
+ASA); its license text is carried in the file's notice field.

@@ -1179,9 +1179,246 @@ button.filled {
   align-items: center;
   gap: 8px;
 }
+.signals-tools .segmented {
+  flex-shrink: 0;
+}
 .signals-tools input[type='search'] {
   flex: 1;
   min-width: 180px;
+}
+.signals-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.signals-filters .chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.signals-filters .chip[aria-pressed='true'] {
+  background: var(--accent-deep);
+  border-color: var(--accent-mid);
+  color: var(--text);
+}
+.signals-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.signals-select select {
+  min-height: 32px;
+  width: auto;
+}
+.signals-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 12px;
+  min-height: 0;
+}
+.signals-body:has(> .signals-panel[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.signals-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.signals-radar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.radar-svg {
+  width: min(100%, 640px);
+  max-height: calc(100vh - 320px);
+  aspect-ratio: 1;
+  min-height: 280px;
+}
+.radar-ring {
+  fill: none;
+  stroke: var(--border);
+}
+.radar-axis {
+  stroke: var(--border);
+  stroke-dasharray: 2 4;
+}
+.radar-ring-label {
+  fill: var(--text-faint);
+  font-size: 10px;
+}
+.radar-north {
+  fill: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.radar-you {
+  fill: var(--text);
+}
+.radar-point {
+  cursor: pointer;
+}
+.radar-point.is-stale {
+  opacity: 0.45;
+}
+.radar-point.is-beyond .radar-mark {
+  opacity: 0.6;
+}
+.radar-mark {
+  stroke-width: 2;
+}
+.radar-reported .radar-mark,
+.radar-reported-swatch {
+  fill: var(--bad);
+  stroke: var(--bad);
+}
+.radar-estimated .radar-mark,
+.radar-estimated-swatch {
+  fill: #5b9bd5;
+  stroke: #5b9bd5;
+}
+.radar-distance .radar-mark,
+.radar-distance-swatch {
+  fill: var(--surface);
+  stroke: var(--text-muted);
+}
+.radar-label {
+  fill: var(--text);
+  font-size: 10px;
+  paint-order: stroke;
+  stroke: var(--background);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+.radar-hit {
+  fill: transparent;
+}
+.radar-watch {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 1.5;
+}
+.radar-selection {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.radar-error {
+  fill: rgb(91 155 213 / 12%);
+  stroke: #5b9bd5;
+  stroke-dasharray: 3 3;
+}
+.radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.radar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.signals-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  align-self: start;
+  max-height: 100%;
+}
+.signals-panel-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 40px;
+}
+.signals-panel-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.signals-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.signals-editor textarea {
+  resize: vertical;
+}
+.signal-identity,
+.signal-lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+.signal-identity-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.signal-reasons {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.signal-correction {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.signal-spark {
+  width: 100%;
+  height: 40px;
+}
+.signal-spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.signal-place {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.signal-card {
+  cursor: pointer;
+}
+.signal-card.is-selected {
+  outline: 2px solid var(--accent-mid);
+}
+.signal-note {
+  color: var(--text);
+  font-style: italic;
+}
+@media (max-width: 900px) {
+  .signals-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .signals-panel {
+    order: -1;
+  }
 }
 .signal-list {
   flex: 1;
@@ -1230,8 +1467,24 @@ button.filled {
 }
 .signal-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
+}
+.signal-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.signal-facts dt {
+  color: var(--text-muted);
+}
+.signal-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .drone-marker .drone-dot {
   width: 22px;

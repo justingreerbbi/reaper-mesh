@@ -27,7 +27,7 @@ static copy into `dist/web/`.
 | **Comms** | Channels and direct messages with real delivery states, and two-tap brevity phrases |
 | **Map** | Nodes, your position, points and areas, measuring, shared items, MGRS or decimal readout |
 | **Nodes** | Everyone heard, when, how far away, and discovery |
-| **Signals** | What the signals add-on hears: drones, Wi-Fi, Bluetooth and devices searching for networks |
+| **Signals** | A radar and history of what the signals add-on hears: drones, Wi-Fi, Bluetooth and devices searching for networks, with notes |
 | **Device** | Live status and every device setting |
 
 The tabs sit on a rail down the left side, or along the bottom on a narrow screen. Night (dark)
@@ -155,20 +155,81 @@ open **Signals** and choose **Connect add-on**. With no radio, use **Connect sig
 connect screen. It needs Chrome, Edge or the desktop app. **Simulated** shows the same view with no
 hardware.
 
-- **Drones** are only those that broadcast Remote ID. Each shows its ID, type, altitude, height,
-  speed and heading, how it was heard and its operator's ID, and **Show on map** puts it and its
-  operator on the map.
-- **Wi-Fi** lists access points by signal strength, with their band, channel and security. Open
-  networks are marked.
-- **Bluetooth** lists devices with their name or maker, and marks known trackers.
-- **Searching** lists phones and laptops looking for Wi-Fi, and the network names they ask for. It
-  is off until you turn on **Devices searching for networks** in **Scan plan**, because it shows
-  what nearby people's devices remember.
+**Radar** draws every signal around you, with its name under the strongest few. The rings show
+distance, and north is up. The add-on has one antenna and can't tell direction, so each point's
+colour says how it was placed:
+
+- **Red: position reported.** A drone's Remote ID position, measured from yours.
+- **Blue: estimated.** Heard from at least three of your positions spread over 30 m or more. The
+  strongest reports pull hardest, and the selected point shows its error circle.
+- **Hollow: distance only.** A rough distance from signal strength (out by a factor of two or
+  three), at a fixed angle so the point stays put. Its direction is unknown.
+
+The shape is the kind: ▲ drone, ■ Wi-Fi, ● Bluetooth, ◆ searching device. Faded points weren't heard
+in the last two minutes, and a ring marks watched ones. Without your position (allow location, or use
+a USB GPS), every point is distance only. **List** shows the same signals as cards.
+
+The filters across the top:
+
+- the kind (**All**, **Drones**, **Wi-Fi**, **Bluetooth**, **Searching**) and a search box for names,
+  addresses, notes and tags;
+- **Heard now**, **Watched**, **Noted**, **New today** and **Telemetry**;
+- **Hide private addresses**, on at first: phones change their Bluetooth address about every
+  15 minutes, so each phone would show up many times;
+- a minimum signal, how recently it was heard, and the radar's radius (**Auto** fits most of what is
+  shown).
+
+**Selecting a signal** opens its panel, on the right (or above the radar on a narrow screen). It shows:
+
+- where it is and how that was found;
+- its signal now and at its strongest, with a line of the last hour;
+- first and last heard, and how many separate times;
+- where you were when you last heard it and when it was strongest, each with **Map**;
+- what it sent: network, security and band, Bluetooth services, or a drone's telemetry (altitude,
+  height, speed, heading, position and the operator's ID and position).
+
+Below these you can give it your own **Name**, a **Note** and **Tags**, **Watch** it, or **Forget**
+it.
+
+**What it most likely is.** Each signal gets a best guess, which shows in the list, the panel, the
+export, the **Is** filter and search. The guess is a kind of device (tracker, phone, router, camera,
+vehicle and so on) and a maker, with a confidence and the reasons:
+
+- the maker registered for its address;
+- the company in its Bluetooth data;
+- its Bluetooth services, or that it is a tracker;
+- its name;
+- your own corrections.
+
+**Correct** sets it yourself, optionally for every signal of that kind with the same name, such as
+your truck's hotspot everywhere. The maker database ships with the portal and is checked for a newer
+copy whenever the portal opens. A lookup in it sends nothing anywhere. **This app → Signals** shows
+its date and sources, and can forget your corrections.
+
+**WiGLE lookups** are optional and off until you turn them on in **This app → Signals** with your
+own WiGLE API name and token. A lookup sends that network's address to WiGLE. WiGLE answers where
+the network has been seen and what it was called, and the radar then places it there (blue, about
+±75 m). Watched networks are looked up on their own, and others with **Look up on WiGLE** in their
+panel. Lookups are limited to 20 a day from this browser.
+
+**History.** Every signal is kept in this browser (IndexedDB) with what it last sent, a sighting per
+minute with where you were, and a drone's track. Nothing is deleted automatically (D61). Each signal's
+history is bounded, and past 20,000 signals the one heard longest ago without a note, tag or watch
+goes first. The local wipe in This app deletes it. Nothing is sent over the mesh or anywhere else.
 
 **Scan plan** sets what the add-on listens to: a focus (**Balanced**, **Drones**, **Wi-Fi** or
 **Bluetooth**), which Wi-Fi bands, Bluetooth, and searching devices. **Apply** sends the whole plan,
-and the add-on says whether it took it. Entries not heard for two minutes fade. Nothing here is
-stored or sent over the mesh.
+and the add-on says whether it took it.
+
+- **Export** saves every signal the filters show as one CSV file, with notes, tags and places. Times
+  are in UTC. Names from the air that a spreadsheet would run as a formula are saved as text.
+- The **Signals** button shows how many drones were heard in the last two minutes. With
+  notifications allowed in **This app** and the portal out of sight, a new drone also raises a
+  notification, once per drone while the portal is open.
+- The add-on is remembered. It reconnects on the next load, and after being unplugged it reconnects
+  when plugged in again, without asking. **Disconnect** stops that. It never picks a port on its
+  own when a radio you have used has the same kind of USB port, or when more than one port could be
+  the add-on; choose **Connect add-on** then.
 
 ## Device settings
 

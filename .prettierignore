@@ -4,6 +4,8 @@ packages/protocol/sensor-messages.generated.ts
 packages/protocol/fixtures/
 firmware/components/reaper_radio/vendor/
 package-lock.json
+# Built by tools/build-signals-reference.ts from public registries.
+agents/web/public/signals-reference.v1.json
 
 # Documentation is written by hand.
 *.md

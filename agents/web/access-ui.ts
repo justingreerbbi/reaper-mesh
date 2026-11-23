@@ -1,5 +1,6 @@
 // App PIN lock, PIN settings and the emergency local data wipe.
 import { clearLocalAppData, WIPE_SIGNAL, RECOVERY_LOCK } from './local-data.ts';
+import { deleteSignalHistory } from './signals-db.ts';
 import { access, app, encryption, encryptionError, models, recovery, render } from './app-state.ts';
 import { element, text } from './dom.ts';
 import { invalidateThread } from './messages-ui.ts';
@@ -241,6 +242,7 @@ export function initAccess() {
           erase,
         );
       else erase(); // Without Web Locks, BrowserRecovery never admits any writer.
+      await deleteSignalHistory();
       resetLanding(true);
     } catch {
       text(

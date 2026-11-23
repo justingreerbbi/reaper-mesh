@@ -253,6 +253,23 @@ and the portal's Signals view as an exception to the pause on portal features (D
 design's own open questions (battery power, image name, an off setting, other boards) stay open
 until the phase that needs them. See the [signals add-on design](signals-design.md).
 
+### D61. Signals intelligence in the agent
+Nov 23 · **Approved** by the owner. The Signals tab becomes a tool for tracking and identifying
+nearby transmitters:
+
+- a radar around the user, with a detail panel;
+- a local history of every signal, with notes, tags and watch flags (kept until deleted, bounded per
+  record and capped in total);
+- identification from a reference pack published with the portal, plus per-signal WiGLE lookups
+  with the user's key, behind a setting that is off by default;
+- telemetry decoded in the agent: Remote ID now, and Bluetooth sensors once `bleDevice` gains an
+  optional raw `advert` field, which is approved as an appended sensor protocol field.
+
+Direction comes only from reported positions, the user's own movement, or a compass sweep. A single
+antenna measures no bearing, and the radar shows which kind each point is. Nothing is sent over the
+mesh. This satisfies AI.md's scope rule for telemetry and internet use. See the
+[signals intelligence design](signals-intel-design.md).
+
 ## Protocol and synchronization
 
 ### D17. Device is authoritative for configuration

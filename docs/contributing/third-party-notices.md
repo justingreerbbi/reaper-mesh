@@ -60,3 +60,12 @@ The firmware installer (`agents/flasher/`) bundles `esptool-js` 0.7.0 (Apache Li
 ## Web tooling
 
 Development tooling is pinned in package-lock.json, including the MIT-licensed Web Serial and Web USB type definitions (`@types/w3c-web-serial`, `@types/w3c-web-usb`), which are used only for type checking; preserve applicable notices for any tooling/runtime code actually redistributed.
+
+## Signals reference data
+
+The portal serves `agents/web/public/signals-reference.v1.json` (D61). It is built by `tools/build-signals-reference.ts` (`npm run refresh:signals-reference`) from two sources:
+
+- Address prefixes and makers from the IEEE Registration Authority's public MA-L, MA-M and MA-S listings.
+- Bluetooth company identifiers and service names from Nordic Semiconductor's [bluetooth-numbers-database](https://github.com/NordicSemiconductor/bluetooth-numbers-database), under the BSD 3-Clause license (Copyright 2019–2020 Nordic Semiconductor ASA). The license text travels in the file's `notice` field and is shown under **This app → Signals → Sources and licenses**.
+
+The file is data only. Nordic's name must not be used to endorse this project. The optional WiGLE lookups use the user's own WiGLE account and are subject to WiGLE's terms.

@@ -246,6 +246,8 @@ the owning link gets replies.
   operators on the map from Remote ID positions. A direct add-on connects next to the radio, the
   way a USB GPS receiver does (D59), and needs no per-device journaling because it has no messages
   or settings to recover.
+- **Signals intelligence.** The radar, history, identification and telemetry are designed in
+  [Signals intelligence](signals-intel-design.md) (D61).
 - **Desktop app.** Uses its existing serial bridge.
 - **Mobile app.** Built in its own repository (D48). The contract goes in
   [Build a mobile app](../guides/mobile-apps.md) so the app can read the add-on through a node over
@@ -321,7 +323,10 @@ over direct USB. Probe capture stays off until turned on.
   is `xiaoc5-reaper-sensor-v0.1.0`.
 - **Agent:** `packages/agent-core/sensor.ts` and `sensor-serial.ts`.
 - **Portal:** the Signals tab, a "Connect signals add-on" button on the connect screen, drones on
-  the map, and a simulated add-on.
+  the map, and a simulated add-on. Then: the add-on is remembered and reconnects on load and on
+  plug-in (never when the port is ambiguous), rows open to show details, the list exports as CSV,
+  and the Signals button counts recent drones, with a notification for a new one when the portal
+  is out of sight.
 
 **Verified on the owner's C5:**
 

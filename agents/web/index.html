@@ -89,6 +89,12 @@
         </button>
         <button class="rail-item" data-view-target="signals" type="button">
           <i data-icon="antenna"></i><span>Signals</span>
+          <span
+            id="signals-badge"
+            class="badge rail-badge"
+            title="Drones heard in the last 2 minutes"
+            hidden
+          ></span>
         </button>
         <button class="rail-item" data-view-target="device" type="button">
           <i data-icon="cpu"></i><span>Device</span>
@@ -590,30 +596,132 @@
             </div>
           </details>
           <div class="signals-tools">
-            <div class="segmented" role="group" aria-label="Show">
-              <button type="button" data-signals-tab="drones" aria-pressed="true">
-                Drones <span id="signals-count-drones" class="faint"></span>
+            <div class="segmented" role="group" aria-label="Kind">
+              <button type="button" data-signals-kind="" aria-pressed="true">
+                All <span id="signals-count-all" class="faint"></span>
               </button>
-              <button type="button" data-signals-tab="wifi" aria-pressed="false">
+              <button type="button" data-signals-kind="drone" aria-pressed="false">
+                Drones <span id="signals-count-drone" class="faint"></span>
+              </button>
+              <button type="button" data-signals-kind="wifi" aria-pressed="false">
                 Wi-Fi <span id="signals-count-wifi" class="faint"></span>
               </button>
-              <button type="button" data-signals-tab="bluetooth" aria-pressed="false">
+              <button type="button" data-signals-kind="bluetooth" aria-pressed="false">
                 Bluetooth <span id="signals-count-bluetooth" class="faint"></span>
               </button>
-              <button type="button" data-signals-tab="probes" aria-pressed="false">
-                Searching <span id="signals-count-probes" class="faint"></span>
+              <button type="button" data-signals-kind="probe" aria-pressed="false">
+                Searching <span id="signals-count-probe" class="faint"></span>
               </button>
             </div>
             <input
               id="signals-search"
               type="search"
-              placeholder="Search name, network or address"
+              placeholder="Search names, addresses, notes and tags"
               autocomplete="off"
             />
+            <div class="segmented" role="group" aria-label="View">
+              <button type="button" data-signals-mode="radar" aria-pressed="true">
+                <i data-icon="radar"></i>Radar
+              </button>
+              <button type="button" data-signals-mode="list" aria-pressed="false">
+                <i data-icon="list"></i>List
+              </button>
+            </div>
           </div>
-          <p id="signals-empty" class="empty"></p>
-          <ul id="signals-list" class="signal-list" aria-label="Signals heard"></ul>
-          <small id="signals-more" class="faint" hidden></small>
+          <div class="signals-filters" role="group" aria-label="Filters">
+            <button type="button" class="chip" data-signals-quick="now" aria-pressed="false">
+              Heard now
+            </button>
+            <button type="button" class="chip" data-signals-quick="watched" aria-pressed="false">
+              Watched
+            </button>
+            <button type="button" class="chip" data-signals-quick="noted" aria-pressed="false">
+              Noted
+            </button>
+            <button type="button" class="chip" data-signals-quick="today" aria-pressed="false">
+              New today
+            </button>
+            <button type="button" class="chip" data-signals-quick="telemetry" aria-pressed="false">
+              Telemetry
+            </button>
+            <button type="button" class="chip" id="signals-hide-private" aria-pressed="true">
+              Hide private addresses
+            </button>
+            <label class="signals-select"
+              >Signal
+              <select id="signals-min-rssi">
+                <option value="">Any</option>
+                <option value="-85">-85 dBm or stronger</option>
+                <option value="-75">-75 dBm or stronger</option>
+                <option value="-65">-65 dBm or stronger</option>
+              </select>
+            </label>
+            <label class="signals-select"
+              >Is
+              <select id="signals-category">
+                <option value="">Anything</option>
+                <option value="drone">Drone</option>
+                <option value="tracker">Tracker</option>
+                <option value="phone">Phone or tablet</option>
+                <option value="computer">Computer or accessory</option>
+                <option value="access-point">Router or access point</option>
+                <option value="hotspot">Hotspot</option>
+                <option value="camera">Camera</option>
+                <option value="printer">Printer</option>
+                <option value="tv">TV or media player</option>
+                <option value="audio">Headphones or speaker</option>
+                <option value="wearable">Watch or fitness device</option>
+                <option value="vehicle">Vehicle</option>
+                <option value="sensor">Sensor or beacon</option>
+                <option value="smart-home">Smart home or IoT device</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </label>
+            <label class="signals-select"
+              >Heard
+              <select id="signals-within">
+                <option value="">Any time</option>
+                <option value="600000">Last 10 minutes</option>
+                <option value="3600000">Last hour</option>
+                <option value="86400000">Last day</option>
+                <option value="604800000">Last week</option>
+              </select>
+            </label>
+            <label class="signals-select"
+              >Radius
+              <select id="signals-radius">
+                <option value="">Auto</option>
+                <option value="25">25 m</option>
+                <option value="50">50 m</option>
+                <option value="100">100 m</option>
+                <option value="250">250 m</option>
+                <option value="500">500 m</option>
+                <option value="1000">1 km</option>
+              </select>
+            </label>
+            <button
+              id="signals-export"
+              type="button"
+              class="compact"
+              title="Save the shown signals as a CSV file"
+            >
+              <i data-icon="download"></i>Export
+            </button>
+          </div>
+          <div class="signals-body">
+            <div class="signals-main">
+              <div id="signals-radar" class="signals-radar"></div>
+              <p id="signals-empty" class="empty"></p>
+              <ul id="signals-list" class="signal-list" aria-label="Signals" hidden></ul>
+              <small id="signals-more" class="faint" hidden></small>
+            </div>
+            <aside
+              id="signals-panel"
+              class="card signals-panel"
+              aria-label="Selected signal"
+              hidden
+            ></aside>
+          </div>
         </section>
 
         <section class="device-view" aria-label="Device">
@@ -1633,6 +1741,55 @@
                       >Laptops without GPS get a rough position from Wi-Fi, with no speed or
                       heading.</small
                     >
+                  </div>
+                  <div class="card field-card">
+                    <h2>Signals</h2>
+                    <small class="muted"
+                      >How the Signals tab works out what each signal is. The maker database comes
+                      with the portal and is checked for a newer copy each time it opens; a lookup
+                      in it sends nothing.</small
+                    >
+                    <small id="signals-reference-status" class="muted" role="status"></small>
+                    <div class="inline wrap">
+                      <button id="signals-reference-update" class="compact" type="button">
+                        <i data-icon="refresh-cw"></i>Check for a newer database
+                      </button>
+                      <button id="signals-forget-learned" class="compact" type="button">
+                        Forget corrections
+                      </button>
+                    </div>
+                    <small id="signals-learned-status" class="faint"></small>
+                    <details>
+                      <summary class="faint">Sources and licenses</summary>
+                      <small id="signals-reference-notice" class="faint"></small>
+                    </details>
+                    <label class="toggle-row">
+                      <span
+                        ><span>Look up Wi-Fi networks on WiGLE</span
+                        ><small class="muted"
+                          >Asks WiGLE where a network has been seen and what it was called. Each
+                          lookup sends that network's address to WiGLE. Watched networks are looked
+                          up on their own, and any network with Look up in its panel; at most 20 a
+                          day.</small
+                        ></span
+                      >
+                      <input id="wigle-enabled" type="checkbox" />
+                    </label>
+                    <div id="wigle-fields" class="field-stack" hidden>
+                      <div class="field">
+                        <label for="wigle-name">WiGLE API name</label>
+                        <input id="wigle-name" autocomplete="off" spellcheck="false" />
+                      </div>
+                      <div class="field">
+                        <label for="wigle-token">WiGLE API token</label>
+                        <input id="wigle-token" type="password" autocomplete="off" />
+                      </div>
+                      <small class="faint"
+                        >From your WiGLE account page. Kept in this browser only, and deleted by the
+                        local wipe.</small
+                      >
+                    </div>
+                    <small id="wigle-status" class="muted" role="status"></small>
                   </div>
                   <div class="card field-card">
                     <h2>Your devices</h2>

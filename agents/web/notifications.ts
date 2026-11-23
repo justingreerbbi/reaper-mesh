@@ -95,25 +95,31 @@ export async function requestNotifications() {
 /** Whether the portal is out of sight, so a new message would otherwise go unnoticed. */
 export const away = () => document.visibilityState === 'hidden' || !document.hasFocus();
 
-/** Shows the alerts, up to MAX_PER_BATCH. `open` brings up the conversation on a click. */
-export function show(alerts: readonly Alert[], open: (alert: Alert) => void) {
+/** Shows one notification, if allowed. `open` runs when it is clicked, where that is possible. */
+export function notify(title: string, body: string, tag: string, open: () => void) {
   const Notify = api();
   if (!Notify || Notify.permission !== 'granted') return;
-  for (const alert of alerts.slice(0, MAX_PER_BATCH)) {
-    try {
-      const shown = new Notify(alert.title, {
-        body: alert.body,
-        tag: `reaper-mesh:${alert.channel}:${canonicalNode(alert.destination)}`,
-      });
-      // The desktop app's notifications return nothing to click; the browser's do.
-      if (shown && 'onclick' in shown)
-        shown.onclick = () => {
-          window.focus();
-          open(alert);
-          shown.close();
-        };
-    } catch {
-      // Android Chrome only shows notifications from a service worker; nothing more to do.
-    }
+  try {
+    const shown = new Notify(title, { body, tag });
+    // The desktop app's notifications return nothing to click; the browser's do.
+    if (shown && 'onclick' in shown)
+      shown.onclick = () => {
+        window.focus();
+        open();
+        shown.close();
+      };
+  } catch {
+    // Android Chrome only shows notifications from a service worker; nothing more to do.
   }
+}
+
+/** Shows the alerts, up to MAX_PER_BATCH. `open` brings up the conversation on a click. */
+export function show(alerts: readonly Alert[], open: (alert: Alert) => void) {
+  for (const alert of alerts.slice(0, MAX_PER_BATCH))
+    notify(
+      alert.title,
+      alert.body,
+      `reaper-mesh:${alert.channel}:${canonicalNode(alert.destination)}`,
+      () => open(alert),
+    );
 }

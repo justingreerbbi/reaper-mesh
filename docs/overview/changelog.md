@@ -22,6 +22,33 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** signals intelligence, step 2 (D61). Each signal gets a best guess of what it is and who
+  made it, with a confidence and the reasons. The guess uses:
+  - a maker database built from the IEEE registries and Nordic's Bluetooth numbers, served with the
+    portal and refreshed when online;
+  - Bluetooth data, services and names;
+  - the user's corrections, optionally applied by name.
+
+  Optional WiGLE lookups with the user's own key place Wi-Fi networks on the radar. New:
+  `tools/build-signals-reference.ts`, and a Signals card in This app. **Verified:** host tests; the
+  tab in a browser with the simulated add-on. **Not verified:** a real WiGLE lookup, the real
+  add-on, the desktop app.
+- **Added:** signals intelligence, step 1 (D61). The Signals tab gains:
+  - a radar around the user, where each point shows how it was placed (reported, estimated from
+    the user's movement, or distance only);
+  - a detail panel with history, places, telemetry, and the user's name, note, tags and watch flag;
+  - filters, and a history of every signal kept in IndexedDB (deleted by the local wipe);
+  - CSV export of the shown signals.
+
+  **Verified:** host tests; the tab in a browser with the simulated add-on, with notes surviving a
+  reload. **Not verified:** the movement estimate with a real moving position, the real add-on, the
+  desktop app, a phone layout.
+- **Added:** more of the Signals tab (D60): a remembered add-on reconnects on load and when plugged
+  back in; **Details** on each row (first and last heard, signal range, Bluetooth services, a drone's
+  positions); CSV **Export** of the list on screen; a count of recent drones on the **Signals**
+  button and a notification for a new drone while the portal is out of sight. **Verified:** host
+  tests; the tab in a browser with the simulated add-on. **Not verified:** reconnecting the real
+  add-on, drone notifications from a real transmitter, the desktop app.
 - **Added:** the signals add-on, phase 2 (D60):
   - firmware for the XIAO ESP32-C5 (`xiaoc5-reaper-sensor-v0.1.0`), with its parsers, tables,
     scheduler and session in a portable core (`firmware/components/reaper_sensor/`);

@@ -22,6 +22,8 @@ export type SensorWelcome = Of<'welcome'>;
 export type PlanStatus = Of<'planStatus'>;
 /** A report as kept by the agent: what the add-on sent and when it arrived here. */
 export type Seen<T> = T & Readonly<{ receivedAt: number }>;
+/** A transmitter in the store: also when this session first heard it. */
+export type Heard<T> = Seen<T> & Readonly<{ firstReceivedAt: number }>;
 export type SensorPlan = Readonly<{
   profile: number;
   bands: number;
@@ -55,35 +57,42 @@ export const STORE_LIMITS = Object.freeze({
 /** Leading delimiter, so the add-on's decoder starts clean after anything it printed. */
 const DELIMITER = Uint8Array.of(0);
 
-function keep<T>(map: Map<string, T>, key: string, value: T, limit: number) {
+function keep<T extends object>(
+  map: Map<string, Heard<T>>,
+  key: string,
+  message: T,
+  receivedAt: number,
+  limit: number,
+) {
+  const firstReceivedAt = map.get(key)?.firstReceivedAt ?? receivedAt;
   map.delete(key); // Re-inserting keeps the map in order of last report.
-  map.set(key, value);
+  map.set(key, { ...message, receivedAt, firstReceivedAt });
   if (map.size > limit) map.delete(map.keys().next().value!);
 }
 
 /** What the add-on has reported since it last started. Bounded per kind. */
 export class SensorStore {
-  readonly wifiAps = new Map<string, Seen<WifiAp>>();
-  readonly bleDevices = new Map<string, Seen<BleDevice>>();
-  readonly wifiProbes = new Map<string, Seen<WifiProbe>>();
+  readonly wifiAps = new Map<string, Heard<WifiAp>>();
+  readonly bleDevices = new Map<string, Heard<BleDevice>>();
+  readonly wifiProbes = new Map<string, Heard<WifiProbe>>();
   /** Keyed by UAS ID: a drone may be heard over several transmitters and transports. */
-  readonly drones = new Map<string, Seen<RemoteId>>();
+  readonly drones = new Map<string, Heard<RemoteId>>();
   /** Changes on every update, so a view can tell when to redraw. */
   version = 0;
 
   apply(message: SensorMessage, receivedAt: number) {
     switch (message.type) {
       case 'wifiAp':
-        keep(this.wifiAps, message.address, { ...message, receivedAt }, STORE_LIMITS.wifiAp);
+        keep(this.wifiAps, message.address, message, receivedAt, STORE_LIMITS.wifiAp);
         break;
       case 'bleDevice':
-        keep(this.bleDevices, message.address, { ...message, receivedAt }, STORE_LIMITS.bleDevice);
+        keep(this.bleDevices, message.address, message, receivedAt, STORE_LIMITS.bleDevice);
         break;
       case 'wifiProbe':
-        keep(this.wifiProbes, message.address, { ...message, receivedAt }, STORE_LIMITS.wifiProbe);
+        keep(this.wifiProbes, message.address, message, receivedAt, STORE_LIMITS.wifiProbe);
         break;
       case 'remoteId':
-        keep(this.drones, message.uasId, { ...message, receivedAt }, STORE_LIMITS.remoteId);
+        keep(this.drones, message.uasId, message, receivedAt, STORE_LIMITS.remoteId);
         break;
       default:
         return;
@@ -110,6 +119,8 @@ export class SensorLink {
   rejected = 0;
   readonly store = new SensorStore();
   onChange: () => void = () => {};
+  /** Hears each report that passed the checks, with its arrival time, for history (D61). */
+  onReport: (message: SensorMessage, receivedAt: number) => void = () => {};
 
   #decoder = new FrameDecoder(SENSOR_ENVELOPE);
   #outbox: Uint8Array[] = [];
@@ -233,7 +244,9 @@ export class SensorLink {
     } else if (message.type === 'planStatus') {
       this.plan = message;
     } else {
-      this.store.apply(message, this.#wallClock());
+      const receivedAt = this.#wallClock();
+      this.store.apply(message, receivedAt);
+      this.onReport(message, receivedAt);
     }
     this.onChange();
   }
