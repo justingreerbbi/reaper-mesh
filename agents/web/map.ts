@@ -63,6 +63,18 @@ export type DroneMark = Readonly<{
   stale: boolean;
 }>;
 
+/** A point from a monitoring log, shown on the map until the user leaves it (D61). */
+export type LogMark = Readonly<{
+  at: LngLat;
+  color: string;
+  /** Drawn larger: a known device family such as a Flock camera. */
+  known: boolean;
+  /** 0 (faint) to 1 (strong): how solid the point is drawn. */
+  strength: number;
+  /** Lines shown when the point is tapped. */
+  lines: readonly string[];
+}>;
+
 /** A tooltip from untrusted text: a text node, never HTML. */
 function plainTooltip(value: string) {
   const span = document.createElement('span');
@@ -94,6 +106,9 @@ export class FieldMap {
   #trails: L.LayerGroup;
   #trailSignature = '';
   #drones: L.LayerGroup;
+  #log: L.LayerGroup;
+  /** Many log points draw far faster on one canvas than as page elements. */
+  #logRenderer = L.canvas({ padding: 0.5 });
   /** Moving the map to follow this computer, which the user's own drag ends. */
   #following = false;
   #drawing = false;
@@ -125,6 +140,7 @@ export class FieldMap {
     this.#trails = L.layerGroup().addTo(this.map);
     this.#layer = L.layerGroup().addTo(this.map);
     this.#drones = L.layerGroup().addTo(this.map);
+    this.#log = L.layerGroup().addTo(this.map);
     this.#annotations = L.layerGroup().addTo(this.map);
     this.#tool = L.layerGroup().addTo(this.map);
     this.map.on('move', () => this.onMove?.());
@@ -274,6 +290,48 @@ export class FieldMap {
         interactive: false,
       }).addTo(this.#drones);
     }
+  }
+
+  get hasLog() {
+    return this.#log.getLayers().length > 0;
+  }
+
+  /** Shows a monitoring log's points, framed; none clears them. */
+  setLog(marks: readonly LogMark[]) {
+    this.#log.clearLayers();
+    if (!marks.length) return;
+    for (const mark of marks) {
+      const popup = document.createElement('div');
+      popup.className = 'log-popup';
+      for (const [i, value] of mark.lines.entries())
+        popup.append(
+          Object.assign(document.createElement(i ? 'div' : 'strong'), { textContent: value }),
+        );
+      L.circleMarker(L.latLng(mark.at[1], mark.at[0]), {
+        renderer: this.#logRenderer,
+        radius: mark.known ? 8 : 5,
+        color: mark.known ? '#fff' : mark.color,
+        weight: mark.known ? 2 : 1,
+        fillColor: mark.color,
+        fillOpacity: 0.3 + 0.65 * Math.min(1, Math.max(0, mark.strength)),
+        // A tap shows the point; it must not also count as a tap on the map.
+        bubblingMouseEvents: false,
+      })
+        .bindPopup(popup, { closeButton: false, autoPanPadding: [24, 24] })
+        .addTo(this.#log);
+    }
+    this.#userMoved = true;
+    // The map may have just been shown: its size must be right before framing.
+    this.map.invalidateSize({ animate: false });
+    const bounds = L.latLngBounds(marks.map(mark => L.latLng(mark.at[1], mark.at[0])));
+    if (marks.length === 1) this.map.setView(bounds.getCenter(), Math.max(this.map.getZoom(), 16));
+    // Room at the top for the buttons, and at the bottom for the log's own panel.
+    else
+      this.map.fitBounds(bounds, {
+        paddingTopLeft: [56, 80],
+        paddingBottomRight: [56, 150],
+        maxZoom: 17,
+      });
   }
 
   /** Centres the map on a point, for "Show on map" from another view. */

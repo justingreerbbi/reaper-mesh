@@ -1,12 +1,15 @@
 /**
  * Monitoring in the portal (D61): while it is on, every signal heard is logged with this computer's
- * position and the signal's strength, to export afterwards (CSV, or GeoJSON for mapping tools).
- * One button opens one sheet: start or stop, and the saved logs.
+ * position and the signal's strength, to export afterwards (CSV, or GeoJSON for mapping tools) or
+ * to look at on the Map tab. One button opens one sheet: start or stop, and the saved logs.
  */
 import { onLocalAppStop } from './access-ui.ts';
-import { preferences } from './app-state.ts';
+import { preferences, render } from './app-state.ts';
 import { element } from './dom.ts';
 import { formatDistance } from './geo.ts';
+import { fieldMap } from './map-ui.ts';
+import type { LogMark } from './map.ts';
+import { currentView, onViewChange, setView } from './nav.ts';
 import { keepAwake } from './keep-awake.ts';
 import { locationProblem, onFix, wantLocation } from './location.ts';
 import { IndexedDbLogs } from './signals-db.ts';
@@ -16,11 +19,12 @@ import { herePlace, history, onRecorded } from './signals-history.ts';
 import { identityOf } from './signals-identity.ts';
 import { whatIs } from './signals-panel.ts';
 import { confirmSheet, downloadBlob } from './ui.ts';
-import { displayName } from '../../packages/agent-core/signals-intel.ts';
+import { displayName, type SignalKind } from '../../packages/agent-core/signals-intel.ts';
 import {
   logCsv,
   logGeoJson,
   SignalLogger,
+  strongestPoints,
   type LogEntry,
   type LogSession,
   type LogStorage,
@@ -134,6 +138,82 @@ async function exportLog(session: LogSession, format: 'csv' | 'geojson') {
     );
 }
 
+/** Point colours on the map, by kind; a known device family (Flock, Ring) outranks its kind. */
+const MAP_COLORS: Record<SignalKind | 'known', string> = {
+  wifi: '#4c9aff',
+  bluetooth: '#a78bfa',
+  probe: '#ebbb5f',
+  drone: '#e5484d',
+  known: '#ff4fd8',
+};
+const MAP_KEY: [SignalKind | 'known', string][] = [
+  ['wifi', 'Wi-Fi'],
+  ['bluetooth', 'Bluetooth'],
+  ['probe', 'Searching'],
+  ['drone', 'Drone'],
+  ['known', 'Flock or Ring'],
+];
+const KIND_NAMES: Record<SignalKind, string> = {
+  wifi: 'Wi-Fi network',
+  bluetooth: 'Bluetooth device',
+  probe: 'Searching device',
+  drone: 'Drone',
+};
+const timeOf = (at: number) =>
+  new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+/**
+ * Shows a log on the Map tab until the user leaves it: one point per signal, where it was strongest.
+ * Nothing is added to the map's own items.
+ */
+async function viewOnMap(session: LogSession) {
+  if (!storage) return;
+  if (logger?.session?.id === session.id) await logger.flush();
+  const points = strongestPoints(await storage.readRows(session.id));
+  if (!points.length) {
+    problem = 'This log has no positions to show.';
+    return renderMonitor();
+  }
+  const marks: LogMark[] = points.map(point => ({
+    at: [point.place.lon, point.place.lat],
+    color: MAP_COLORS[point.device ? 'known' : point.kind],
+    known: !!point.device,
+    strength: (point.rssi + 95) / 55,
+    lines: [
+      point.name || point.id,
+      point.device ??
+        [point.category ?? KIND_NAMES[point.kind], point.maker].filter(Boolean).join(' · '),
+      `Strongest ${point.rssi} dBm at ${timeOf(point.at)}`,
+      point.name && point.name !== point.id ? point.id : '',
+    ].filter(Boolean),
+  }));
+  element<HTMLDialogElement>('signals-monitor-sheet').close();
+  setView('map');
+  fieldMap.setLog(marks);
+  const unplaced = session.signals - points.length;
+  setText(
+    element('map-log-title'),
+    `${points.length.toLocaleString()} signal${points.length === 1 ? '' : 's'}, where strongest` +
+      (unplaced > 0 ? ` · ${unplaced.toLocaleString()} not placed` : ''),
+  );
+  const shown = new Set(points.map(point => (point.device ? 'known' : point.kind)));
+  element('map-log-key').replaceChildren(
+    ...MAP_KEY.filter(([kind]) => shown.has(kind)).map(([kind, label]) => {
+      const item = el('span', '', label);
+      item.style.setProperty('--dot', MAP_COLORS[kind]);
+      return item;
+    }),
+  );
+  element('map-log').hidden = false;
+  element('map-empty').hidden = true;
+}
+
+function clearMapLog() {
+  if (!fieldMap.hasLog) return;
+  fieldMap.setLog([]);
+  element('map-log').hidden = true;
+}
+
 function logRow(session: LogSession) {
   const active = logger?.session?.id === session.id && logger.active;
   const started = new Date(session.startedAt);
@@ -151,6 +231,8 @@ function logRow(session: LogSession) {
     button('CSV', 'download', () => void exportLog(session, 'csv')),
     button('Map file', 'map-pin', () => void exportLog(session, 'geojson')),
   );
+  if (session.located)
+    actions.prepend(button('View on map', 'map-pinned', () => void viewOnMap(session)));
   if (!active)
     actions.append(
       button('Delete', 'trash-2', () => {
@@ -236,11 +318,20 @@ export function initMonitor() {
     if (!logger.active) void stop(); // The log filled up.
   });
   onFix(fix => logger?.moved({ lat: fix.lngLat[1], lon: fix.lngLat[0] }));
+  // A log on the map is only a look: it goes when the user leaves the Map tab.
+  onViewChange(() => {
+    if (currentView() !== 'map') clearMapLog();
+  });
+  element('map-log-close').addEventListener('click', () => {
+    clearMapLog();
+    render();
+  });
   addEventListener('pagehide', () => void logger?.flush().catch(() => {}));
   // A wipe deletes the database next; nothing may write it again.
   onLocalAppStop(() => {
     clearInterval(flushTimer);
     clearInterval(clock);
+    clearMapLog();
     wiped = true;
   });
   // A log left open by a closed page ends at its last point.

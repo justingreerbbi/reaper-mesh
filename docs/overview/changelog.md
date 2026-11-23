@@ -22,6 +22,10 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** **View on map** for a monitoring log: one point per signal on the Map tab, where it was
+  strongest, cleared when the Map tab is left. Monitoring now also logs a signal whenever it is the
+  strongest it has been. **Verified:** host tests; in a browser with the simulated add-on.
+  **Not verified:** a real drive.
 - **Added:** to the Signals screen, after a review of what was missing:
   - **alerts** with a chirp, for a watched signal returning, a drone, a Flock or Ring device, and
     anything **moving with you** (heard at several of your places);

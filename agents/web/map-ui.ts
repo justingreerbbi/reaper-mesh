@@ -215,6 +215,7 @@ export function renderMap() {
     points.length > 0 ||
     mapWorkspace.hasItems ||
     mapWorkspace.toolActive ||
+    fieldMap.hasLog ||
     (connection.sync.state === 'ready' && nodes.length > 0);
   fieldMap.setPoints(points);
   fieldMap.select(selectedNode || undefined);

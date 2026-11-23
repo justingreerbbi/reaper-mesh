@@ -4,8 +4,9 @@
  * portal and a mobile app share it.
  *
  * A signal is logged when it is first heard, and again when the user has moved, its strength has
- * changed, or half a minute has passed. That keeps a log useful for mapping without a row for every
- * report.
+ * changed, it is the strongest it has been, or half a minute has passed. That keeps a log useful for
+ * mapping without a row for every report, and never misses the spot where a signal was strongest:
+ * driving past, that is the closest the user came to it.
  */
 import { distanceBetween, type Place, type SignalKind } from './signals-intel.ts';
 
@@ -65,7 +66,13 @@ export const LOG_RSSI_DB = 5;
 export const LOG_EVERY_MS = 30_000;
 const CHUNK_ROWS = 200;
 
-type Last = { at: number; rssi: number; place?: Place };
+type Last = {
+  at: number;
+  rssi: number;
+  /** The strongest it has been logged with a position. */
+  best: number;
+  place?: Place;
+};
 
 export class SignalLogger {
   session: LogSession | undefined;
@@ -125,10 +132,17 @@ export class SignalLogger {
       at - last.at >= LOG_EVERY_MS ||
       Math.abs(entry.rssi - last.rssi) >= LOG_RSSI_DB ||
       (place && !last.place) ||
+      (place && entry.rssi > last.best) ||
       (place && last.place && distanceBetween(place, last.place) >= LOG_MOVE_M);
     if (!due) return false;
     if (!last) session.signals++;
-    this.#last.set(key, { at, rssi: entry.rssi, ...(place ? { place } : {}) });
+    this.#last.set(key, {
+      at,
+      rssi: entry.rssi,
+      // Only a strength heard with a position can mark a spot.
+      best: Math.max(place ? entry.rssi : -Infinity, last?.best ?? -Infinity),
+      ...(place ? { place } : {}),
+    });
     this.#buffer.push({ ...entry, at, ...(place ? { place } : {}) });
     session.rows++;
     session.lastAt = at;
@@ -186,6 +200,31 @@ export class MemoryLogStorage implements LogStorage {
     this.sessions.delete(session);
     this.chunks.delete(session);
   }
+}
+
+/** A signal's strongest logged row that has the user's position, and how many such rows it has. */
+export type StrongestPoint = LogRow & Readonly<{ place: Place; heard: number }>;
+
+/**
+ * One point per signal: where the user was when it was strongest. Driving past, that is the closest
+ * the user came, so it is the best single guess at where the signal is from. Weakest first, so a
+ * map draws the strongest on top. Rows without the user's position are left out.
+ */
+export function strongestPoints(rows: readonly LogRow[]): StrongestPoint[] {
+  const best = new Map<string, { row: LogRow & { place: Place }; heard: number }>();
+  for (const row of rows.filter((row): row is LogRow & { place: Place } => !!row.place)) {
+    const key = `${row.kind}:${row.id}`;
+    const seen = best.get(key);
+    if (!seen) best.set(key, { row, heard: 1 });
+    else {
+      seen.heard++;
+      // The same strength later keeps the earlier spot; only a stronger one moves it.
+      if (row.rssi > seen.row.rssi) seen.row = row;
+    }
+  }
+  return [...best.values()]
+    .map(({ row, heard }) => ({ ...row, heard }))
+    .sort((a, b) => a.rssi - b.rssi);
 }
 
 // Export.

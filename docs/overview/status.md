@@ -98,7 +98,7 @@ New portal features are paused until these pass. Procedures are in the
 
 ## Automated checks
 
-`npm run check` passes all 510 tests on macOS (November 23): strict TypeScript, generated-schema
+`npm run check` passes all 512 tests on macOS (November 23): strict TypeScript, generated-schema
 and vendor checks, compiler-backed host tests and the web and installer builds. The standalone
 firmware CTest suite passes 144 tests. CI runs all of these plus formatting, shell lint and all
 three board builds, and passed on `main` at `31abc1b`, which the site deploys only after; see

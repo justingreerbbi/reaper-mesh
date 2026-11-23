@@ -8,6 +8,7 @@ import {
   logGeoJson,
   MemoryLogStorage,
   SignalLogger,
+  strongestPoints,
   type LogEntry,
 } from '../../packages/agent-core/signals-log.ts';
 import type { Place } from '../../packages/agent-core/signals-intel.ts';
@@ -120,4 +121,42 @@ test('a log exports as CSV and as GeoJSON points where each signal was heard', a
   assert.deepEqual(geo.features[0].geometry, { type: 'Point', coordinates: [-77, 38.9] });
   assert.equal(geo.features[0].properties.knownDevice, 'Flock Safety camera');
   assert.equal(geo.features[0].properties.signal, -61);
+});
+
+test('a signal stronger than ever is logged, even standing still', async () => {
+  const logger = new SignalLogger(new MemoryLogStorage());
+  await logger.start(0, 'peak');
+  assert.equal(logger.observe(ap(-70), 1000), true, 'first time, no position');
+  assert.equal(logger.observe(ap(-72), 2000, near(0, 0)), true, 'first position');
+  assert.equal(logger.observe(ap(-71), 3000, near(1, 0)), true, 'strongest with a position');
+  assert.equal(logger.observe(ap(-71), 4000, near(1, 0)), false, 'only as strong');
+  assert.equal(logger.observe(ap(-73), 5000, near(1, 0)), false, 'weaker');
+  assert.equal(logger.observe(ap(-69), 6000), false, 'stronger, but nowhere to put it');
+});
+
+test('a log maps to one point per signal, where it was strongest', () => {
+  const at = (rssi: number, place: Place | undefined, extra: Partial<LogEntry> = {}) => ({
+    ...ap(rssi, extra),
+    at: 0,
+    ...(place ? { place } : {}),
+  });
+  const points = strongestPoints([
+    at(-80, near(0, 0)),
+    at(-55, near(50, 0)),
+    at(-55, near(90, 0)), // As strong, later: the first spot stays.
+    at(-70, near(120, 0)),
+    at(-40, undefined), // Stronger, but no position.
+    at(-60, near(10, 10), { kind: 'bluetooth', id: 'same-address-other-kind' }),
+    at(-90, undefined, { id: 'never-placed' }),
+  ]);
+  assert.equal(points.length, 2);
+  assert.deepEqual(
+    points.map(point => [point.kind, point.rssi, point.heard]),
+    [
+      ['bluetooth', -60, 1],
+      ['wifi', -55, 4],
+    ],
+    'weakest first, so the strongest draws on top',
+  );
+  assert.deepEqual(points[1].place, near(50, 0));
 });

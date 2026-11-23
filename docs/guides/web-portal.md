@@ -287,11 +287,21 @@ signal from behind.
 
 **Monitor** records a log for mapping afterwards. Press it, then **Start monitoring**. While it runs,
 every signal heard is logged with your position, the time and its strength: when it is first heard,
-and again whenever you have moved 5 m, its strength has changed by 5 dB, or 30 seconds have passed.
+and again whenever you have moved 5 m, its strength has changed by 5 dB, it is the strongest it has
+been, or 30 seconds have passed.
 The button shows the time recorded. Keep the page open and in front; the screen is kept awake where
 the browser allows.
 
-**Stop monitoring** saves the log. Each saved log can be exported two ways:
+**Stop monitoring** saves the log. **View on map** shows a log on the Map tab, during or after
+monitoring: one point per signal, at the place you were when it was strongest. Driving past, that is
+the closest you came, so it is the best single guess at where the signal is from (it is still on
+your route, not at the transmitter). Points are coloured by kind, with Flock and Ring devices larger
+and pink, and drawn more solid the stronger they were; tap one for its name, what it is, its
+strength and when. The points are only a look: they are not added to the map, and they go when you
+leave the Map tab or press the cross. A log being recorded is shown as it was when you pressed the
+button.
+
+Each saved log can also be exported two ways:
 
 - **CSV:** one row per logged point, with the time (UTC), your position and its accuracy, the
   signal's strength, kind, name, address, channel, what it most likely is, and a drone's own

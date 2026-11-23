@@ -223,11 +223,15 @@ for a fixed time; live-feed guidance says to mark new items, not reorder silentl
 - **Monitoring** (`packages/agent-core/signals-log.ts`, IndexedDB stores `log-sessions` and
   `log-rows`):
   - A session logs a row when a signal is first heard, and again after the user moves 5 m, its
-    strength changes 5 dB, or 30 s pass.
+    strength changes 5 dB, it is the strongest it has been with a position, or 30 s pass. The
+    last rule means the closest approach on a drive is never missed.
   - Each row has the time, the user's position and accuracy, strength, kind, name, address, channel,
     the guess, and a drone's reported position.
   - Limits: 250,000 rows a session and 50 sessions.
   - Export: CSV, and GeoJSON points at the places where each signal was heard.
+  - **View on map** (`strongestPoints`): one point per signal at the user's position when it was
+    strongest, drawn on a canvas layer of the Map tab (`FieldMap.setLog`). It is never stored and is
+    cleared when the Map tab is left.
 - **Flock and Ring** are known devices in `signals-identify.ts`, each with its own chip. The
   signatures come from the flock-you project's lists, the IEEE registry and the Bluetooth SIG
   numbers:

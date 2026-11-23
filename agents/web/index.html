@@ -401,6 +401,21 @@
               Basemap unavailable. Reported positions still work.
             </div>
             <div id="map-workspace-error" class="notice" data-tone="bad" role="alert" hidden></div>
+            <div id="map-log" class="map-panel" hidden>
+              <div class="panel-text">
+                <strong id="map-log-title"></strong>
+                <small id="map-log-key" class="map-log-key muted"></small>
+              </div>
+              <button
+                id="map-log-close"
+                class="round compact"
+                type="button"
+                aria-label="Clear the log from the map"
+                title="Clear the log from the map"
+              >
+                <i data-icon="x"></i>
+              </button>
+            </div>
             <div id="map-message" class="notice map-floating" data-tone="warn" role="status" hidden>
               <span id="map-message-text"></span>
               <button

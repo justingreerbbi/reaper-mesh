@@ -1684,6 +1684,10 @@ button.filled {
   }
 }
 @media (max-width: 720px) {
+  /* The scale sits where the log's panel is on a phone. */
+  .map-view:has(#map-log:not([hidden])) .leaflet-control-scale {
+    display: none;
+  }
   .signals-panel {
     bottom: 96px;
     max-height: 56dvh;
@@ -1713,6 +1717,42 @@ button.filled {
 .drone-marker .drone-dot.is-stale {
   background: #8a8f98;
   box-shadow: none;
+}
+
+/* The log's cross stays beside its text, even on a phone. */
+#map-log {
+  flex-wrap: nowrap;
+}
+#map-log .panel-text {
+  flex: 1 1 0;
+}
+#map-log .panel-text strong {
+  font-size: 16px;
+  white-space: normal;
+}
+.map-log-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.map-log-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.map-log-key > span::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+.log-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
 }
 
 /* Device. */
