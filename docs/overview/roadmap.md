@@ -35,8 +35,9 @@ A XIAO ESP32-C5 that listens to Wi-Fi, Bluetooth and drone Remote ID, on its own
 through a Heltec V3's accessory port. The owner approved it as an exception to the portal pause.
 Each phase's checks are in the [signals add-on design](../contributing/signals-design.md#delivery-order-and-acceptance).
 
-1. **Bench spike** on a real C5: 5 GHz listening, Bluetooth long range, Remote ID reception,
-   current draw and battery power through the Heltec.
+1. **Finish the bench spike:** Bluetooth long range and Remote ID (each needs a transmitter), current
+   draw and battery power through the Heltec (needs a meter), and a partial-duty Bluetooth scan.
+   2.4 and 5 GHz listening and Bluetooth LE 1M already work.
 2. **Add-on firmware and the portal's Signals view** over direct USB, with the simulated add-on in
    the portal's Simulator mode.
 3. **Accessory port on the Heltec V3**, and the same view through the node over USB and Bluetooth.

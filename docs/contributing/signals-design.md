@@ -3,9 +3,10 @@
 Status: **Confirmed** by the owner on November 23, 2026
 ([D60](decisions.md#d60-signals-add-on-with-the-xiao-esp32-c5)). Phase 1 is built: the
 [sensor protocol](../reference/sensor-protocol.md), its codecs and a simulated add-on, tested on a
-computer only. Nothing else is built. Hardware facts come from vendor documents and have not been
-checked on a board; [Phase 0](#phase-0-bench-spike) checks them first. Where this page proposes a
-number (a rate, a size, a timeout), it is a starting point to measure, not a result.
+computer only. The [Phase 0](#phase-0-bench-spike) bench spike has run on one XIAO ESP32-C5;
+its results are below, and its open checks are marked there. Other hardware facts come from vendor
+documents. Where this page proposes a number (a rate, a size, a timeout), it is a starting point
+to measure, not a result.
 
 ## What it is
 
@@ -90,6 +91,11 @@ Heltec documents GPIO47 and GPIO48 as connected to nothing on the board, and the
 use them (it uses GPIO 0, 1, 8–14, 17, 18, 21, 35–37, 43 and 44). Avoid GPIO45 and GPIO46, which
 are strapping pins.
 
+**Pin conflict found in Phase 0.** The add-on firmware must keep UART0 as its primary console (see
+[Phase 0](#phase-0-bench-spike)), and ESP-IDF puts that console on GPIO11 and GPIO12, the D6 and D7
+pins above. Phase 2 either moves the console to other pins or moves the link to another pair of
+XIAO pins (both UARTs can use most pins); the table changes with that choice.
+
 ### Power
 
 - Scanning should draw roughly 80–115 mA at 3.3 V (the ESP32-C5 datasheet gives 87 mA for 2.4 GHz
@@ -140,9 +146,10 @@ began in v5.5; Phase 0 confirms the pinned v5.5.4 builds it). It links the senso
 `firmware/components/reaper_sensor/` with host tests, as the mesh core does.
 
 - **Scheduler.** One radio, shared by taking turns. The plan sets bands, channels, dwell time per
-  channel and whether Bluetooth windows are interleaved. Espressif rates Wi-Fi listening during
-  Bluetooth scanning as unstable on the C5, so the scheduler alternates them rather than running
-  both.
+  channel and whether Bluetooth windows are interleaved. Phase 0 measured why this matters: with
+  Bluetooth scanning all the time, Wi-Fi listening on the same radio heard nothing (0 frames in
+  5 seconds against 133 alone), while Bluetooth lost nothing. So the scheduler gives each its own
+  windows and never runs a full-duty Bluetooth scan alongside Wi-Fi.
 - **Profiles.** `drones` weights the Remote ID channels and Bluetooth legacy and long-range
   scanning; `wifi` surveys both bands; `bluetooth` scans Bluetooth only; `balanced` mixes them.
   `balanced` is the default.
@@ -268,6 +275,29 @@ On a real XIAO ESP32-C5, with throwaway code:
   battery is checked with a meter.
 - The pinned ESP-IDF builds the C5, and whether opening its USB port resets it is recorded.
 
+The spike is [`firmware/spikes/xiao-c5-phase0/`](../../firmware/spikes/xiao-c5-phase0/). It only
+listens, keeps management frames only, scans Bluetooth passively and prints counts, never
+addresses or names.
+
+**Results on November 23, 2026**, on the owner's XIAO ESP32-C5 (chip revision 1.0, 8 MB flash) over
+three cycles indoors, with an antenna whose bands were not recorded:
+
+| Check | Result |
+| --- | --- |
+| Pinned ESP-IDF v5.5.4 | Builds and runs; free heap steady at about 152 KB |
+| Console | A USB-only console hangs every boot: UART0's clock stays off and a ROM routine waits forever for UART0 to be ready (`PCR_UART0_CONF`). USB and JTAG CPU resets do not clear it; download mode with the BOOT button or JTAG recovers it. The fix is UART0 as the primary console with USB as a secondary output, which causes the [pin conflict](#wiring-for-the-attached-mode) |
+| Wi-Fi 2.4 GHz | Works: 8 to 10 access points a sweep; channels 1 to 11 all tuned |
+| Wi-Fi 5 GHz | Works: all 25 US channels tuned, including the radar (DFS) band; beacons on 48 and 157 and other frames on 149, 2 access points a sweep. The count depends on the antenna |
+| Bluetooth LE 1M | Works: 8 devices, about 17 advertisements a second, all legacy |
+| Wi-Fi and Bluetooth together | A full-duty Bluetooth scan stops Wi-Fi listening entirely (0 frames against 133); Bluetooth is unaffected. See the scheduler |
+| Opening the USB port | Resets the C5 (reset reason USB) when opened from Python on macOS. A browser has not been tried |
+| Bluetooth long range (Coded PHY) | Not shown: no long-range advertiser was nearby, so zero reports is inconclusive |
+| Remote ID | Not shown: no drone or test transmitter |
+| Current draw; the Heltec's 5V pin on battery | Not measured yet; needs a meter |
+
+Next for Phase 0: a long-range Bluetooth transmitter, a Remote ID source, the meter readings, and a
+partial-duty Bluetooth scan to measure how the radio splits between Wi-Fi and Bluetooth.
+
 ### Phase 1: sensor protocol (built)
 
 `sensor-schema.json`, the `RS` magic, the `i32` and `bytes` kinds, generated bindings, frozen
@@ -307,6 +337,7 @@ The agent-side payload and portal flow for sharing a drone sighting on a channel
 | How the attached add-on is powered on battery: the Heltec's 5V pin, a LiPo on the XIAO, or a boost converter | Phase 0 results |
 | Image name. D8's pattern is for nodes; proposed `xiaoc5-reaper-sensor-v{semver}` so a sensor image can't be mistaken for a node image | Phase 2 |
 | Whether the accessory port should have an off setting for people who wire other things to GPIO47 and GPIO48 | Phase 3 |
+| Which XIAO pins carry the link, now that the UART0 console sits on D6 and D7 | Phase 2 |
 | Which other nodes get an accessory port (T-Beam, Wireless Stick V3); the T1000-E has no header | After Phase 3 |
 
 ## Sources

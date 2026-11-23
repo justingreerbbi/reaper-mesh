@@ -22,6 +22,13 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** a listen-only Phase 0 bench spike for the XIAO ESP32-C5 signals add-on (D60), in
+  `firmware/spikes/xiao-c5-phase0/`. **Verified on the owner's board:** the pinned ESP-IDF v5.5.4
+  runs on the C5; Wi-Fi listening works on 2.4 and 5 GHz, including the radar band; Bluetooth LE 1M
+  scanning works; a full-duty Bluetooth scan stops Wi-Fi listening entirely; opening the USB port
+  resets the board; and a USB-only console hangs the boot, so the console stays on UART0, whose pins
+  clash with the planned link pins. **Not verified:** long-range Bluetooth, Remote ID, current draw
+  and the Heltec's 5V pin on battery. No node firmware or portal change.
 - **Added:** the signals add-on's [sensor protocol](../reference/sensor-protocol.md) (D60, phase 1):
   `sensor-schema.json` with generated TypeScript and C++ bindings, the `RS` envelope with a
   512-byte payload, `i32` and `bytes` field kinds, frozen fixtures, and a simulated add-on. The C++
