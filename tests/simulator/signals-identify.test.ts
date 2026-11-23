@@ -223,3 +223,102 @@ test('WiGLE lookups send the address with the user’s key, and report refusals'
     (error: WigleError) => !error.stop,
   );
 });
+
+test('Flock devices are recognised by their documented signatures', () => {
+  const h = history();
+  const probe = (address: string, extra: object = {}): SignalReport => ({
+    type: 'wifiProbe',
+    boot: 'b',
+    at: 1,
+    address,
+    channel: 6,
+    band: 1,
+    rssi: -70,
+    count: 1,
+    ...extra,
+  });
+  const camera = identify(h.observe(probe('70c94e7f68ff'), 1), reference);
+  assert.equal(camera.device, 'flock');
+  assert.equal(camera.category, 'camera');
+  assert.equal(camera.maker, 'Flock Safety');
+  assert.equal(camera.confidence, 'medium', 'a shared Wi-Fi module is not proof');
+  // The same module asking for a named network, or on 5 GHz, is more likely a laptop.
+  assert.equal(
+    identify(h.observe(probe('70c94e000001', { ssid: hex('Home') }), 1), reference).device,
+    undefined,
+  );
+  assert.equal(
+    identify(h.observe(probe('70c94e000002', { band: 2 }), 1), reference).device,
+    undefined,
+  );
+
+  const own = identify(h.observe(probe('b41e52000001', { ssid: hex('x') }), 1), reference);
+  assert.equal(own.device, 'flock');
+  assert.equal(own.confidence, 'high');
+  assert.equal(
+    identify(h.observe(ap('70c94e7f68fe', 'Flock-7F68FF'), 1), reference).device,
+    'flock',
+  );
+  assert.equal(
+    identify(h.observe(ap('aabbcc000001', 'Flock of Seagulls'), 1), reference).device,
+    undefined,
+  );
+  assert.equal(
+    identify(h.observe(ble('c0ffee000030', { name: hex('Penguin-0123456789') }), 1), reference)
+      .device,
+    'flock',
+  );
+  assert.equal(
+    identify(h.observe(ble('c0ffee000031', { name: hex('FS Ext Battery') }), 1), reference).device,
+    'flock',
+  );
+  assert.equal(
+    identify(h.observe(ble('c0ffee000032', { manufacturer: 0x09c8 }), 1), reference).device,
+    'flock',
+  );
+  // Raven: services 0x3100 and 0x3200, little-endian.
+  const raven = identify(h.observe(ble('c0ffee000033', { services: '00310032' }), 1), reference);
+  assert.equal(raven.device, 'flock');
+  assert.equal(
+    identify(h.observe(ble('c0ffee000034', { services: '0a18' }), 1), reference).device,
+    undefined,
+  );
+});
+
+test('Ring devices are recognised by Ring’s registered addresses and setup network', () => {
+  const h = history();
+  const doorbell = identify(
+    h.observe(
+      {
+        type: 'wifiProbe',
+        boot: 'b',
+        at: 1,
+        address: '649a63000a01',
+        channel: 1,
+        band: 1,
+        rssi: -68,
+        count: 1,
+      },
+      1,
+    ),
+    reference,
+  );
+  assert.equal(doorbell.device, 'ring');
+  assert.equal(doorbell.category, 'camera');
+  assert.equal(doorbell.maker, 'Ring');
+  assert.equal(doorbell.confidence, 'high');
+  assert.equal(identify(h.observe(ap('0a0000000050', 'Ring-a1b2c3'), 1), reference).device, 'ring');
+  assert.equal(
+    identify(h.observe(ap('0a0000000051', 'Ring Setup 4f'), 1), reference).device,
+    'ring',
+  );
+  assert.equal(
+    identify(h.observe(ap('0a0000000052', 'Ringo Starr'), 1), reference).device,
+    undefined,
+  );
+  // A changing address names nobody, even if its first bytes match.
+  assert.equal(
+    identify(h.observe(ble('649a63000a02', { addressType: 2 }), 1), reference).device,
+    undefined,
+  );
+});

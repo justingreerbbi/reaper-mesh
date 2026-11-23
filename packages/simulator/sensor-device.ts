@@ -75,13 +75,18 @@ const accessPoints = [
     rssi: -74,
   },
 ] as const;
-const prober = {
-  address: 'da0011223344',
-  ssid: ascii('Home'),
-  channel: 1,
-  band: Band.ghz24,
-  rssi: -72,
-};
+const probers = [
+  {
+    address: 'da0011223344',
+    ssid: ascii('Home'),
+    channel: 1,
+    band: Band.ghz24,
+    rssi: -72,
+  },
+  // A Flock camera searching for any network, and a Ring doorbell (see signals-identify.ts).
+  { address: '70c94e7f68ff', channel: 6, band: Band.ghz24, rssi: -72 },
+  { address: '649a63000a01', channel: 1, band: Band.ghz24, rssi: -68 },
+];
 const bluetoothDevices = [
   {
     address: 'c0ffee000001',
@@ -316,7 +321,8 @@ export class SimulatedSensor {
           count: this.#count(ap.address),
         });
       }
-      if (this.plan.probes && this.#hearsChannel(prober.band, prober.channel)) {
+      for (const prober of probers) {
+        if (!this.plan.probes || !this.#hearsChannel(prober.band, prober.channel)) continue;
         this.#wifiFrames++;
         output.push({
           type: 'wifiProbe',

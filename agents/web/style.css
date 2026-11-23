@@ -1144,7 +1144,7 @@ button.filled {
   flex: 1;
 }
 
-/* Signals (D60). */
+/* Signals (D60, D61). Laid out for a phone first; wider screens put the panel beside the radar. */
 .signals-view {
   display: flex;
   flex-direction: column;
@@ -1154,65 +1154,70 @@ button.filled {
 .signals-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding-left: 4px;
 }
-.signals-plan summary {
-  cursor: pointer;
-  font-weight: 600;
+.signals-head h1 {
+  margin: 0;
 }
-.signals-plan-body {
+#signals-filter.is-changed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#signals-monitor.is-recording {
+  border-color: var(--bad);
+  color: var(--bad);
+  font-variant-numeric: tabular-nums;
+}
+/* One row of chips, scrolled sideways on a narrow screen. */
+.signals-chips {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-.signals-plan-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.signals-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.signals-tools .segmented {
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
   flex-shrink: 0;
 }
-.signals-tools input[type='search'] {
-  flex: 1;
-  min-width: 180px;
+.signals-chips::-webkit-scrollbar {
+  display: none;
 }
-.signals-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.signals-filters .chip {
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 13px;
-}
-.signals-filters .chip[aria-pressed='true'] {
-  background: var(--accent-deep);
-  border-color: var(--accent-mid);
-  color: var(--text);
-}
-.signals-select {
+.signals-chips .chip {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: var(--text-muted);
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 14px;
 }
-.signals-select select {
-  min-height: 32px;
-  width: auto;
+.signals-chips .chip[aria-pressed='true'] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.signals-chips .chip.is-empty {
+  color: var(--text-faint);
+}
+.chip-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.chip-count:empty {
+  display: none;
+}
+.signals-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.signals-tools input[type='search'] {
+  flex: 1;
+  min-width: 0;
+}
+.signals-tools .segmented,
+.signals-tools button {
+  flex-shrink: 0;
 }
 .signals-body {
   flex: 1;
@@ -1231,21 +1236,49 @@ button.filled {
   min-height: 0;
   overflow-y: auto;
 }
+.signals-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.signals-empty p {
+  margin: 0;
+}
+
+/* The radar. */
 .signals-radar {
+  position: relative;
+}
+.radar-holder {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
 }
+.radar-zoom {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+}
 .radar-svg {
+  touch-action: none;
   width: min(100%, 640px);
-  max-height: calc(100vh - 320px);
+  max-height: calc(100dvh - 300px);
   aspect-ratio: 1;
-  min-height: 280px;
+  min-height: 260px;
 }
 .radar-ring {
   fill: none;
   stroke: var(--border);
+}
+.radar-edge {
+  stroke: var(--text-faint);
 }
 .radar-axis {
   stroke: var(--border);
@@ -1311,6 +1344,12 @@ button.filled {
   stroke: var(--accent);
   stroke-width: 1.5;
 }
+.radar-hunted {
+  fill: none;
+  stroke: var(--bad);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
 .radar-error {
   fill: rgb(91 155 213 / 12%);
   stroke: #5b9bd5;
@@ -1329,6 +1368,63 @@ button.filled {
   align-items: center;
   gap: 5px;
 }
+
+/* Hunt. */
+.signals-hunt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--accent-mid);
+  flex-shrink: 0;
+}
+.hunt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hunt-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hunt-reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+.hunt-rssi {
+  font-size: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hunt-trend {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.signals-hunt[data-trend='warmer'] .hunt-trend {
+  color: var(--good);
+}
+.signals-hunt[data-trend='colder'] .hunt-trend,
+.signals-hunt[data-trend='lost'] .hunt-trend {
+  color: var(--warn);
+}
+.hunt-meter {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.hunt-meter span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.25s;
+}
+
+/* The panel for the selected signal: beside the radar, or a sheet from the bottom on a phone. */
 .signals-panel {
   position: relative;
   display: flex;
@@ -1339,41 +1435,45 @@ button.filled {
   align-self: start;
   max-height: 100%;
 }
-.signals-panel-top {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-right: 40px;
+.signals-panel .signal-card-head {
+  padding-right: 44px;
 }
 .signals-panel-close {
   position: absolute;
   top: 10px;
   right: 10px;
 }
-.signals-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+.signals-panel-actions > button {
+  flex: 1;
 }
-.signals-editor textarea {
-  resize: vertical;
-}
-.signal-identity,
-.signal-lookup {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: var(--surface-raised);
-}
-.signal-identity-title {
+.signal-what {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  color: var(--text-muted);
+}
+.signal-fold {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.signal-fold > summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 32px;
+}
+.signal-fold[open] > summary {
+  margin-bottom: 6px;
+}
+.signals-editor,
+.signal-why,
+.signal-correction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.signals-editor textarea {
+  resize: vertical;
 }
 .signal-reasons {
   margin: 0;
@@ -1381,64 +1481,106 @@ button.filled {
   font-size: 13px;
   color: var(--text-muted);
 }
-.signal-correction {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
 .signal-spark {
   width: 100%;
-  height: 40px;
+  height: 36px;
 }
 .signal-spark-line {
   fill: none;
   stroke: var(--accent);
   stroke-width: 1.5;
 }
-.signal-place {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+.signal-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  margin: 0;
+  font-size: 13px;
 }
-.signal-card {
+.signal-facts dt {
+  color: var(--text-muted);
+}
+.signal-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The list: plain rows with a divider, name on the left and strength on the right. */
+.signal-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
-.signal-card.is-selected {
-  outline: 2px solid var(--accent-mid);
+.signal-row:hover,
+.signal-row.is-selected {
+  background: var(--surface);
 }
-.signal-note {
-  color: var(--text);
-  font-style: italic;
+.signal-row.is-selected {
+  box-shadow: inset 3px 0 0 var(--accent);
 }
-@media (max-width: 900px) {
-  .signals-body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .signals-panel {
-    order: -1;
-  }
+.signal-row.is-stale {
+  opacity: 0.55;
 }
-.signal-list {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  align-content: start;
-  gap: 8px;
-  min-height: 0;
+.signal-row-main,
+.signal-row-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.signal-row-meta {
+  align-items: flex-end;
+}
+.signal-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.signal-row-name strong,
+.signal-row-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.signal-row-name strong {
+  font-weight: 600;
+}
+#signals-live[aria-pressed='true'] {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+/* The list, and cards shared with the logs sheet. */
+.signal-list,
+.signals-logs {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
-.signal-card {
+.signals-logs {
+  gap: 8px;
+}
+.signal-card,
+.signals-log {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
+.signal-card {
+  cursor: pointer;
+}
 .signal-card.is-stale {
   opacity: 0.6;
+}
+.signal-card.is-selected {
+  outline: 2px solid var(--accent-mid);
 }
 .signal-card-head {
   display: flex;
@@ -1458,6 +1600,10 @@ button.filled {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.signal-note {
+  color: var(--text);
+  font-style: italic;
+}
 .signal-badge {
   padding: 1px 7px;
   border-radius: 999px;
@@ -1465,26 +1611,56 @@ button.filled {
   font-size: 11px;
   white-space: nowrap;
 }
+.signal-badge[data-tone='warn'] {
+  color: var(--warn);
+}
+.signal-badge[data-tone='good'] {
+  color: var(--good);
+}
 .signal-card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
 }
-.signal-facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 12px;
-  margin: 6px 0 0;
-  font-size: 13px;
+
+@media (max-width: 900px) {
+  .signals-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* A sheet over the radar, so the radar keeps its place. */
+  .signals-panel {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-height: 62dvh;
+    z-index: 20;
+    border: 1px solid var(--border);
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 35%);
+  }
+  .signals-main:has(~ .signals-panel:not([hidden])) {
+    padding-bottom: 45dvh;
+  }
 }
-.signal-facts dt {
-  color: var(--text-muted);
-}
-.signal-facts dd {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
+@media (max-width: 720px) {
+  .signals-panel {
+    bottom: 96px;
+    max-height: 56dvh;
+  }
+  /* Icons only for the header and view buttons, to fit a phone. */
+  .signals-head button > span,
+  .signals-tools .segmented button > span,
+  #signals-live > span,
+  #signals-filter-label {
+    display: none;
+  }
+  #signals-monitor.is-recording > span {
+    display: inline;
+  }
+  .radar-zoom button > span {
+    display: none;
+  }
 }
 .drone-marker .drone-dot {
   width: 22px;

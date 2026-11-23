@@ -267,7 +267,9 @@ nearby transmitters:
 
 Direction comes only from reported positions, the user's own movement, or a compass sweep. A single
 antenna measures no bearing, and the radar shows which kind each point is. Nothing is sent over the
-mesh. This satisfies AI.md's scope rule for telemetry and internet use. See the
+mesh. This satisfies AI.md's scope rule for telemetry and internet use. The owner also chose
+(November 23) to drop the portal's scan plan: the portal has the add-on listen to everything,
+including devices searching for networks, and the filters decide what is shown. See the
 [signals intelligence design](signals-intel-design.md).
 
 ## Protocol and synchronization

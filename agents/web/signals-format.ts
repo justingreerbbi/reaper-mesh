@@ -11,7 +11,9 @@ import {
   type SignalRecord,
 } from '../../packages/agent-core/signals-intel.ts';
 
-export { airText };
+import { csvCell } from '../../packages/agent-core/signals-log.ts';
+
+export { airText, csvCell };
 
 /** Not heard for this long: shown faded, and no longer counted as nearby. */
 export const STALE_MS = 2 * 60_000;
@@ -133,16 +135,6 @@ export class DroneAnnouncer {
 }
 
 type Cell = string | number | undefined;
-/**
- * One CSV field. Text from the air is quoted when needed, and text a spreadsheet would run as a
- * formula (a network named "=HYPERLINK(…)") is prefixed with an apostrophe so it stays text.
- */
-export function csvCell(value: Cell) {
-  if (value === undefined) return '';
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
 const csv = (rows: Cell[][]) => rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
 const iso = (ms: number) => new Date(ms).toISOString();
 

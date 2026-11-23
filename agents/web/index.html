@@ -551,169 +551,64 @@
               <h1>Signals</h1>
               <small id="signals-state" class="muted" role="status"></small>
             </div>
-            <button id="signals-simulate" type="button">
-              <i data-icon="flask-conical"></i>Simulated
+            <button id="signals-monitor" type="button" title="Log signals with your position">
+              <i data-icon="footprints"></i><span id="signals-monitor-label">Monitor</span>
             </button>
             <button id="signals-disconnect" type="button" hidden>
-              <i data-icon="unplug"></i>Disconnect
+              <i data-icon="unplug"></i><span>Disconnect</span>
             </button>
             <button id="signals-connect" class="primary" type="button">
-              <i data-icon="usb"></i>Connect add-on
+              <i data-icon="usb"></i><span>Connect</span>
             </button>
           </header>
           <p id="signals-notice" class="notice" data-tone="warn" hidden></p>
-          <details id="signals-plan" class="card signals-plan" hidden>
-            <summary>Scan plan</summary>
-            <div class="signals-plan-body">
-              <label for="signals-profile">Focus</label>
-              <select id="signals-profile" data-segmented>
-                <option value="0">Balanced</option>
-                <option value="1">Drones</option>
-                <option value="2">Wi-Fi</option>
-                <option value="3">Bluetooth</option>
-              </select>
-              <label class="toggle-row">
-                <span>Wi-Fi 2.4 GHz</span><input id="signals-band24" type="checkbox" checked />
-              </label>
-              <label class="toggle-row">
-                <span>Wi-Fi 5 GHz</span><input id="signals-band5" type="checkbox" checked />
-              </label>
-              <label class="toggle-row">
-                <span>Bluetooth</span><input id="signals-bluetooth" type="checkbox" checked />
-              </label>
-              <label class="toggle-row">
-                <span>Devices searching for networks</span>
-                <input id="signals-probes" type="checkbox" />
-              </label>
-              <p class="small faint">
-                Shows phones and laptops looking for Wi-Fi, and the network names they ask for. Off
-                by default. The add-on only listens and never reads Wi-Fi traffic.
-              </p>
-              <div class="signals-plan-actions">
-                <small id="signals-plan-state" class="muted" role="status"></small>
-                <button id="signals-apply" class="primary compact" type="button">Apply</button>
-              </div>
-            </div>
-          </details>
+          <div id="signals-chips" class="signals-chips" role="group" aria-label="Show"></div>
           <div class="signals-tools">
-            <div class="segmented" role="group" aria-label="Kind">
-              <button type="button" data-signals-kind="" aria-pressed="true">
-                All <span id="signals-count-all" class="faint"></span>
-              </button>
-              <button type="button" data-signals-kind="drone" aria-pressed="false">
-                Drones <span id="signals-count-drone" class="faint"></span>
-              </button>
-              <button type="button" data-signals-kind="wifi" aria-pressed="false">
-                Wi-Fi <span id="signals-count-wifi" class="faint"></span>
-              </button>
-              <button type="button" data-signals-kind="bluetooth" aria-pressed="false">
-                Bluetooth <span id="signals-count-bluetooth" class="faint"></span>
-              </button>
-              <button type="button" data-signals-kind="probe" aria-pressed="false">
-                Searching <span id="signals-count-probe" class="faint"></span>
-              </button>
-            </div>
             <input
               id="signals-search"
               type="search"
-              placeholder="Search names, addresses, notes and tags"
+              placeholder="Search"
+              aria-label="Search names, addresses, makers, notes and tags"
               autocomplete="off"
             />
+            <button
+              id="signals-live"
+              type="button"
+              class="compact"
+              aria-pressed="true"
+              title="Only signals heard in the last 30 seconds"
+            >
+              <i data-icon="activity"></i><span>Live</span>
+            </button>
+            <button id="signals-filter" type="button" class="compact" aria-haspopup="dialog">
+              <i data-icon="sliders-horizontal"></i><span id="signals-filter-label">Filters</span>
+            </button>
             <div class="segmented" role="group" aria-label="View">
               <button type="button" data-signals-mode="radar" aria-pressed="true">
-                <i data-icon="radar"></i>Radar
+                <i data-icon="radar"></i><span>Radar</span>
               </button>
               <button type="button" data-signals-mode="list" aria-pressed="false">
-                <i data-icon="list"></i>List
+                <i data-icon="list"></i><span>List</span>
               </button>
             </div>
           </div>
-          <div class="signals-filters" role="group" aria-label="Filters">
-            <button type="button" class="chip" data-signals-quick="now" aria-pressed="false">
-              Heard now
-            </button>
-            <button type="button" class="chip" data-signals-quick="watched" aria-pressed="false">
-              Watched
-            </button>
-            <button type="button" class="chip" data-signals-quick="noted" aria-pressed="false">
-              Noted
-            </button>
-            <button type="button" class="chip" data-signals-quick="today" aria-pressed="false">
-              New today
-            </button>
-            <button type="button" class="chip" data-signals-quick="telemetry" aria-pressed="false">
-              Telemetry
-            </button>
-            <button type="button" class="chip" id="signals-hide-private" aria-pressed="true">
-              Hide private addresses
-            </button>
-            <label class="signals-select"
-              >Signal
-              <select id="signals-min-rssi">
-                <option value="">Any</option>
-                <option value="-85">-85 dBm or stronger</option>
-                <option value="-75">-75 dBm or stronger</option>
-                <option value="-65">-65 dBm or stronger</option>
-              </select>
-            </label>
-            <label class="signals-select"
-              >Is
-              <select id="signals-category">
-                <option value="">Anything</option>
-                <option value="drone">Drone</option>
-                <option value="tracker">Tracker</option>
-                <option value="phone">Phone or tablet</option>
-                <option value="computer">Computer or accessory</option>
-                <option value="access-point">Router or access point</option>
-                <option value="hotspot">Hotspot</option>
-                <option value="camera">Camera</option>
-                <option value="printer">Printer</option>
-                <option value="tv">TV or media player</option>
-                <option value="audio">Headphones or speaker</option>
-                <option value="wearable">Watch or fitness device</option>
-                <option value="vehicle">Vehicle</option>
-                <option value="sensor">Sensor or beacon</option>
-                <option value="smart-home">Smart home or IoT device</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </label>
-            <label class="signals-select"
-              >Heard
-              <select id="signals-within">
-                <option value="">Any time</option>
-                <option value="600000">Last 10 minutes</option>
-                <option value="3600000">Last hour</option>
-                <option value="86400000">Last day</option>
-                <option value="604800000">Last week</option>
-              </select>
-            </label>
-            <label class="signals-select"
-              >Radius
-              <select id="signals-radius">
-                <option value="">Auto</option>
-                <option value="25">25 m</option>
-                <option value="50">50 m</option>
-                <option value="100">100 m</option>
-                <option value="250">250 m</option>
-                <option value="500">500 m</option>
-                <option value="1000">1 km</option>
-              </select>
-            </label>
-            <button
-              id="signals-export"
-              type="button"
-              class="compact"
-              title="Save the shown signals as a CSV file"
-            >
-              <i data-icon="download"></i>Export
-            </button>
-          </div>
           <div class="signals-body">
             <div class="signals-main">
+              <section
+                id="signals-hunt"
+                class="card signals-hunt"
+                aria-label="Hunt"
+                hidden
+              ></section>
               <div id="signals-radar" class="signals-radar"></div>
-              <p id="signals-empty" class="empty"></p>
+              <div id="signals-empty" class="empty signals-empty">
+                <p id="signals-empty-text"></p>
+                <button id="signals-simulate" type="button" class="compact">
+                  <i data-icon="flask-conical"></i>Try a simulated add-on
+                </button>
+              </div>
               <ul id="signals-list" class="signal-list" aria-label="Signals" hidden></ul>
-              <small id="signals-more" class="faint" hidden></small>
+              <small id="signals-limit" class="faint" hidden></small>
             </div>
             <aside
               id="signals-panel"
@@ -1744,11 +1639,6 @@
                   </div>
                   <div class="card field-card">
                     <h2>Signals</h2>
-                    <small class="muted"
-                      >How the Signals tab works out what each signal is. The maker database comes
-                      with the portal and is checked for a newer copy each time it opens; a lookup
-                      in it sends nothing.</small
-                    >
                     <small id="signals-reference-status" class="muted" role="status"></small>
                     <div class="inline wrap">
                       <button id="signals-reference-update" class="compact" type="button">
@@ -1767,10 +1657,7 @@
                       <span
                         ><span>Look up Wi-Fi networks on WiGLE</span
                         ><small class="muted"
-                          >Asks WiGLE where a network has been seen and what it was called. Each
-                          lookup sends that network's address to WiGLE. Watched networks are looked
-                          up on their own, and any network with Look up in its panel; at most 20 a
-                          day.</small
+                          >Sends a network's address to WiGLE. 20 a day.</small
                         ></span
                       >
                       <input id="wigle-enabled" type="checkbox" />
@@ -1784,10 +1671,6 @@
                         <label for="wigle-token">WiGLE API token</label>
                         <input id="wigle-token" type="password" autocomplete="off" />
                       </div>
-                      <small class="faint"
-                        >From your WiGLE account page. Kept in this browser only, and deleted by the
-                        local wipe.</small
-                      >
                     </div>
                     <small id="wigle-status" class="muted" role="status"></small>
                   </div>
@@ -1893,6 +1776,52 @@
         </button>
       </div>
     </div>
+
+    <dialog id="signals-filter-sheet" class="sheet" aria-labelledby="signals-filter-title">
+      <h2 id="signals-filter-title">Filters</h2>
+      <div class="field">
+        <label for="signals-min-rssi">Signal</label>
+        <select id="signals-min-rssi" data-segmented>
+          <option value="" selected>Any</option>
+          <option value="-80">Medium</option>
+          <option value="-65">Strong</option>
+        </select>
+      </div>
+      <label class="toggle-row">
+        <span>Hide changing addresses</span>
+        <input id="signals-hide-private" type="checkbox" checked />
+      </label>
+      <label class="toggle-row">
+        <span>With my notes</span>
+        <input id="signals-noted" type="checkbox" />
+      </label>
+      <label class="toggle-row">
+        <span>New today</span>
+        <input id="signals-today" type="checkbox" />
+      </label>
+      <div class="sheet-actions">
+        <button id="signals-export" type="button" class="grow">
+          <i data-icon="download"></i>Export shown
+        </button>
+        <button id="signals-filter-reset" type="button" class="grow">Reset</button>
+        <button id="signals-filter-close" type="button" class="primary grow">Done</button>
+      </div>
+    </dialog>
+
+    <dialog id="signals-monitor-sheet" class="sheet" aria-labelledby="signals-monitor-title">
+      <h2 id="signals-monitor-title">Monitoring</h2>
+      <p id="signals-monitor-status" class="muted" role="status"></p>
+      <small id="signals-monitor-location" class="muted" role="status"></small>
+      <div class="sheet-actions">
+        <button id="signals-monitor-toggle" type="button" class="primary grow">
+          Start monitoring
+        </button>
+        <button id="signals-monitor-close" type="button" class="grow">Close</button>
+      </div>
+      <h3>Saved logs</h3>
+      <p id="signals-monitor-none" class="faint">No logs yet.</p>
+      <ul id="signals-monitor-logs" class="signals-logs" aria-label="Saved logs"></ul>
+    </dialog>
 
     <dialog id="connecting-sheet" class="sheet center-sheet" aria-labelledby="connecting-title">
       <span class="sheet-icon"><i data-icon="key-round"></i></span>

@@ -48,9 +48,16 @@ const isReport = (message: SensorMessage): message is SignalReport =>
   message.type === 'wifiProbe' ||
   message.type === 'remoteId';
 
+const recorded = new Set<(key: string, rssi: number, at: number) => void>();
+/** Hears each report as it is recorded, for hunting one signal. */
+export function onRecorded(listener: (key: string, rssi: number, at: number) => void) {
+  recorded.add(listener);
+}
+
 export function recordReport(message: SensorMessage, receivedAt: number) {
   if (stopped || !isReport(message)) return;
-  history.observe(message, receivedAt, herePlace());
+  const record = history.observe(message, receivedAt, herePlace());
+  for (const listener of recorded) listener(record.key, message.rssi, receivedAt);
 }
 
 async function flush() {

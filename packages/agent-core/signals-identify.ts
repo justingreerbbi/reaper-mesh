@@ -122,6 +122,13 @@ export const CATEGORIES = {
   unknown: 'Unknown',
 } as const;
 export type Category = keyof typeof CATEGORIES;
+
+/** Device families recognised by their own signatures, which the Signals filters can pick out. */
+export const KNOWN_DEVICES = {
+  flock: 'Flock Safety device',
+  ring: 'Ring doorbell or camera',
+} as const;
+export type KnownDevice = keyof typeof KNOWN_DEVICES;
 export type Confidence = 'high' | 'medium' | 'low';
 
 export type Identity = Readonly<{
@@ -131,6 +138,8 @@ export type Identity = Readonly<{
   reasons: readonly string[];
   /** The user said so, rather than the rules guessing. */
   fromUser: boolean;
+  /** A known device family it matches. */
+  device?: KnownDevice;
 }>;
 
 /** The user's correction for one signal. */
@@ -143,7 +152,13 @@ export type LearnedRule = Readonly<{
   maker?: string;
 }>;
 
-type Evidence = { category?: Category; maker?: string; weight: number; reason: string };
+type Evidence = {
+  category?: Category;
+  maker?: string;
+  device?: KnownDevice;
+  weight: number;
+  reason: string;
+};
 
 /** Patterns in network and device names: [pattern, category, maker, weight]. */
 const NAME_RULES: readonly (readonly [RegExp, Category, string | undefined, number])[] = [
@@ -299,6 +314,68 @@ const TRACKERS: Record<number, string> = {
 /** ANSI/CTA-2063 serial numbers start with the maker's code. */
 const UAS_MAKERS: Record<string, string> = { '1581': 'DJI' };
 
+// Known device families. Sources: the flock-you project's signature lists (colonelpanichacks),
+// the IEEE registry and the Bluetooth SIG assigned numbers; see the signals intelligence design.
+
+/** The one prefix registered to Flock Safety itself. */
+const FLOCK_OUI = 'b41e52';
+/**
+ * Prefixes of the Wi-Fi modules Flock cameras use (Liteon, USI). Other products use them too, so
+ * they count only with the camera's habit of searching for any network on 2.4 GHz.
+ */
+const FLOCK_MODULE_OUIS = new Set(
+  (
+    '70c94e 3c9180 d8f3bc 803049 145afc 744ca1 9c2f9d c03532 940853 e4aaea f46add e00af6 ' +
+    '24b2b9 00f48d d03957 e8d0fc b81ea4 700894 5800e3 5c93a2 646e69 14b5cd 083a88 e04f43'
+  ).split(' '),
+);
+/** Bluetooth company ID in Flock battery packs' adverts (registered to XUNTONG). */
+const FLOCK_COMPANY = 0x09c8;
+/** Prefixes registered to Ring LLC. */
+const RING_OUIS = new Set(
+  '00b463 187f88 242bd6 343ea4 50e467 54e019 5c475e 649a63 90486c 9c7613 ac9fc3 c4dbad cc3bfb'.split(
+    ' ',
+  ),
+);
+
+function knownDevices(record: SignalRecord): Evidence[] {
+  const r = record.latest;
+  const found: Evidence[] = [];
+  const prefix = record.kind === 'drone' || record.privateAddress ? '' : record.id.slice(0, 6);
+  const flock = (weight: number, reason: string) =>
+    found.push({ device: 'flock', category: 'camera', maker: 'Flock Safety', weight, reason });
+  const ring = (weight: number, reason: string) =>
+    found.push({ device: 'ring', category: 'camera', maker: 'Ring', weight, reason });
+
+  if (prefix === FLOCK_OUI) flock(6, 'Its address is registered to Flock Safety');
+  if (RING_OUIS.has(prefix)) ring(5, 'Its address is registered to Ring');
+  if (r.type === 'wifiAp') {
+    const ssid = airText(r.ssid);
+    if (/^flock(-[0-9a-f]{6})?$/i.test(ssid)) flock(6, 'Its network name is a Flock camera’s');
+    if (/^ring[- ](setup[- ])?[0-9a-f]{2,6}$/i.test(ssid))
+      ring(4, 'Its network name is a Ring device’s in setup mode');
+  }
+  if (r.type === 'wifiProbe' && !airText(r.ssid) && r.band === 1 && FLOCK_MODULE_OUIS.has(prefix))
+    flock(3, 'It searches for any network from a Wi-Fi module Flock cameras use');
+  if (r.type === 'bleDevice') {
+    const name = airText(r.name);
+    if (/^penguin-\d{10}$/i.test(name) || /^fs ext battery/i.test(name))
+      flock(6, 'Its name is a Flock battery pack’s');
+    else if (/pigvision/i.test(name)) flock(4, 'Its name has been used by Flock devices');
+    if (r.manufacturer === FLOCK_COMPANY)
+      flock(4, 'Its Bluetooth data has the company ID Flock battery packs use');
+    // A Raven gunshot detector advertises services 0x3100 to 0x3500.
+    let raven = 0;
+    for (let i = 0; r.services && i + 4 <= r.services.length; i += 4) {
+      const uuid = parseInt(r.services.slice(i + 2, i + 4) + r.services.slice(i, i + 2), 16);
+      if (uuid >= 0x3100 && uuid <= 0x3500 && uuid % 0x100 === 0) raven++;
+    }
+    if (raven) flock(raven > 1 ? 5 : 3, 'It advertises a Flock Raven gunshot detector’s services');
+    if (/^ring[- ]/i.test(name)) ring(2, 'Its name starts with Ring');
+  }
+  return found;
+}
+
 function nameOf(record: SignalRecord) {
   const r = record.latest;
   if (r.type === 'wifiAp') return airText(r.ssid);
@@ -439,7 +516,7 @@ export function identify(
       reasons: [`You said signals named “${nameOf(record)}” are this`],
       fromUser: true,
     };
-  const found = evidence(record, reference);
+  const found = [...knownDevices(record), ...evidence(record, reference)];
   const score = new Map<Category, number>();
   const makers = new Map<string, number>();
   for (const e of found) {
@@ -460,10 +537,18 @@ export function identify(
       maker = candidate;
       makerWeight = weight;
     }
+  let device: KnownDevice | undefined;
+  let deviceWeight = 0;
+  for (const e of found)
+    if (e.device && e.weight > deviceWeight) {
+      device = e.device;
+      deviceWeight = e.weight;
+    }
   const reasons = found.filter(e => !e.category || e.category === category).map(e => e.reason);
   return {
     category,
     ...(maker ? { maker } : {}),
+    ...(device ? { device } : {}),
     confidence: best >= 4 ? 'high' : best >= 2 ? 'medium' : 'low',
     reasons: reasons.length ? reasons : ['Nothing it sends says what it is'],
     fromUser: false,

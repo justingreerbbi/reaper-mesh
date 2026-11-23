@@ -22,6 +22,22 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Changed:** the Signals screen is rebuilt for phones: one row of chips, the rarer filters in a
+  sheet, a shorter panel that is a bottom sheet on a phone, a plain-row list, and far less text.
+  **Live** (on by default) drops a signal 30 seconds after it was last heard.
+- **Added:** **Monitor** logs every signal heard with the user's position and its strength, and
+  exports each log as CSV or GeoJSON for mapping. **Flock** and **Ring** chips pick out Flock Safety
+  and Ring devices by their published signatures. **Verified:** host tests; in a browser at desktop
+  and phone sizes with the simulated add-on, which now includes one of each. **Not verified:** a
+  real Flock or Ring device, monitoring while moving, a real phone.
+- **Changed:** the Signals tab has no scan plan. The portal has the add-on listen to everything,
+  including devices searching for networks (the owner's choice), and the filters decide what is
+  shown.
+- **Added:** radar zoom (buttons, wheel and pinch), and **Hunt**: beeps that get faster and higher as
+  a selected signal gets stronger, with a meter, warmer or colder, and the peak. The panel's buttons
+  no longer move under a click while reports stream in. **Verified:** host tests; in a browser with
+  the simulated add-on. **Not verified:** the beeps by ear, a hunt with the real add-on, pinch on a
+  touch screen.
 - **Added:** signals intelligence, step 2 (D61). Each signal gets a best guess of what it is and who
   made it, with a confidence and the reasons. The guess uses:
   - a maker database built from the IEEE registries and Nordic's Bluetooth numbers, served with the

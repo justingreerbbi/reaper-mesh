@@ -30,7 +30,8 @@ and the radar draws each kind differently:
 | **Estimated from movement** | While the user moves with a location fix, each report is stored with the user's position and RSSI. A weighted centroid of the strongest reports estimates where the transmitter is. This needs a spread of positions, about 30 m or more, and is shown with an error radius | Solid blue point, with an error ring when selected |
 | **Distance only** | RSSI converted to a distance with a log-distance path-loss model (reference power per kind, exponent 2.7). The error is a factor of 2 to 3 | Hollow grey point on its distance ring, at a fixed angle taken from its address, so it doesn't move around. The legend says "direction unknown" |
 
-The **Locate** mode in the panel helps the user find one signal:
+The **Hunt** mode in the panel helps the user find one signal (built: the meter, warmer or colder,
+and beeps that get faster and higher with signal strength):
 
 - **Warmer or colder.** A large live signal meter with a short trend line, for walking towards a
   transmitter.
@@ -156,11 +157,66 @@ The detail panel shows:
 - the RSSI history as a sparkline;
 - telemetry, when the signal has it;
 - the identification reasons, with **Correct**;
-- the note, tags, **Watch**, **Locate**, **Show on map** and **Export**.
+- the note, tags, **Watch**, **Hunt**, **Show on map** and **Export**.
 
 ## Delivery
 
 Each step can be used on its own and is tested before the next one starts.
+
+**Revamp for phones, monitoring, and Flock and Ring (November 23, 2026).**
+
+- **Screen.** Rebuilt phone-first, in smaller modules (`signals-ui.ts`, `signals-radar.ts`,
+  `signals-panel.ts`, `signals-hunt-ui.ts`, `signals-monitor-ui.ts`, `signals-dom.ts`):
+  - one row of chips picks what to show; the rarer filters are in a sheet;
+  - the panel shows three actions and three facts, with the rest folded; on a phone it is a sheet
+    from the bottom;
+  - the list is plain rows;
+  - on-screen explanations were cut, at the owner's request.
+- **Live.** On by default. A signal fades 15 s after it was last heard and drops off after 30 s.
+  A full round of channels takes about 11 s (38 Wi-Fi channels at 150 ms, plus Bluetooth slots), so
+  30 s allows two missed rounds. Off shows history: the newest 300 on the radar.
+- **Monitoring** (`packages/agent-core/signals-log.ts`, IndexedDB stores `log-sessions` and
+  `log-rows`):
+  - A session logs a row when a signal is first heard, and again after the user moves 5 m, its
+    strength changes 5 dB, or 30 s pass.
+  - Each row has the time, the user's position and accuracy, strength, kind, name, address, channel,
+    the guess, and a drone's reported position.
+  - Limits: 250,000 rows a session and 50 sessions.
+  - Export: CSV, and GeoJSON points at the places where each signal was heard.
+- **Flock and Ring** are known devices in `signals-identify.ts`, each with its own chip. The
+  signatures come from the flock-you project's lists, the IEEE registry and the Bluetooth SIG
+  numbers:
+  - Flock: its own prefix `B4:1E:52`; `Flock-XXXXXX` networks; `Penguin-` and `FS Ext Battery`
+    Bluetooth names; company ID `0x09C8`; Raven services `0x3100` to `0x3500`; and a wildcard probe
+    on 2.4 GHz from one of 24 Liteon and USI module prefixes. The last is medium confidence: the
+    project's field test found 11 of 12 cameras, with 2 false positives.
+  - Ring: its 13 registered prefixes, and the setup network name.
+  - Left out as too broad: the Espressif, Samsung, Atheros and unregistered prefixes on the
+    community list, matching a prefix alone on other frames, and the probe's element fingerprint,
+    which the add-on doesn't report.
+  - The simulated add-on now includes one of each.
+- **Not verified:** any of this against a real Flock or Ring device; monitoring with a real moving
+  position; the screen on a real phone.
+
+**Owner changes (November 23, 2026).**
+
+- **No scan plan.** The scan plan is gone from the portal. Once per add-on boot, the portal sends a
+  plan to listen to everything (both bands, Bluetooth, and devices searching for networks), and the
+  filters decide what is shown. This is the owner's call. It changes D60's default of probe capture
+  off in the portal; the firmware's own default is still off.
+- **Zoom.** The radar zooms around the user (buttons, wheel, trackpad and touch pinch), with rings
+  at round distances.
+- **Hunt** (`packages/agent-core/signals-hunt.ts`, `agents/web/signals-hunt-ui.ts`):
+  - Each report's strength is smoothed (half of each new report).
+  - Warmer or colder compares the last 4 s with the 8 s before, by at least 3 dB.
+  - The beep runs from 1.5 s and 350 Hz at -95 dBm to 0.1 s and 1.6 kHz at -40 dBm, falling
+    geometrically. A lost signal ticks at 220 Hz every 2 s.
+  - Web Audio starts on the Hunt click, and a phone vibrates too.
+  - The add-on reports a Wi-Fi or Bluetooth transmitter at most every 5 s (`kUpdateMs`), which
+    makes a hunt slow. Faster reports for the hunted signal need a firmware and sensor protocol
+    change, which is proposed, not built.
+- The panel's buttons now stay in place while reports stream in, and radar points and list rows
+  select on press, so a redraw can't swallow a click.
 
 **Step 2 built (November 23, 2026).**
 
@@ -202,7 +258,8 @@ Each step can be used on its own and is tested before the next one starts.
    radar (SVG); the panel with notes and watch; the List view kept. No protocol change.
 2. **Identification (built).** Local rules, the reference-pack tool and its file, checking for
    updates on load, corrections, and WiGLE lookups.
-3. **Locate.** The warmer-or-colder meter and the compass sweep. The movement estimate itself was
+3. **Hunt (built, except the compass sweep).** The warmer-or-colder meter and the beeps. The
+   movement estimate itself was
    built in step 1.
 4. **Telemetry.** The `advert` field (owner approval), the firmware passing it through, decoders and
    series.

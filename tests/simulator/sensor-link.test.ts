@@ -76,7 +76,7 @@ test('plans apply, and probe capture can be turned on', () => {
   assert.equal(link.plan?.state, 'applied');
   assert.equal(link.plan?.probes, 1);
   step(1000);
-  assert.equal(link.store.wifiProbes.size, 1);
+  assert.equal(link.store.wifiProbes.size, 3);
   assert.equal(link.setPlan({ ...DEFAULT_PLAN, dwell: 1 }), 2);
   step();
   assert.equal(link.plan?.state, 'invalid');

@@ -89,7 +89,7 @@ test('a plan is applied whole and echoed back', () => {
   assert.equal(status.channels, '01060b');
   sensor.tick(0);
   const messages = read(sensor);
-  assert.equal(only(messages, 'wifiProbe').length, 1);
+  assert.equal(only(messages, 'wifiProbe').length, 3);
   // Field Net is on 5 GHz channel 36, which this plan does not listen to.
   assert.deepEqual(
     only(messages, 'wifiAp').map(ap => ap.channel),

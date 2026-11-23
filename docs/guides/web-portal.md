@@ -151,85 +151,157 @@ a node until it is heard again; its messages stay.
 The [signals add-on](../contributing/signals-design.md) is a Seeed Studio XIAO ESP32-C5 running the
 [signals firmware](../../firmware/xiao-esp32c5-sensor/README.md). It listens to Wi-Fi on 2.4 and
 5 GHz, Bluetooth LE and drone Remote ID, and only ever listens. Plug it into this computer's USB,
-open **Signals** and choose **Connect add-on**. With no radio, use **Connect signals add-on** on the
-connect screen. It needs Chrome, Edge or the desktop app. **Simulated** shows the same view with no
-hardware.
+open **Signals** and choose **Connect**. With no radio, use **Connect signals add-on** on the connect
+screen. It needs Chrome, Edge or the desktop app. With nothing connected, **Try a simulated add-on**
+shows the same screen with no hardware.
 
-**Radar** draws every signal around you, with its name under the strongest few. The rings show
+The add-on listens to everything, and the screen decides what to show. It is laid out for a phone
+first, and from top to bottom it has:
+
+1. **The status line**, with **Monitor** and **Connect**.
+2. **One row of chips** that pick what to show: **All**, **Drones**, **Flock**, **Ring**,
+   **Cameras**, **Trackers**, **Wi-Fi**, **Bluetooth**, **Searching** (devices looking for a
+   network) and **Watched**. Each shows how many it has.
+3. **Search**, **Live**, **Filters** and **Radar** or **List**.
+4. **The radar or the list**, and a panel for the signal you select.
+
+**Live** is on at first, and keeps the screen to what is being heard now: a signal fades 15 seconds
+after it was last heard and drops off after 30. That allows two missed rounds, because the add-on
+takes about 11 seconds to go round every channel. The selected and hunted signals stay. With **Live**
+off, the screen shows history: the 300 signals heard most recently on the radar, 200 in the list.
+
+**List** shows the same signals as rows: name and what it is on the left, strength and when it was
+heard on the right.
+
+The add-on is remembered. It reconnects on the next load and when plugged back in, without asking.
+**Disconnect** stops that. It never picks a port on its own when a radio you have used has the same
+kind of USB port, or when more than one port could be the add-on.
+
+### The radar
+
+Every shown signal is drawn around you, with its name under the strongest few. The rings show
 distance, and north is up. The add-on has one antenna and can't tell direction, so each point's
 colour says how it was placed:
 
-- **Red: position reported.** A drone's Remote ID position, measured from yours.
-- **Blue: estimated.** Heard from at least three of your positions spread over 30 m or more. The
-  strongest reports pull hardest, and the selected point shows its error circle.
+- **Red: reported position.** A drone's Remote ID position, measured from yours.
+- **Blue: estimated.** Heard from at least three of your positions spread over 30 m or more, or
+  placed by a WiGLE lookup. The selected point shows its error circle.
 - **Hollow: distance only.** A rough distance from signal strength (out by a factor of two or
   three), at a fixed angle so the point stays put. Its direction is unknown.
 
-The shape is the kind: ▲ drone, ■ Wi-Fi, ● Bluetooth, ◆ searching device. Faded points weren't heard
-in the last two minutes, and a ring marks watched ones. Without your position (allow location, or use
-a USB GPS), every point is distance only. **List** shows the same signals as cards.
+The shape is the kind: ▲ drone, ■ Wi-Fi, ● Bluetooth, ◆ searching device. Faded points have gone
+quiet, a ring marks watched ones, and a dashed ring the one you are hunting.
+Without your position (allow location, or use a USB GPS), every point is distance only.
 
-The filters across the top:
+Zoom around yourself with **+** and **−**, the mouse wheel or a pinch. **Auto**, or a double-click,
+fits what is shown again.
 
-- the kind (**All**, **Drones**, **Wi-Fi**, **Bluetooth**, **Searching**) and a search box for names,
-  addresses, notes and tags;
-- **Heard now**, **Watched**, **Noted**, **New today** and **Telemetry**;
-- **Hide private addresses**, on at first: phones change their Bluetooth address about every
-  15 minutes, so each phone would show up many times;
-- a minimum signal, how recently it was heard, and the radar's radius (**Auto** fits most of what is
-  shown).
+### Filters
 
-**Selecting a signal** opens its panel, on the right (or above the radar on a narrow screen). It shows:
+**Filters** holds the ones used less often:
 
-- where it is and how that was found;
-- its signal now and at its strongest, with a line of the last hour;
-- first and last heard, and how many separate times;
-- where you were when you last heard it and when it was strongest, each with **Map**;
-- what it sent: network, security and band, Bluetooth services, or a drone's telemetry (altitude,
-  height, speed, heading, position and the operator's ID and position).
+- **Signal:** any, medium or stronger, or strong only.
+- **Hide changing addresses**, on at first: phones change their Bluetooth address about every
+  15 minutes, so each phone would show up many times.
+- **With my notes**, and **New today**.
+- **Export shown** saves every shown signal as one CSV file, with what it most likely is, notes and
+  places. Names from the air that a spreadsheet would run as a formula are saved as text.
 
-Below these you can give it your own **Name**, a **Note** and **Tags**, **Watch** it, or **Forget**
-it.
+Search covers names, addresses, makers, notes and tags.
 
-**What it most likely is.** Each signal gets a best guess, which shows in the list, the panel, the
-export, the **Is** filter and search. The guess is a kind of device (tracker, phone, router, camera,
-vehicle and so on) and a maker, with a confidence and the reasons:
+### A signal's panel
 
-- the maker registered for its address;
-- the company in its Bluetooth data;
-- its Bluetooth services, or that it is a tracker;
-- its name;
-- your own corrections.
+Selecting a point or a row opens its panel: beside the radar on a wide screen, or as a sheet from the
+bottom on a phone. It shows what the signal most likely is, where it is, its strength and when it was
+last heard, with three buttons:
 
-**Correct** sets it yourself, optionally for every signal of that kind with the same name, such as
-your truck's hotspot everywhere. The maker database ships with the portal and is checked for a newer
-copy whenever the portal opens. A lookup in it sends nothing anywhere. **This app → Signals** shows
-its date and sources, and can forget your corrections.
+- **Hunt** finds it by sound (below).
+- **Map** shows it, or where you last heard it, on the map.
+- **Watch** marks it, for the **Watched** chip.
+
+The rest is folded away:
+
+- **Details:** its strength over the last hour, when it was first heard and how often, where you
+  were, and everything it sends (network, security, Bluetooth services, or a drone's telemetry and
+  operator).
+- **Why:** the reasons for the guess, and **Correct** to set it yourself, optionally for
+  everything with that name.
+- **Notes:** your own name for it, a note and tags, and **Forget this signal**.
+
+### What a signal most likely is
+
+Each signal gets a best guess: a kind of device (tracker, phone, router, camera, vehicle and so on)
+and a maker, with a confidence. The guess uses the maker registered for its address, the company in
+its Bluetooth data, its services, its name, and your corrections. The maker database ships with the
+portal and is checked for a newer copy whenever the portal opens; a lookup in it sends nothing
+anywhere. **This app → Signals** shows its date and sources, and can forget your corrections.
+
+**Flock** and **Ring** have their own chips. Both are recognised from published signatures, and the
+confidence says how sure each match is:
+
+- **Flock Safety** (licence-plate cameras, Raven gunshot detectors, battery packs):
+  - an address registered to Flock Safety (high);
+  - a network named `Flock-XXXXXX`, or a Bluetooth name such as `Penguin-…` or `FS Ext Battery`
+    (high, but reported mostly off the air since early 2026);
+  - the Bluetooth company ID its battery packs use, or a Raven's services (medium);
+  - a device searching for any network on 2.4 GHz from one of the Wi-Fi modules Flock cameras use
+    (medium). This is how cameras are mostly seen today. Other products use the same modules, so it
+    can be wrong.
+- **Ring** (doorbells and cameras):
+  - an address registered to Ring (high);
+  - a `Ring-XXXXXX` or `Ring Setup XX` network, which appears only during setup (medium).
+
+  An installed Ring device joins your Wi-Fi as a client and broadcasts no network of its own, so it
+  is seen only when it searches for one. Ring devices built on another maker's Wi-Fi chip are missed.
+
+A camera that is not transmitting, or one wired to the network, can't be heard at all.
 
 **WiGLE lookups** are optional and off until you turn them on in **This app → Signals** with your
-own WiGLE API name and token. A lookup sends that network's address to WiGLE. WiGLE answers where
-the network has been seen and what it was called, and the radar then places it there (blue, about
-±75 m). Watched networks are looked up on their own, and others with **Look up on WiGLE** in their
-panel. Lookups are limited to 20 a day from this browser.
+own WiGLE API name and token. A lookup sends that network's address to WiGLE, which answers where
+the network has been seen. The radar then places it there (blue, about ±75 m). Watched networks are
+looked up on their own, and others from **Why**. Lookups are limited to 20 a day.
 
-**History.** Every signal is kept in this browser (IndexedDB) with what it last sent, a sighting per
-minute with where you were, and a drone's track. Nothing is deleted automatically (D61). Each signal's
-history is bounded, and past 20,000 signals the one heard longest ago without a note, tag or watch
-goes first. The local wipe in This app deletes it. Nothing is sent over the mesh or anywhere else.
+### Hunt
 
-**Scan plan** sets what the add-on listens to: a focus (**Balanced**, **Drones**, **Wi-Fi** or
-**Bluetooth**), which Wi-Fi bands, Bluetooth, and searching devices. **Apply** sends the whole plan,
-and the add-on says whether it took it.
+**Hunt** finds a signal, like a fox hunt. The portal beeps faster and higher as the signal gets
+stronger, from one slow low beep every 1.5 seconds when it is faint to a fast high one up close. A
+low tick every 2 seconds means it hasn't been heard for a while. The card above the radar shows the
+strength, **Warmer** or **Colder**, the peak and a rough distance. A phone also vibrates. **Mute**
+silences it, and **Stop** ends the hunt.
 
-- **Export** saves every signal the filters show as one CSV file, with notes, tags and places. Times
-  are in UTC. Names from the air that a spreadsheet would run as a formula are saved as text.
-- The **Signals** button shows how many drones were heard in the last two minutes. With
-  notifications allowed in **This app** and the portal out of sight, a new drone also raises a
-  notification, once per drone while the portal is open.
-- The add-on is remembered. It reconnects on the next load, and after being unplugged it reconnects
-  when plugged in again, without asking. **Disconnect** stops that. It never picks a port on its
-  own when a radio you have used has the same kind of USB port, or when more than one port could be
-  the add-on; choose **Connect add-on** then.
+The add-on reports a Wi-Fi network or Bluetooth device at most every 5 seconds (a drone every half
+second), so move slowly and pause. Turn on the spot to find the direction: your body blocks the
+signal from behind.
+
+### Monitoring
+
+**Monitor** records a log for mapping afterwards. Press it, then **Start monitoring**. While it runs,
+every signal heard is logged with your position, the time and its strength: when it is first heard,
+and again whenever you have moved 5 m, its strength has changed by 5 dB, or 30 seconds have passed.
+The button shows the time recorded. Keep the page open and in front; the screen is kept awake where
+the browser allows.
+
+**Stop monitoring** saves the log. Each saved log can be exported two ways:
+
+- **CSV:** one row per logged point, with the time (UTC), your position and its accuracy, the
+  signal's strength, kind, name, address, channel, what it most likely is, and a drone's own
+  reported position.
+- **Map file:** GeoJSON points at the places where each signal was heard, for mapping tools such as
+  QGIS or geojson.io. Points logged without your position are left out.
+
+Without your position, points are still logged, with no place. A log holds up to 250,000 points, and
+the 50 newest logs are kept.
+
+### What is kept
+
+Every signal is kept in this browser (IndexedDB) with what it last sent, a sighting per minute with
+where you were, and a drone's track. Nothing is deleted automatically (D61). Each signal's history
+is bounded, and past 20,000 signals the one heard longest ago without a note, tag or watch goes
+first. Logs are kept the same way. The local wipe in This app deletes all of it. Nothing is sent over
+the mesh or anywhere else.
+
+The **Signals** button shows how many drones were heard in the last two minutes. With notifications
+allowed in **This app** and the portal out of sight, a new drone also raises a notification.
 
 ## Device settings
 
