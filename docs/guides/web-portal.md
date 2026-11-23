@@ -20,13 +20,14 @@ npm run dev:web
 Open the address it prints (normally <http://127.0.0.1:5173/>). `npm run build:web` builds a
 static copy into `dist/web/`.
 
-## The four tabs
+## The tabs
 
 | Tab | What's there |
 | --- | --- |
 | **Comms** | Channels and direct messages with real delivery states, and two-tap brevity phrases |
 | **Map** | Nodes, your position, points and areas, measuring, shared items, MGRS or decimal readout |
 | **Nodes** | Everyone heard, when, how far away, and discovery |
+| **Signals** | What the signals add-on hears: drones, Wi-Fi, Bluetooth and devices searching for networks |
 | **Device** | Live status and every device setting |
 
 The tabs sit on a rail down the left side, or along the bottom on a narrow screen. Night (dark)
@@ -144,6 +145,30 @@ Every node this board has heard, with name, ID, how long ago, and distance and b
 reports a position. **Discover** asks nearby nodes to identify themselves (they answer only if
 they have replies turned on). **Message** opens a direct conversation. The trash button forgets
 a node until it is heard again; its messages stay.
+
+## Signals
+
+The [signals add-on](../contributing/signals-design.md) is a Seeed Studio XIAO ESP32-C5 running the
+[signals firmware](../../firmware/xiao-esp32c5-sensor/README.md). It listens to Wi-Fi on 2.4 and
+5 GHz, Bluetooth LE and drone Remote ID, and only ever listens. Plug it into this computer's USB,
+open **Signals** and choose **Connect add-on**. With no radio, use **Connect signals add-on** on the
+connect screen. It needs Chrome, Edge or the desktop app. **Simulated** shows the same view with no
+hardware.
+
+- **Drones** are only those that broadcast Remote ID. Each shows its ID, type, altitude, height,
+  speed and heading, how it was heard and its operator's ID, and **Show on map** puts it and its
+  operator on the map.
+- **Wi-Fi** lists access points by signal strength, with their band, channel and security. Open
+  networks are marked.
+- **Bluetooth** lists devices with their name or maker, and marks known trackers.
+- **Searching** lists phones and laptops looking for Wi-Fi, and the network names they ask for. It
+  is off until you turn on **Devices searching for networks** in **Scan plan**, because it shows
+  what nearby people's devices remember.
+
+**Scan plan** sets what the add-on listens to: a focus (**Balanced**, **Drones**, **Wi-Fi** or
+**Bluetooth**), which Wi-Fi bands, Bluetooth, and searching devices. **Apply** sends the whole plan,
+and the add-on says whether it took it. Entries not heard for two minutes fade. Nothing here is
+stored or sent over the mesh.
 
 ## Device settings
 

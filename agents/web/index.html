@@ -69,6 +69,9 @@
               <i data-icon="flask-conical"></i>Use simulated device
             </button>
             <button id="connect-browse" type="button">Open without a device</button>
+            <button id="connect-signals" type="button">
+              <i data-icon="antenna"></i>Connect signals add-on
+            </button>
           </div>
         </div>
       </section>
@@ -83,6 +86,9 @@
         </button>
         <button class="rail-item" data-view-target="nodes" type="button">
           <i data-icon="radio-tower"></i><span>Nodes</span>
+        </button>
+        <button class="rail-item" data-view-target="signals" type="button">
+          <i data-icon="antenna"></i><span>Signals</span>
         </button>
         <button class="rail-item" data-view-target="device" type="button">
           <i data-icon="cpu"></i><span>Device</span>
@@ -531,6 +537,83 @@
           <p id="discovery-support" class="notice" data-tone="warn" hidden></p>
           <p id="nodes-empty" class="empty"></p>
           <ul id="nodes" class="node-grid" aria-label="Nodes heard"></ul>
+        </section>
+
+        <section class="signals-view" aria-label="Signals">
+          <header class="signals-head">
+            <div class="grow">
+              <h1>Signals</h1>
+              <small id="signals-state" class="muted" role="status"></small>
+            </div>
+            <button id="signals-simulate" type="button">
+              <i data-icon="flask-conical"></i>Simulated
+            </button>
+            <button id="signals-disconnect" type="button" hidden>
+              <i data-icon="unplug"></i>Disconnect
+            </button>
+            <button id="signals-connect" class="primary" type="button">
+              <i data-icon="usb"></i>Connect add-on
+            </button>
+          </header>
+          <p id="signals-notice" class="notice" data-tone="warn" hidden></p>
+          <details id="signals-plan" class="card signals-plan" hidden>
+            <summary>Scan plan</summary>
+            <div class="signals-plan-body">
+              <label for="signals-profile">Focus</label>
+              <select id="signals-profile" data-segmented>
+                <option value="0">Balanced</option>
+                <option value="1">Drones</option>
+                <option value="2">Wi-Fi</option>
+                <option value="3">Bluetooth</option>
+              </select>
+              <label class="toggle-row">
+                <span>Wi-Fi 2.4 GHz</span><input id="signals-band24" type="checkbox" checked />
+              </label>
+              <label class="toggle-row">
+                <span>Wi-Fi 5 GHz</span><input id="signals-band5" type="checkbox" checked />
+              </label>
+              <label class="toggle-row">
+                <span>Bluetooth</span><input id="signals-bluetooth" type="checkbox" checked />
+              </label>
+              <label class="toggle-row">
+                <span>Devices searching for networks</span>
+                <input id="signals-probes" type="checkbox" />
+              </label>
+              <p class="small faint">
+                Shows phones and laptops looking for Wi-Fi, and the network names they ask for. Off
+                by default. The add-on only listens and never reads Wi-Fi traffic.
+              </p>
+              <div class="signals-plan-actions">
+                <small id="signals-plan-state" class="muted" role="status"></small>
+                <button id="signals-apply" class="primary compact" type="button">Apply</button>
+              </div>
+            </div>
+          </details>
+          <div class="signals-tools">
+            <div class="segmented" role="group" aria-label="Show">
+              <button type="button" data-signals-tab="drones" aria-pressed="true">
+                Drones <span id="signals-count-drones" class="faint"></span>
+              </button>
+              <button type="button" data-signals-tab="wifi" aria-pressed="false">
+                Wi-Fi <span id="signals-count-wifi" class="faint"></span>
+              </button>
+              <button type="button" data-signals-tab="bluetooth" aria-pressed="false">
+                Bluetooth <span id="signals-count-bluetooth" class="faint"></span>
+              </button>
+              <button type="button" data-signals-tab="probes" aria-pressed="false">
+                Searching <span id="signals-count-probes" class="faint"></span>
+              </button>
+            </div>
+            <input
+              id="signals-search"
+              type="search"
+              placeholder="Search name, network or address"
+              autocomplete="off"
+            />
+          </div>
+          <p id="signals-empty" class="empty"></p>
+          <ul id="signals-list" class="signal-list" aria-label="Signals heard"></ul>
+          <small id="signals-more" class="faint" hidden></small>
         </section>
 
         <section class="device-view" aria-label="Device">

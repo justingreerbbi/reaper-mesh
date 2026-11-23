@@ -25,8 +25,11 @@ interface TauriCore {
   Channel: new () => TauriChannel;
 }
 type Filter = { usbVendorId?: number; usbProductId?: number };
-/** Not part of Web Serial: the portal passes 'gps' when choosing a USB GPS receiver. */
-type Purpose = 'board' | 'gps';
+/**
+ * Not part of Web Serial: the portal passes 'gps' when choosing a USB GPS receiver and 'signals'
+ * when choosing a signals add-on (D60).
+ */
+type Purpose = 'board' | 'gps' | 'signals';
 
 (() => {
   const core = (window as unknown as { __TAURI__?: { core: TauriCore } }).__TAURI__?.core;
@@ -224,7 +227,8 @@ type Purpose = 'board' | 'gps';
     candidates: DesktopSerialPort[],
     purpose: Purpose,
   ): Promise<DesktopSerialPort | undefined> {
-    const thing = purpose === 'gps' ? 'GPS receiver' : 'board';
+    const thing =
+      purpose === 'gps' ? 'GPS receiver' : purpose === 'signals' ? 'signals add-on' : 'board';
     return new Promise(resolve => {
       const host = document.createElement('div');
       const root = host.attachShadow({ mode: 'closed' });

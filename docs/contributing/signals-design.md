@@ -2,8 +2,9 @@
 
 Status: **Confirmed** by the owner on November 23, 2026
 ([D60](decisions.md#d60-signals-add-on-with-the-xiao-esp32-c5)). Phase 1 is built: the
-[sensor protocol](../reference/sensor-protocol.md), its codecs and a simulated add-on, tested on a
-computer only. The [Phase 0](#phase-0-bench-spike) bench spike has run on one XIAO ESP32-C5;
+[sensor protocol](../reference/sensor-protocol.md), its codecs and a simulated add-on. Phase 2 is
+built and runs on the owner's C5 over USB, with the portal's Signals view checked against the
+simulated add-on; see [Phase 2](#phase-2-add-on-firmware-and-the-portal-over-direct-usb). The [Phase 0](#phase-0-bench-spike) bench spike has run on one XIAO ESP32-C5;
 its results are below, and its open checks are marked there. Other hardware facts come from vendor
 documents. Where this page proposes a number (a rate, a size, a timeout), it is a starting point
 to measure, not a result.
@@ -311,6 +312,37 @@ Parsers and tables with host tests from captured frames and Remote ID vectors. O
 portal lists real access points and Bluetooth devices, and shows a Remote ID test drone on the map,
 over direct USB. Probe capture stays off until turned on.
 
+**Built (November 23, 2026):**
+
+- **Portable core:** `firmware/components/reaper_sensor/` holds the parsers, tables, byte budget,
+  scheduler and session. Host tests build 802.11, Bluetooth and F3411 frames byte by byte, and a
+  cross-language test decodes the core's reports in the agent and checks them.
+- **Firmware:** `firmware/xiao-esp32c5-sensor/` connects the radios and USB to that core. The image
+  is `xiaoc5-reaper-sensor-v0.1.0`.
+- **Agent:** `packages/agent-core/sensor.ts` and `sensor-serial.ts`.
+- **Portal:** the Signals tab, a "Connect signals add-on" button on the connect screen, drones on
+  the map, and a simulated add-on.
+
+**Verified on the owner's C5:**
+
+- A 60-second session from a scripted host using the agent's codec: one boot and a status every
+  2 seconds without a gap.
+- Real access points (including hidden networks, WPA2 and WPA3) and Bluetooth devices (including
+  tracker hits); every frame passed `checkSensorMessage`, and nothing was dropped.
+
+Three bench findings changed the firmware:
+
+- A loop delay of `pdMS_TO_TICKS(5)` is zero ticks at 100 Hz, which starved the idle task.
+- `usb_serial_jtag_is_connected()` flaps, so it is no longer used.
+- Watchdog text printed on the USB link joined the next frame, so frames now start with a
+  delimiter too.
+
+**Not verified yet:**
+
+- The portal with the real add-on, which needs the owner to choose the port in the browser.
+- Remote ID and long-range Bluetooth from a real transmitter.
+- The desktop app.
+
 ### Phase 3: accessory port on the Heltec V3
 
 Link and USB messages with fixtures appended, not changed. Host tests: detection with an empty,
@@ -335,7 +367,7 @@ The agent-side payload and portal flow for sharing a drone sighting on a channel
 | Question | Needed before |
 | --- | --- |
 | How the attached add-on is powered on battery: the Heltec's 5V pin, a LiPo on the XIAO, or a boost converter | Phase 0 results |
-| Image name. D8's pattern is for nodes; proposed `xiaoc5-reaper-sensor-v{semver}` so a sensor image can't be mistaken for a node image | Phase 2 |
+| Image name. D8's pattern is for nodes; the firmware uses `xiaoc5-reaper-sensor-v{semver}` for now so a sensor image can't be mistaken for a node image. Confirm or change it | Phase 4 |
 | Whether the accessory port should have an off setting for people who wire other things to GPIO47 and GPIO48 | Phase 3 |
 | Which XIAO pins carry the link, now that the UART0 console sits on D6 and D7 | Phase 2 |
 | Which other nodes get an accessory port (T-Beam, Wireless Stick V3); the T1000-E has no header | After Phase 3 |

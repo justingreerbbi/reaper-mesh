@@ -37,6 +37,7 @@ import { settleCommands } from './config-save.ts';
 import { fieldMap, initMap, mapWorkspace, renderMap } from './map-ui.ts';
 import { connectOnLoad, initConnection, renderConnection } from './connection-ui.ts';
 import { initNodes, renderNodes } from './nodes-ui.ts';
+import { initSignals, renderSignals } from './signals-ui.ts';
 import { initDevice, renderDevice } from './device-ui.ts';
 import { initNavigation } from './nav.ts';
 import { hydrateIcons, syncSegmented } from './ui.ts';
@@ -53,6 +54,7 @@ initSettings();
 initMap();
 initConnection();
 initNodes();
+initSignals();
 initDevice();
 
 function renderApp() {
@@ -76,6 +78,7 @@ function renderApp() {
   renderMessages();
   renderInbox();
   renderNodes();
+  renderSignals();
   renderChannels();
   renderDevice();
   mapWorkspace.update();

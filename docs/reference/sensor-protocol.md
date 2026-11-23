@@ -5,11 +5,16 @@ and drone Remote ID ([D60](../contributing/decisions.md#d60-signals-add-on-with-
 and an app. The add-on reports what it hears and the app chooses what it listens to. Why it is
 built this way is in the [signals add-on design](../contributing/signals-design.md).
 
-Version 1 is built in the agent's TypeScript (`packages/protocol/sensor-messages.ts`), the
-portable C++ codec (`firmware/components/reaper_protocol/sensor_protocol.cpp`) and a simulated
-add-on (`packages/simulator/sensor-device.ts`). No add-on firmware exists yet, so nothing here has
-run on hardware. Frozen fixtures in `packages/protocol/fixtures/sensor-*-v1.json` pin the exact
-bytes.
+Version 1 is built in:
+- The agent: `packages/protocol/sensor-messages.ts` for the codec, `packages/agent-core/sensor.ts`
+  for the session and store, and `sensor-serial.ts` for the port.
+- The portable C++ codec: `firmware/components/reaper_protocol/sensor_protocol.cpp`.
+- The add-on's core (`firmware/components/reaper_sensor/`) and its firmware
+  (`firmware/xiao-esp32c5-sensor/`).
+- A simulated add-on: `packages/simulator/sensor-device.ts`.
+
+Frozen fixtures in `packages/protocol/fixtures/sensor-*-v1.json` pin the exact bytes. What has run
+on hardware is in [Status](../overview/status.md).
 
 ## Envelope
 
@@ -25,6 +30,10 @@ Everything else is shared: envelope version `01`, zero flags, a little-endian le
 and COBS with a zero delimiter. A decoder for one protocol drops the other's frames as invalid, so an
 app that opens the wrong port fails cleanly instead of misreading data. The receive buffer holds one
 525-byte frame, and longer input is discarded up to the next delimiter.
+
+Both sides send a zero byte before each frame as well as after it. The add-on's ROM and watchdog
+can print text on the same USB link, and the leading delimiter keeps that text from joining the
+next frame. Decoders ignore empty delimiters, so this costs one byte and changes nothing else.
 
 ## Payload
 
@@ -131,6 +140,20 @@ rejected. A `planStatus` state other than `applied` means the plan was not appli
 reports and `status` to that link. The newest `hello` takes over. A restart changes `boot`, ends
 the session and resets the plan to the default, so the app says `hello` again and resends its plan.
 A `planSet` before any `hello` is ignored.
+
+- Opening the XIAO's USB port restarts it, and it takes about a second to start. The agent repeats
+  `hello` every 500 ms for up to 10 seconds, then reports that the add-on did not answer.
+- A session lasts until the next `hello`. The add-on does not try to detect a closed port, because
+  the C5's USB-connected signal is unreliable. A frame the host does not take within 20 ms is
+  dropped and counted.
+- The agent marks the add-on stalled when no `status` arrives for 6.5 seconds, and ready again
+  when one does.
+
+**Report pacing.** A drone is sent when first heard with a Basic ID, then at most every 500 ms.
+Any other transmitter is sent when first heard, then at most every 5 seconds while it changes. A
+new session gets everything again. Over USB the add-on spends at most 8,000 bytes a second on
+reports. Its tables hold 128 access points, 160 Bluetooth devices, 48 probing devices and 16
+drones; a full table forgets the one heard least recently and counts it in `evicted`.
 
 **Through a node.** There is no sensor `hello`; the node's accessory port establishes presence and
 carries these frames unread. That part is not built yet; see the

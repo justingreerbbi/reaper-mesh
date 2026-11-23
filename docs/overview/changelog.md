@@ -22,6 +22,19 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
 
 ## Unreleased
 
+- **Added:** the signals add-on, phase 2 (D60):
+  - firmware for the XIAO ESP32-C5 (`xiaoc5-reaper-sensor-v0.1.0`), with its parsers, tables,
+    scheduler and session in a portable core (`firmware/components/reaper_sensor/`);
+  - the agent's sensor session and store;
+  - the portal's **Signals** tab (drones, Wi-Fi, Bluetooth and searching devices, a scan plan, and
+    drones and their operators on the map), a "Connect signals add-on" button on the connect screen,
+    and a simulated add-on.
+
+  Frames now start with a delimiter as well as ending with one. **Verified:** host tests; the
+  firmware on the owner's C5 over USB with a scripted host using the agent's codec (real Wi-Fi and
+  Bluetooth reports, a 60-second session with no gaps or drops); the Signals tab in a browser with
+  the simulated add-on. **Not verified:** the portal with the real add-on, Remote ID and long-range
+  Bluetooth from a real transmitter, the desktop app. No node firmware change.
 - **Added:** a listen-only Phase 0 bench spike for the XIAO ESP32-C5 signals add-on (D60), in
   `firmware/spikes/xiao-c5-phase0/`. **Verified on the owner's board:** the pinned ESP-IDF v5.5.4
   runs on the C5; Wi-Fi listening works on 2.4 and 5 GHz, including the radar band; Bluetooth LE 1M

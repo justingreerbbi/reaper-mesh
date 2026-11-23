@@ -1,7 +1,7 @@
 // Which tab is showing, and which page of the Device tab.
 import { app } from './app-state.ts';
 
-export type View = 'comms' | 'map' | 'nodes' | 'device';
+export type View = 'comms' | 'map' | 'nodes' | 'signals' | 'device';
 export type Page =
   | 'home'
   | 'general'

@@ -2,6 +2,7 @@
 // tests and, once the Signals view exists, the portal's Simulator mode. It hears a fixed,
 // deterministic scene: three access points, a phone probing for a network, two Bluetooth devices
 // and one drone flying a circle while broadcasting Remote ID. Nothing here is real radio data.
+import type { SerialPortLike } from '../agent-core/serial.ts';
 import { FrameDecoder, SENSOR_ENVELOPE } from '../protocol/framing.ts';
 import {
   AddressType,
@@ -185,6 +186,50 @@ export class SimulatedSensor {
     const output = Uint8Array.from(this.#outbox.flatMap(frame => [...frame]));
     this.#outbox = [];
     return output;
+  }
+
+  /**
+   * A serial port onto this add-on, for the portal's Simulator mode and host tests. Opening it
+   * restarts the add-on, as opening the XIAO's USB port does. `now` is milliseconds.
+   */
+  createPort(now: () => number = () => Math.floor(performance.now())): SerialPortLike {
+    let input: ReadableStreamDefaultController<Uint8Array> | undefined;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const pump = () => {
+      this.tick(now());
+      const bytes = this.read();
+      if (bytes.length) input?.enqueue(bytes);
+    };
+    const port: SerialPortLike = {
+      readable: null,
+      writable: null,
+      open: async () => {
+        this.reboot(now());
+        port.readable = new ReadableStream<Uint8Array>({
+          start: controller => {
+            input = controller;
+          },
+        });
+        port.writable = new WritableStream<Uint8Array>({
+          write: chunk => {
+            this.write(chunk, now());
+            pump();
+          },
+        });
+        timer = setInterval(pump, 100);
+      },
+      close: async () => {
+        clearInterval(timer);
+        try {
+          input?.close();
+        } catch {
+          // Already closed by the reader.
+        }
+        input = undefined;
+        port.readable = port.writable = null;
+      },
+    };
+    return port;
   }
 
   #newBoot() {

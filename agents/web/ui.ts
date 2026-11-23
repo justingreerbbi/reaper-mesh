@@ -1,6 +1,7 @@
 // Small shared pieces of the interface: icons, pill selectors, notices and confirmation sheets.
 import {
   Activity,
+  Antenna,
   AppWindow,
   ArrowDownUp,
   Bluetooth,
@@ -14,6 +15,7 @@ import {
   CircleDashed,
   CircleHelp,
   Copy,
+  Drone,
   Cpu,
   Crosshair,
   Database,
@@ -52,6 +54,7 @@ import {
   Ruler,
   Scan,
   ScanLine,
+  Search,
   Send,
   Settings2,
   Share2,
@@ -66,6 +69,7 @@ import {
   User,
   Users,
   Waves,
+  Wifi,
   X,
   createElement,
   type IconNode,
@@ -74,6 +78,7 @@ import { element } from './dom.ts';
 
 const ICONS: Record<string, IconNode> = {
   activity: Activity,
+  antenna: Antenna,
   'app-window': AppWindow,
   'arrow-down-up': ArrowDownUp,
   bluetooth: Bluetooth,
@@ -88,6 +93,7 @@ const ICONS: Record<string, IconNode> = {
   'circle-help': CircleHelp,
   copy: Copy,
   cpu: Cpu,
+  drone: Drone,
   crosshair: Crosshair,
   database: Database,
   download: Download,
@@ -125,6 +131,7 @@ const ICONS: Record<string, IconNode> = {
   ruler: Ruler,
   scan: Scan,
   'scan-line': ScanLine,
+  search: Search,
   send: Send,
   'settings-2': Settings2,
   'share-2': Share2,
@@ -139,6 +146,7 @@ const ICONS: Record<string, IconNode> = {
   user: User,
   users: Users,
   waves: Waves,
+  wifi: Wifi,
   x: X,
 };
 

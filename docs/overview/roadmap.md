@@ -38,8 +38,8 @@ Each phase's checks are in the [signals add-on design](../contributing/signals-d
 1. **Finish the bench spike:** Bluetooth long range and Remote ID (each needs a transmitter), current
    draw and battery power through the Heltec (needs a meter), and a partial-duty Bluetooth scan.
    2.4 and 5 GHz listening and Bluetooth LE 1M already work.
-2. **Add-on firmware and the portal's Signals view** over direct USB, with the simulated add-on in
-   the portal's Simulator mode.
+2. **Check the Signals tab with the real add-on** in the portal (owner), and a Remote ID source for
+   the Drones list. The firmware, agent and view are built.
 3. **Accessory port on the Heltec V3**, and the same view through the node over USB and Bluetooth.
 4. **Install and publish:** installer, CI build and board page.
 5. **Sharing drone sightings** on a channel, agent-side.

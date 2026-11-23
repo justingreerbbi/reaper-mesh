@@ -29,6 +29,9 @@ import { onLocalAppStop } from './access-ui.ts';
 import { icon, setNotice } from './ui.ts';
 import { formatAgo } from './geo.ts';
 import { gpsPort, setRadioPortSource } from './gps.ts';
+import { setSignalsRadioPortSource, signalsPort } from './signals.ts';
+import { connectSignalsFromClick } from './signals-ui.ts';
+import { setView } from './nav.ts';
 import {
   forgetDevice,
   readDevices,
@@ -146,10 +149,11 @@ async function attemptConnect(target: Target, quiet: boolean) {
 /** USB adapters can come back as a new port object after being unplugged. */
 async function findUsbPort(known?: { usbVendorId?: number; usbProductId?: number }) {
   const ports = (await serial?.getPorts?.()) ?? [];
-  // A USB GPS can use the same USB serial chip as a board.
+  // A USB GPS can use the same USB serial chip as a board; the signals add-on has its own port.
   const gps = gpsPort();
+  const signals = signalsPort();
   return ports.find(port => {
-    if ((port as unknown) === gps) return false;
+    if ((port as unknown) === gps || (port as unknown) === signals) return false;
     const info = port.getInfo?.();
     return (
       info && info.usbVendorId === known?.usbVendorId && info.usbProductId === known?.usbProductId
@@ -502,6 +506,7 @@ export function initConnection() {
   setRadioPortSource(() =>
     wanted?.kind === 'usb' ? (wanted.port as unknown as SerialPort) : undefined,
   );
+  setSignalsRadioPortSource(() => (wanted?.kind === 'usb' ? wanted.port : undefined));
   setConnectAction(() => {
     browsing = false;
     render();
@@ -515,6 +520,15 @@ export function initConnection() {
   element('connect-browse').addEventListener('click', () => {
     browsing = true;
     connectProblem = '';
+    render();
+    fieldMap.invalidate();
+  });
+  // For someone with only the signals add-on: open the app without a radio, on the Signals tab.
+  element('connect-signals').addEventListener('click', async () => {
+    if (!(await connectSignalsFromClick())) return;
+    browsing = true;
+    connectProblem = '';
+    setView('signals');
     render();
     fieldMap.invalidate();
   });

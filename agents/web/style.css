@@ -53,6 +53,7 @@ body {
 .app:not([data-view='comms']) .comms,
 .app:not([data-view='map']) .map-view,
 .app:not([data-view='nodes']) .nodes-view,
+.app:not([data-view='signals']) .signals-view,
 .app:not([data-view='device']) .device-view {
   display: none;
 }
@@ -1141,6 +1142,108 @@ button.filled {
 }
 .node-card-actions > button:first-child {
   flex: 1;
+}
+
+/* Signals (D60). */
+.signals-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.signals-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 4px;
+}
+.signals-plan summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.signals-plan-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.signals-plan-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.signals-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.signals-tools input[type='search'] {
+  flex: 1;
+  min-width: 180px;
+}
+.signal-list {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.signal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.signal-card.is-stale {
+  opacity: 0.6;
+}
+.signal-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.signal-card-head strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.signal-strength {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.signal-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.signal-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.drone-marker .drone-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e5484d;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px rgb(229 72 77 / 35%);
+}
+.drone-marker .drone-dot.is-stale {
+  background: #8a8f98;
+  box-shadow: none;
 }
 
 /* Device. */

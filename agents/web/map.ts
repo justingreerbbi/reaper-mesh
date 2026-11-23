@@ -52,6 +52,21 @@ function tag(kind: string, shape: string, label: string, size: number) {
 export const TRACK_COLOR = '#ff7a45';
 
 export type TrailStep = Readonly<{ from: LngLat; to: LngLat; fade: number }>;
+/** A drone heard by the signals add-on (D60), and its operator when Remote ID gives one. */
+export type DroneMark = Readonly<{
+  id: string;
+  label: string;
+  at: LngLat;
+  operator?: LngLat;
+  stale: boolean;
+}>;
+
+/** A tooltip from untrusted text: a text node, never HTML. */
+function plainTooltip(value: string) {
+  const span = document.createElement('span');
+  span.textContent = value;
+  return span;
+}
 
 const nodeIcon = (point: MapPoint) =>
   tag(
@@ -76,6 +91,7 @@ export class FieldMap {
   #me: L.Marker | undefined;
   #trails: L.LayerGroup;
   #trailSignature = '';
+  #drones: L.LayerGroup;
   /** Moving the map to follow this computer, which the user's own drag ends. */
   #following = false;
   #drawing = false;
@@ -106,6 +122,7 @@ export class FieldMap {
     this.setBasemap('dark');
     this.#trails = L.layerGroup().addTo(this.map);
     this.#layer = L.layerGroup().addTo(this.map);
+    this.#drones = L.layerGroup().addTo(this.map);
     this.#annotations = L.layerGroup().addTo(this.map);
     this.#tool = L.layerGroup().addTo(this.map);
     this.map.on('move', () => this.onMove?.());
@@ -220,6 +237,42 @@ export class FieldMap {
     this.#selectedItem = key;
     for (const [id, marker] of this.#annotationMarkers)
       marker.getElement()?.classList.toggle('is-selected', id === key);
+  }
+
+  /** Redraws the drones the signals add-on reports, each with a line to its operator. */
+  setDrones(drones: readonly DroneMark[]) {
+    this.#drones.clearLayers();
+    for (const drone of drones) {
+      const at = L.latLng(drone.at[1], drone.at[0]);
+      L.marker(at, {
+        keyboard: false,
+        icon: L.divIcon({
+          className: 'drone-marker',
+          html: `<div class="drone-dot${drone.stale ? ' is-stale' : ''}"></div>`,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        }),
+      })
+        .bindTooltip(plainTooltip(drone.label))
+        .addTo(this.#drones);
+      if (!drone.operator) continue;
+      const operator = L.latLng(drone.operator[1], drone.operator[0]);
+      L.circleMarker(operator, { radius: 6, color: '#ebbb5f', weight: 2, fillOpacity: 0.5 })
+        .bindTooltip(plainTooltip(`Operator of ${drone.label}`))
+        .addTo(this.#drones);
+      L.polyline([at, operator], {
+        color: '#ebbb5f',
+        weight: 1.5,
+        dashArray: '4 4',
+        interactive: false,
+      }).addTo(this.#drones);
+    }
+  }
+
+  /** Centres the map on a point, for "Show on map" from another view. */
+  showPoint([lng, lat]: LngLat) {
+    this.#userMoved = true;
+    this.map.setView([lat, lng], Math.max(this.map.getZoom(), 15));
   }
 
   focus(id: string) {
