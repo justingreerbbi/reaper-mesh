@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  LOG_BETWEEN_MS,
   LOG_EVERY_MS,
   LOG_FIX_MS,
   LOG_LIMITS,
@@ -9,12 +10,14 @@ import {
   logGeoJson,
   logPointsCsv,
   MemoryLogStorage,
+  positioned,
   routeOf,
   SignalLogger,
   summarize,
   type Here,
   type LogEntry,
   type LogRow,
+  type SignalRow,
 } from '../../packages/agent-core/signals-log.ts';
 import type { Place } from '../../packages/agent-core/signals-intel.ts';
 
@@ -182,25 +185,33 @@ test('a log exports a CSV per signal, a CSV of every point, and a map file', () 
       reported: { lat: 38.91, lon: -77.01 },
       at: t(2),
     },
-    { kind: 'route', at: t(3), place: { lat: 38.901, lon: -77, accuracy: 5 } },
+    // Too long after the first to place the rows between them.
+    {
+      kind: 'route',
+      at: t(1) + LOG_BETWEEN_MS,
+      place: { lat: 38.901, lon: -77, accuracy: 5 },
+    },
   ];
   const [head, cafe, drone, end] = logCsv(rows).split('\r\n');
   assert.match(head, /^Kind,Name,Address or ID,Most likely,Maker,Known device,Strongest \(dBm\),/);
   assert.equal(
     cafe,
-    `Wi-Fi network,"'=Cafe, ""free""",02:A1:B2:C3:D4:E5,Router or access point,Flock,Flock Safety camera,-61,38.9,-77,4,-61,2026-11-23T12:00:01.000Z,12,2026-11-23T12:00:01.000Z,2026-11-23T12:00:01.000Z,1,36,,`,
+    `Wi-Fi network,"'=Cafe, ""free""",02:A1:B2:C3:D4:E5,Router or access point,Flock,Flock Safety camera,-61,38.9,-77,4,-61,2026-11-23T12:00:01.000Z,Fix,12,2026-11-23T12:00:01.000Z,2026-11-23T12:00:01.000Z,1,36,,`,
   );
   assert.equal(
     drone,
-    'Drone,DRONE1,DRONE1,,,,-70,,,,,,,2026-11-23T12:00:02.000Z,2026-11-23T12:00:02.000Z,1,,38.91,-77.01',
+    'Drone,DRONE1,DRONE1,,,,-70,,,,,,,,2026-11-23T12:00:02.000Z,2026-11-23T12:00:02.000Z,1,,38.91,-77.01',
     'never placed, still listed',
   );
   assert.equal(end, '');
 
   const points = logPointsCsv(rows).split('\r\n');
-  assert.match(points[0], /^Time \(UTC\),Latitude,Longitude,Accuracy \(m\),Position age \(s\),/);
+  assert.match(
+    points[0],
+    /^Time \(UTC\),Latitude,Longitude,Accuracy \(m\),Position from,Position age \(s\),/,
+  );
   assert.equal(points.length, 6);
-  assert.equal(points[1], '2026-11-23T12:00:00.000Z,38.9,-77,4,,,You');
+  assert.equal(points[1], '2026-11-23T12:00:00.000Z,38.9,-77,4,Fix,,,You');
 
   const geo = JSON.parse(logGeoJson({ id: 'log', startedAt: t(0) } as never, rows));
   assert.equal(geo.type, 'FeatureCollection');
@@ -216,4 +227,40 @@ test('a log exports a CSV per signal, a CSV of every point, and a map file', () 
   assert.equal(geo.features[1].properties.knownDevice, 'Flock Safety camera');
   assert.equal(geo.features[1].properties.signal, -61);
   assert.equal(geo.features[1].properties.positionAge, 12);
+  assert.equal(geo.features[1].properties.positionFrom, 'Fix');
+});
+
+test('standing still, a route point is still logged every half minute', async () => {
+  const storage = new MemoryLogStorage();
+  const logger = new SignalLogger(storage);
+  await logger.start(0, 'still');
+  for (const at of [0, 10_000, 20_000, LOG_EVERY_MS + 1, LOG_EVERY_MS + 20_000])
+    logger.moved(near(0, 0), at);
+  await logger.stop(100_000);
+  assert.deepEqual(
+    (await storage.readRows('still')).map(row => row.at),
+    [0, LOG_EVERY_MS + 1],
+  );
+});
+
+test('rows are placed between the route points around them, by time', () => {
+  const route = (at: number, place: Place): LogRow => ({ kind: 'route', at, place });
+  const rows = positioned([
+    row(-60, undefined, 0, { id: 'before' }),
+    route(1000, near(0, 0)),
+    { ...(row(-60, near(0, 0), 31_000, { id: 'held' }) as SignalRow), fixAge: 30 },
+    row(-60, undefined, 46_000, { id: 'unplaced' }),
+    route(61_000, near(600, 0)),
+    row(-60, near(600, 0), 100_000, { id: 'long gap' }),
+    route(62_000 + LOG_BETWEEN_MS, near(900, 0)),
+  ]);
+  const byId = new Map(rows.flatMap(r => (r.kind === 'route' ? [] : [[r.id, r]])));
+  assert.equal(byId.get('before')!.place, undefined, 'before the first route point');
+  const held = byId.get('held')!;
+  assert.ok(Math.abs(held.place!.lat - near(300, 0).lat) < 1e-9, 'halfway, not the old position');
+  assert.equal(held.between, true);
+  assert.equal(held.fixAge, undefined);
+  assert.ok(Math.abs(byId.get('unplaced')!.place!.lat - near(450, 0).lat) < 1e-9);
+  assert.deepEqual(byId.get('long gap')!.place, near(600, 0), 'too long a gap to guess');
+  assert.equal(byId.get('long gap')!.between, undefined);
 });

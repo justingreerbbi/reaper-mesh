@@ -291,11 +291,19 @@ strength: when it is first heard, and again whenever you have moved 5 m, its str
 5 dB, it is the strongest it has been, or 30 seconds have passed. The button shows the time
 recorded. Keep the page open and in front; the screen is kept awake where the browser allows.
 
-A phone's browser sends a new position only when it changes, so while you stand still or crawl in
-traffic your last position is used, for up to 2 minutes. The sheet shows how old it is once it is
-more than 10 seconds old, and the exports give the age in **Position age (s)**. A signal heard before
-your first position, or after 2 minutes without one, is logged with no place; it gets one the next
-time it is heard with a position.
+Where your position comes from matters most. A phone, or a laptop with a **USB GPS** (Device →
+**This app** → **Location from**), gives a position every second or so, to a few metres. A laptop
+without GPS places itself from nearby Wi-Fi: about once a minute, to 40–120 m, which while driving is
+too coarse to tell one house from the next. Being connected to a phone's hotspot doesn't change that:
+a hotspot shares the internet, not the phone's GPS. While monitoring, the sheet shows how rough your
+position is and how often it arrives, and warns when it is Wi-Fi.
+
+A position is used for up to 2 minutes, since a browser sends a new one only when it changes; the
+sheet shows its age once it is more than 10 seconds old. Your route gets a point every 5 m moved, and
+every 30 seconds standing still. In the exports, each signal row is placed between the route points
+around it, by time (**Position from: Between fixes**), rather than at the last position, which while
+driving lags by up to a minute of travel. A signal heard before your first position, or with no route
+points within 3 minutes either side, keeps the position it was logged with, or none.
 
 **Stop monitoring** saves the log. **View on map** shows a log on the Map tab, during or after
 monitoring: your route in orange, and one point per signal at the place you were when it was
@@ -310,7 +318,7 @@ Each saved log can also be exported:
 
 - **CSV:** one row per signal, at the place you were when it was strongest: kind, name, address,
   what it most likely is, maker, the strongest strength, the latitude and longitude with their
-  accuracy and age, when it was first and last heard, how many times it was logged, its channel, and
+  accuracy, how they were found and their age, when it was first and last heard, how many times it was logged, its channel, and
   a drone's own reported position. A signal never heard with your position is still listed, with no
   place.
 - **All points:** every logged row, your route included (as **You**), for mapping coverage.

@@ -227,7 +227,13 @@ for a fixed time; live-feed guidance says to mark new items, not reorder silentl
     last rule means the closest approach on a drive is never missed.
   - Each row has the time, the user's position with its accuracy and, when older than 10 s, its age,
     strength, kind, name, address, channel, the guess, and a drone's reported position.
-  - The user's route is logged in the same rows (`kind: 'route'`) after each 5 m moved.
+  - The user's route is logged in the same rows (`kind: 'route'`) after each 5 m moved, and every
+    30 s standing still.
+  - Exports place each signal row between the route points around it by time (`positioned`), when
+    they are at most 3 minutes apart (`LOG_BETWEEN_MS`). A first drive on a laptop without GPS got a
+    Wi-Fi position once a minute at ±40–120 m; holding the last one put rows up to a minute of
+    travel behind. The sheet warns when the browser's position is rougher than 25 m or rarer than
+    every 10 s.
   - The logger keeps its own latest position and uses it for up to 2 minutes (`LOG_FIX_MS`). A
     phone's browser sends a fix only when the position changes, and the app-wide 10 s staleness
     left rows without a place whenever the user stopped.

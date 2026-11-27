@@ -10,6 +10,10 @@
  *
  * Every row is kept. The summary (`summarize`) is one line per signal, placed where the user was
  * when it was strongest; that is what the CSV, the map file and the map view show.
+ *
+ * Positions can arrive far apart: a computer without GPS gets one from Wi-Fi about once a minute.
+ * So exports place each row between the route points around it, by time (`positioned`), instead of
+ * at the last position, which while driving is behind by up to a minute of travel.
  */
 import { distanceBetween, type Place, type SignalKind } from './signals-intel.ts';
 
@@ -53,6 +57,8 @@ export type SignalRow = LogEntry &
     place?: Place;
     /** How old the user's position was, in seconds, when it was not fresh. */
     fixAge?: number;
+    /** Placed between two route points by time, in exports; never stored. */
+    between?: true;
   }>;
 /** A point of the user's own route. */
 export type RouteRow = Readonly<{ kind: 'route'; at: number; place: Place }>;
@@ -90,6 +96,8 @@ export const LOG_EVERY_MS = 30_000;
 export const LOG_FIX_MS = 2 * 60_000;
 /** A position older than this is marked with its age. */
 const FRESH_FIX_MS = 10_000;
+/** Two route points up to this far apart in time place the rows heard between them. */
+export const LOG_BETWEEN_MS = 3 * 60_000;
 const CHUNK_ROWS = 200;
 
 /** The user's position for a row, and when it was fixed. */
@@ -111,8 +119,9 @@ export class SignalLogger {
   #last = new Map<string, Last>();
   #buffer: LogRow[] = [];
   #chunk = 0;
-  /** The last route point. */
+  /** The latest position, and when the last route point was logged. */
   #here: Here | undefined;
+  #routeAt = 0;
   #writing: Promise<void> = Promise.resolve();
 
   constructor(storage: LogStorage) {
@@ -135,12 +144,15 @@ export class SignalLogger {
     this.#buffer = [];
     this.#chunk = 0;
     this.#here = undefined;
+    this.#routeAt = 0;
     await this.#storage.putSession(this.session);
   }
 
   /**
    * A new position for the user: added to the route once they have moved a little (small jitter
-   * while standing still is ignored), and used for signals heard until the next one.
+   * while standing still is ignored), and used for signals heard until the next one. Standing still,
+   * a route point is still logged every half minute, so a stop is not mistaken for slow travel when
+   * rows are placed between route points.
    */
   moved(place: Place, at: number) {
     const session = this.session;
@@ -149,12 +161,14 @@ export class SignalLogger {
     if (this.#here && step < LOG_MOVE_M) {
       // Still here: the position is as good as new.
       this.#here = { place: this.#here.place, at };
-      return;
+      if (at - this.#routeAt < LOG_EVERY_MS) return;
+    } else {
+      if (this.#here) session.distance += step;
+      this.#here = { place, at };
     }
-    if (this.#here) session.distance += step;
-    this.#here = { place, at };
+    this.#routeAt = at;
     session.route = (session.route ?? 0) + 1;
-    this.#add({ kind: 'route', at, place });
+    this.#add({ kind: 'route', at, place: this.#here.place });
   }
 
   /** Where the user is, from the latest position if it is recent enough to use. */
@@ -258,6 +272,48 @@ export class MemoryLogStorage implements LogStorage {
   }
 }
 
+// Placing rows.
+
+/**
+ * Every row, with each signal row placed between the two route points around it, by time, when
+ * they are at most `LOG_BETWEEN_MS` apart. Others keep the position they were logged with. A row
+ * heard before the first route point or after the last is never moved.
+ */
+export function positioned(rows: readonly LogRow[]): LogRow[] {
+  const route = rows.filter((row): row is RouteRow => row.kind === 'route');
+  if (route.length < 2) return [...rows];
+  route.sort((a, b) => a.at - b.at);
+  return rows.map(row => {
+    if (!isSignalRow(row)) return row;
+    // The last route point at or before the row.
+    let low = 0;
+    let high = route.length - 1;
+    if (row.at < route[0].at || row.at > route[high].at) return row;
+    while (low < high) {
+      const middle = (low + high + 1) >> 1;
+      if (route[middle].at <= row.at) low = middle;
+      else high = middle - 1;
+    }
+    const before = route[low];
+    const after = route[Math.min(low + 1, route.length - 1)];
+    if (after.at - before.at > LOG_BETWEEN_MS) return row;
+    const share = after.at === before.at ? 0 : (row.at - before.at) / (after.at - before.at);
+    const accuracies = [before.place.accuracy, after.place.accuracy].filter(
+      (value): value is number => typeof value === 'number',
+    );
+    const { fixAge: _age, ...rest } = row;
+    return {
+      ...rest,
+      place: {
+        lat: before.place.lat + (after.place.lat - before.place.lat) * share,
+        lon: before.place.lon + (after.place.lon - before.place.lon) * share,
+        ...(accuracies.length ? { accuracy: Math.max(...accuracies) } : {}),
+      },
+      between: true as const,
+    };
+  });
+}
+
 // Summary.
 
 /** One signal over a whole log. */
@@ -285,8 +341,9 @@ export type SignalSummary = Readonly<{
   best?: Placed;
 }>;
 
-/** One line per signal, in the order first heard. */
-export function summarize(rows: readonly LogRow[]): SignalSummary[] {
+/** One line per signal, in the order first heard, with rows placed by `positioned`. */
+export function summarize(logged: readonly LogRow[]): SignalSummary[] {
+  const rows = positioned(logged);
   type Building = { -readonly [K in keyof SignalSummary]: SignalSummary[K] };
   const signals = new Map<string, Building>();
   for (const row of rows) {
@@ -342,6 +399,9 @@ const KINDS: Record<SignalKind | 'route', string> = {
   probe: 'Searching device',
   route: 'You',
 };
+/** How a row was placed: at a position, or between two by time. */
+const positionFrom = (row: SignalRow | undefined) =>
+  !row?.place ? undefined : row.between ? 'Between fixes' : 'Fix';
 const csv = (columns: readonly string[], lines: readonly Cell[][]) =>
   [columns.map(csvCell).join(','), ...lines.map(line => line.map(csvCell).join(','))].join('\r\n') +
   '\r\n';
@@ -359,6 +419,7 @@ const SUMMARY_COLUMNS = [
   'Accuracy (m)',
   'Signal there (dBm)',
   'There at (UTC)',
+  'Position from',
   'Position age (s)',
   'First heard (UTC)',
   'Last heard (UTC)',
@@ -389,6 +450,7 @@ export function logCsv(rows: readonly LogRow[]) {
       signal.best?.place.accuracy ?? undefined,
       signal.best?.rssi,
       signal.best && iso(signal.best.at),
+      positionFrom(signal.best),
       signal.best?.fixAge,
       iso(signal.firstAt),
       iso(signal.lastAt),
@@ -405,6 +467,7 @@ const POINT_COLUMNS = [
   'Latitude',
   'Longitude',
   'Accuracy (m)',
+  'Position from',
   'Position age (s)',
   'Signal (dBm)',
   'Kind',
@@ -422,13 +485,14 @@ const POINT_COLUMNS = [
 export function logPointsCsv(rows: readonly LogRow[]) {
   return csv(
     POINT_COLUMNS,
-    rows.map(row =>
+    positioned(rows).map(row =>
       isSignalRow(row)
         ? [
             iso(row.at),
             row.place?.lat,
             row.place?.lon,
             row.place?.accuracy ?? undefined,
+            positionFrom(row),
             row.fixAge,
             row.rssi,
             KINDS[row.kind],
@@ -446,6 +510,7 @@ export function logPointsCsv(rows: readonly LogRow[]) {
             row.place.lat,
             row.place.lon,
             row.place.accuracy ?? undefined,
+            'Fix',
             undefined,
             undefined,
             KINDS.route,
@@ -496,6 +561,7 @@ export function logGeoJson(session: LogSession, rows: readonly LogRow[]) {
             ...(signal.maker ? { maker: signal.maker } : {}),
             ...(signal.device ? { knownDevice: signal.device } : {}),
             ...(best.place.accuracy ? { accuracy: best.place.accuracy } : {}),
+            positionFrom: positionFrom(best),
             ...(best.fixAge ? { positionAge: best.fixAge } : {}),
             ...(signal.reported
               ? { reportedLatitude: signal.reported.lat, reportedLongitude: signal.reported.lon }

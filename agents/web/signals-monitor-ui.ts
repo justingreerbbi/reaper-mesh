@@ -9,7 +9,7 @@ import { element } from './dom.ts';
 import { formatDistance } from './geo.ts';
 import { fieldMap } from './map-ui.ts';
 import type { LogMark } from './map.ts';
-import { currentView, onViewChange, setView } from './nav.ts';
+import { currentView, onViewChange, openPage, setView } from './nav.ts';
 import { keepAwake } from './keep-awake.ts';
 import { currentFix, locationProblem, onFix, wantLocation, type Fix } from './location.ts';
 import { IndexedDbLogs } from './signals-db.ts';
@@ -42,6 +42,17 @@ let flushTimer: ReturnType<typeof setInterval> | undefined;
 let clock: ReturnType<typeof setInterval> | undefined;
 let signature = '';
 let wiped = false;
+/** When the last few positions arrived, to tell a GPS (every second) from Wi-Fi (about a minute). */
+let fixTimes: number[] = [];
+/** Positions rougher or rarer than this are not good enough for driving. */
+const ROUGH_M = 25;
+const RARE_MS = 10_000;
+
+/** Seconds between positions lately, once there are a few to go by. */
+function fixInterval() {
+  if (fixTimes.length < 3) return undefined;
+  return (fixTimes[fixTimes.length - 1] - fixTimes[0]) / (fixTimes.length - 1);
+}
 
 export const isMonitoring = () => !!logger?.active;
 
@@ -104,6 +115,7 @@ async function start() {
     problem = `Monitoring couldn't start: ${error instanceof Error ? error.message : error}`;
     return renderMonitor();
   }
+  fixTimes = [];
   // A position the map or a track already has counts from the start.
   const fix = currentFix();
   if (fix) logger.moved(placeOf(fix), fix.at);
@@ -305,16 +317,36 @@ export function renderMonitor() {
   const now = Date.now();
   const here = logger?.here(now);
   const age = here ? Math.round((now - here.at) / 1000) : 0;
+  const interval = fixInterval();
+  const accuracy = here?.place.accuracy ?? 0;
   setText(
     element('signals-monitor-location'),
     !active
       ? ''
       : here
-        ? `Position ±${formatDistance(here.place.accuracy ?? 0, preferences.units)}` +
-          (age > 10 ? ` · ${age} s old` : '')
+        ? [
+            `Position ±${formatDistance(accuracy, preferences.units)}`,
+            interval !== undefined ? `every ${Math.max(1, Math.round(interval / 1000))} s` : '',
+            age > 10 ? `${age} s old` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')
         : locationProblem()
           ? 'No position: location is off'
           : 'Waiting for your position',
+  );
+  // A computer without GPS places itself from Wi-Fi: tens of metres, about once a minute.
+  const rough =
+    active &&
+    !!here &&
+    preferences.locationSource === 'browser' &&
+    (accuracy > ROUGH_M || (interval ?? 0) > RARE_MS);
+  element('signals-monitor-rough').hidden = !rough;
+  setText(
+    element('signals-monitor-rough-text'),
+    rough
+      ? "Rough position: this computer has no GPS, so it uses Wi-Fi. A phone's hotspot doesn't share its GPS."
+      : '',
   );
   const startStop = element<HTMLButtonElement>('signals-monitor-toggle');
   startStop.disabled = !logger;
@@ -347,7 +379,15 @@ export function initMonitor() {
     if (entry) logger.observe(entry, at);
     if (!logger.active) void stop(); // The log filled up.
   });
-  onFix(fix => logger?.moved(placeOf(fix), fix.at));
+  onFix(fix => {
+    if (!logger?.active) return;
+    fixTimes = [...fixTimes, fix.at].slice(-4);
+    logger.moved(placeOf(fix), fix.at);
+  });
+  element('signals-monitor-gps').addEventListener('click', () => {
+    element<HTMLDialogElement>('signals-monitor-sheet').close();
+    openPage('app');
+  });
   // A log on the map is only a look: it goes when the user leaves the Map tab.
   onViewChange(() => {
     if (currentView() !== 'map') clearMapLog();

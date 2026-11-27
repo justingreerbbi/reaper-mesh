@@ -26,8 +26,11 @@ what was verified on hardware, and what was not. Link the decision (`Dnn`) when 
   where it was strongest, cleared when the Map tab is left. Monitoring now logs your route, logs a
   signal whenever it is the strongest it has been, and keeps using your last position for up to
   2 minutes (a phone sends none while standing still), so far fewer rows lack coordinates. The CSV is
-  now one row per signal at its strongest spot; **All points** exports every row. **Verified:** host
-  tests; in a browser with a simulated drive. **Not verified:** a real drive with a phone.
+  now one row per signal at its strongest spot; **All points** exports every row. Exports place each
+  row between the route points around it by time, and monitoring warns when the position comes from
+  Wi-Fi (a first drive on a laptop got one position a minute, to ±40–120 m). **Verified:** host
+  tests; in a browser with simulated GPS and Wi-Fi positions. **Not verified:** a real drive with a
+  phone or USB GPS.
 - **Added:** to the Signals screen, after a review of what was missing:
   - **alerts** with a chirp, for a watched signal returning, a drone, a Flock or Ring device, and
     anything **moving with you** (heard at several of your places);
